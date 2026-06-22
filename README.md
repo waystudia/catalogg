@@ -1,6 +1,6 @@
 # restaurant-catalog-template
 
-Универсальный шаблон электронного каталога ресторана на `React + TypeScript + Vite + Supabase`.
+Универсальный шаблон электронного каталога ресторана на `React + TypeScript + Vite` с возможностью позже подключить `Supabase`.
 
 ## Что уже подготовлено
 
@@ -9,7 +9,7 @@
 - `ErrorBoundary`, `LoadingState`, `ErrorState`, `EmptyState`
 - `HashRouter` для простого MVP на GitHub Pages
 - базовый guard для `/admin/*`
-- клиент Supabase и валидация env
+- автономный локальный режим без обязательных внешних сервисов
 - Zustand store для корзины
 - SQL-миграции, seed-файлы и GitHub Actions workflow
 - PWA-конфигурация и SVG-иконки-заглушки
@@ -17,10 +17,11 @@
 ## Быстрый старт
 
 1. Установите Node.js 20+.
-2. Скопируйте `.env.example` в `.env.local`.
-3. Заполните `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`.
-4. Установите зависимости: `npm install`
-5. Запустите проект: `npm run dev`
+2. Установите зависимости: `npm install`
+3. Запустите проект: `npm run dev`
+
+Проект запускается и без `.env`, потому что в репозитории есть локальные демонстрационные данные.
+Подключение Supabase можно добавить позже, когда понадобится реальное хранилище.
 
 ## Проверка перед публикацией
 
