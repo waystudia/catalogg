@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2563EB" />
+    <link rel="icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.svg" />
+    <title>Restaurant Catalog Template</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --fallback-bg: #f5f6f8;
+        --fallback-surface: #ffffff;
+        --fallback-text: #111827;
+        --fallback-muted: #6b7280;
+        --fallback-primary: #2563eb;
+        --fallback-border: #dbe3f0;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 35%),
+          var(--fallback-bg);
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      .boot-fallback {
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .boot-card {
+        width: 100%;
+        max-width: 720px;
+        border: 1px solid var(--fallback-border);
+        border-radius: 24px;
+        background: var(--fallback-surface);
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+        padding: 32px;
+        color: var(--fallback-text);
+      }
+
+      .boot-badge {
+        display: inline-block;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--fallback-primary);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .boot-card h1 {
+        margin: 16px 0 0;
+        font-size: 32px;
+        line-height: 1.15;
+      }
+
+      .boot-card p {
+        margin: 12px 0 0;
+        color: var(--fallback-muted);
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      .boot-loader {
+        margin-top: 24px;
+        height: 8px;
+        width: 100%;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5e7eb;
+      }
+
+      .boot-loader::after {
+        content: "";
+        display: block;
+        height: 100%;
+        width: 35%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #2563eb, #60a5fa);
+        animation: boot-slide 1.4s infinite ease-in-out;
+      }
+
+      .boot-help {
+        display: none;
+        margin-top: 20px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px solid var(--fallback-border);
+        padding: 16px 18px;
+      }
+
+      .boot-help strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .boot-help code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .boot-help.is-visible {
+        display: block;
+      }
+
+      @keyframes boot-slide {
+        0% {
+          transform: translateX(-120%);
+        }
+
+        100% {
+          transform: translateX(320%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-fallback">
+        <div class="boot-card">
+          <span class="boot-badge">Catalog</span>
+          <h1>Загрузка каталога</h1>
+          <p>
+            Приложение запускается. Если экран не изменится в течение нескольких секунд,
+            значит открыт не тот режим запуска или сервер ещё не собран.
+          </p>
+          <div class="boot-loader" aria-hidden="true"></div>
+          <div class="boot-help" id="boot-help">
+            <strong>Подсказка для разработки</strong>
+            <p>
+              Для локального просмотра используйте <code>npm run dev</code> или
+              <code>npm run preview</code>. Через обычный статический просмотрщик
+              исходники React/Vite не запускаются.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.setTimeout(() => {
+        const help = document.getElementById('boot-help');
+        if (help) {
+          help.classList.add('is-visible');
+        }
+      }, 4000);
+    </script>
+  </body>
+  </html>
