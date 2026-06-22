@@ -1,118 +1,406 @@
-export type CatalogProduct = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  available: boolean;
-  category: string;
-  tags: string[];
+import type { Cabin, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+
+const image = (id: string, query: string) =>
+  `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=78&${query}`;
+
+export const restaurant: Restaurant = {
+  id: 'mangal',
+  name: 'Мангал',
+  subtitle: 'ресторан',
+  logo_url: '',
+  banner_url: image('photo-1555396273-367ea4eb4db5', 'restaurant'),
+  whatsapp: '79990000000',
+  address: 'ул. Центральная, 12'
 };
 
-export type CatalogSection = {
-  slug: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  products: CatalogProduct[];
+export const themeSettings: ThemeSettings = {
+  id: 'theme-mangal',
+  restaurant_id: restaurant.id,
+  background_type: 'color',
+  background_color: '#070809',
+  background_image_url: '',
+  card_color: '#121416',
+  card_radius: 18,
+  card_shadow: '0 22px 70px rgba(0, 0, 0, 0.32)',
+  text_primary: '#f8f5ef',
+  text_secondary: '#aaa39a',
+  accent_color: '#e8a23a',
+  accent_secondary: '#ffd082',
+  button_style: 'filled',
+  button_radius: 14,
+  header_style: 'centered'
 };
 
-export const catalogData: { sections: CatalogSection[] } = {
-  sections: [
-    {
-      slug: 'grill',
-      eyebrow: 'Огонь и угли',
-      title: 'Мангал',
-      description: 'Быстрый старт для мясного меню с понятными локальными данными.',
-      products: [
-        {
-          id: 'shashlik-lamb',
-          name: 'Шашлык из баранины',
-          description: 'Сочный шашлык с луком, зеленью и соусом на выбор.',
-          price: 4200,
-          available: true,
-          category: 'Мангал',
-          tags: ['хит', 'мясо', 'огонь']
-        },
-        {
-          id: 'beef-kebab',
-          name: 'Люля-кебаб из говядины',
-          description: 'Плотная текстура, дымный аромат и тонкий лаваш в комплекте.',
-          price: 3600,
-          available: true,
-          category: 'Мангал',
-          tags: ['кебаб', 'лавaш', 'ужин']
-        },
-        {
-          id: 'grilled-vegetables',
-          name: 'Овощи на гриле',
-          description: 'Перец, томаты, баклажан и кабачок с чесночным маслом.',
-          price: 2400,
-          available: false,
-          category: 'Мангал',
-          tags: ['овощи', 'гарнир', 'легко']
-        }
-      ]
-    },
-    {
-      slug: 'dough',
-      eyebrow: 'Тесто и пар',
-      title: 'Восточная классика',
-      description: 'Позиции, на которых можно проверить карточки, фильтры и поиск.',
-      products: [
-        {
-          id: 'manty',
-          name: 'Манты',
-          description: 'Домашние манты с мясной начинкой и сметанным соусом.',
-          price: 2800,
-          available: true,
-          category: 'Тесто',
-          tags: ['пар', 'домашнее', 'традиция']
-        },
-        {
-          id: 'lagman',
-          name: 'Лагман',
-          description: 'Наваристый бульон, лапша ручной вытяжки и овощи.',
-          price: 3100,
-          available: true,
-          category: 'Супы',
-          tags: ['суп', 'лапша', 'сытно']
-        },
-        {
-          id: 'samsa',
-          name: 'Самса из тандыра',
-          description: 'Слоёное тесто, рубленое мясо и хрустящая корочка.',
-          price: 1600,
-          available: true,
-          category: 'Выпечка',
-          tags: ['тандыр', 'хруст', 'перекус']
-        }
-      ]
-    },
-    {
-      slug: 'drinks',
-      eyebrow: 'Освежиться',
-      title: 'Напитки',
-      description: 'Небольшой раздел, чтобы страница выглядела законченной уже сейчас.',
-      products: [
-        {
-          id: 'lemonade',
-          name: 'Домашний лимонад',
-          description: 'Лимон, мята и лёгкая газировка без лишней сладости.',
-          price: 1200,
-          available: true,
-          category: 'Напитки',
-          tags: ['мята', 'холодный', 'лето']
-        },
-        {
-          id: 'tea',
-          name: 'Чайник чая',
-          description: 'Чёрный или зелёный чай на выбор, подаётся в чайнике.',
-          price: 1400,
-          available: true,
-          category: 'Напитки',
-          tags: ['чай', 'горячий', 'классика']
-        }
-      ]
-    }
-  ]
-};
+export const categories: Category[] = [
+  {
+    id: 'chechen',
+    name: 'Чеченские блюда',
+    image: image('photo-1547592166-23ac45744acd', 'soup'),
+    icon: 'pot',
+    kind: 'food'
+  },
+  {
+    id: 'pizza',
+    name: 'Пиццы',
+    image: image('photo-1604382354936-07c5d9983bd3', 'pizza'),
+    icon: 'pizza',
+    kind: 'food'
+  },
+  {
+    id: 'fastfood',
+    name: 'Фастфуд',
+    image: image('photo-1568901346375-23c9450c58cd', 'burger'),
+    icon: 'burger',
+    kind: 'food'
+  },
+  {
+    id: 'grill',
+    name: 'Мясо',
+    image: image('photo-1558030006-450675393462', 'kebab'),
+    icon: 'flame',
+    kind: 'food'
+  },
+  {
+    id: 'fridge',
+    name: 'Напитки из холодильника',
+    image: image('photo-1622483767028-3f66f32aef97', 'soda'),
+    icon: 'bottle',
+    kind: 'drink'
+  },
+  {
+    id: 'lemonades',
+    name: 'Лимонады в графине',
+    image: image('photo-1621263764928-df1444c5e859', 'lemonade'),
+    icon: 'glass',
+    kind: 'drink'
+  },
+  {
+    id: 'tea',
+    name: 'Чай',
+    image: image('photo-1544787219-7f47ccb76574', 'tea'),
+    icon: 'tea',
+    kind: 'drink'
+  },
+  {
+    id: 'cabins',
+    name: 'Кабинки',
+    image: image('photo-1517248135467-4c7edcad34c4', 'restaurant'),
+    icon: 'home',
+    kind: 'space'
+  }
+];
+
+export const products: Product[] = [
+  {
+    id: 'lamb-skewer',
+    title: 'Шашлык из баранины',
+    price: 690,
+    description: 'Сочный шашлык из баранины с пряными специями и луком.',
+    image_url: image('photo-1555939594-58d7cb561ad1', 'skewers'),
+    ingredients: 'Баранина, специи, лук, соль, перец',
+    weight: '250 г',
+    spicy_level: 2,
+    serving: 'с луком и соусом',
+    is_popular: true,
+    is_new: false,
+    is_hit: true,
+    stock_count: 12,
+    category_id: 'grill',
+    pair_ids: ['chechen-tea', 'ayran', 'tarhun', 'signature-sauce']
+  },
+  {
+    id: 'zhizhig-galnash',
+    title: 'Жижиг-галнаш',
+    price: 380,
+    description: 'Традиционный чеченский суп с галушками из теста.',
+    image_url: image('photo-1547592166-23ac45744acd', 'soup'),
+    ingredients: 'Говядина, галушки, бульон, зелень',
+    weight: '420 г',
+    spicy_level: 1,
+    serving: 'с чесночным соусом',
+    is_popular: true,
+    is_new: false,
+    is_hit: false,
+    stock_count: 8,
+    category_id: 'chechen',
+    pair_ids: ['chechen-tea', 'ayran']
+  },
+  {
+    id: 'four-seasons',
+    title: 'Четыре сезона',
+    price: 550,
+    description: 'Пицца с ветчиной, грибами, оливками и артишоками.',
+    image_url: image('photo-1604382354936-07c5d9983bd3', 'pizza'),
+    ingredients: 'Тесто, сыр, томаты, ветчина, грибы, оливки',
+    weight: '520 г',
+    spicy_level: 0,
+    serving: 'с томатным соусом',
+    is_popular: true,
+    is_new: false,
+    is_hit: false,
+    stock_count: 9,
+    category_id: 'pizza',
+    pair_ids: ['coca-cola', 'sprite']
+  },
+  {
+    id: 'shawarma-combo',
+    title: 'Комбо шаурма',
+    price: 400,
+    description: 'Шаурма с сочным мясом, овощами и картофелем.',
+    image_url: image('photo-1529006557810-274b9b2fc783', 'wrap'),
+    ingredients: 'Курица, лаваш, овощи, картофель, соус',
+    weight: '360 г',
+    spicy_level: 1,
+    serving: 'с картофелем',
+    is_popular: true,
+    is_new: true,
+    is_hit: false,
+    stock_count: 16,
+    category_id: 'fastfood',
+    pair_ids: ['pepsi', 'fanta']
+  },
+  {
+    id: 'bone-steak',
+    title: 'Стейк на косточке',
+    price: 1390,
+    description: 'Сочный стейк из говядины на кости.',
+    image_url: image('photo-1544025162-d76694265947', 'steak'),
+    ingredients: 'Говядина, соль, перец, розмарин',
+    weight: '430 г',
+    spicy_level: 1,
+    serving: 'с перечным соусом',
+    is_popular: false,
+    is_new: false,
+    is_hit: true,
+    stock_count: 5,
+    category_id: 'grill',
+    pair_ids: ['blue-lagoon', 'signature-sauce']
+  },
+  {
+    id: 'grilled-vegetables',
+    title: 'Овощи на мангале',
+    price: 320,
+    description: 'Сезонные овощи, приготовленные на углях.',
+    image_url: image('photo-1540420773420-3366772f4999', 'vegetables'),
+    ingredients: 'Перец, баклажан, кабачок, томаты',
+    weight: '280 г',
+    spicy_level: 0,
+    serving: 'с зеленью',
+    is_popular: true,
+    is_new: false,
+    is_hit: false,
+    stock_count: 0,
+    category_id: 'grill',
+    pair_ids: ['ayran']
+  },
+  {
+    id: 'coca-cola',
+    title: 'Coca-Cola',
+    price: 120,
+    description: 'Классический освежающий вкус.',
+    image_url: image('photo-1629203851122-3726ecdf080e', 'cola'),
+    ingredients: 'Газированный напиток',
+    weight: '330 мл',
+    spicy_level: 0,
+    serving: 'охлажденная',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 20,
+    category_id: 'fridge',
+    drink_type: 'Холодильник',
+    pair_ids: []
+  },
+  {
+    id: 'pepsi',
+    title: 'Pepsi',
+    price: 120,
+    description: 'Освежающий вкус с легкой сладостью.',
+    image_url: image('photo-1622483767028-3f66f32aef97', 'pepsi'),
+    ingredients: 'Газированный напиток',
+    weight: '330 мл',
+    spicy_level: 0,
+    serving: 'охлажденная',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 20,
+    category_id: 'fridge',
+    drink_type: 'Холодильник',
+    pair_ids: []
+  },
+  {
+    id: 'fanta',
+    title: 'Fanta',
+    price: 120,
+    description: 'Апельсиновый вкус и яркое настроение.',
+    image_url: image('photo-1601643157091-ce5c665179ab', 'orange soda'),
+    ingredients: 'Газированный напиток',
+    weight: '330 мл',
+    spicy_level: 0,
+    serving: 'охлажденная',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 15,
+    category_id: 'fridge',
+    drink_type: 'Холодильник',
+    pair_ids: []
+  },
+  {
+    id: 'sprite',
+    title: 'Sprite',
+    price: 120,
+    description: 'Лимонно-лаймовый вкус и свежесть.',
+    image_url: image('photo-1600271886742-f049cd451bba', 'sprite'),
+    ingredients: 'Газированный напиток',
+    weight: '330 мл',
+    spicy_level: 0,
+    serving: 'охлажденная',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 18,
+    category_id: 'fridge',
+    drink_type: 'Холодильник',
+    pair_ids: []
+  },
+  {
+    id: 'ayran',
+    title: 'Айран',
+    price: 150,
+    description: 'Освежающий кисломолочный напиток.',
+    image_url: image('photo-1564758565388-0d5da0cbb064', 'ayran'),
+    ingredients: 'Кисломолочный напиток, соль, мята',
+    weight: '250 мл',
+    spicy_level: 0,
+    serving: 'охлажденный',
+    is_popular: true,
+    is_new: false,
+    is_hit: false,
+    stock_count: 14,
+    category_id: 'fridge',
+    drink_type: 'Айран',
+    pair_ids: []
+  },
+  {
+    id: 'chechen-tea',
+    title: 'Чеченский чай',
+    price: 200,
+    description: 'Душистый зеленый чай с чабрецом и горными травами.',
+    image_url: image('photo-1544787219-7f47ccb76574', 'tea'),
+    ingredients: 'Зеленый чай, чабрец, травы',
+    weight: '450 мл',
+    spicy_level: 0,
+    serving: 'в чайнике',
+    is_popular: true,
+    is_new: false,
+    is_hit: false,
+    stock_count: 30,
+    category_id: 'tea',
+    drink_type: 'Чай',
+    pair_ids: []
+  },
+  {
+    id: 'strawberry-lemonade',
+    title: 'Клубничный лимонад',
+    price: 220,
+    description: 'Освежающий лимонад с клубникой и мятой.',
+    image_url: image('photo-1513558161293-cdaf765ed2fd', 'strawberry lemonade'),
+    ingredients: 'Клубника, лимон, мята, содовая',
+    weight: '450 мл',
+    spicy_level: 0,
+    serving: 'со льдом',
+    is_popular: true,
+    is_new: true,
+    is_hit: false,
+    stock_count: 10,
+    category_id: 'lemonades',
+    drink_type: 'Лимонады',
+    pair_ids: []
+  },
+  {
+    id: 'blue-lagoon',
+    title: 'Синяя лагуна',
+    price: 250,
+    description: 'Яркий цитрусовый лимонад с легкими морскими нотками.',
+    image_url: image('photo-1536935338788-846bb9981813', 'blue cocktail'),
+    ingredients: 'Лимон, содовая, сироп блю кюрасао',
+    weight: '450 мл',
+    spicy_level: 0,
+    serving: 'со льдом',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 11,
+    category_id: 'lemonades',
+    drink_type: 'Лимонады',
+    pair_ids: []
+  },
+  {
+    id: 'tarhun',
+    title: 'Лимонад тархун',
+    price: 150,
+    description: 'Домашний лимонад с ароматом тархуна.',
+    image_url: image('photo-1523371054106-bbf80586c38c', 'green lemonade'),
+    ingredients: 'Тархун, лимон, мята, содовая',
+    weight: '350 мл',
+    spicy_level: 0,
+    serving: 'со льдом',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 8,
+    category_id: 'lemonades',
+    drink_type: 'Лимонады',
+    pair_ids: []
+  },
+  {
+    id: 'signature-sauce',
+    title: 'Соус фирменный',
+    price: 80,
+    description: 'Пикантный соус по авторскому рецепту.',
+    image_url: image('photo-1472476443507-c7a5948772fc', 'sauce'),
+    ingredients: 'Томаты, специи, чеснок',
+    weight: '60 г',
+    spicy_level: 2,
+    serving: 'в соуснике',
+    is_popular: false,
+    is_new: false,
+    is_hit: false,
+    stock_count: 30,
+    category_id: 'grill',
+    pair_ids: []
+  }
+];
+
+export const cabins: Cabin[] = [
+  {
+    id: 'cabin-1',
+    title: 'Кабинка №1',
+    capacity: 'до 4 гостей',
+    feature: 'Закрывается шторами',
+    image_url: image('photo-1514933651103-005eec06c04b', 'private dining')
+  },
+  {
+    id: 'cabin-2',
+    title: 'Кабинка №2',
+    capacity: 'до 4 гостей',
+    feature: 'Отдельная дверь',
+    image_url: image('photo-1559329007-40df8a9345d8', 'restaurant booth')
+  },
+  {
+    id: 'big-cabin',
+    title: 'Большая кабинка',
+    capacity: 'до 10 гостей',
+    feature: 'Отдельная дверь',
+    image_url: image('photo-1544148103-0773bf10d330', 'large restaurant table')
+  },
+  {
+    id: 'main-hall',
+    title: 'Общий зал',
+    capacity: 'до 20 гостей',
+    feature: 'Открытое пространство',
+    image_url: image('photo-1552566626-52f8b828add9', 'restaurant hall')
+  }
+];
