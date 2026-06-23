@@ -80,6 +80,14 @@ const defaultTags: CatalogTag[] = [
 
 const makeId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
 const iconMap = {
   pot: ChefHat,
   pizza: Pizza,
@@ -116,10 +124,10 @@ function applyTheme(theme: ThemeSettings) {
   } as React.CSSProperties;
 }
 
-function Logo({ compact = false }: { compact?: boolean }) {
+function Logo({ compact = false, logoUrl }: { compact?: boolean; logoUrl?: string }) {
   return (
     <div className={compact ? 'brand-logo brand-logo--compact' : 'brand-logo'}>
-      <Flame />
+      {logoUrl ? <img src={logoUrl} alt="" /> : <Flame />}
       <div>
         <strong>Мангал</strong>
         {!compact && <span>ресторан</span>}
@@ -134,7 +142,8 @@ function TopBar({
   onBack,
   onSearch,
   onCart,
-  onAdmin
+  onAdmin,
+  logoUrl
 }: {
   title?: string;
   canBack?: boolean;
@@ -142,6 +151,7 @@ function TopBar({
   onSearch?: () => void;
   onCart: () => void;
   onAdmin?: () => void;
+  logoUrl?: string;
 }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
@@ -151,7 +161,7 @@ function TopBar({
       <button className="icon-button" type="button" onClick={canBack ? onBack : onAdmin} aria-label="Назад">
         {canBack ? <ArrowLeft /> : <User />}
       </button>
-      {title ? <h1 className="screen-title">{title}</h1> : <Logo />}
+      {title ? <h1 className="screen-title">{title}</h1> : <Logo logoUrl={logoUrl} />}
       <div className="top-bar__actions">
         {onSearch && (
           <button className="icon-button" type="button" onClick={onSearch} aria-label="Поиск">
@@ -846,6 +856,17 @@ function ProfileSettings({
   const [draft, setDraft] = useState(restaurant);
   const [error, setError] = useState('');
 
+  const updateImage = async (field: 'logo_url' | 'banner_url', file?: File) => {
+    if (!file) return;
+    if (field === 'logo_url' && file.type !== 'image/png') {
+      setError('Логотип должен быть в PNG.');
+      return;
+    }
+    const value = await fileToDataUrl(file);
+    setDraft((current) => ({ ...current, [field]: value }));
+    setError('');
+  };
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft.name.trim()) {
@@ -874,6 +895,32 @@ function ProfileSettings({
   return (
     <main className="settings-screen">
       <form className="settings-form-card" onSubmit={submit}>
+        <div className="media-fields">
+          <label className="media-upload media-upload--logo">
+            <input
+              type="file"
+              accept="image/png"
+              onChange={(event) => void updateImage('logo_url', event.target.files?.[0])}
+            />
+            {draft.logo_url ? <img src={draft.logo_url} alt="" /> : <Store />}
+            <span>
+              <strong>Логотип PNG</strong>
+              <small>Выбрать из медиатеки</small>
+            </span>
+          </label>
+          <label className="media-upload media-upload--cover">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => void updateImage('banner_url', event.target.files?.[0])}
+            />
+            {draft.banner_url ? <img src={draft.banner_url} alt="" /> : <CloudUpload />}
+            <span>
+              <strong>Обложка</strong>
+              <small>Изображение для верхнего блока</small>
+            </span>
+          </label>
+        </div>
         <label>
           Название ресторана
           <input value={draft.name} required onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
@@ -1089,6 +1136,11 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
   const textColors = ['#f8f5ef', '#ffffff', '#181510', '#111827', '#292524', '#0f172a'];
   const mutedColors = ['#aaa39a', '#cbd5e1', '#766d62', '#64748b', '#57534e', '#475569'];
   const titleColors = ['#f8f5ef', '#ffffff', '#111827', '#181510', '#e8a23a', '#f97316'];
+  const updateBackgroundImage = async (file?: File) => {
+    if (!file) return;
+    const value = await fileToDataUrl(file);
+    onChange({ background_image_url: value, background_type: 'image' });
+  };
 
   return (
     <main className="settings-screen">
@@ -1128,6 +1180,28 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
             Тёмная
           </button>
         </div>
+
+        <label className="media-upload media-upload--cover">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(event) => void updateBackgroundImage(event.target.files?.[0])}
+          />
+          {theme.background_image_url ? <img src={theme.background_image_url} alt="" /> : <CloudUpload />}
+          <span>
+            <strong>Фоновое изображение</strong>
+            <small>Выбрать из медиатеки</small>
+          </span>
+        </label>
+        {theme.background_image_url && (
+          <button
+            className="ghost-wide"
+            type="button"
+            onClick={() => onChange({ background_image_url: '', background_type: 'color' })}
+          >
+            Убрать фоновое изображение
+          </button>
+        )}
 
         <ColorSetting label="Фон приложения" value={theme.background_color} palette={backgroundColors} onChange={(color) => onChange({ background_color: color })} />
         <ColorSetting label="Основной цвет" value={theme.accent_color} palette={primaryColors} onChange={(color) => onChange({ accent_color: color })} />
@@ -1649,6 +1723,7 @@ function AppContent() {
             onSearch={screen === 'home' ? () => setScreen('catalog') : undefined}
             onCart={goCheckout}
             onAdmin={() => setShowLogin(true)}
+            logoUrl={catalog.restaurant.logo_url}
           />
 
           {screen === 'home' && (

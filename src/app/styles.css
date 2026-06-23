@@ -134,6 +134,15 @@ a {
   stroke-width: 1.8;
 }
 
+.brand-logo > img {
+  width: 70px;
+  height: 70px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(232, 162, 58, 0.32);
+  border-radius: 18px;
+  object-fit: cover;
+}
+
 .brand-logo strong {
   display: block;
   font-family: Georgia, "Times New Roman", serif;
@@ -157,6 +166,12 @@ a {
 .brand-logo--compact svg {
   width: 42px;
   height: 42px;
+}
+
+.brand-logo--compact > img {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
 }
 
 .brand-logo--compact strong {
@@ -1344,6 +1359,79 @@ a {
   resize: vertical;
 }
 
+.media-fields {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.media-upload {
+  position: relative;
+  display: grid;
+  min-height: 120px;
+  align-items: end;
+  overflow: hidden;
+  border: 1px dashed rgba(232, 162, 58, 0.5);
+  border-radius: var(--button-radius);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.media-upload input {
+  display: none;
+}
+
+.media-upload img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-upload > svg {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 34px;
+  height: 34px;
+  color: var(--accent-2);
+}
+
+.media-upload span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 3px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.media-upload strong,
+.media-upload small {
+  display: block;
+}
+
+.media-upload small {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.media-upload--logo {
+  min-height: 128px;
+}
+
+.media-upload--logo img {
+  object-fit: contain;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.media-upload--cover {
+  min-height: 156px;
+}
+
 .settings-form-card small,
 .settings-status {
   color: var(--accent-2);
@@ -1733,7 +1821,8 @@ a {
   }
 
   .flag-row,
-  .import-export {
+  .import-export,
+  .media-fields {
     grid-template-columns: 1fr;
   }
 
