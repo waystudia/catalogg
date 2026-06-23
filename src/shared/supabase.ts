@@ -15,6 +15,53 @@ const config: SupabaseConfig = {
 export const supabase: SupabaseClient | null =
   config.url && config.anonKey ? createClient(config.url, config.anonKey) : null;
 
+export async function signInAdmin(email: string, password: string) {
+  if (!supabase) {
+    return email.trim().toLowerCase() === 'admin' && password.trim() === '1234';
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password
+  });
+
+  if (error) return false;
+
+  const isAdmin = await hasAdminSession();
+  if (!isAdmin) {
+    await supabase.auth.signOut();
+  }
+  return isAdmin;
+}
+
+export async function signOutAdmin() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+export async function hasAdminSession() {
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) return false;
+
+  const { data: adminUser } = await supabase.from('admin_user').select('user_id').limit(1).maybeSingle();
+  return Boolean(adminUser);
+}
+
+export function onAdminSessionChange(callback: (isAdmin: boolean) => void) {
+  if (!supabase) return () => undefined;
+
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (!session) {
+      callback(false);
+      return;
+    }
+    void hasAdminSession().then(callback);
+  });
+
+  return () => data.subscription.unsubscribe();
+}
+
 export async function loadCatalog() {
   if (!supabase) {
     return { restaurant, categories, products, cabins, tags: [], theme: themeSettings, source: 'demo' as const };

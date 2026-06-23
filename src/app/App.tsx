@@ -57,6 +57,8 @@ import {
   saveProductToSupabase,
   saveRestaurantToSupabase,
   saveThemeToSupabase,
+  hasAdminSession,
+  onAdminSessionChange,
   updateProductInSupabase
 } from '../shared/supabase';
 
@@ -754,17 +756,21 @@ function DrinkReminder({
 function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const login = useAuthStore((state) => state.login);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const success = login(String(formData.get('email')), String(formData.get('password')));
+    setIsLoading(true);
+    setError('');
+    const success = await login(String(formData.get('email')), String(formData.get('password')));
+    setIsLoading(false);
     if (success) {
       onSuccess();
       onClose();
       return;
     }
-    setError('Логин: admin, пароль: 1234.');
+    setError('Неверный email или пароль.');
   };
 
   return (
@@ -772,16 +778,16 @@ function LoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
       <form className="login-modal" onSubmit={submit}>
         <Logo compact />
         <label>
-          Логин
-          <input name="email" placeholder="admin" autoCapitalize="none" required />
+          Email
+          <input name="email" type="email" placeholder="admin@example.com" autoCapitalize="none" autoComplete="email" required />
         </label>
         <label>
           Пароль
-          <input name="password" type="password" placeholder="1234" required />
+          <input name="password" type="password" autoComplete="current-password" required />
         </label>
         {error && <p>{error}</p>}
-        <button className="primary-wide" type="submit">
-          Войти
+        <button className="primary-wide" type="submit" disabled={isLoading}>
+          {isLoading ? 'Входим...' : 'Войти'}
         </button>
         <button className="ghost-wide" type="button" onClick={onClose}>
           Закрыть
@@ -1539,6 +1545,7 @@ function AppContent() {
   const { data } = useQuery({ queryKey: ['catalog'], queryFn: loadCatalog });
   const themeStore = useThemeStore((state) => state.theme);
   const updateTheme = useThemeStore((state) => state.updateTheme);
+  const setAdmin = useAuthStore((state) => state.setAdmin);
   const setAdminEditor = useAdminStore((state) => state.setEditor);
   const [screen, setScreen] = useState<Screen>('home');
   const [catalogCategory, setCatalogCategory] = useState('all');
@@ -1557,6 +1564,11 @@ function AppContent() {
       console.error('Supabase save failed', error);
     });
   };
+
+  useEffect(() => {
+    void hasAdminSession().then(setAdmin);
+    return onAdminSessionChange(setAdmin);
+  }, [setAdmin]);
 
   useEffect(() => {
     if (data?.theme) {

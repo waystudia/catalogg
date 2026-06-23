@@ -12,8 +12,9 @@ type CartStore = {
 
 type AuthStore = {
   isAdmin: boolean;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
+  setAdmin: (isAdmin: boolean) => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 };
 
 type ThemeStore = {
@@ -73,14 +74,20 @@ export const useCartStore = create<CartStore>((set) => ({
 
 export const useAuthStore = create<AuthStore>((set) => ({
   isAdmin: false,
-  login: (email, password) => {
-    const success = email.trim().toLowerCase() === 'admin' && password.trim() === '1234';
+  setAdmin: (isAdmin) => set({ isAdmin }),
+  login: async (email, password) => {
+    const { signInAdmin } = await import('../shared/supabase');
+    const success = await signInAdmin(email, password);
     if (success) {
       set({ isAdmin: true });
     }
     return success;
   },
-  logout: () => set({ isAdmin: false })
+  logout: async () => {
+    const { signOutAdmin } = await import('../shared/supabase');
+    await signOutAdmin();
+    set({ isAdmin: false });
+  }
 }));
 
 export const useThemeStore = create<ThemeStore>((set) => ({

@@ -3,6 +3,12 @@
 
 create extension if not exists pgcrypto;
 
+create table if not exists public.admin_user (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.restaurant (
   id text primary key,
   name text not null default '',
@@ -123,6 +129,7 @@ drop trigger if exists theme_settings_updated_at on public.theme_settings;
 create trigger theme_settings_updated_at before update on public.theme_settings for each row execute function public.set_updated_at();
 
 alter table public.restaurant enable row level security;
+alter table public.admin_user enable row level security;
 alter table public.category enable row level security;
 alter table public.catalog_tag enable row level security;
 alter table public.product enable row level security;
@@ -130,40 +137,66 @@ alter table public.product_tag enable row level security;
 alter table public.cabin enable row level security;
 alter table public.theme_settings enable row level security;
 
+drop policy if exists "admin users read own row" on public.admin_user;
+create policy "admin users read own row" on public.admin_user for select using (auth.uid() = user_id);
+
+drop policy if exists "admin users manage admin users" on public.admin_user;
+
 drop policy if exists "public read restaurant" on public.restaurant;
 create policy "public read restaurant" on public.restaurant for select using (true);
 drop policy if exists "public write restaurant" on public.restaurant;
-create policy "public write restaurant" on public.restaurant for all using (true) with check (true);
+drop policy if exists "admin write restaurant" on public.restaurant;
+create policy "admin write restaurant" on public.restaurant for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read category" on public.category;
 create policy "public read category" on public.category for select using (true);
 drop policy if exists "public write category" on public.category;
-create policy "public write category" on public.category for all using (true) with check (true);
+drop policy if exists "admin write category" on public.category;
+create policy "admin write category" on public.category for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read catalog_tag" on public.catalog_tag;
 create policy "public read catalog_tag" on public.catalog_tag for select using (true);
 drop policy if exists "public write catalog_tag" on public.catalog_tag;
-create policy "public write catalog_tag" on public.catalog_tag for all using (true) with check (true);
+drop policy if exists "admin write catalog_tag" on public.catalog_tag;
+create policy "admin write catalog_tag" on public.catalog_tag for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read product" on public.product;
 create policy "public read product" on public.product for select using (true);
 drop policy if exists "public write product" on public.product;
-create policy "public write product" on public.product for all using (true) with check (true);
+drop policy if exists "admin write product" on public.product;
+create policy "admin write product" on public.product for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read product_tag" on public.product_tag;
 create policy "public read product_tag" on public.product_tag for select using (true);
 drop policy if exists "public write product_tag" on public.product_tag;
-create policy "public write product_tag" on public.product_tag for all using (true) with check (true);
+drop policy if exists "admin write product_tag" on public.product_tag;
+create policy "admin write product_tag" on public.product_tag for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read cabin" on public.cabin;
 create policy "public read cabin" on public.cabin for select using (true);
 drop policy if exists "public write cabin" on public.cabin;
-create policy "public write cabin" on public.cabin for all using (true) with check (true);
+drop policy if exists "admin write cabin" on public.cabin;
+create policy "admin write cabin" on public.cabin for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 drop policy if exists "public read theme_settings" on public.theme_settings;
 create policy "public read theme_settings" on public.theme_settings for select using (true);
 drop policy if exists "public write theme_settings" on public.theme_settings;
-create policy "public write theme_settings" on public.theme_settings for all using (true) with check (true);
+drop policy if exists "admin write theme_settings" on public.theme_settings;
+create policy "admin write theme_settings" on public.theme_settings for all
+using (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()))
+with check (exists (select 1 from public.admin_user admin where admin.user_id = auth.uid()));
 
 insert into public.restaurant (id, name, subtitle, logo_url, banner_url, whatsapp, instagram_url, address)
 values (
