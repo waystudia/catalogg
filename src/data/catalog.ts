@@ -25,6 +25,8 @@ export const themeSettings: ThemeSettings = {
   card_shadow: '0 22px 70px rgba(0, 0, 0, 0.32)',
   text_primary: '#f8f5ef',
   text_secondary: '#aaa39a',
+  product_title_color: '#f8f5ef',
+  category_title_color: '#f8f5ef',
   accent_color: '#e8a23a',
   accent_secondary: '#ffd082',
   button_style: 'filled',

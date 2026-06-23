@@ -14,6 +14,8 @@ export type ThemeSettings = {
   card_shadow: string;
   text_primary: string;
   text_secondary: string;
+  product_title_color: string;
+  category_title_color: string;
   accent_color: string;
   accent_secondary: string;
   button_style: ButtonStyle;
@@ -60,6 +62,7 @@ export type Product = {
   is_popular: boolean;
   is_new: boolean;
   is_hit: boolean;
+  is_hidden?: boolean;
   stock_count: number;
   category_id: string;
   drink_type?: string;

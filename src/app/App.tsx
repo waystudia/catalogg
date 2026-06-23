@@ -10,6 +10,8 @@ import {
   Coffee,
   Download,
   Edit3,
+  Eye,
+  EyeOff,
   Flame,
   Home,
   Instagram,
@@ -54,7 +56,7 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 
 type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-backup' | 'settings-delete';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
-type ProductFlag = 'is_popular' | 'is_hit' | 'is_new';
+type ProductFlag = 'is_popular' | 'is_hidden';
 type CatalogDesignExport = {
   theme?: 'light' | 'dark';
   backgroundColor?: string;
@@ -64,6 +66,8 @@ type CatalogDesignExport = {
   cardStyle?: 'light' | 'dark';
   textColor?: string;
   mutedTextColor?: string;
+  productTitleColor?: string;
+  categoryTitleColor?: string;
   radius?: number;
 };
 
@@ -93,8 +97,10 @@ function applyTheme(theme: ThemeSettings) {
     '--card': theme.card_color,
     '--radius': `${theme.card_radius}px`,
     '--shadow': theme.card_shadow,
-    '--text': theme.text_primary,
-    '--muted': theme.text_secondary,
+    '--text': theme.text_primary ?? '#f8f5ef',
+    '--muted': theme.text_secondary ?? '#aaa39a',
+    '--product-title': theme.product_title_color ?? theme.text_primary ?? '#f8f5ef',
+    '--category-title': theme.category_title_color ?? theme.text_primary ?? '#f8f5ef',
     '--accent': theme.accent_color,
     '--accent-2': theme.accent_secondary,
     '--button-radius': `${theme.button_radius}px`,
@@ -206,15 +212,49 @@ function ProductTile({
   onOpen: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onDelete?: (productId: string) => void;
-  onToggle?: (productId: string, key: 'is_popular' | 'is_hit' | 'is_new') => void;
+  onToggle?: (productId: string, key: ProductFlag) => void;
 }) {
   const add = useCartStore((state) => state.add);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const soldOut = product.stock_count <= 0;
 
   return (
-    <article className={`product-tile product-tile--${variant}`} onClick={() => onOpen(product)}>
-      <img src={product.image_url} alt={product.title} loading="lazy" />
+    <article className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}`} onClick={() => onOpen(product)}>
+      <div className="product-tile__image">
+        <img src={product.image_url} alt={product.title} loading="lazy" />
+        {product.is_popular && (
+          <span className="product-state product-state--popular">
+            <Star />
+          </span>
+        )}
+        {product.is_hidden && <span className="product-state product-state--hidden">Скрыто</span>}
+        {isAdmin && (
+          <div className="admin-card-tools" onClick={(event) => event.stopPropagation()}>
+            <button type="button" aria-label="Редактировать" onClick={() => onEdit?.(product)}>
+              <Edit3 />
+            </button>
+            <button
+              className={product.is_popular ? 'is-on' : ''}
+              type="button"
+              aria-label="Популярное"
+              onClick={() => onToggle?.(product.id, 'is_popular')}
+            >
+              <Star />
+            </button>
+            <button
+              className={product.is_hidden ? 'is-on' : ''}
+              type="button"
+              aria-label={product.is_hidden ? 'Показать' : 'Скрыть'}
+              onClick={() => onToggle?.(product.id, 'is_hidden')}
+            >
+              {product.is_hidden ? <EyeOff /> : <Eye />}
+            </button>
+            <button type="button" aria-label="Удалить" onClick={() => onDelete?.(product.id)}>
+              <Trash2 />
+            </button>
+          </div>
+        )}
+      </div>
       <div className="product-tile__body">
         <div>
           <h3>{product.title}</h3>
@@ -236,35 +276,6 @@ function ProductTile({
           </button>
         </div>
       </div>
-      {isAdmin && (
-        <div className="admin-card-tools" onClick={(event) => event.stopPropagation()}>
-          <button type="button" aria-label="Редактировать" onClick={() => onEdit?.(product)}>
-            <Edit3 />
-          </button>
-          <button
-            className={product.is_popular ? 'is-on' : ''}
-            type="button"
-            aria-label="Популярное"
-            onClick={() => onToggle?.(product.id, 'is_popular')}
-          >
-            <Star />
-          </button>
-          <button
-            className={product.is_hit ? 'is-on' : ''}
-            type="button"
-            aria-label="Хит"
-            onClick={() => onToggle?.(product.id, 'is_hit')}
-          >
-            <Flame />
-          </button>
-          <button type="button" aria-label="Новинка" onClick={() => onToggle?.(product.id, 'is_new')}>
-            <Plus />
-          </button>
-          <button type="button" aria-label="Удалить" onClick={() => onDelete?.(product.id)}>
-            <Trash2 />
-          </button>
-        </div>
-      )}
     </article>
   );
 }
@@ -315,11 +326,13 @@ function HomeScreen({
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
-  onToggleProduct: (productId: string, key: 'is_popular' | 'is_hit' | 'is_new') => void;
+  onToggleProduct: (productId: string, key: ProductFlag) => void;
 }) {
   const [active, setActive] = useState('chechen');
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
   const featuredCategories = categories.filter((category) => ['fastfood', 'chechen', 'pizza', 'lemonades', 'fridge', 'cabins'].includes(category.id));
-  const popular = products.filter((product) => product.is_popular).slice(0, 6);
+  const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
 
   return (
@@ -416,12 +429,14 @@ function CatalogScreen({
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
-  onToggleProduct: (productId: string, key: 'is_popular' | 'is_hit' | 'is_new') => void;
+  onToggleProduct: (productId: string, key: ProductFlag) => void;
 }) {
   const [active, setActive] = useState(initialCategory);
   const [query, setQuery] = useState('');
+  const isAdmin = useAuthStore((state) => state.isAdmin);
   const foodCategories = categories.filter((category) => category.kind !== 'space');
-  const filtered = products.filter((product) => {
+  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const filtered = visibleProducts.filter((product) => {
     const categoryMatch = active === 'all' || product.category_id === active || (active === 'hits' && product.is_hit);
     const queryMatch = [product.title, product.description, product.ingredients].join(' ').toLowerCase().includes(query.toLowerCase());
     return categoryMatch && queryMatch;
@@ -479,11 +494,13 @@ function DrinksScreen({
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
-  onToggleProduct: (productId: string, key: 'is_popular' | 'is_hit' | 'is_new') => void;
+  onToggleProduct: (productId: string, key: ProductFlag) => void;
 }) {
   const [active, setActive] = useState('Все');
-  const groups = ['Все', ...Array.from(new Set(products.filter((product) => product.drink_type).map((product) => product.drink_type as string)))];
-  const drinks = products.filter((product) => product.drink_type && (active === 'Все' || product.drink_type === active));
+  const isAdmin = useAuthStore((state) => state.isAdmin);
+  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const groups = ['Все', ...Array.from(new Set(visibleProducts.filter((product) => product.drink_type).map((product) => product.drink_type as string)))];
+  const drinks = visibleProducts.filter((product) => product.drink_type && (active === 'Все' || product.drink_type === active));
 
   return (
     <main className="screen">
@@ -1071,6 +1088,7 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
   const cardColors = ['#121416', '#1f2937', '#ffffff', '#fffaf0', '#f8fafc', '#0f172a'];
   const textColors = ['#f8f5ef', '#ffffff', '#181510', '#111827', '#292524', '#0f172a'];
   const mutedColors = ['#aaa39a', '#cbd5e1', '#766d62', '#64748b', '#57534e', '#475569'];
+  const titleColors = ['#f8f5ef', '#ffffff', '#111827', '#181510', '#e8a23a', '#f97316'];
 
   return (
     <main className="settings-screen">
@@ -1085,7 +1103,9 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
                 background_color: '#f7f3ec',
                 card_color: '#ffffff',
                 text_primary: '#181510',
-                text_secondary: '#766d62'
+                text_secondary: '#766d62',
+                product_title_color: '#111827',
+                category_title_color: '#ffffff'
               })
             }
           >
@@ -1099,7 +1119,9 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
                 background_color: '#070809',
                 card_color: '#121416',
                 text_primary: '#f8f5ef',
-                text_secondary: '#aaa39a'
+                text_secondary: '#aaa39a',
+                product_title_color: '#f8f5ef',
+                category_title_color: '#f8f5ef'
               })
             }
           >
@@ -1113,6 +1135,8 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
         <ColorSetting label="Цвет карточек" value={theme.card_color} palette={cardColors} onChange={(color) => onChange({ card_color: color })} />
         <ColorSetting label="Цвет текста" value={theme.text_primary} palette={textColors} onChange={(color) => onChange({ text_primary: color })} />
         <ColorSetting label="Вторичный текст" value={theme.text_secondary} palette={mutedColors} onChange={(color) => onChange({ text_secondary: color })} />
+        <ColorSetting label="Текст внутри карточек блюд" value={theme.product_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ product_title_color: color })} />
+        <ColorSetting label="Названия категорий" value={theme.category_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ category_title_color: color })} />
 
         <label className="range-field">
           <span>Скругление <b>{theme.card_radius}px</b></span>
@@ -1160,6 +1184,8 @@ function BackupSettings({
               cardStyle: theme.card_color === '#ffffff' ? 'light' : 'dark',
               textColor: theme.text_primary,
               mutedTextColor: theme.text_secondary,
+              productTitleColor: theme.product_title_color,
+              categoryTitleColor: theme.category_title_color,
               radius: theme.card_radius
             }
           },
@@ -1541,6 +1567,8 @@ function AppContent() {
       card_shadow: '0 22px 70px rgba(0, 0, 0, 0.32)',
       text_primary: '#f8f5ef',
       text_secondary: '#aaa39a',
+      product_title_color: '#f8f5ef',
+      category_title_color: '#f8f5ef',
       accent_color: '#e8a23a',
       accent_secondary: '#ffd082',
       button_style: 'filled',
@@ -1596,6 +1624,8 @@ function AppContent() {
                 accent_secondary: payload.design.accentColor ?? themeStore.accent_secondary,
                 text_primary: payload.design.textColor ?? themeStore.text_primary,
                 text_secondary: payload.design.mutedTextColor ?? themeStore.text_secondary,
+                product_title_color: payload.design.productTitleColor ?? themeStore.product_title_color,
+                category_title_color: payload.design.categoryTitleColor ?? themeStore.category_title_color,
                 card_radius: payload.design.radius ?? themeStore.card_radius
               });
             }
