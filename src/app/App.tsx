@@ -39,6 +39,8 @@ import type { CatalogTag, Category, Product, Restaurant, ThemeSettings } from '.
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
 import {
   hasDrinkInCart,
+  hasSauceInCart,
+  isSauceProduct,
   selectCartCount,
   selectCartTotal,
   useAdminStore,
@@ -68,6 +70,7 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-backup' | 'settings-delete';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
+type CheckoutPrompt = 'sauces' | 'drinks' | null;
 type CatalogDesignExport = {
   theme?: 'light' | 'dark';
   backgroundColor?: string;
@@ -457,8 +460,18 @@ function CatalogScreen({
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const foodCategories = categories.filter((category) => category.kind !== 'space');
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const hasSauces = visibleProducts.some(isSauceProduct);
+
+  useEffect(() => {
+    setActive(initialCategory);
+  }, [initialCategory]);
+
   const filtered = visibleProducts.filter((product) => {
-    const categoryMatch = active === 'all' || product.category_id === active || (active === 'hits' && product.is_hit);
+    const categoryMatch =
+      active === 'all' ||
+      product.category_id === active ||
+      (active === 'hits' && product.is_hit) ||
+      (active === 'sauces' && isSauceProduct(product));
     const queryMatch = [product.title, product.description, product.ingredients].join(' ').toLowerCase().includes(query.toLowerCase());
     return categoryMatch && queryMatch;
   });
@@ -476,6 +489,11 @@ function CatalogScreen({
         <button className={active === 'hits' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('hits')}>
           Хиты <Flame />
         </button>
+        {hasSauces && (
+          <button className={active === 'sauces' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('sauces')}>
+            Соусы
+          </button>
+        )}
         {foodCategories.map((category) => (
           <button
             key={category.id}
@@ -615,8 +633,10 @@ function ProductScreen({ product, products }: { product: Product; products: Prod
   );
 }
 
-function CheckoutScreen() {
+function CheckoutScreen({ restaurant }: { restaurant: Restaurant }) {
   const { mode, cabinId, setOrder } = useOrderStore();
+  const items = useCartStore((state) => state.items);
+  const total = selectCartTotal(items);
   const cabins = [
     {
       id: 'cabin-1',
@@ -643,6 +663,25 @@ function CheckoutScreen() {
       image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=78'
     }
   ];
+  const selectedCabin = cabins.find((cabin) => cabin.id === cabinId);
+  const orderLines = [
+    'Здравствуйте! Хочу оформить заказ.',
+    '',
+    'Заказ:',
+    ...items.map((item, index) => `${index + 1}. ${item.product.title} - ${item.quantity} шт. x ${formatPrice(item.product.price)}`),
+    '',
+    `Итого: ${formatPrice(total)}`,
+    '',
+    'Получение:',
+    mode === 'hall' ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}` : 'На вынос',
+    '',
+    'Комментарий:',
+    'Пожалуйста, подтвердите заказ.'
+  ];
+  const whatsappText = encodeURIComponent(orderLines.join('\n'));
+  const whatsappHref = restaurant.whatsapp
+    ? `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${whatsappText}`
+    : '#';
 
   return (
     <main className="screen checkout-screen">
@@ -689,54 +728,83 @@ function CheckoutScreen() {
           <strong>Вы заберёте заказ самостоятельно</strong>
         </section>
       )}
+
+      <section className="checkout-summary">
+        <div>
+          <span>Финальный шаг</span>
+          <h2>Проверьте заказ</h2>
+          <p>
+            {mode === 'hall'
+              ? `Заказ будет подготовлен для зала${selectedCabin ? `, место: ${selectedCabin.title}.` : '.'}`
+              : 'Заказ будет подготовлен на самовывоз.'}
+          </p>
+        </div>
+        <div className="checkout-summary__list">
+          {items.map((item) => (
+            <p key={item.product.id}>
+              <span>{item.product.title}</span>
+              <strong>{item.quantity} x {formatPrice(item.product.price)}</strong>
+            </p>
+          ))}
+        </div>
+        <div className="checkout-summary__total">
+          <span>Итого</span>
+          <strong>{formatPrice(total)}</strong>
+        </div>
+        <a className={restaurant.whatsapp ? 'primary-wide checkout-summary__action' : 'primary-wide checkout-summary__action is-disabled'} href={whatsappHref} target="_blank" rel="noreferrer">
+          Отправить заказ
+        </a>
+      </section>
     </main>
   );
 }
 
-function DrinkReminder({
+function UpsellReminder({
+  type,
   products,
   onClose,
-  onDrinks
+  onBrowse
 }: {
+  type: 'sauces' | 'drinks';
   products: Product[];
   onClose: () => void;
-  onDrinks: () => void;
+  onBrowse: () => void;
 }) {
   const add = useCartStore((state) => state.add);
-  const drinks = products.filter((product) => product.drink_type).slice(0, 4);
+  const isSauces = type === 'sauces';
+  const suggestions = products
+    .filter((product) => (isSauces ? isSauceProduct(product) : Boolean(product.drink_type)))
+    .slice(0, 4);
 
   return (
     <div className="modal-backdrop">
       <section className="drink-modal">
         <div className="modal-handle" />
-        <Coffee className="modal-icon" />
-        <div className="modal-switch">
-          <button className="is-active" type="button">
-            <ShoppingCart /> В зале
-          </button>
-          <button type="button">
-            <ShoppingBag /> На вынос
-          </button>
-        </div>
-        <h2>Вы не выбрали напитки</h2>
-        <p>Хотите добавить напитки к заказу?</p>
+        {isSauces ? <ChefHat className="modal-icon" /> : <Coffee className="modal-icon" />}
+        <h2>{isSauces ? 'Выберите соусы' : 'Выберите напитки'}</h2>
+        <p>{isSauces ? 'Можно сразу добавить соус к заказу или открыть весь список.' : 'Можно сразу добавить напиток к заказу или открыть весь список.'}</p>
         <div className="modal-drinks">
-          {drinks.map((drink) => (
-            <article key={drink.id}>
-              <img src={drink.image_url} alt={drink.title} />
-              <strong>{drink.title}</strong>
-              <span>{formatPrice(drink.price)}</span>
-              <button type="button" onClick={() => add(drink)} aria-label={`Добавить ${drink.title}`}>
+          {suggestions.map((product) => (
+            <article key={product.id}>
+              <img src={product.image_url} alt={product.title} />
+              <strong>{product.title}</strong>
+              <span>{formatPrice(product.price)}</span>
+              <button type="button" onClick={() => add(product)} aria-label={`Добавить ${product.title}`}>
                 <Plus />
               </button>
             </article>
           ))}
         </div>
-        <button className="primary-wide" type="button" onClick={onDrinks}>
-          Выбрать напитки
+        {suggestions.length === 0 && (
+          <p className="modal-empty">
+            {isSauces ? 'Соусов пока нет в каталоге.' : 'Напитков пока нет в каталоге.'}
+          </p>
+        )}
+        <button className="primary-wide" type="button" onClick={onBrowse}>
+          {isSauces ? 'Выбрать соус' : 'Выбрать напитки'}
         </button>
         <button className="ghost-wide" type="button" onClick={onClose}>
-          Продолжить без напитков
+          {isSauces ? 'Продолжить без соуса' : 'Продолжить без напитков'}
         </button>
       </section>
     </div>
@@ -1542,7 +1610,7 @@ function AppContent() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showLogin, setShowLogin] = useState(false);
-  const [showReminder, setShowReminder] = useState(false);
+  const [checkoutPrompt, setCheckoutPrompt] = useState<CheckoutPrompt>(null);
   const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
   const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
   const [localTags, setLocalTags] = useState<CatalogTag[]>(defaultTags);
@@ -1678,9 +1746,25 @@ function AppContent() {
     persist(saveThemeToSupabase(next));
   };
 
+  const continueCheckoutAfterPrompt = () => {
+    setCheckoutPrompt(null);
+    if (checkoutPrompt === 'sauces' && !hasDrinkInCart(items)) {
+      setCheckoutPrompt('drinks');
+      return;
+    }
+    setScreen('checkout');
+  };
+
   const goCheckout = () => {
-    if (!hasDrinkInCart(items) && screen !== 'drinks') {
-      setShowReminder(true);
+    if (screen === 'checkout') {
+      return;
+    }
+    if (!hasSauceInCart(items)) {
+      setCheckoutPrompt('sauces');
+      return;
+    }
+    if (!hasDrinkInCart(items)) {
+      setCheckoutPrompt('drinks');
       return;
     }
     setScreen('checkout');
@@ -1833,7 +1917,7 @@ function AppContent() {
             />
           )}
           {screen === 'product' && selectedProduct && <ProductScreen product={selectedProduct} products={catalog.products} />}
-          {screen === 'checkout' && <CheckoutScreen />}
+          {screen === 'checkout' && <CheckoutScreen restaurant={catalog.restaurant} />}
           <CartBar onCheckout={goCheckout} />
         </>
       )}
@@ -1892,15 +1976,19 @@ function AppContent() {
           onSuccess={() => setScreen('settings')}
         />
       )}
-      {showReminder && (
-        <DrinkReminder
+      {checkoutPrompt && (
+        <UpsellReminder
+          type={checkoutPrompt}
           products={catalog.products}
-          onClose={() => {
-            setShowReminder(false);
-            setScreen('checkout');
-          }}
-          onDrinks={() => {
-            setShowReminder(false);
+          onClose={continueCheckoutAfterPrompt}
+          onBrowse={() => {
+            if (checkoutPrompt === 'sauces') {
+              setCheckoutPrompt(null);
+              setCatalogCategory('sauces');
+              setScreen('catalog');
+              return;
+            }
+            setCheckoutPrompt(null);
             setScreen('drinks');
           }}
         />

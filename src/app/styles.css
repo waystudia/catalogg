@@ -1016,6 +1016,74 @@ a {
   font-size: 18px;
 }
 
+.checkout-summary {
+  display: grid;
+  gap: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.checkout-summary span {
+  color: var(--muted);
+}
+
+.checkout-summary h2 {
+  margin: 4px 0 8px;
+  font-size: 28px;
+}
+
+.checkout-summary p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.checkout-summary__list {
+  display: grid;
+  gap: 10px;
+}
+
+.checkout-summary__list p,
+.checkout-summary__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkout-summary__list span {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.checkout-summary__list strong {
+  flex: 0 0 auto;
+  color: var(--text);
+}
+
+.checkout-summary__total {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 14px;
+}
+
+.checkout-summary__total strong {
+  font-size: 24px;
+}
+
+.checkout-summary__action {
+  text-decoration: none;
+}
+
+.checkout-summary__action.is-disabled {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .mode-grid,
 .cabin-grid,
 .booking-fields {
@@ -1320,6 +1388,13 @@ a {
   border-radius: 12px;
   background: transparent;
   color: var(--accent-2);
+}
+
+.modal-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .login-modal,

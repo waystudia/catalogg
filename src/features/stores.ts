@@ -118,3 +118,15 @@ export const selectCartTotal = (items: CartItem[]) =>
 
 export const hasDrinkInCart = (items: CartItem[]) =>
   items.some((item) => item.product.drink_type !== undefined);
+
+export const isSauceProduct = (product: Product) => {
+  const text = [product.id, product.title, product.description, product.category_id]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return text.includes('соус') || text.includes('sauce');
+};
+
+export const hasSauceInCart = (items: CartItem[]) =>
+  items.some((item) => isSauceProduct(item.product));
