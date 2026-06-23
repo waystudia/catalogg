@@ -11,17 +11,6 @@
     <link rel="icon" href="./assets/favicon.svg" />
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.svg" />
     <title>Мангал | PWA каталог ресторана</title>
-    <script>
-      window.__MANGAL_UI_VERSION__ = '2026-06-23-light-grid-v2';
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          registrations.forEach((registration) => registration.unregister());
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
-      }
-    </script>
     <script type="module" crossorigin src="./assets/index.js"></script>
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
