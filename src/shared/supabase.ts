@@ -144,6 +144,17 @@ export async function replaceTagsInSupabase(values: CatalogTag[]) {
   }
 }
 
+export async function replaceCabinsInSupabase(values: Cabin[]) {
+  if (!supabase) return;
+  const ids = values.map((value) => value.id);
+  await throwOnError(supabase.from('cabin').upsert(values.map((value, index) => ({ ...value, sort_order: index })), { onConflict: 'id' }));
+  if (ids.length > 0) {
+    await throwOnError(supabase.from('cabin').delete().not('id', 'in', postgrestList(ids)));
+  } else {
+    await throwOnError(supabase.from('cabin').delete().neq('id', ''));
+  }
+}
+
 export async function replaceProductsInSupabase(values: Product[]) {
   if (!supabase) return;
   const ids = values.map((value) => value.id);
@@ -171,7 +182,7 @@ export async function replaceCatalogInSupabase(payload: {
   if (payload.categories) await replaceCategoriesInSupabase(payload.categories);
   if (payload.tags) await replaceTagsInSupabase(payload.tags);
   if (payload.cabins) {
-    await throwOnError(supabase.from('cabin').upsert(payload.cabins.map((value, index) => ({ ...value, sort_order: index })), { onConflict: 'id' }));
+    await replaceCabinsInSupabase(payload.cabins);
   }
   if (payload.products) {
     await replaceProductsInSupabase(payload.products);

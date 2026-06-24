@@ -36,8 +36,8 @@ import {
   X
 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
-import type { CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
+import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
 import {
   isSauceProduct,
@@ -53,6 +53,7 @@ import {
   deleteProductFromSupabase,
   loadCatalog,
   replaceCatalogInSupabase,
+  replaceCabinsInSupabase,
   replaceCategoriesInSupabase,
   replaceTagsInSupabase,
   saveProductToSupabase,
@@ -526,7 +527,7 @@ function HomeScreen({
   categories: Category[];
   products: Product[];
   onOpenCatalog: (categoryId?: string) => void;
-  onOpenDrinks: () => void;
+  onOpenDrinks: (categoryId?: string) => void;
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
@@ -546,9 +547,12 @@ function HomeScreen({
         active={active}
         onSelect={(id) => {
           setActive(id);
-          if (id === 'fridge' || id === 'lemonades' || id === 'tea') {
-            onOpenDrinks();
+          const category = categories.find((item) => item.id === id);
+          if (category?.kind === 'drink') {
+            onOpenDrinks(category.id);
+            return;
           }
+          onOpenCatalog(id);
         }}
         includeAll={false}
       />
@@ -563,7 +567,7 @@ function HomeScreen({
               key={category.id}
               onClick={() => {
                 if (category.kind === 'drink') {
-                  onOpenDrinks();
+                  onOpenDrinks(category.id);
                   return;
                 }
                 onOpenCatalog(category.id);
@@ -711,32 +715,43 @@ function CatalogScreen({
 }
 
 function DrinksScreen({
+  categories,
   products,
+  initialCategory,
   onOpenProduct,
   onEditProduct,
   onDeleteProduct,
   onToggleProduct,
   flowAction
 }: {
+  categories: Category[];
   products: Product[];
+  initialCategory: string;
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
   onToggleProduct: (productId: string, key: ProductFlag) => void;
   flowAction?: FlowAction;
 }) {
-  const [active, setActive] = useState('Все');
+  const [active, setActive] = useState(initialCategory);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
-  const groups = ['Все', ...Array.from(new Set(visibleProducts.filter((product) => product.drink_type).map((product) => product.drink_type as string)))];
-  const drinks = visibleProducts.filter((product) => product.drink_type && (active === 'Все' || product.drink_type === active));
+  const drinkCategories = categories.filter((category) => category.kind === 'drink');
+  const drinks = visibleProducts.filter((product) => product.drink_type && (active === 'all' || product.category_id === active));
+
+  useEffect(() => {
+    setActive(initialCategory);
+  }, [initialCategory]);
 
   return (
     <main className="screen">
       <div className="pills">
-        {groups.map((group) => (
-          <button className={active === group ? 'pill is-active' : 'pill'} type="button" key={group} onClick={() => setActive(group)}>
-            {group}
+        <button className={active === 'all' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('all')}>
+          Все
+        </button>
+        {drinkCategories.map((category) => (
+          <button className={active === category.id ? 'pill is-active' : 'pill'} type="button" key={category.id} onClick={() => setActive(category.id)}>
+            {category.name}
           </button>
         ))}
       </div>
@@ -852,36 +867,10 @@ function ProductScreen({
   );
 }
 
-function CheckoutScreen({ restaurant }: { restaurant: Restaurant }) {
+function CheckoutScreen({ restaurant, cabins }: { restaurant: Restaurant; cabins: Cabin[] }) {
   const { mode, cabinId, setOrder } = useOrderStore();
   const items = useCartStore((state) => state.items);
   const total = selectCartTotal(items);
-  const cabins = [
-    {
-      id: 'cabin-1',
-      title: 'Кабинка 1',
-      icon: Home,
-      image: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=78'
-    },
-    {
-      id: 'cabin-2',
-      title: 'Кабинка 2',
-      icon: Home,
-      image: 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=78'
-    },
-    {
-      id: 'cabin-3',
-      title: 'Кабинка 3',
-      icon: Home,
-      image: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=78'
-    },
-    {
-      id: 'main-hall',
-      title: 'Общий зал',
-      icon: Users,
-      image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=78'
-    }
-  ];
   const selectedCabin = cabins.find((cabin) => cabin.id === cabinId);
   const orderLines = [
     'Здравствуйте! Хочу оформить заказ.',
@@ -922,9 +911,11 @@ function CheckoutScreen({ restaurant }: { restaurant: Restaurant }) {
             <p>Выберите кабинку в зале</p>
           </section>
           <section className="checkout-cabin-grid">
-            {cabins.map(({ id, title, icon: Icon, image }) => (
+            {cabins.map(({ id, title, image_url }) => {
+              const Icon = id === 'main-hall' ? Users : Home;
+              return (
               <button className={cabinId === id ? 'checkout-cabin is-active' : 'checkout-cabin'} type="button" key={id} onClick={() => setOrder({ cabinId: id })}>
-                <img className="checkout-cabin__image" src={image} alt="" />
+                <img className="checkout-cabin__image" src={image_url} alt="" />
                 <span className="checkout-cabin__overlay" />
                 {cabinId === id && (
                   <span className="checkout-cabin__check">
@@ -936,7 +927,8 @@ function CheckoutScreen({ restaurant }: { restaurant: Restaurant }) {
                   <strong>{title}</strong>
                 </span>
               </button>
-            ))}
+              );
+            })}
           </section>
         </>
       )}
@@ -990,7 +982,7 @@ function UpsellReminder({
   products: Product[];
   selectedId?: string;
   onSkip: () => void;
-  onBrowse: () => void;
+  onBrowse: (product?: Product) => void;
   onDismiss: () => void;
 }) {
   const isSauces = type === 'sauce';
@@ -1010,11 +1002,18 @@ function UpsellReminder({
         <p>{isSauces ? 'Откройте категорию и выберите соус к заказу.' : 'Откройте категорию и выберите напиток к заказу.'}</p>
         <div className="modal-drinks">
           {suggestions.map((product) => (
-            <article className="flow-option-card" key={product.id} onClick={onBrowse}>
+            <article className="flow-option-card" key={product.id} onClick={() => onBrowse(product)}>
               <img src={product.image_url} alt={product.title} />
               <strong>{product.title}</strong>
               <span>{formatPrice(product.price)}</span>
-              <button type="button" onClick={onBrowse} aria-label={`Открыть ${product.title}`}>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onBrowse(product);
+                }}
+                aria-label={`Открыть ${product.title}`}
+              >
                 <Plus />
               </button>
             </article>
@@ -1026,7 +1025,7 @@ function UpsellReminder({
           </p>
         )}
         {!selectedId && (
-          <button className="primary-wide" type="button" onClick={onBrowse}>
+          <button className="primary-wide" type="button" onClick={() => onBrowse()}>
             {isSauces ? 'Выбрать соус' : 'Выбрать напиток'}
           </button>
         )}
@@ -1294,13 +1293,17 @@ function InlineEditor({
 
 function CategoriesSettings({
   categories,
+  cabins,
   tags,
   onChangeCategories,
+  onChangeCabins,
   onChangeTags
 }: {
   categories: Category[];
+  cabins: Cabin[];
   tags: CatalogTag[];
   onChangeCategories: (categories: Category[]) => void;
+  onChangeCabins: (cabins: Cabin[]) => void;
   onChangeTags: (tags: CatalogTag[]) => void;
 }) {
   const move = (index: number, direction: -1 | 1) => {
@@ -1334,12 +1337,34 @@ function CategoriesSettings({
         />
         <div className="settings-list">
           {categories.map((category, index) => (
-            <article className="settings-list-item" key={category.id}>
+            <article className="settings-list-item settings-list-item--category" key={category.id}>
               <GripVertical />
+              <label className="settings-thumb">
+                {category.image ? <img src={category.image} alt="" /> : <CloudUpload />}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const image = await fileToDataUrl(file);
+                    onChangeCategories(categories.map((item) => (item.id === category.id ? { ...item, image } : item)));
+                    event.target.value = '';
+                  }}
+                />
+              </label>
               <input
                 value={category.name}
                 onChange={(event) =>
                   onChangeCategories(categories.map((item) => (item.id === category.id ? { ...item, name: event.target.value } : item)))
+                }
+              />
+              <input
+                value={category.image}
+                aria-label={`Фото категории ${category.name}`}
+                placeholder="Ссылка на фото"
+                onChange={(event) =>
+                  onChangeCategories(categories.map((item) => (item.id === category.id ? { ...item, image: event.target.value } : item)))
                 }
               />
               <button type="button" onClick={() => move(index, -1)} aria-label="Выше">
@@ -1349,6 +1374,65 @@ function CategoriesSettings({
                 ↓
               </button>
               <button className="danger-icon" type="button" onClick={() => onChangeCategories(categories.filter((item) => item.id !== category.id))} aria-label="Удалить">
+                <Trash2 />
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-form-card">
+        <div className="settings-section-head">
+          <h2>Кабинки</h2>
+        </div>
+        <InlineEditor
+          placeholder="Новая кабинка"
+          onAdd={(title) =>
+            onChangeCabins([
+              ...cabins,
+              {
+                id: makeId('cabin'),
+                title,
+                capacity: 'до 4 гостей',
+                feature: 'Уютная зона',
+                image_url: demoCabins[0]?.image_url ?? ''
+              }
+            ])
+          }
+        />
+        <div className="settings-list">
+          {cabins.map((cabin) => (
+            <article className="settings-list-item settings-list-item--cabin" key={cabin.id}>
+              <label className="settings-thumb">
+                {cabin.image_url ? <img src={cabin.image_url} alt="" /> : <CloudUpload />}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const image_url = await fileToDataUrl(file);
+                    onChangeCabins(cabins.map((item) => (item.id === cabin.id ? { ...item, image_url } : item)));
+                    event.target.value = '';
+                  }}
+                />
+              </label>
+              <input
+                value={cabin.title}
+                onChange={(event) => onChangeCabins(cabins.map((item) => (item.id === cabin.id ? { ...item, title: event.target.value } : item)))}
+              />
+              <input
+                value={cabin.capacity}
+                aria-label={`Вместимость ${cabin.title}`}
+                onChange={(event) => onChangeCabins(cabins.map((item) => (item.id === cabin.id ? { ...item, capacity: event.target.value } : item)))}
+              />
+              <input
+                value={cabin.image_url}
+                aria-label={`Фото ${cabin.title}`}
+                placeholder="Ссылка на фото"
+                onChange={(event) => onChangeCabins(cabins.map((item) => (item.id === cabin.id ? { ...item, image_url: event.target.value } : item)))}
+              />
+              <button className="danger-icon" type="button" onClick={() => onChangeCabins(cabins.filter((item) => item.id !== cabin.id))} aria-label="Удалить">
                 <Trash2 />
               </button>
             </article>
@@ -1529,6 +1613,7 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
 function BackupSettings({
   restaurant,
   categories,
+  cabins,
   tags,
   products,
   theme,
@@ -1536,10 +1621,11 @@ function BackupSettings({
 }: {
   restaurant: Restaurant;
   categories: Category[];
+  cabins: Cabin[];
   tags: CatalogTag[];
   products: Product[];
   theme: ThemeSettings;
-  onImport: (payload: { restaurant?: Restaurant; categories?: Category[]; tags?: CatalogTag[]; products?: Product[]; design?: CatalogDesignExport; theme?: ThemeSettings }) => void;
+  onImport: (payload: { restaurant?: Restaurant; categories?: Category[]; cabins?: Cabin[]; tags?: CatalogTag[]; products?: Product[]; design?: CatalogDesignExport; theme?: ThemeSettings }) => void;
 }) {
   const exportCatalog = () => {
     const blob = new Blob(
@@ -1548,6 +1634,7 @@ function BackupSettings({
           {
             restaurant,
             categories,
+            cabins,
             tags,
             products,
             design: {
@@ -1834,6 +1921,7 @@ function AppContent() {
   const setAdminEditor = useAdminStore((state) => state.setEditor);
   const [screen, setScreen] = useState<Screen>('home');
   const [catalogCategory, setCatalogCategory] = useState('all');
+  const [drinkCategory, setDrinkCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -1841,6 +1929,7 @@ function AppContent() {
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done' });
   const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
   const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
+  const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
   const [localTags, setLocalTags] = useState<CatalogTag[]>(defaultTags);
   const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(demoRestaurant);
   const items = useCartStore((state) => state.items);
@@ -1870,17 +1959,21 @@ function AppContent() {
     if (data?.categories) {
       setLocalCategories(data.categories);
     }
+    if (data?.cabins) {
+      setLocalCabins(data.cabins);
+    }
     if (data?.restaurant) {
       setLocalRestaurant(data.restaurant);
     }
     if (data?.tags && data.tags.length > 0) {
       setLocalTags(data.tags);
     }
-  }, [data?.categories, data?.products, data?.restaurant, data?.tags, data?.theme, updateTheme]);
+  }, [data?.cabins, data?.categories, data?.products, data?.restaurant, data?.tags, data?.theme, updateTheme]);
 
   const catalog = {
     categories: localCategories,
     products: localProducts,
+    cabins: localCabins,
     restaurant: localRestaurant,
     source: data?.source ?? ('demo' as const)
   };
@@ -1963,6 +2056,11 @@ function AppContent() {
     persist(replaceCategoriesInSupabase(values));
   };
 
+  const saveCabins = (values: Cabin[]) => {
+    setLocalCabins(values);
+    persist(replaceCabinsInSupabase(values));
+  };
+
   const saveTags = (values: CatalogTag[]) => {
     setLocalTags(values);
     persist(replaceTagsInSupabase(values));
@@ -1982,7 +2080,7 @@ function AppContent() {
   const continueOrderFlow = () => {
     if (orderFlow.step === 'sauce') {
       setOrderFlow((current) => ({ ...current, step: 'drink' }));
-      setScreen('drinks');
+      setScreen('checkout');
       return;
     }
     finishOrderFlow();
@@ -2002,13 +2100,14 @@ function AppContent() {
     startOrderFlow();
   };
 
-  const openFlowCategory = () => {
+  const openFlowCategory = (product?: Product) => {
     if (orderFlow.step === 'sauce') {
       setCatalogCategory('sauces');
       setScreen('catalog');
       return;
     }
     if (orderFlow.step === 'drink') {
+      setDrinkCategory(product?.category_id ?? 'all');
       setScreen('drinks');
     }
   };
@@ -2026,6 +2125,7 @@ function AppContent() {
   const resetCatalog = () => {
     setLocalProducts([]);
     setLocalCategories([]);
+    setLocalCabins([]);
     setLocalTags([]);
     const emptyRestaurant = { ...demoRestaurant, name: 'Мангал', subtitle: '', whatsapp: '', instagram_url: '', address: '' };
     setLocalRestaurant(emptyRestaurant);
@@ -2046,7 +2146,7 @@ function AppContent() {
       button_radius: 14,
       header_style: 'centered'
     });
-    persist(replaceCatalogInSupabase({ restaurant: emptyRestaurant, categories: [], tags: [], products: [] }));
+    persist(replaceCatalogInSupabase({ restaurant: emptyRestaurant, categories: [], cabins: [], tags: [], products: [] }));
     setScreen('settings');
   };
 
@@ -2069,8 +2169,10 @@ function AppContent() {
       {screen === 'settings-categories' && (
         <CategoriesSettings
           categories={catalog.categories}
+          cabins={catalog.cabins}
           tags={localTags}
           onChangeCategories={saveCategories}
+          onChangeCabins={saveCabins}
           onChangeTags={saveTags}
         />
       )}
@@ -2079,12 +2181,14 @@ function AppContent() {
         <BackupSettings
           restaurant={catalog.restaurant}
           categories={catalog.categories}
+          cabins={catalog.cabins}
           tags={localTags}
           products={catalog.products}
           theme={themeStore}
           onImport={(payload) => {
             if (payload.products) setLocalProducts(payload.products);
             if (payload.categories) setLocalCategories(payload.categories);
+            if (payload.cabins) setLocalCabins(payload.cabins);
             if (payload.tags) setLocalTags(payload.tags);
             if (payload.restaurant) setLocalRestaurant(payload.restaurant);
             if (payload.theme) updateTheme(payload.theme);
@@ -2092,6 +2196,7 @@ function AppContent() {
               replaceCatalogInSupabase({
                 products: payload.products,
                 categories: payload.categories,
+                cabins: payload.cabins,
                 tags: payload.tags,
                 restaurant: payload.restaurant,
                 theme: payload.theme
@@ -2142,7 +2247,10 @@ function AppContent() {
                 setCatalogCategory(categoryId);
                 setScreen('catalog');
               }}
-              onOpenDrinks={() => setScreen('drinks')}
+              onOpenDrinks={(categoryId = 'all') => {
+                setDrinkCategory(categoryId);
+                setScreen('drinks');
+              }}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -2172,7 +2280,9 @@ function AppContent() {
           )}
           {screen === 'drinks' && (
             <DrinksScreen
+              categories={catalog.categories}
               products={catalog.products}
+              initialCategory={drinkCategory}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -2205,7 +2315,7 @@ function AppContent() {
               }
             />
           )}
-          {screen === 'checkout' && <CheckoutScreen restaurant={catalog.restaurant} />}
+          {screen === 'checkout' && <CheckoutScreen restaurant={catalog.restaurant} cabins={catalog.cabins} />}
           <CartBar onCheckout={() => setIsCartOpen(true)} />
         </>
       )}
@@ -2247,6 +2357,7 @@ function AppContent() {
             setScreen('catalog');
           }
           if (target === 'drinks') {
+            setDrinkCategory('all');
             setScreen('drinks');
           }
           if (target === 'cabins') {
