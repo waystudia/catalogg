@@ -952,10 +952,19 @@ function CheckoutScreen({ restaurant, cabins }: { restaurant: Restaurant; cabins
         </div>
         <div className="checkout-summary__list">
           {items.map((item) => (
-            <p key={item.product.id}>
-              <span>{item.product.title}</span>
-              <strong>{item.quantity} x {formatPrice(item.product.price)}</strong>
-            </p>
+            <article className="checkout-order-card" key={item.product.id}>
+              <img src={item.product.image_url} alt={item.product.title} />
+              <div className="checkout-order-card__body">
+                <div>
+                  <h3>{item.product.title}</h3>
+                  <p>{item.product.description}</p>
+                </div>
+                <div className="checkout-order-card__bottom">
+                  <strong>{formatPrice(item.product.price)}</strong>
+                  <span>{item.quantity} x {formatPrice(item.product.price * item.quantity)}</span>
+                </div>
+              </div>
+            </article>
           ))}
         </div>
         <div className="checkout-summary__total">
