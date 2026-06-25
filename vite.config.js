@@ -39,8 +39,9 @@ export default defineConfig(function (_a) {
                 },
                 workbox: {
                     cleanupOutdatedCaches: true,
+                    navigateFallback: null,
                     navigateFallbackDenylist: [/^\/api\//],
-                    globPatterns: ['**/*.{js,css,html,svg,ico,png,webp}'],
+                    globPatterns: ['**/*.{js,css,svg,ico,png,webp}'],
                     runtimeCaching: [
                         {
                             urlPattern: function (_a) {

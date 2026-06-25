@@ -252,17 +252,17 @@ function TopBar({
 
   return (
     <header className="top-bar">
-      <button className="icon-button" type="button" onClick={canBack ? onBack : onAdmin} aria-label="Назад">
+      <button className="icon-button top-bar__button" type="button" onClick={canBack ? onBack : onAdmin} aria-label="Назад">
         {canBack ? <ArrowLeft /> : <User />}
       </button>
       {title ? <h1 className="screen-title">{title}</h1> : <Logo logoUrl={logoUrl} />}
       <div className="top-bar__actions">
         {onSearch && (
-          <button className="icon-button" type="button" onClick={onSearch} aria-label="Поиск">
+          <button className="icon-button top-bar__button" type="button" onClick={onSearch} aria-label="Поиск">
             <Search />
           </button>
         )}
-        <button className="icon-button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
+        <button className="icon-button top-bar__button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
           <ShoppingCart />
           {count > 0 && <span>{count}</span>}
         </button>
@@ -2147,6 +2147,15 @@ function AppContent() {
     setOrderFlow({ step: 'sauce', selectedSauce, selectedDrink });
   };
 
+  const continueFromCartBar = () => {
+    setIsCartOpen(false);
+    if (orderFlow.step !== 'done') {
+      continueOrderFlow();
+      return;
+    }
+    startOrderFlow();
+  };
+
   const checkoutFromCart = () => {
     setIsCartOpen(false);
     startOrderFlow();
@@ -2367,7 +2376,7 @@ function AppContent() {
             />
           )}
           {screen === 'checkout' && <CheckoutScreen restaurant={catalog.restaurant} cabins={catalog.cabins} />}
-          <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={checkoutFromCart} />
+          <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={continueFromCartBar} />
         </>
       )}
 
