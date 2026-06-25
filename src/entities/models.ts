@@ -10,6 +10,12 @@ export type ThemeSettings = {
   background_color: string;
   background_image_url: string;
   card_color: string;
+  product_card_color?: string;
+  product_card_text_color?: string;
+  settings_card_color?: string;
+  settings_card_text_color?: string;
+  cart_panel_color?: string;
+  cart_panel_text_color?: string;
   card_radius: number;
   card_shadow: string;
   text_primary: string;

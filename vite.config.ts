@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
+        injectRegister: 'auto',
         includeAssets: ['favicon.svg', 'robots.txt', 'icons/*.svg', 'placeholders/*.svg'],
         manifest: {
           name: 'Restaurant Catalog Template',
@@ -39,13 +40,20 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
+          cleanupOutdatedCaches: true,
+          navigateFallbackDenylist: [/^\/api\//],
           globPatterns: ['**/*.{js,css,html,svg,ico,png,webp}'],
           runtimeCaching: [
             {
               urlPattern: ({ request }) => request.destination === 'image',
-              handler: 'StaleWhileRevalidate',
+              handler: 'NetworkFirst',
               options: {
-                cacheName: 'catalog-images'
+                cacheName: 'catalog-images',
+                networkTimeoutSeconds: 4,
+                expiration: {
+                  maxEntries: 120,
+                  maxAgeSeconds: 86400
+                }
               }
             }
           ]

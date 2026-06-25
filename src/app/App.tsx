@@ -89,6 +89,12 @@ type CatalogDesignExport = {
   primaryColor?: string;
   accentColor?: string;
   cardColor?: string;
+  productCardColor?: string;
+  productCardTextColor?: string;
+  settingsCardColor?: string;
+  settingsCardTextColor?: string;
+  cartPanelColor?: string;
+  cartPanelTextColor?: string;
   cardStyle?: 'light' | 'dark';
   textColor?: string;
   mutedTextColor?: string;
@@ -121,6 +127,12 @@ function applyTheme(theme: ThemeSettings) {
   return {
     '--bg': theme.background_color,
     '--card': theme.card_color,
+    '--product-card': theme.product_card_color ?? theme.card_color,
+    '--product-card-text': theme.product_card_text_color ?? theme.text_primary ?? '#181510',
+    '--settings-card': theme.settings_card_color ?? theme.card_color,
+    '--settings-card-text': theme.settings_card_text_color ?? theme.text_primary ?? '#181510',
+    '--cart-panel': theme.cart_panel_color ?? '#111111',
+    '--cart-panel-text': theme.cart_panel_text_color ?? theme.text_primary ?? '#f8f5ef',
     '--radius': `${theme.card_radius}px`,
     '--shadow': theme.card_shadow,
     '--text': theme.text_primary ?? '#f8f5ef',
@@ -152,6 +164,21 @@ function Logo({ compact = false, logoUrl }: { compact?: boolean; logoUrl?: strin
       </div>
     </div>
   );
+}
+
+function SafeImage({ src, alt, className, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
+  const [failed, setFailed] = useState(false);
+  const label = alt || 'Изображение';
+
+  if (!src || failed) {
+    return (
+      <div className={className ? `image-fallback ${className}` : 'image-fallback'} role="img" aria-label={label}>
+        <em>{label}</em>
+      </div>
+    );
+  }
+
+  return <img {...props} className={className} src={src} alt={alt} onError={() => setFailed(true)} />;
 }
 
 function TopBar({
@@ -251,7 +278,7 @@ function ProductTile({
   return (
     <article className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}`} onClick={() => onOpen(product)}>
       <div className="product-tile__image">
-        <img src={product.image_url} alt={product.title} loading="lazy" />
+        <SafeImage src={product.image_url} alt={product.title} loading="lazy" />
         {product.is_popular && (
           <span className="product-state product-state--popular">
             <Star />
@@ -311,7 +338,7 @@ function ProductTile({
   );
 }
 
-function CartBar({ onCheckout }: { onCheckout: () => void }) {
+function CartBar({ onCheckout, onContinue }: { onCheckout: () => void; onContinue: () => void }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
   const total = selectCartTotal(items);
@@ -321,20 +348,20 @@ function CartBar({ onCheckout }: { onCheckout: () => void }) {
   }
 
   return (
-    <button className="cart-bar" type="button" onClick={onCheckout}>
+    <div className="cart-bar">
       <span className="cart-bar__icon">
         <ShoppingCart />
         <b>{count}</b>
       </span>
-      <span>
+      <button className="cart-bar__details" type="button" onClick={onCheckout}>
         <strong>В корзине {count} товара</strong>
         <small>{items.map((item) => item.product.title).join(', ')}</small>
-      </span>
+      </button>
       <b>{formatPrice(total)}</b>
-      <span className="cart-bar__go">
+      <button className="cart-bar__go" type="button" onClick={onContinue} aria-label="Продолжить">
         <ArrowRight />
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -449,7 +476,7 @@ function CartSheet({
             <div className="cart-sheet__list">
               {items.map((item) => (
                 <article className="cart-item-card" key={item.product.id}>
-                  <img src={item.product.image_url} alt={item.product.title} />
+                  <SafeImage src={item.product.image_url} alt={item.product.title} />
                   <div className="cart-item-card__content">
                     <div className="cart-item-card__top">
                       <div>
@@ -566,7 +593,7 @@ function HomeScreen({
                 onOpenCatalog(category.id);
               }}
             >
-              <img src={category.image} alt="" loading="lazy" />
+              <SafeImage src={category.image} alt={category.name} loading="lazy" />
               <span>
                 <Icon />
               </span>
@@ -798,7 +825,7 @@ function ProductScreen({
 
   return (
     <main className="screen product-screen">
-      <img className="product-hero" src={product.image_url} alt={product.title} />
+      <SafeImage className="product-hero" src={product.image_url} alt={product.title} />
       <div className="product-heading">
         <div>
           <h2>{product.title}</h2>
@@ -908,7 +935,7 @@ function CheckoutScreen({ restaurant, cabins }: { restaurant: Restaurant; cabins
               const Icon = id === 'main-hall' ? Users : Home;
               return (
               <button className={cabinId === id ? 'checkout-cabin is-active' : 'checkout-cabin'} type="button" key={id} onClick={() => setOrder({ cabinId: id })}>
-                <img className="checkout-cabin__image" src={image_url} alt="" />
+                <SafeImage className="checkout-cabin__image" src={image_url} alt={title} />
                 <span className="checkout-cabin__overlay" />
                 {cabinId === id && (
                   <span className="checkout-cabin__check">
@@ -946,7 +973,7 @@ function CheckoutScreen({ restaurant, cabins }: { restaurant: Restaurant; cabins
         <div className="checkout-summary__list">
           {items.map((item) => (
             <article className="checkout-order-card" key={item.product.id}>
-              <img src={item.product.image_url} alt={item.product.title} />
+              <SafeImage src={item.product.image_url} alt={item.product.title} />
               <div className="checkout-order-card__body">
                 <div>
                   <h3>{item.product.title}</h3>
@@ -1005,19 +1032,8 @@ function UpsellReminder({
         <div className="modal-drinks">
           {suggestions.map((product) => (
             <article className="flow-option-card" key={product.id} onClick={() => onBrowse(product)}>
-              <img src={product.image_url} alt={product.title} />
+              <SafeImage src={product.image_url} alt={product.title} />
               <strong>{product.title}</strong>
-              <span>{formatPrice(product.price)}</span>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onBrowse(product);
-                }}
-                aria-label={`Открыть ${product.title}`}
-              >
-                <Plus />
-              </button>
             </article>
           ))}
         </div>
@@ -1585,7 +1601,12 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
         <ColorSetting label="Цвет карточек" value={theme.card_color} palette={cardColors} onChange={(color) => onChange({ card_color: color })} />
         <ColorSetting label="Цвет текста" value={theme.text_primary} palette={textColors} onChange={(color) => onChange({ text_primary: color })} />
         <ColorSetting label="Вторичный текст" value={theme.text_secondary} palette={mutedColors} onChange={(color) => onChange({ text_secondary: color })} />
-        <ColorSetting label="Текст внутри карточек блюд" value={theme.product_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ product_title_color: color })} />
+        <ColorSetting label="Карточки блюд" value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color })} />
+        <ColorSetting label="Текст карточек блюд" value={theme.product_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ product_card_text_color: color })} />
+        <ColorSetting label="Карточки настроек" value={theme.settings_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ settings_card_color: color })} />
+        <ColorSetting label="Текст карточек настроек" value={theme.settings_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ settings_card_text_color: color })} />
+        <ColorSetting label="Панель корзины" value={theme.cart_panel_color ?? '#111111'} palette={cardColors} onChange={(color) => onChange({ cart_panel_color: color })} />
+        <ColorSetting label="Текст панели корзины" value={theme.cart_panel_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ cart_panel_text_color: color })} />
         <ColorSetting label="Названия категорий" value={theme.category_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ category_title_color: color })} />
 
         <label className="range-field">
@@ -1634,6 +1655,12 @@ function BackupSettings({
               primaryColor: theme.accent_color,
               accentColor: theme.accent_secondary,
               cardColor: theme.card_color,
+              productCardColor: theme.product_card_color,
+              productCardTextColor: theme.product_card_text_color,
+              settingsCardColor: theme.settings_card_color,
+              settingsCardTextColor: theme.settings_card_text_color,
+              cartPanelColor: theme.cart_panel_color,
+              cartPanelTextColor: theme.cart_panel_text_color,
               cardStyle: theme.card_color === '#ffffff' ? 'light' : 'dark',
               textColor: theme.text_primary,
               mutedTextColor: theme.text_secondary,
@@ -2125,6 +2152,12 @@ function AppContent() {
       background_color: '#f7f3ec',
       background_image_url: '',
       card_color: '#ffffff',
+      product_card_color: '#ffffff',
+      product_card_text_color: '#181510',
+      settings_card_color: '#ffffff',
+      settings_card_text_color: '#181510',
+      cart_panel_color: '#111111',
+      cart_panel_text_color: '#f8f5ef',
       card_radius: 16,
       card_shadow: '0 18px 46px rgba(45, 35, 20, 0.12)',
       text_primary: '#181510',
@@ -2197,6 +2230,12 @@ function AppContent() {
               saveTheme({
                 background_color: payload.design.backgroundColor ?? (payload.design.theme === 'light' ? '#f7f3ec' : '#070809'),
                 card_color: payload.design.cardColor ?? (payload.design.cardStyle === 'light' ? '#ffffff' : '#121416'),
+                product_card_color: payload.design.productCardColor ?? themeStore.product_card_color,
+                product_card_text_color: payload.design.productCardTextColor ?? themeStore.product_card_text_color,
+                settings_card_color: payload.design.settingsCardColor ?? themeStore.settings_card_color,
+                settings_card_text_color: payload.design.settingsCardTextColor ?? themeStore.settings_card_text_color,
+                cart_panel_color: payload.design.cartPanelColor ?? themeStore.cart_panel_color,
+                cart_panel_text_color: payload.design.cartPanelTextColor ?? themeStore.cart_panel_text_color,
                 accent_color: payload.design.primaryColor ?? themeStore.accent_color,
                 accent_secondary: payload.design.accentColor ?? themeStore.accent_secondary,
                 text_primary: payload.design.textColor ?? themeStore.text_primary,
@@ -2307,7 +2346,7 @@ function AppContent() {
             />
           )}
           {screen === 'checkout' && <CheckoutScreen restaurant={catalog.restaurant} cabins={catalog.cabins} />}
-          <CartBar onCheckout={() => setIsCartOpen(true)} />
+          <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={checkoutFromCart} />
         </>
       )}
 

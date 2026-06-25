@@ -37,6 +37,26 @@ a {
   text-decoration: none;
 }
 
+.image-fallback {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(232, 162, 58, 0.2), rgba(255, 208, 130, 0.08)),
+    var(--card);
+  color: currentColor;
+  text-align: center;
+}
+
+.image-fallback em {
+  max-width: 80%;
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  opacity: 0.72;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -50,6 +70,12 @@ a {
   --muted: #766d62;
   --accent: #e8a23a;
   --accent-2: #ffd082;
+  --product-card: #ffffff;
+  --product-card-text: #181510;
+  --settings-card: #ffffff;
+  --settings-card-text: #181510;
+  --cart-panel: #111111;
+  --cart-panel-text: #f8f5ef;
   --button-radius: 14px;
   min-height: 100vh;
   max-width: 980px;
@@ -267,7 +293,8 @@ a {
   color: var(--text);
 }
 
-.category-card img {
+.category-card img,
+.category-card > .image-fallback {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -368,7 +395,8 @@ a {
   height: 260px;
   min-height: 0;
   overflow: hidden;
-  color: var(--text);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)), var(--product-card);
+  color: var(--product-card-text);
   text-align: left;
 }
 
@@ -391,7 +419,8 @@ a {
   overflow: hidden;
 }
 
-.product-tile img {
+.product-tile img,
+.product-tile .image-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -414,7 +443,7 @@ a {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  color: var(--product-title);
+  color: var(--product-card-text);
   font-size: 15px;
   line-height: 1.15;
   -webkit-box-orient: vertical;
@@ -424,7 +453,7 @@ a {
 .product-tile p {
   margin: 4px 0 0;
   overflow: hidden;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--product-card-text) 68%, transparent);
   font-size: 12px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -689,10 +718,19 @@ a {
   border: 1px solid rgba(232, 162, 58, 0.45);
   border-radius: 16px;
   padding: 12px 18px;
-  background: rgba(17, 17, 17, 0.94);
-  color: var(--text);
+  background: var(--cart-panel);
+  color: var(--cart-panel-text);
   text-align: left;
   backdrop-filter: blur(18px);
+}
+
+.cart-bar__details {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 
 .cart-bar__icon {
@@ -713,7 +751,7 @@ a {
 .cart-bar small {
   display: block;
   overflow: hidden;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--cart-panel-text) 68%, transparent);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -728,6 +766,7 @@ a {
   width: 58px;
   height: 58px;
   place-items: center;
+  border: 0;
   border-radius: var(--button-radius);
   background: var(--accent-2);
   color: #161006;
@@ -828,7 +867,8 @@ a {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
-.cart-item-card > img {
+.cart-item-card > img,
+.cart-item-card > .image-fallback {
   width: 88px;
   height: 88px;
   border-radius: 14px;
@@ -1382,7 +1422,8 @@ a {
   background: rgba(255, 255, 255, 0.045);
 }
 
-.checkout-order-card img {
+.checkout-order-card img,
+.checkout-order-card .image-fallback {
   width: 92px;
   height: 92px;
   border-radius: 14px;
@@ -1761,7 +1802,8 @@ a {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.modal-drinks img {
+.modal-drinks img,
+.modal-drinks .image-fallback {
   width: 100%;
   height: 132px;
   object-fit: cover;
@@ -1943,7 +1985,7 @@ a {
   border: 1px solid rgba(232, 162, 58, 0.35);
   border-radius: 0;
   padding: 10px;
-  background: color-mix(in srgb, var(--card) 94%, transparent);
+  background: color-mix(in srgb, var(--settings-card) 94%, transparent);
   box-shadow: 0 -14px 48px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(18px);
 }
@@ -1956,8 +1998,8 @@ a {
   gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--bg) 18%, transparent);
-  color: var(--text);
+  background: var(--settings-card);
+  color: var(--settings-card-text);
 }
 
 .admin-panel svg {
@@ -2082,7 +2124,7 @@ a {
 .settings-info {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)), var(--card);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)), var(--settings-card);
   box-shadow: var(--shadow);
 }
 
@@ -2093,7 +2135,7 @@ a {
   gap: 16px;
   min-height: 98px;
   padding: 18px;
-  color: var(--text);
+  color: var(--settings-card-text);
   text-align: left;
 }
 
@@ -2120,7 +2162,7 @@ a {
 
 .settings-card small {
   margin-top: 6px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--settings-card-text) 68%, transparent);
   line-height: 1.35;
 }
 

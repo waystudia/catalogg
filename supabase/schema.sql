@@ -90,6 +90,12 @@ create table if not exists public.theme_settings (
   background_color text not null default '#f7f3ec',
   background_image_url text not null default '',
   card_color text not null default '#ffffff',
+  product_card_color text not null default '#ffffff',
+  product_card_text_color text not null default '#181510',
+  settings_card_color text not null default '#ffffff',
+  settings_card_text_color text not null default '#181510',
+  cart_panel_color text not null default '#111111',
+  cart_panel_text_color text not null default '#f8f5ef',
   card_radius integer not null default 18,
   card_shadow text not null default '0 18px 46px rgba(45, 35, 20, 0.12)',
   text_primary text not null default '#181510',
@@ -104,6 +110,13 @@ create table if not exists public.theme_settings (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.theme_settings add column if not exists product_card_color text not null default '#ffffff';
+alter table public.theme_settings add column if not exists product_card_text_color text not null default '#181510';
+alter table public.theme_settings add column if not exists settings_card_color text not null default '#ffffff';
+alter table public.theme_settings add column if not exists settings_card_text_color text not null default '#181510';
+alter table public.theme_settings add column if not exists cart_panel_color text not null default '#111111';
+alter table public.theme_settings add column if not exists cart_panel_text_color text not null default '#f8f5ef';
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -312,6 +325,8 @@ on conflict (id) do update set
 
 insert into public.theme_settings (
   id, restaurant_id, background_type, background_color, background_image_url, card_color,
+  product_card_color, product_card_text_color, settings_card_color, settings_card_text_color,
+  cart_panel_color, cart_panel_text_color,
   card_radius, card_shadow, text_primary, text_secondary, product_title_color,
   category_title_color, accent_color, accent_secondary, button_style, button_radius, header_style
 )
@@ -322,6 +337,12 @@ values (
   '#f7f3ec',
   '',
   '#ffffff',
+  '#ffffff',
+  '#181510',
+  '#ffffff',
+  '#181510',
+  '#111111',
+  '#f8f5ef',
   18,
   '0 18px 46px rgba(45, 35, 20, 0.12)',
   '#181510',
@@ -340,6 +361,12 @@ on conflict (id) do update set
   background_color = excluded.background_color,
   background_image_url = excluded.background_image_url,
   card_color = excluded.card_color,
+  product_card_color = excluded.product_card_color,
+  product_card_text_color = excluded.product_card_text_color,
+  settings_card_color = excluded.settings_card_color,
+  settings_card_text_color = excluded.settings_card_text_color,
+  cart_panel_color = excluded.cart_panel_color,
+  cart_panel_text_color = excluded.cart_panel_text_color,
   card_radius = excluded.card_radius,
   card_shadow = excluded.card_shadow,
   text_primary = excluded.text_primary,
