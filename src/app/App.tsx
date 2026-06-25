@@ -115,6 +115,52 @@ const makeId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.
 const getProductCategoryIds = (product: Product) =>
   product.category_ids?.length ? product.category_ids : [product.category_id];
 
+const darkThemePreset: Partial<ThemeSettings> = {
+  background_type: 'color',
+  background_color: '#070809',
+  background_image_url: '',
+  card_color: '#121416',
+  product_card_color: '#121416',
+  product_card_text_color: '#f8f5ef',
+  settings_card_color: '#121416',
+  settings_card_text_color: '#f8f5ef',
+  cart_panel_color: '#111111',
+  cart_panel_text_color: '#f8f5ef',
+  text_primary: '#f8f5ef',
+  text_secondary: '#aaa39a',
+  product_title_color: '#f8f5ef',
+  category_title_color: '#f8f5ef',
+  card_shadow: '0 18px 46px rgba(0, 0, 0, 0.28)'
+};
+
+const lightThemePreset: Partial<ThemeSettings> = {
+  background_type: 'color',
+  background_color: '#f7f3ec',
+  background_image_url: '',
+  card_color: '#ffffff',
+  product_card_color: '#ffffff',
+  product_card_text_color: '#181510',
+  settings_card_color: '#ffffff',
+  settings_card_text_color: '#181510',
+  cart_panel_color: '#ffffff',
+  cart_panel_text_color: '#181510',
+  text_primary: '#181510',
+  text_secondary: '#766d62',
+  product_title_color: '#111827',
+  category_title_color: '#ffffff',
+  card_shadow: '0 18px 46px rgba(45, 35, 20, 0.12)'
+};
+
+const readableTextFor = (color: string) => {
+  const hex = color.trim().replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) {
+    return '#f8f5ef';
+  }
+  const [r, g, b] = [0, 2, 4].map((start) => Number.parseInt(hex.slice(start, start + 2), 16));
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness > 160 ? '#181510' : '#f8f5ef';
+};
+
 const iconMap = {
   pot: ChefHat,
   pizza: Pizza,
@@ -1545,34 +1591,16 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
         <h2>Тема</h2>
         <div className="choice-grid">
           <button
-            className={theme.background_color === '#f7f3ec' ? 'choice-card is-active' : 'choice-card'}
+            className={theme.background_color === lightThemePreset.background_color ? 'choice-card is-active' : 'choice-card'}
             type="button"
-            onClick={() =>
-              onChange({
-                background_color: '#f7f3ec',
-                card_color: '#ffffff',
-                text_primary: '#181510',
-                text_secondary: '#766d62',
-                product_title_color: '#111827',
-                category_title_color: '#ffffff'
-              })
-            }
+            onClick={() => onChange(lightThemePreset)}
           >
             Светлая
           </button>
           <button
-            className={theme.background_color !== '#f7f3ec' ? 'choice-card is-active' : 'choice-card'}
+            className={theme.background_color !== lightThemePreset.background_color ? 'choice-card is-active' : 'choice-card'}
             type="button"
-            onClick={() =>
-              onChange({
-                background_color: '#070809',
-                card_color: '#121416',
-                text_primary: '#f8f5ef',
-                text_secondary: '#aaa39a',
-                product_title_color: '#f8f5ef',
-                category_title_color: '#f8f5ef'
-              })
-            }
+            onClick={() => onChange(darkThemePreset)}
           >
             Тёмная
           </button>
@@ -1606,11 +1634,11 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
         <ColorSetting label="Цвет карточек" value={theme.card_color} palette={cardColors} onChange={(color) => onChange({ card_color: color })} />
         <ColorSetting label="Цвет текста" value={theme.text_primary} palette={textColors} onChange={(color) => onChange({ text_primary: color })} />
         <ColorSetting label="Вторичный текст" value={theme.text_secondary} palette={mutedColors} onChange={(color) => onChange({ text_secondary: color })} />
-        <ColorSetting label="Карточки блюд" value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color })} />
+        <ColorSetting label="Карточки блюд" value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color, product_card_text_color: readableTextFor(color) })} />
         <ColorSetting label="Текст карточек блюд" value={theme.product_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ product_card_text_color: color })} />
-        <ColorSetting label="Карточки настроек" value={theme.settings_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ settings_card_color: color })} />
+        <ColorSetting label="Карточки настроек" value={theme.settings_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ settings_card_color: color, settings_card_text_color: readableTextFor(color) })} />
         <ColorSetting label="Текст карточек настроек" value={theme.settings_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ settings_card_text_color: color })} />
-        <ColorSetting label="Панель корзины" value={theme.cart_panel_color ?? '#111111'} palette={cardColors} onChange={(color) => onChange({ cart_panel_color: color })} />
+        <ColorSetting label="Панель корзины" value={theme.cart_panel_color ?? '#111111'} palette={cardColors} onChange={(color) => onChange({ cart_panel_color: color, cart_panel_text_color: readableTextFor(color) })} />
         <ColorSetting label="Текст панели корзины" value={theme.cart_panel_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ cart_panel_text_color: color })} />
         <ColorSetting label="Названия категорий" value={theme.category_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ category_title_color: color })} />
 
@@ -2154,22 +2182,8 @@ function AppContent() {
     const emptyRestaurant = { ...demoRestaurant, name: 'Мангал', subtitle: '', whatsapp: '', instagram_url: '', address: '' };
     setLocalRestaurant(emptyRestaurant);
     saveTheme({
-      background_type: 'color',
-      background_color: '#f7f3ec',
-      background_image_url: '',
-      card_color: '#ffffff',
-      product_card_color: '#ffffff',
-      product_card_text_color: '#181510',
-      settings_card_color: '#ffffff',
-      settings_card_text_color: '#181510',
-      cart_panel_color: '#111111',
-      cart_panel_text_color: '#f8f5ef',
+      ...darkThemePreset,
       card_radius: 16,
-      card_shadow: '0 18px 46px rgba(45, 35, 20, 0.12)',
-      text_primary: '#181510',
-      text_secondary: '#766d62',
-      product_title_color: '#111827',
-      category_title_color: '#f8f5ef',
       accent_color: '#e8a23a',
       accent_secondary: '#ffd082',
       button_style: 'filled',

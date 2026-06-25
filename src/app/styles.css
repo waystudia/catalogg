@@ -1,9 +1,9 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f7f3ec;
-  color: #181510;
+  background: #070809;
+  color: #f8f5ef;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -15,7 +15,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: #f7f3ec;
+  background: #070809;
 }
 
 button,
@@ -62,18 +62,18 @@ a {
 }
 
 .app-shell {
-  --bg: #f7f3ec;
-  --card: #ffffff;
+  --bg: #070809;
+  --card: #121416;
   --radius: 18px;
   --shadow: 0 18px 46px rgba(45, 35, 20, 0.12);
-  --text: #181510;
-  --muted: #766d62;
+  --text: #f8f5ef;
+  --muted: #aaa39a;
   --accent: #e8a23a;
   --accent-2: #ffd082;
-  --product-card: #ffffff;
-  --product-card-text: #181510;
-  --settings-card: #ffffff;
-  --settings-card-text: #181510;
+  --product-card: #121416;
+  --product-card-text: #f8f5ef;
+  --settings-card: #121416;
+  --settings-card-text: #f8f5ef;
   --cart-panel: #111111;
   --cart-panel-text: #f8f5ef;
   --button-radius: 14px;

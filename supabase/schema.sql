@@ -91,20 +91,20 @@ create table if not exists public.theme_settings (
   id text primary key,
   restaurant_id text not null references public.restaurant(id) on update cascade on delete cascade,
   background_type text not null default 'color' check (background_type in ('color', 'image')),
-  background_color text not null default '#f7f3ec',
+  background_color text not null default '#070809',
   background_image_url text not null default '',
-  card_color text not null default '#ffffff',
-  product_card_color text not null default '#ffffff',
-  product_card_text_color text not null default '#181510',
-  settings_card_color text not null default '#ffffff',
-  settings_card_text_color text not null default '#181510',
+  card_color text not null default '#121416',
+  product_card_color text not null default '#121416',
+  product_card_text_color text not null default '#f8f5ef',
+  settings_card_color text not null default '#121416',
+  settings_card_text_color text not null default '#f8f5ef',
   cart_panel_color text not null default '#111111',
   cart_panel_text_color text not null default '#f8f5ef',
   card_radius integer not null default 18,
-  card_shadow text not null default '0 18px 46px rgba(45, 35, 20, 0.12)',
-  text_primary text not null default '#181510',
-  text_secondary text not null default '#766d62',
-  product_title_color text not null default '#111827',
+  card_shadow text not null default '0 18px 46px rgba(0, 0, 0, 0.28)',
+  text_primary text not null default '#f8f5ef',
+  text_secondary text not null default '#aaa39a',
+  product_title_color text not null default '#f8f5ef',
   category_title_color text not null default '#f8f5ef',
   accent_color text not null default '#e8a23a',
   accent_secondary text not null default '#ffd082',
@@ -115,10 +115,10 @@ create table if not exists public.theme_settings (
   updated_at timestamptz not null default now()
 );
 
-alter table public.theme_settings add column if not exists product_card_color text not null default '#ffffff';
-alter table public.theme_settings add column if not exists product_card_text_color text not null default '#181510';
-alter table public.theme_settings add column if not exists settings_card_color text not null default '#ffffff';
-alter table public.theme_settings add column if not exists settings_card_text_color text not null default '#181510';
+alter table public.theme_settings add column if not exists product_card_color text not null default '#121416';
+alter table public.theme_settings add column if not exists product_card_text_color text not null default '#f8f5ef';
+alter table public.theme_settings add column if not exists settings_card_color text not null default '#121416';
+alter table public.theme_settings add column if not exists settings_card_text_color text not null default '#f8f5ef';
 alter table public.theme_settings add column if not exists cart_panel_color text not null default '#111111';
 alter table public.theme_settings add column if not exists cart_panel_text_color text not null default '#f8f5ef';
 
@@ -339,20 +339,20 @@ values (
   'theme-mangal',
   'mangal',
   'color',
-  '#f7f3ec',
+  '#070809',
   '',
-  '#ffffff',
-  '#ffffff',
-  '#181510',
-  '#ffffff',
-  '#181510',
+  '#121416',
+  '#121416',
+  '#f8f5ef',
+  '#121416',
+  '#f8f5ef',
   '#111111',
   '#f8f5ef',
   18,
-  '0 18px 46px rgba(45, 35, 20, 0.12)',
-  '#181510',
-  '#766d62',
-  '#111827',
+  '0 18px 46px rgba(0, 0, 0, 0.28)',
+  '#f8f5ef',
+  '#aaa39a',
+  '#f8f5ef',
   '#f8f5ef',
   '#e8a23a',
   '#ffd082',
