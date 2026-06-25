@@ -86,7 +86,7 @@ const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
-type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-backup' | 'settings-delete';
+type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-backup' | 'settings-delete';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
 type OrderFlowState = {
@@ -128,6 +128,7 @@ type CatalogBackupPayload = {
   design?: CatalogDesignExport;
   theme?: ThemeSettings;
 };
+type StockTargets = Record<string, number>;
 type BackupImageField = {
   owner: 'restaurant' | 'category' | 'cabin' | 'product' | 'theme';
   id: string;
@@ -142,9 +143,26 @@ const defaultTags: CatalogTag[] = [
 ];
 
 const makeId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+const stockTargetsStorageKey = 'mangal-stock-targets';
 
 const getProductCategoryIds = (product: Product) =>
   product.category_ids?.length ? product.category_ids : [product.category_id];
+
+const loadStockTargets = (): StockTargets => {
+  try {
+    return JSON.parse(localStorage.getItem(stockTargetsStorageKey) ?? '{}') as StockTargets;
+  } catch {
+    return {};
+  }
+};
+
+const saveStockTargets = (targets: StockTargets) => {
+  try {
+    localStorage.setItem(stockTargetsStorageKey, JSON.stringify(targets));
+  } catch {
+    // Local storage can be unavailable in strict/private browser modes.
+  }
+};
 
 const createCatalogBackupPayload = ({
   restaurant,
@@ -626,6 +644,7 @@ function ProductTile({
             <button type="button" aria-label="Удалить" onClick={() => onDelete?.(product.id)}>
               <Trash2 />
             </button>
+            <span className="admin-stock-count">Остаток: {product.stock_count}</span>
           </div>
         )}
       </div>
@@ -1477,6 +1496,7 @@ function SettingsHome({ onOpen }: { onOpen: (screen: SettingsScreen) => void }) 
     ['settings-profile', Store, 'Профиль ресторана', 'Название + контакты'],
     ['settings-categories', Tags, 'Параметры и категории', 'Категории + метки'],
     ['settings-design', Paintbrush, 'Дизайн приложения', 'Цвета, тема'],
+    ['settings-stock', Package, 'ОБНОВИТЬ БЛЮДА', 'Остатки на день'],
     ['settings-backup', CloudUpload, 'Импорт и экспорт', 'Бэкапы'],
     ['settings-delete', Trash2, 'Удалить каталог', 'Красная зона']
   ] as const;
@@ -1966,6 +1986,79 @@ function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (
   );
 }
 
+function StockSettings({
+  products,
+  targets,
+  onApply
+}: {
+  products: Product[];
+  targets: StockTargets;
+  onApply: (updates: StockTargets) => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setDraft(
+      Object.fromEntries(
+        products.map((product) => [product.id, String(targets[product.id] ?? product.stock_count)])
+      )
+    );
+  }, [products, targets]);
+
+  const getQuantity = (productId: string) => {
+    const value = Number(draft[productId]);
+    return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  };
+
+  const applyOne = (productId: string) => {
+    onApply({ [productId]: getQuantity(productId) });
+  };
+
+  const applyAll = () => {
+    onApply(Object.fromEntries(products.map((product) => [product.id, getQuantity(product.id)])));
+  };
+
+  return (
+    <main className="settings-screen">
+      <section className="settings-form-card stock-settings">
+        <div className="settings-section-head">
+          <div>
+            <h2>Обновить блюда</h2>
+            <p>Задайте остатки на день. Кнопка -1 меняет текущий остаток, а здесь хранится дневная норма.</p>
+          </div>
+        </div>
+        <button className="primary-wide" type="button" onClick={applyAll}>
+          Обновить полностью
+        </button>
+        <div className="stock-list">
+          {products.map((product) => (
+            <article className="stock-list-item" key={product.id}>
+              <SafeImage src={product.image_url} alt={product.title} />
+              <div>
+                <h3>{product.title}</h3>
+                <small>Сейчас осталось: {product.stock_count}</small>
+              </div>
+              <label>
+                Норма
+                <input
+                  inputMode="numeric"
+                  min={0}
+                  type="number"
+                  value={draft[product.id] ?? ''}
+                  onChange={(event) => setDraft((current) => ({ ...current, [product.id]: event.target.value }))}
+                />
+              </label>
+              <button className="ghost-wide" type="button" onClick={() => applyOne(product.id)}>
+                Обновить
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function BackupSettings({
   restaurant,
   categories,
@@ -2235,6 +2328,7 @@ function AppContent() {
   const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
   const [localTags, setLocalTags] = useState<CatalogTag[]>(defaultTags);
   const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(demoRestaurant);
+  const [stockTargets, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
   const cartCount = selectCartCount(items);
@@ -2259,6 +2353,16 @@ function AppContent() {
     }
     if (data?.products) {
       setLocalProducts(data.products);
+      setStockTargets((current) => {
+        const next = { ...current };
+        data.products.forEach((product) => {
+          if (next[product.id] === undefined) {
+            next[product.id] = product.stock_count;
+          }
+        });
+        saveStockTargets(next);
+        return next;
+      });
     }
     if (data?.categories) {
       setLocalCategories(data.categories);
@@ -2293,6 +2397,7 @@ function AppContent() {
     if (screen === 'settings-profile') return 'Профиль ресторана';
     if (screen === 'settings-categories') return 'Параметры и категории';
     if (screen === 'settings-design') return 'Дизайн приложения';
+    if (screen === 'settings-stock') return 'Обновить блюда';
     if (screen === 'settings-backup') return 'Импорт и экспорт';
     if (screen === 'settings-delete') return 'Удаление каталога';
     return 'Настройки';
@@ -2318,11 +2423,22 @@ function AppContent() {
     }
     setEditingProduct(null);
     setAdminEditor(null);
+    setStockTargets((current) => {
+      const next = { ...current, [product.id]: product.stock_count };
+      saveStockTargets(next);
+      return next;
+    });
     persist(saveProductToSupabase(product));
   };
 
   const deleteProduct = (productId: string) => {
     setLocalProducts((current) => current.filter((product) => product.id !== productId));
+    setStockTargets((current) => {
+      const next = { ...current };
+      delete next[productId];
+      saveStockTargets(next);
+      return next;
+    });
     if (selectedProduct?.id === productId) {
       setSelectedProduct(null);
       setScreen('home');
@@ -2350,6 +2466,35 @@ function AppContent() {
       setSelectedProduct((current) => (current ? { ...current, stock_count: stockCount } : current));
     }
     persist(updateProductInSupabase(productId, { stock_count: stockCount }));
+  };
+
+  const applyProductStocks = (updates: StockTargets) => {
+    const normalized = Object.fromEntries(
+      Object.entries(updates).map(([productId, stockCount]) => [
+        productId,
+        Math.max(0, Math.floor(Number(stockCount) || 0))
+      ])
+    );
+    setStockTargets((current) => {
+      const next = { ...current, ...normalized };
+      saveStockTargets(next);
+      return next;
+    });
+    setLocalProducts((current) =>
+      current.map((product) =>
+        normalized[product.id] === undefined ? product : { ...product, stock_count: normalized[product.id] }
+      )
+    );
+    if (selectedProduct && normalized[selectedProduct.id] !== undefined) {
+      setSelectedProduct({ ...selectedProduct, stock_count: normalized[selectedProduct.id] });
+    }
+    persist(
+      Promise.all(
+        Object.entries(normalized).map(([productId, stockCount]) =>
+          updateProductInSupabase(productId, { stock_count: stockCount })
+        )
+      ).then(() => undefined)
+    );
   };
 
   const saveRestaurant = (value: Restaurant) => {
@@ -2492,6 +2637,9 @@ function AppContent() {
         />
       )}
       {screen === 'settings-design' && <DesignSettings theme={themeStore} onChange={saveTheme} />}
+      {screen === 'settings-stock' && (
+        <StockSettings products={catalog.products} targets={stockTargets} onApply={applyProductStocks} />
+      )}
       {screen === 'settings-backup' && (
         <BackupSettings
           restaurant={catalog.restaurant}
@@ -2501,7 +2649,12 @@ function AppContent() {
           products={catalog.products}
           theme={themeStore}
           onImport={(payload) => {
-            if (payload.products) setLocalProducts(payload.products);
+            if (payload.products) {
+              setLocalProducts(payload.products);
+              const nextTargets = Object.fromEntries(payload.products.map((product) => [product.id, product.stock_count]));
+              setStockTargets(nextTargets);
+              saveStockTargets(nextTargets);
+            }
             if (payload.categories) setLocalCategories(payload.categories);
             if (payload.cabins) setLocalCabins(payload.cabins);
             if (payload.tags) setLocalTags(payload.tags);

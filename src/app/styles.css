@@ -510,6 +510,8 @@ a {
   left: 8px;
   z-index: 2;
   display: flex;
+  max-width: 160px;
+  flex-wrap: wrap;
   gap: 6px;
   border-radius: 10px;
   padding: 6px;
@@ -536,6 +538,17 @@ a {
 .admin-card-tools .is-on {
   background: var(--accent);
   color: #18120a;
+}
+
+.admin-stock-count {
+  flex: 1 0 100%;
+  border-radius: 7px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111827;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .product-state {
@@ -2509,6 +2522,49 @@ a {
   padding: 4px;
 }
 
+.stock-settings {
+  gap: 14px;
+}
+
+.stock-list {
+  display: grid;
+  gap: 10px;
+}
+
+.stock-list-item {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 112px 120px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stock-list-item img,
+.stock-list-item .image-fallback {
+  width: 72px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.stock-list-item h3 {
+  margin: 0 0 4px;
+  color: var(--settings-card-text);
+  font-size: 15px;
+}
+
+.stock-list-item label {
+  gap: 4px;
+  font-size: 12px;
+}
+
+.stock-list-item input {
+  min-height: 42px;
+}
+
 .danger-icon svg {
   width: 18px;
   height: 18px;
@@ -2920,6 +2976,21 @@ a {
 
   .settings-list-item--cabin {
     grid-template-columns: 64px minmax(0, 1fr) 42px;
+  }
+
+  .stock-list-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .stock-list-item label,
+  .stock-list-item button {
+    grid-column: 1 / -1;
+  }
+
+  .stock-list-item img,
+  .stock-list-item .image-fallback {
+    width: 64px;
+    height: 52px;
   }
 
   .settings-list-item--category > svg,
