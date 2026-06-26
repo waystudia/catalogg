@@ -16,6 +16,7 @@ import {
   Filter,
   Home,
   KeyRound,
+  LockKeyhole,
   LayoutTemplate,
   LogOut,
   MoreHorizontal,
@@ -28,11 +29,11 @@ import {
   Users,
   X
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Toaster, toast } from 'sonner';
 import { createClient, getClients, getPlatformStats } from '../../shared/api/clientsApi';
-import { isPlatformAdminSession, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
+import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type { PlatformClient, PlatformStats, PlatformTemplateOption } from '../../shared/api/platformTypes';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
@@ -940,13 +941,86 @@ function PlaceholderPage({ route }: { route: PlatformRoute }) {
   );
 }
 
-function ForbiddenState() {
+function PlatformLoginState({ onSuccess }: { onSuccess: () => void }) {
+  const [email, setEmail] = useState('studiacatalog@outlook.com');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const access = await signInPlatformAdmin(email, password);
+      if (!access.isPlatformAdmin) {
+        toast.error('Пользователь вошёл, но не найден в platform_admins');
+        return;
+      }
+      toast.success('Вход выполнен');
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось войти');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="platform-login">
+      <Toaster richColors position="top-center" />
+      <form className="platform-login__card" onSubmit={onSubmit}>
+        <span className="platform-login__icon">
+          <LockKeyhole />
+        </span>
+        <h1>Вход суперадмина</h1>
+        <p>Введите email и пароль пользователя, который добавлен в таблицу platform_admins.</p>
+        <label>
+          Email
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            type="email"
+            autoComplete="email"
+            required
+          />
+        </label>
+        <label>
+          Пароль
+          <span className="platform-login__password">
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+            />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Показать пароль">
+              <Eye />
+            </button>
+          </span>
+        </label>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Проверяем...' : 'Войти'}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut: () => void }) {
   return (
     <main className="platform-forbidden">
       <ShieldAlert />
       <h1>403</h1>
       <p>Эта панель доступна только суперадминистратору платформы.</p>
-      <p>Добавьте текущего пользователя в таблицу `platform_admins` и войдите снова.</p>
+      <p>
+        Текущий пользователь: <strong>{email ?? 'не определён'}</strong>
+      </p>
+      <p>Проверьте, что именно этот Auth user добавлен в таблицу platform_admins, затем войдите снова.</p>
+      <button type="button" onClick={onSignOut}>
+        <LogOut />
+        Выйти и войти другим аккаунтом
+      </button>
     </main>
   );
 }
@@ -959,7 +1033,7 @@ function PlatformAdminContent() {
 
   const platformAdminQuery = useQuery({
     queryKey: ['platform-admin-session'],
-    queryFn: isPlatformAdminSession
+    queryFn: getPlatformAdminAccess
   });
   const templatesQuery = useQuery({ queryKey: ['platform-templates'], queryFn: getTemplateOptions });
 
@@ -985,8 +1059,21 @@ function PlatformAdminContent() {
     return <main className="platform-state platform-state--full">Проверяем права доступа...</main>;
   }
 
-  if (!platformAdminQuery.data) {
-    return <ForbiddenState />;
+  if (!platformAdminQuery.data?.hasSession) {
+    return <PlatformLoginState onSuccess={() => void platformAdminQuery.refetch()} />;
+  }
+
+  if (!platformAdminQuery.data.isPlatformAdmin) {
+    return (
+      <ForbiddenState
+        email={platformAdminQuery.data.email}
+        onSignOut={() => {
+          void signOutPlatformAdmin().then(() => {
+            void platformAdminQuery.refetch();
+          });
+        }}
+      />
+    );
   }
 
   return (
@@ -1000,7 +1087,7 @@ function PlatformAdminContent() {
           </button>
           <div>
             <span>Администратор</span>
-            <small>admin@catalog.app</small>
+            <small>{platformAdminQuery.data.email ?? 'admin@catalog.app'}</small>
           </div>
         </header>
         {content}
