@@ -915,6 +915,13 @@ function HomeScreen({
   const featuredCategories = categories.filter((category) => ['fastfood', 'chechen', 'pizza', 'lemonades', 'fridge', 'cabins'].includes(category.id));
   const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
+  const openRestaurantMap = () => {
+    if (!restaurant.mapLink) {
+      alert('Карта не указана');
+      return;
+    }
+    window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <main className="screen">
@@ -993,6 +1000,9 @@ function HomeScreen({
           <a href={`https://wa.me/${whatsapp || '79990000000'}`} target="_blank" rel="noreferrer">
             <MessageCircle /> WhatsApp
           </a>
+          <button className="social-location-button" type="button" onClick={openRestaurantMap}>
+            <MapPin /> Мы находимся
+          </button>
         </div>
       </section>
     </main>

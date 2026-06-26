@@ -2194,7 +2194,8 @@ a {
   gap: 10px;
 }
 
-.social-actions a {
+.social-actions a,
+.social-location-button {
   display: flex;
   min-height: 56px;
   align-items: center;
@@ -2202,11 +2203,18 @@ a {
   gap: 10px;
   border: 1px solid var(--accent);
   border-radius: var(--button-radius);
+  background: transparent;
   color: var(--accent-2);
+  font: inherit;
   font-weight: 700;
 }
 
-.social-actions svg {
+.social-location-button {
+  grid-column: 1 / -1;
+}
+
+.social-actions svg,
+.social-location-button svg {
   width: 20px;
   height: 20px;
 }
