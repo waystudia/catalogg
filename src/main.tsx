@@ -38,6 +38,24 @@ const updateSW = registerSW({
   }
 });
 
+const restoreGitHubPagesRedirect = () => {
+  try {
+    const redirect = window.sessionStorage.getItem('catalogg:redirect');
+    if (!redirect) return;
+
+    window.sessionStorage.removeItem('catalogg:redirect');
+    const normalizedBase = import.meta.env.BASE_URL.endsWith('/')
+      ? import.meta.env.BASE_URL
+      : `${import.meta.env.BASE_URL}/`;
+    const nextPath = `${normalizedBase.replace(/\/$/, '')}${redirect}`;
+    window.history.replaceState(null, '', nextPath);
+  } catch {
+    // Session storage can be unavailable in strict/private browser modes.
+  }
+};
+
+restoreGitHubPagesRedirect();
+
 const isPlatformAdminRoute = window.location.pathname
   .replace(import.meta.env.BASE_URL, '/')
   .startsWith('/admin/');
