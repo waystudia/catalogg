@@ -7,8 +7,9 @@ var __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig(function (_a) {
     var mode = _a.mode;
     var env = loadEnv(mode, process.cwd(), '');
+    var base = env.VITE_BASE_PATH || '/catalogg/';
     return {
-        base: env.VITE_BASE_PATH || './',
+        base: base,
         plugins: [
             react(),
             VitePWA({
@@ -21,6 +22,9 @@ export default defineConfig(function (_a) {
                     description: 'Universal restaurant digital catalog template',
                     theme_color: '#2563EB',
                     background_color: '#F5F6F8',
+                    id: base,
+                    start_url: base,
+                    scope: base,
                     display: 'standalone',
                     icons: [
                         {

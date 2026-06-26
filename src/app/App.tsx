@@ -342,7 +342,7 @@ const downloadCatalogZip = async (payload: CatalogBackupPayload) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `mangal-catalog-${new Date().toISOString().slice(0, 10)}.zip`;
+  link.download = `catalogg-catalog-${new Date().toISOString().slice(0, 10)}.zip`;
   link.click();
   URL.revokeObjectURL(url);
 };
@@ -1665,7 +1665,7 @@ function ProfileSettings({
           <input
             type="url"
             value={draft.instagram_url}
-            placeholder="https://instagram.com/mangal.rest"
+            placeholder="https://instagram.com/restaurant"
             onChange={(event) => setDraft({ ...draft, instagram_url: event.target.value })}
           />
         </label>
