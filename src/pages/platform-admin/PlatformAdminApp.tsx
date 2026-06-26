@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   Archive,
@@ -60,6 +60,8 @@ type CreateClientSuccess = {
   publicUrl: string;
   adminUrl: string;
 };
+
+const platformQueryClient = new QueryClient();
 
 const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Icon: typeof Home }> = [
   { route: 'dashboard', label: 'Главная', detail: 'Дашборд', Icon: Home },
@@ -949,7 +951,7 @@ function ForbiddenState() {
   );
 }
 
-export function PlatformAdminApp() {
+function PlatformAdminContent() {
   const [route, setRoute] = useState<PlatformRoute>(() => readRouteFromLocation());
   const [createOpen, setCreateOpen] = useState(window.location.pathname.includes('/admin/clients/new'));
   const [success, setSuccess] = useState<CreateClientSuccess | null>(null);
@@ -1032,5 +1034,13 @@ export function PlatformAdminApp() {
         </div>
       )}
     </div>
+  );
+}
+
+export function PlatformAdminApp() {
+  return (
+    <QueryClientProvider client={platformQueryClient}>
+      <PlatformAdminContent />
+    </QueryClientProvider>
   );
 }
