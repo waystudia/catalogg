@@ -1470,38 +1470,55 @@ function UpsellReminder({
   category,
   products,
   selectedId,
+  onSelect,
+  onConfirm,
   onSkip,
-  onBrowse,
   onDismiss
 }: {
   category: Category;
   products: Product[];
   selectedId?: string;
+  onSelect: (product: Product) => void;
+  onConfirm: () => void;
   onSkip: () => void;
-  onBrowse: (product?: Product) => void;
   onDismiss: () => void;
 }) {
+  const add = useCartStore((state) => state.add);
   const isDrinks = category.kind === 'drink';
   const suggestions = products
     .filter((product) => isProductInCategory(product, category.id))
     .slice(0, 4);
+  const selectedProduct = suggestions.find((product) => product.id === selectedId);
+
+  const chooseProduct = (product: Product) => {
+    add(product);
+    onSelect(product);
+  };
 
   return (
     <div className="modal-backdrop flow-backdrop">
-      <section className="drink-modal flow-modal">
+      <section className="flow-modal" role="dialog" aria-modal="true" aria-labelledby="flow-title">
         <div className="modal-handle" />
         <button className="flow-modal__close" type="button" onClick={onDismiss} aria-label="Закрыть">
           <X />
         </button>
         {isDrinks ? <Coffee className="modal-icon" /> : <ChefHat className="modal-icon" />}
-        <h2>{category.name}</h2>
-        <p>Откройте категорию и добавьте к заказу.</p>
-        <div className="modal-drinks">
+        <h2 id="flow-title">Вы выбрали «{category.name}»?</h2>
+        <p>Можно добавить к заказу одну из позиций перед оформлением.</p>
+        <div className="flow-products">
           {suggestions.map((product) => (
-            <article className="flow-option-card" key={product.id} onClick={() => onBrowse(product)}>
+            <button
+              className={selectedId === product.id ? 'flow-product-card is-selected' : 'flow-product-card'}
+              key={product.id}
+              type="button"
+              onClick={() => chooseProduct(product)}
+            >
               <SafeImage src={product.image_url} alt={product.title} />
-              <strong>{product.title}</strong>
-            </article>
+              <span>
+                <strong>{product.title}</strong>
+                <small>{formatPrice(product.price)}</small>
+              </span>
+            </button>
           ))}
         </div>
         {suggestions.length === 0 && (
@@ -1509,11 +1526,10 @@ function UpsellReminder({
             В этой категории пока нет товаров.
           </p>
         )}
-        {!selectedId && (
-          <button className="primary-wide" type="button" onClick={() => onBrowse()}>
-            Выбрать
-          </button>
-        )}
+        {selectedProduct && <p className="flow-selected">Добавлено: {selectedProduct.title}</p>}
+        <button className="primary-wide" type="button" disabled={!selectedId} onClick={onConfirm}>
+          Выбрать «{category.name}»
+        </button>
         <button className="ghost-wide" type="button" onClick={onSkip}>
           Продолжить без выбора
         </button>
@@ -2780,13 +2796,6 @@ function AppContent() {
       return;
     }
     setOrderFlow((current) => ({ ...current, step: 'category', categoryId: nextCategory.id }));
-    if (nextCategory.kind === 'drink') {
-      setDrinkCategory(nextCategory.id);
-      setScreen('drinks');
-      return;
-    }
-    setCatalogCategory(nextCategory.id);
-    setScreen('catalog');
   };
 
   const startOrderFlow = () => {
@@ -2805,13 +2814,6 @@ function AppContent() {
       ])
     );
     setOrderFlow({ step: 'category', categoryId: firstCategory.id, selectedByCategory });
-    if (firstCategory.kind === 'drink') {
-      setDrinkCategory(firstCategory.id);
-      setScreen('drinks');
-      return;
-    }
-    setCatalogCategory(firstCategory.id);
-    setScreen('catalog');
   };
 
   const continueFromCartBar = () => {
@@ -2837,18 +2839,6 @@ function AppContent() {
   const continueShoppingAfterOrder = () => {
     setShowAfterOrderPanel(false);
     setScreen('home');
-  };
-
-  const openFlowCategory = (product?: Product) => {
-    const category = activeFlowCategory;
-    if (!category) return;
-    if (category.kind === 'drink') {
-      setDrinkCategory(product?.category_id ?? category.id);
-      setScreen('drinks');
-      return;
-    }
-    setCatalogCategory(product?.category_id ?? category.id);
-    setScreen('catalog');
   };
 
   const selectFlowProduct = (product: Product) => {
@@ -3132,8 +3122,9 @@ function AppContent() {
           category={activeFlowCategory}
           products={catalog.products}
           selectedId={orderFlow.selectedByCategory[activeFlowCategory.id]}
+          onSelect={selectFlowProduct}
+          onConfirm={continueOrderFlow}
           onSkip={continueOrderFlow}
-          onBrowse={openFlowCategory}
           onDismiss={() => {
             setOrderFlow({ step: 'done', selectedByCategory: {} });
           }}
