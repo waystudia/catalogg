@@ -753,6 +753,21 @@ function CartBar({ onCheckout, onContinue }: { onCheckout: () => void; onContinu
   );
 }
 
+function CartAfterOrderPanel({ onClear, onContinue }: { onClear: () => void; onContinue: () => void }) {
+  return (
+    <div className="cart-after-order">
+      <button className="cart-after-order__button" type="button" onClick={onClear}>
+        <Trash2 />
+        Очистить корзину
+      </button>
+      <button className="cart-after-order__button" type="button" onClick={onContinue}>
+        <ShoppingBag />
+        Продолжить покупки
+      </button>
+    </div>
+  );
+}
+
 function CartSheet({
   isOpen,
   isLoading,
@@ -2499,6 +2514,7 @@ function AppContent() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
   const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
@@ -2524,6 +2540,12 @@ function AppContent() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [screen, selectedProduct?.id]);
+
+  useEffect(() => {
+    if (cartCount === 0) {
+      setShowAfterOrderPanel(false);
+    }
+  }, [cartCount]);
 
   useEffect(() => {
     if (data?.theme) {
@@ -2795,6 +2817,17 @@ function AppContent() {
     startOrderFlow();
   };
 
+  const clearSubmittedCart = () => {
+    clearCart();
+    setShowAfterOrderPanel(false);
+    setOrderFlow({ step: 'done', selectedByCategory: {} });
+  };
+
+  const continueShoppingAfterOrder = () => {
+    setShowAfterOrderPanel(false);
+    setScreen('home');
+  };
+
   const openFlowCategory = (product?: Product) => {
     const category = activeFlowCategory;
     if (!category) return;
@@ -3025,9 +3058,16 @@ function AppContent() {
               restaurant={catalog.restaurant}
               cabins={catalog.cabins}
               onSubmitOrder={() => {
-                clearCart();
+                setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
+                setScreen('home');
               }}
+            />
+          )}
+          {showAfterOrderPanel && cartCount > 0 && (
+            <CartAfterOrderPanel
+              onClear={clearSubmittedCart}
+              onContinue={continueShoppingAfterOrder}
             />
           )}
           <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={continueFromCartBar} />
