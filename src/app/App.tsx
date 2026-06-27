@@ -89,8 +89,6 @@ import { imageFileToDataUrl } from '../shared/images';
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
-const WAYCATALOG_LOGO = `${import.meta.env.BASE_URL}assets/logo/waycatalog-logo.png`;
-
 type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-backup' | 'settings-delete';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
@@ -510,10 +508,24 @@ function applyTheme(theme: ThemeSettings) {
   } as React.CSSProperties;
 }
 
-function Logo({ compact = false }: { compact?: boolean }) {
+function Logo({
+  compact = false,
+  logoUrl,
+  name,
+  subtitle
+}: {
+  compact?: boolean;
+  logoUrl?: string;
+  name?: string;
+  subtitle?: string;
+}) {
   return (
     <div className={compact ? 'brand-logo brand-logo--compact' : 'brand-logo'}>
-      <img src={WAYCATALOG_LOGO} alt="WayCatalog" className="waycatalog-logo h-10 w-auto" />
+      {logoUrl && <img src={logoUrl} alt="" />}
+      <div>
+        <strong>{name?.trim() || 'Каталог'}</strong>
+        {!compact && <span>{subtitle?.trim() || 'каталог'}</span>}
+      </div>
     </div>
   );
 }
@@ -539,7 +551,10 @@ function TopBar({
   onBack,
   onSearch,
   onCart,
-  onAdmin
+  onAdmin,
+  logoUrl,
+  restaurantName,
+  restaurantSubtitle
 }: {
   title?: string;
   canBack?: boolean;
@@ -547,6 +562,9 @@ function TopBar({
   onSearch?: () => void;
   onCart: () => void;
   onAdmin?: () => void;
+  logoUrl?: string;
+  restaurantName?: string;
+  restaurantSubtitle?: string;
 }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
@@ -559,7 +577,7 @@ function TopBar({
       {title ? (
         <h1 className="screen-title">{title}</h1>
       ) : (
-        <Logo />
+        <Logo logoUrl={logoUrl} name={restaurantName} subtitle={restaurantSubtitle} />
       )}
       <div className="top-bar__actions">
         {onSearch && (
@@ -573,6 +591,15 @@ function TopBar({
         </button>
       </div>
     </header>
+  );
+}
+
+function SiteCredit() {
+  return (
+    <footer className="site-credit">
+      <span>Сайт создан в WayCatalog</span>
+      <small>© {new Date().getFullYear()} WayCatalog. Все права защищены.</small>
+    </footer>
   );
 }
 
@@ -2978,6 +3005,9 @@ function AppContent() {
             onSearch={screen === 'home' ? () => setScreen('catalog') : undefined}
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
+            logoUrl={catalog.restaurant.logo_url}
+            restaurantName={catalog.restaurant.name}
+            restaurantSubtitle={catalog.restaurant.subtitle}
           />
 
           {screen === 'home' && (
@@ -3051,6 +3081,7 @@ function AppContent() {
               onContinue={continueShoppingAfterOrder}
             />
           )}
+          <SiteCredit />
           <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={continueFromCartBar} />
         </>
       )}

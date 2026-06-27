@@ -177,34 +177,59 @@ a {
   min-width: 0;
   justify-content: center;
   align-items: center;
-  text-align: left;
+  gap: 14px;
+  text-align: center;
+}
+
+.brand-logo svg {
+  width: 70px;
+  height: 70px;
+  color: var(--accent-2);
+  stroke-width: 1.8;
 }
 
 .brand-logo > img {
-  width: auto;
-  height: 40px;
-  max-width: min(58vw, 260px);
+  width: 70px;
+  height: 70px;
   flex: 0 0 auto;
-  border: 0;
-  border-radius: 0;
-  object-fit: contain;
+  border: 1px solid rgba(232, 162, 58, 0.32);
+  border-radius: 18px;
+  object-fit: cover;
 }
 
-.h-10 {
-  height: 40px;
+.brand-logo strong {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 58px;
+  font-weight: 600;
+  line-height: 0.9;
 }
 
-.w-auto {
-  width: auto;
+.brand-logo span {
+  display: block;
+  margin-top: 8px;
+  color: var(--accent);
+  font-size: 19px;
+  letter-spacing: 0.34em;
 }
 
 .brand-logo--compact {
   justify-content: flex-start;
 }
 
+.brand-logo--compact svg {
+  width: 42px;
+  height: 42px;
+}
+
 .brand-logo--compact > img {
-  height: 34px;
-  max-width: 220px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+}
+
+.brand-logo--compact strong {
+  font-size: 34px;
 }
 
 .screen-title {
@@ -213,6 +238,26 @@ a {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 44px;
   font-weight: 600;
+}
+
+.site-credit {
+  display: grid;
+  gap: 4px;
+  margin: 42px 0 0;
+  padding: 20px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  text-align: center;
+}
+
+.site-credit span {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.site-credit small {
+  font-size: 12px;
 }
 
 .screen {
@@ -3035,9 +3080,17 @@ a {
     height: 22px;
   }
 
-  .brand-logo > img {
-    height: 34px;
-    max-width: 52vw;
+  .brand-logo svg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .brand-logo strong {
+    font-size: 32px;
+  }
+
+  .brand-logo span {
+    font-size: 13px;
   }
 
   .screen-title {
