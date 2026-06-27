@@ -28,7 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Toaster, toast } from 'sonner';
-import { createClient, getClients, getPlatformStats } from '../../shared/api/clientsApi';
+import { createClient, getClients, getPlatformStats, updateClient } from '../../shared/api/clientsApi';
 import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type { PlatformClient, PlatformStats, PlatformTemplateOption } from '../../shared/api/platformTypes';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
@@ -295,7 +295,8 @@ function PublicationBadge({ status }: { status: PlatformClient['catalogStatus'] 
   );
 }
 
-function ClientActions({ client }: { client: PlatformClient }) {
+function ClientActions({ client, onEdit }: { client: PlatformClient; onEdit: (client: PlatformClient) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const publicUrl = getCatalogPublicUrl(client.catalogSlug);
 
   return (
@@ -314,14 +315,57 @@ function ClientActions({ client }: { client: PlatformClient }) {
         <Copy />
         Копировать
       </button>
-      <button type="button" aria-label="Ещё">
-        <MoreHorizontal />
-      </button>
+      <div className="client-actions-menu">
+        <button type="button" aria-label="Ещё" onClick={() => setMenuOpen((value) => !value)}>
+          <MoreHorizontal />
+        </button>
+        {menuOpen && (
+          <div className="client-actions-menu__panel">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit(client);
+              }}
+            >
+              Редактировать
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit(client);
+              }}
+            >
+              Сменить email / пароль
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit(client);
+              }}
+            >
+              Изменить оплату
+            </button>
+            <button
+              className="is-danger"
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit(client);
+              }}
+            >
+              Деактивировать
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function ClientTable({ clients }: { clients: PlatformClient[] }) {
+function ClientTable({ clients, onEdit }: { clients: PlatformClient[]; onEdit: (client: PlatformClient) => void }) {
   return (
     <div className="clients-table-wrap">
       <table className="clients-table">
@@ -399,7 +443,7 @@ function ClientTable({ clients }: { clients: PlatformClient[] }) {
                   </div>
                 </td>
                 <td>
-                  <ClientActions client={client} />
+                  <ClientActions client={client} onEdit={onEdit} />
                 </td>
               </tr>
             );
@@ -439,7 +483,7 @@ function ClientEmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function ClientCards({ clients }: { clients: PlatformClient[] }) {
+function ClientCards({ clients, onEdit }: { clients: PlatformClient[]; onEdit: (client: PlatformClient) => void }) {
   return (
     <section className="client-card-list">
       {clients.map((client) => {
@@ -452,7 +496,7 @@ function ClientCards({ clients }: { clients: PlatformClient[] }) {
                 <strong>{client.companyName}</strong>
                 <small>{client.catalogSlug}</small>
               </div>
-              <button type="button" aria-label="Действия">
+              <button type="button" aria-label="Действия" onClick={() => onEdit(client)}>
                 <MoreHorizontal />
               </button>
             </div>
@@ -854,6 +898,192 @@ function CreateClientForm({
   );
 }
 
+function EditClientForm({
+  client,
+  onClose,
+  onSuccess
+}: {
+  client: PlatformClient;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [companyName, setCompanyName] = useState(client.companyName);
+  const [ownerName, setOwnerName] = useState(client.ownerName);
+  const [email, setEmail] = useState(client.email);
+  const [phone, setPhone] = useState(client.phone);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState(client.status);
+  const [planId, setPlanId] = useState(client.planCode || 'trial');
+  const [subscriptionStatus, setSubscriptionStatus] = useState(client.subscriptionStatus);
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState(client.subscriptionEndsAt?.slice(0, 10) ?? '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await updateClient({
+        clientId: client.id,
+        companyName,
+        ownerName,
+        email,
+        phone,
+        password: password || undefined,
+        status,
+        planId,
+        subscriptionStatus,
+        subscriptionEndsAt: subscriptionEndsAt || null
+      });
+      toast.success('Клиент обновлён');
+      onSuccess();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось обновить клиента');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="client-form-shell">
+      <div className="platform-sheet-head">
+        <div>
+          <strong id="edit-client-title">Редактировать клиента</strong>
+          <small>{client.catalogSlug}</small>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Закрыть">
+          <X />
+        </button>
+      </div>
+      <form className="client-form" onSubmit={handleEditSubmit}>
+        <section className="client-form-section">
+          <h3>Данные клиента</h3>
+          <div className="client-form-grid">
+            <label>
+              Название клиента
+              <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
+            </label>
+            <label>
+              Имя владельца
+              <input value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
+            </label>
+            <label>
+              Email для входа
+              <input
+                value={email}
+                type="email"
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              Телефон
+              <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
+            </label>
+          </div>
+        </section>
+
+        <section className="client-form-section">
+          <h3>Доступ</h3>
+          <div className="client-form-grid">
+            <label>
+              Новый пароль
+              <span className="password-field">
+                <input
+                  value={password}
+                  type={showPassword ? 'text' : 'password'}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Оставьте пустым, если менять не нужно"
+                  autoComplete="new-password"
+                />
+                <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Показать пароль">
+                  <Eye />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPassword(generateSecurePassword());
+                  }}
+                  aria-label="Сгенерировать пароль"
+                >
+                  <KeyRound />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!password) {
+                      toast.error('Сначала задайте пароль');
+                      return;
+                    }
+                    void copyText(password).then(() => toast.success('Пароль скопирован'));
+                  }}
+                  aria-label="Скопировать пароль"
+                >
+                  <Copy />
+                </button>
+              </span>
+            </label>
+            <label>
+              Статус клиента
+              <select value={status} onChange={(event) => setStatus(event.target.value as PlatformClient['status'])}>
+                <option value="active">Активен</option>
+                <option value="inactive">Неактивен</option>
+                <option value="blocked">Заблокирован</option>
+                <option value="pending">Ожидает активации</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className="client-form-section">
+          <h3>Подписка и оплата</h3>
+          <div className="client-form-grid client-form-grid--three">
+            <label>
+              Тариф
+              <select value={planId} onChange={(event) => setPlanId(event.target.value)}>
+                <option value="trial">Пробный</option>
+                <option value="basic">Базовый</option>
+                <option value="business">Про</option>
+              </select>
+            </label>
+            <label>
+              Статус оплаты
+              <select
+                value={subscriptionStatus}
+                onChange={(event) => setSubscriptionStatus(event.target.value as PlatformClient['subscriptionStatus'])}
+              >
+                <option value="trial">Пробный период</option>
+                <option value="active">Оплачен</option>
+                <option value="past_due">Просрочен</option>
+                <option value="expired">Истекла</option>
+                <option value="cancelled">Отменена</option>
+              </select>
+            </label>
+            <label>
+              Дата окончания
+              <input
+                value={subscriptionEndsAt}
+                type="date"
+                onChange={(event) => setSubscriptionEndsAt(event.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+
+        <footer className="client-form-footer">
+          <button type="button" onClick={onClose}>
+            Отмена
+          </button>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Сохраняем...' : 'Сохранить изменения'}
+          </button>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
 function SuccessPanel({ success, onClose }: { success: CreateClientSuccess; onClose: () => void }) {
   const allText = `Email: ${success.email}\nВременный пароль: ${success.password}\nАдминка: ${success.adminUrl}\nКаталог: ${success.publicUrl}`;
 
@@ -902,7 +1132,13 @@ function SuccessPanel({ success, onClose }: { success: CreateClientSuccess; onCl
   );
 }
 
-function ClientsPage({ onCreate }: { onCreate: () => void }) {
+function ClientsPage({
+  onCreate,
+  onEdit
+}: {
+  onCreate: () => void;
+  onEdit: (client: PlatformClient) => void;
+}) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [payment, setPayment] = useState('all');
@@ -977,8 +1213,8 @@ function ClientsPage({ onCreate }: { onCreate: () => void }) {
       {!clientsQuery.isLoading && clients.length === 0 && <ClientEmptyState onCreate={onCreate} />}
       {clients.length > 0 && (
         <>
-          <ClientTable clients={clients} />
-          <ClientCards clients={clients} />
+          <ClientTable clients={clients} onEdit={onEdit} />
+          <ClientCards clients={clients} onEdit={onEdit} />
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -1105,12 +1341,14 @@ function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut:
 function PlatformAdminContent() {
   const [route, setRoute] = useState<PlatformRoute>(() => readRouteFromLocation());
   const [createOpen, setCreateOpen] = useState(window.location.pathname.includes('/admin/clients/new'));
+  const [editingClient, setEditingClient] = useState<PlatformClient | null>(null);
   const [success, setSuccess] = useState<CreateClientSuccess | null>(null);
   const queryClient = useQueryClient();
 
   const closeCreateModal = useCallback(() => {
     setSuccess(null);
     setCreateOpen(false);
+    setEditingClient(null);
   }, []);
 
   const platformAdminQuery = useQuery({
@@ -1131,7 +1369,7 @@ function PlatformAdminContent() {
   }, []);
 
   useEffect(() => {
-    if (!createOpen) return undefined;
+    if (!createOpen && !editingClient) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -1141,11 +1379,24 @@ function PlatformAdminContent() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [closeCreateModal, createOpen]);
+  }, [closeCreateModal, createOpen, editingClient]);
 
   const content = useMemo(() => {
     if (route === 'clients') {
-      return <ClientsPage onCreate={() => setCreateOpen(true)} />;
+      return (
+        <ClientsPage
+          onCreate={() => {
+            setSuccess(null);
+            setEditingClient(null);
+            setCreateOpen(true);
+          }}
+          onEdit={(client) => {
+            setSuccess(null);
+            setCreateOpen(false);
+            setEditingClient(client);
+          }}
+        />
+      );
     }
     return <PlaceholderPage route={route} />;
   }, [route]);
@@ -1188,7 +1439,7 @@ function PlatformAdminContent() {
         {content}
       </section>
       <PlatformMobileNav route={route} onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)} />
-      {createOpen && (
+      {(createOpen || editingClient) && (
         <div
           className="platform-modal-backdrop"
           onMouseDown={(event) => {
@@ -1197,8 +1448,23 @@ function PlatformAdminContent() {
             }
           }}
         >
-          <div className="platform-modal" role="dialog" aria-modal="true" aria-labelledby="create-client-title">
-            {success ? (
+          <div
+            className="platform-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={editingClient ? 'edit-client-title' : 'create-client-title'}
+          >
+            {editingClient ? (
+              <EditClientForm
+                client={editingClient}
+                onClose={closeCreateModal}
+                onSuccess={() => {
+                  closeCreateModal();
+                  void queryClient.invalidateQueries({ queryKey: ['platform-clients'] });
+                  void queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
+                }}
+              />
+            ) : success ? (
               <SuccessPanel
                 success={success}
                 onClose={() => {
