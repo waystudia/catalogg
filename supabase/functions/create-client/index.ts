@@ -27,6 +27,17 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const record = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const parts = [record.message, record.details, record.hint, record.code]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+    if (parts.length > 0) return parts.join(' ');
+  }
+  return 'Unknown error';
+};
+
 const isStrongPassword = (value: string) =>
   value.length >= 10 &&
   /[A-Z]/.test(value) &&
@@ -85,7 +96,11 @@ Deno.serve(async (request) => {
     payload.slug = payload.slug.trim().toLowerCase();
     assertPayload(payload);
 
-    const [{ data: existingClientByEmail }, { data: existingCatalogBySlug }, { data: templateVersion }] =
+    const [
+      { data: existingClientByEmail, error: existingClientError },
+      { data: existingCatalogBySlug, error: existingCatalogError },
+      { data: templateVersion, error: templateVersionError }
+    ] =
       await Promise.all([
         adminClient.from('clients').select('id').eq('email', payload.email).maybeSingle(),
         adminClient.from('catalogs').select('id').eq('slug', payload.slug).maybeSingle(),
@@ -97,6 +112,9 @@ Deno.serve(async (request) => {
           .maybeSingle()
       ]);
 
+    if (existingClientError) throw existingClientError;
+    if (existingCatalogError) throw existingCatalogError;
+    if (templateVersionError) throw templateVersionError;
     if (existingClientByEmail) throw new Error('Email already exists.');
     if (existingCatalogBySlug) throw new Error('Slug already exists.');
     if (!templateVersion) throw new Error('Template version is not available.');
@@ -119,6 +137,13 @@ Deno.serve(async (request) => {
     let clientId: string | null = null;
 
     try {
+      const { error: actorProfileError } = await adminClient.from('profiles').upsert({
+        id: userData.user.id,
+        email: userData.user.email ?? '',
+        full_name: userData.user.user_metadata?.full_name ?? ''
+      });
+      if (actorProfileError) throw actorProfileError;
+
       const { error: profileError } = await adminClient.from('profiles').upsert({
         id: ownerUserId,
         email: payload.email,
@@ -221,7 +246,7 @@ Deno.serve(async (request) => {
       throw error;
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = getErrorMessage(error);
     return jsonResponse({ error: message }, 400);
   }
 });
