@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app/App';
+import { CatalogAdminApp } from './pages/catalog-admin/CatalogAdminApp';
 import { PlatformAdminApp } from './pages/platform-admin/PlatformAdminApp';
 import './app/styles.css';
 import './features/dish-editor/styles.css';
@@ -65,9 +66,16 @@ const getCurrentAppRoute = () => {
 };
 
 const isPlatformAdminRoute = getCurrentAppRoute().startsWith('/admin/');
+const catalogAdminMatch = getCurrentAppRoute().match(/^\/admin\/catalogs\/([^/]+)\/?$/);
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    {isPlatformAdminRoute ? <PlatformAdminApp /> : <App />}
+    {catalogAdminMatch ? (
+      <CatalogAdminApp slug={decodeURIComponent(catalogAdminMatch[1])} />
+    ) : isPlatformAdminRoute ? (
+      <PlatformAdminApp />
+    ) : (
+      <App />
+    )}
   </React.StrictMode>
 );
