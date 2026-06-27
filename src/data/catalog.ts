@@ -34,8 +34,8 @@ export const themeSettings: ThemeSettings = {
   text_secondary: '#aaa39a',
   product_title_color: '#f8f5ef',
   category_title_color: '#f8f5ef',
-  accent_color: '#e8a23a',
-  accent_secondary: '#ffd082',
+  accent_color: '#6C5CE7',
+  accent_secondary: '#8f7cff',
   button_style: 'filled',
   button_radius: 14,
   header_style: 'centered'

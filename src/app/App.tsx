@@ -89,6 +89,7 @@ import { imageFileToDataUrl } from '../shared/images';
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const WAYCATALOG_LOGO = `${import.meta.env.BASE_URL}assets/logo/waycatalog-logo.png`;
 
 type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-backup' | 'settings-delete';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
@@ -378,6 +379,8 @@ const darkThemePreset: Partial<ThemeSettings> = {
   text_secondary: '#aaa39a',
   product_title_color: '#f8f5ef',
   category_title_color: '#f8f5ef',
+  accent_color: '#6C5CE7',
+  accent_secondary: '#8f7cff',
   card_shadow: '0 18px 46px rgba(0, 0, 0, 0.28)'
 };
 
@@ -493,6 +496,7 @@ function applyTheme(theme: ThemeSettings) {
     '--category-title': theme.category_title_color ?? theme.text_primary ?? '#f8f5ef',
     '--accent': theme.accent_color,
     '--accent-2': theme.accent_secondary,
+    '--primary': theme.accent_color ?? '#6C5CE7',
     '--button-radius': `${theme.button_radius}px`,
     '--primary-bg':
       theme.button_style === 'filled'
@@ -506,24 +510,10 @@ function applyTheme(theme: ThemeSettings) {
   } as React.CSSProperties;
 }
 
-function Logo({
-  compact = false,
-  logoUrl,
-  name,
-  subtitle
-}: {
-  compact?: boolean;
-  logoUrl?: string;
-  name?: string;
-  subtitle?: string;
-}) {
+function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className={compact ? 'brand-logo brand-logo--compact' : 'brand-logo'}>
-      {logoUrl && <img src={logoUrl} alt="" />}
-      <div>
-        <strong>{name?.trim() || 'Каталог'}</strong>
-        {!compact && <span>{subtitle?.trim() || 'каталог'}</span>}
-      </div>
+      <img src={WAYCATALOG_LOGO} alt="WayCatalog" className="waycatalog-logo h-10 w-auto" />
     </div>
   );
 }
@@ -549,10 +539,7 @@ function TopBar({
   onBack,
   onSearch,
   onCart,
-  onAdmin,
-  logoUrl,
-  restaurantName,
-  restaurantSubtitle
+  onAdmin
 }: {
   title?: string;
   canBack?: boolean;
@@ -560,9 +547,6 @@ function TopBar({
   onSearch?: () => void;
   onCart: () => void;
   onAdmin?: () => void;
-  logoUrl?: string;
-  restaurantName?: string;
-  restaurantSubtitle?: string;
 }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
@@ -575,7 +559,7 @@ function TopBar({
       {title ? (
         <h1 className="screen-title">{title}</h1>
       ) : (
-        <Logo logoUrl={logoUrl} name={restaurantName} subtitle={restaurantSubtitle} />
+        <Logo />
       )}
       <div className="top-bar__actions">
         {onSearch && (
@@ -2070,8 +2054,8 @@ function ColorSetting({
 }
 
 function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (patch: Partial<ThemeSettings>) => void }) {
-  const primaryColors = ['#e8a23a', '#3b82f6', '#16a34a', '#ef4444', '#a855f7', '#111827'];
-  const accentColors = ['#ffd082', '#f59e0b', '#f97316', '#ec4899', '#06b6d4', '#84cc16'];
+  const primaryColors = ['#6C5CE7', '#e8a23a', '#3b82f6', '#16a34a', '#ef4444', '#111827'];
+  const accentColors = ['#8f7cff', '#ffd082', '#f59e0b', '#f97316', '#06b6d4', '#84cc16'];
   const backgroundColors = ['#070809', '#101419', '#f7f3ec', '#f8fafc', '#fff7ed', '#f1f5f9'];
   const cardColors = ['#121416', '#1f2937', '#ffffff', '#fffaf0', '#f8fafc', '#0f172a'];
   const textColors = ['#f8f5ef', '#ffffff', '#181510', '#111827', '#292524', '#0f172a'];
@@ -2872,8 +2856,8 @@ function AppContent() {
     saveTheme({
       ...darkThemePreset,
       card_radius: 16,
-      accent_color: '#e8a23a',
-      accent_secondary: '#ffd082',
+      accent_color: '#6C5CE7',
+      accent_secondary: '#8f7cff',
       button_style: 'filled',
       button_radius: 14,
       header_style: 'centered'
@@ -2994,9 +2978,6 @@ function AppContent() {
             onSearch={screen === 'home' ? () => setScreen('catalog') : undefined}
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
-            logoUrl={catalog.restaurant.logo_url}
-            restaurantName={catalog.restaurant.name}
-            restaurantSubtitle={catalog.restaurant.subtitle}
           />
 
           {screen === 'home' && (

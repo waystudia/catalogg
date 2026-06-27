@@ -15,12 +15,12 @@ export default defineConfig(function (_a) {
             VitePWA({
                 registerType: 'autoUpdate',
                 injectRegister: false,
-                includeAssets: ['favicon.svg', 'robots.txt', 'icons/*.svg', 'placeholders/*.svg'],
+                includeAssets: ['assets/logo/*.png', 'robots.txt', 'placeholders/*.svg'],
                 manifest: {
-                    name: 'Restaurant Catalog Template',
-                    short_name: 'Restaurant Catalog',
-                    description: 'Universal restaurant digital catalog template',
-                    theme_color: '#2563EB',
+                    name: 'WayCatalog',
+                    short_name: 'WayCatalog',
+                    description: 'WayCatalog — весь ассортимент в одном месте',
+                    theme_color: '#6C5CE7',
                     background_color: '#F5F6F8',
                     id: base,
                     start_url: base,
@@ -28,15 +28,15 @@ export default defineConfig(function (_a) {
                     display: 'standalone',
                     icons: [
                         {
-                            src: 'icons/pwa-192x192.svg',
-                            sizes: '192x192',
-                            type: 'image/svg+xml',
+                            src: 'assets/logo/waycatalog-logo.png',
+                            sizes: '1774x887',
+                            type: 'image/png',
                             purpose: 'any'
                         },
                         {
-                            src: 'icons/pwa-512x512.svg',
-                            sizes: '512x512',
-                            type: 'image/svg+xml',
+                            src: 'assets/logo/waycatalog-logo.png',
+                            sizes: '1774x887',
+                            type: 'image/png',
                             purpose: 'any'
                         }
                     ]
