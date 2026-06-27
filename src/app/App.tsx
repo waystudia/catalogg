@@ -490,13 +490,23 @@ function applyTheme(theme: ThemeSettings) {
   } as React.CSSProperties;
 }
 
-function Logo({ compact = false, logoUrl }: { compact?: boolean; logoUrl?: string }) {
+function Logo({
+  compact = false,
+  logoUrl,
+  name,
+  subtitle
+}: {
+  compact?: boolean;
+  logoUrl?: string;
+  name?: string;
+  subtitle?: string;
+}) {
   return (
     <div className={compact ? 'brand-logo brand-logo--compact' : 'brand-logo'}>
       {logoUrl && <img src={logoUrl} alt="" />}
       <div>
-        <strong>Мангал</strong>
-        {!compact && <span>ресторан</span>}
+        <strong>{name?.trim() || 'Каталог'}</strong>
+        {!compact && <span>{subtitle?.trim() || 'каталог'}</span>}
       </div>
     </div>
   );
@@ -524,7 +534,9 @@ function TopBar({
   onSearch,
   onCart,
   onAdmin,
-  logoUrl
+  logoUrl,
+  restaurantName,
+  restaurantSubtitle
 }: {
   title?: string;
   canBack?: boolean;
@@ -533,6 +545,8 @@ function TopBar({
   onCart: () => void;
   onAdmin?: () => void;
   logoUrl?: string;
+  restaurantName?: string;
+  restaurantSubtitle?: string;
 }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
@@ -542,7 +556,11 @@ function TopBar({
       <button className="icon-button top-bar__button" type="button" onClick={canBack ? onBack : onAdmin} aria-label="Назад">
         {canBack ? <ArrowLeft /> : <User />}
       </button>
-      {title ? <h1 className="screen-title">{title}</h1> : <Logo logoUrl={logoUrl} />}
+      {title ? (
+        <h1 className="screen-title">{title}</h1>
+      ) : (
+        <Logo logoUrl={logoUrl} name={restaurantName} subtitle={restaurantSubtitle} />
+      )}
       <div className="top-bar__actions">
         {onSearch && (
           <button className="icon-button top-bar__button" type="button" onClick={onSearch} aria-label="Поиск">
@@ -912,7 +930,7 @@ function HomeScreen({
   const [active, setActive] = useState('chechen');
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
-  const featuredCategories = categories;
+  const featuredCategories = categories.filter((category) => category.showOnHome !== false);
   const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
   const openRestaurantMap = () => {
@@ -1771,6 +1789,7 @@ function CategoriesSettings({
                 name,
                 icon: 'flame',
                 kind: 'food',
+                showOnHome: true,
                 image: demoCategories[0]?.image ?? ''
               }
             ]);
@@ -1816,6 +1835,35 @@ function CategoriesSettings({
                   </button>
                 ))}
               </div>
+              <label className="category-home-toggle">
+                <input
+                  type="checkbox"
+                  checked={category.showOnHome !== false}
+                  onChange={(event) =>
+                    onChangeCategories(
+                      categories.map((item) =>
+                        item.id === category.id ? { ...item, showOnHome: event.target.checked } : item
+                      )
+                    )
+                  }
+                />
+                <span>На главной</span>
+              </label>
+              <select
+                value={category.kind}
+                aria-label={`Тип категории ${category.name}`}
+                onChange={(event) =>
+                  onChangeCategories(
+                    categories.map((item) =>
+                      item.id === category.id ? { ...item, kind: event.target.value as Category['kind'] } : item
+                    )
+                  )
+                }
+              >
+                <option value="food">Еда</option>
+                <option value="drink">Напитки</option>
+                <option value="space">Кабинки</option>
+              </select>
               <input
                 value={category.image}
                 aria-label={`Фото категории ${category.name}`}
@@ -2830,6 +2878,8 @@ function AppContent() {
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
             logoUrl={catalog.restaurant.logo_url}
+            restaurantName={catalog.restaurant.name}
+            restaurantSubtitle={catalog.restaurant.subtitle}
           />
 
           {screen === 'home' && (

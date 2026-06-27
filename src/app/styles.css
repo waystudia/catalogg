@@ -2551,7 +2551,7 @@ a {
 }
 
 .settings-list-item--category {
-  grid-template-columns: 24px 76px minmax(120px, 0.8fr) minmax(128px, 0.8fr) minmax(160px, 1.2fr) 42px 42px 42px;
+  grid-template-columns: 24px 76px minmax(120px, 0.8fr) minmax(128px, 0.8fr) 126px 112px minmax(160px, 1.2fr) 42px 42px 42px;
 }
 
 .settings-list-item--cabin {
@@ -2619,6 +2619,26 @@ a {
 .category-icon-picker svg {
   width: 16px;
   height: 16px;
+}
+
+.category-home-toggle {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 0 10px;
+  color: var(--settings-card-text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.category-home-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }
 
 .settings-list-item--tag {

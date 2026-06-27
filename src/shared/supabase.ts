@@ -47,6 +47,7 @@ type PlatformCategoryRow = {
   id: string;
   slug: string;
   name: string;
+  description: string | null;
   image_url: string | null;
   icon: string | null;
 };
@@ -96,14 +97,27 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   mapLink: value.map_url ?? ''
 });
 
-const mapPlatformCategory = (value: PlatformCategoryRow): Category => ({
-  id: value.id,
-  slug: value.slug,
-  name: value.name,
-  image: value.image_url ?? '',
-  icon: value.icon ?? '',
-  kind: value.slug === 'cabins' ? 'space' : drinkCategorySlugs.has(value.slug) ? 'drink' : 'food'
-});
+const parseCategoryMeta = (value?: string | null) => {
+  if (!value) return {};
+  try {
+    return JSON.parse(value) as { showOnHome?: boolean; kind?: Category['kind'] };
+  } catch {
+    return {};
+  }
+};
+
+const mapPlatformCategory = (value: PlatformCategoryRow): Category => {
+  const meta = parseCategoryMeta(value.description);
+  return {
+    id: value.id,
+    slug: value.slug,
+    name: value.name,
+    image: value.image_url ?? '',
+    icon: value.icon ?? '',
+    kind: meta.kind ?? (value.slug === 'cabins' ? 'space' : drinkCategorySlugs.has(value.slug) ? 'drink' : 'food'),
+    showOnHome: meta.showOnHome ?? true
+  };
+};
 
 const mapPlatformProduct = (value: PlatformProductRow, imageUrl = ''): Product => ({
   id: value.id,
@@ -245,7 +259,7 @@ export async function loadCatalog(catalogSlug?: string) {
     activePlatformCatalogId = catalog.id;
 
     const [categoriesResult, productsResult, productImagesResult, tagsResult, cabinsResult, themeResult] = await Promise.all([
-      supabase.from('categories').select('id, slug, name, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
+      supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
         .select('id, category_id, title, status, price, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo')
@@ -295,7 +309,10 @@ export async function loadCatalog(catalogSlug?: string) {
 
   return {
     restaurant: normalizeRestaurant(restaurantResult.data),
-    categories: categoriesResult.data ?? categories,
+    categories: ((categoriesResult.data ?? categories) as Category[]).map((category) => ({
+      ...category,
+      showOnHome: category.showOnHome ?? true
+    })),
     products: productsResult.data ?? products,
     cabins: cabinsResult.data ?? cabins,
     tags: tagsResult.data ?? [],
@@ -338,6 +355,21 @@ const productToPlatformRow = (product: Product) => ({
   is_popular: product.is_popular,
   is_new: product.is_new,
   is_promo: product.is_hit
+});
+
+const categoryMeta = (value: Category) =>
+  JSON.stringify({
+    showOnHome: value.showOnHome !== false,
+    kind: value.kind
+  });
+
+const categoryToLegacyRow = (value: Category, index: number) => ({
+  id: value.id,
+  name: value.name,
+  image: value.image,
+  icon: value.icon,
+  kind: value.kind,
+  sort_order: index
 });
 
 const productPatchToPlatformRow = (patch: Partial<Product>) => {
@@ -465,6 +497,7 @@ export async function replaceCategoriesInSupabase(values: Category[]) {
       catalog_id: activePlatformCatalogId,
       name: value.name,
       slug: value.slug || createSlug(value.name || value.id),
+      description: categoryMeta(value),
       image_url: value.image,
       icon: value.icon,
       sort_order: index
@@ -480,7 +513,9 @@ export async function replaceCategoriesInSupabase(values: Category[]) {
     return;
   }
   const ids = values.map((value) => value.id);
-  await throwOnError(supabase.from('category').upsert(values.map((value, index) => ({ ...value, sort_order: index })), { onConflict: 'id' }));
+  await throwOnError(
+    supabase.from('category').upsert(values.map(categoryToLegacyRow), { onConflict: 'id' })
+  );
   if (ids.length > 0) {
     await throwOnError(supabase.from('category').delete().not('id', 'in', postgrestList(ids)));
   } else {
