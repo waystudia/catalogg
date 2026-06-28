@@ -74,6 +74,7 @@ import {
 } from '../features/stores';
 import {
   deleteProductFromSupabase,
+  deleteCategoryFromSupabase,
   loadCatalog,
   replaceCatalogInSupabase,
   replaceCabinsInSupabase,
@@ -3323,6 +3324,7 @@ function AppContent() {
 
   const deleteCategoryFromSettings = (categoryId: string) => {
     saveCategories(catalog.categories.filter((category) => category.id !== categoryId));
+    persist(deleteCategoryFromSupabase(categoryId));
     setCategoryEditor({ mode: 'list' });
   };
 

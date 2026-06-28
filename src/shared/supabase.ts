@@ -501,6 +501,16 @@ export async function deleteProductFromSupabase(productId: string) {
   await throwOnError(supabase.from('product').delete().eq('id', productId));
 }
 
+export async function deleteCategoryFromSupabase(categoryId: string) {
+  if (!supabase) return;
+  if (activePlatformCatalogId) {
+    if (!uuidPattern.test(categoryId)) return;
+    await throwOnError(supabase.from('categories').delete().eq('id', categoryId).eq('catalog_id', activePlatformCatalogId));
+    return;
+  }
+  await throwOnError(supabase.from('category').delete().eq('id', categoryId));
+}
+
 export async function saveRestaurantToSupabase(value: Restaurant) {
   if (!supabase) return;
   if (activePlatformCatalogId) {
@@ -537,7 +547,7 @@ export async function saveThemeToSupabase(value: ThemeSettings) {
   await throwOnError(supabase.from('theme_settings').upsert(themeToLegacyRow(value), { onConflict: 'id' }));
 }
 
-export async function replaceCategoriesInSupabase(values: Category[]) {
+export async function replaceCategoriesInSupabase(values: Category[], options: { removeMissing?: boolean } = {}) {
   if (!supabase) return values;
   if (activePlatformCatalogId) {
     const slugs = values.map((value) => value.slug || createSlug(value.name || value.id));
@@ -556,10 +566,12 @@ export async function replaceCategoriesInSupabase(values: Category[]) {
       savedRows = ((await throwOnError(
         supabase.from('categories').upsert(rows, { onConflict: 'catalog_id,slug' }).select('id, slug')
       )) ?? []) as Array<{ id: string; slug: string }>;
-      await throwOnError(
-        supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))
-      );
-    } else {
+      if (options.removeMissing) {
+        await throwOnError(
+          supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))
+        );
+      }
+    } else if (options.removeMissing) {
       await throwOnError(supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId));
     }
     const idsBySlug = new Map(savedRows.map((row) => [row.slug, row.id]));
@@ -573,14 +585,16 @@ export async function replaceCategoriesInSupabase(values: Category[]) {
     supabase.from('category').upsert(values.map(categoryToLegacyRow), { onConflict: 'id' })
   );
   if (ids.length > 0) {
-    await throwOnError(supabase.from('category').delete().not('id', 'in', postgrestList(ids)));
-  } else {
+    if (options.removeMissing) {
+      await throwOnError(supabase.from('category').delete().not('id', 'in', postgrestList(ids)));
+    }
+  } else if (options.removeMissing) {
     await throwOnError(supabase.from('category').delete().neq('id', ''));
   }
   return values;
 }
 
-export async function replaceTagsInSupabase(values: CatalogTag[]) {
+export async function replaceTagsInSupabase(values: CatalogTag[], options: { removeMissing?: boolean } = {}) {
   if (!supabase) return values;
   if (activePlatformCatalogId) {
     const slugs = values.map((value) => value.slug || createSlug(value.name || value.id));
@@ -598,10 +612,12 @@ export async function replaceTagsInSupabase(values: CatalogTag[]) {
       savedRows = ((await throwOnError(
         supabase.from('tags').upsert(rows, { onConflict: 'catalog_id,slug' }).select('id, slug')
       )) ?? []) as Array<{ id: string; slug: string }>;
-      await throwOnError(
-        supabase.from('tags').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))
-      );
-    } else {
+      if (options.removeMissing) {
+        await throwOnError(
+          supabase.from('tags').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))
+        );
+      }
+    } else if (options.removeMissing) {
       await throwOnError(supabase.from('tags').delete().eq('catalog_id', activePlatformCatalogId));
     }
     const idsBySlug = new Map(savedRows.map((row) => [row.slug, row.id]));
@@ -620,8 +636,10 @@ export async function replaceTagsInSupabase(values: CatalogTag[]) {
       )
   );
   if (ids.length > 0) {
-    await throwOnError(supabase.from('catalog_tag').delete().not('id', 'in', postgrestList(ids)));
-  } else {
+    if (options.removeMissing) {
+      await throwOnError(supabase.from('catalog_tag').delete().not('id', 'in', postgrestList(ids)));
+    }
+  } else if (options.removeMissing) {
     await throwOnError(supabase.from('catalog_tag').delete().neq('id', ''));
   }
   return values;
@@ -695,8 +713,8 @@ export async function replaceCatalogInSupabase(payload: {
   if (!supabase) return;
   if (payload.restaurant) await saveRestaurantToSupabase(payload.restaurant);
   if (payload.theme) await saveThemeToSupabase(payload.theme);
-  if (payload.categories) await replaceCategoriesInSupabase(payload.categories);
-  if (payload.tags) await replaceTagsInSupabase(payload.tags);
+  if (payload.categories) await replaceCategoriesInSupabase(payload.categories, { removeMissing: true });
+  if (payload.tags) await replaceTagsInSupabase(payload.tags, { removeMissing: true });
   if (payload.cabins) {
     await replaceCabinsInSupabase(payload.cabins);
   }
