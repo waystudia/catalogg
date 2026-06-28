@@ -227,10 +227,15 @@ create table if not exists public.bookable_resources (
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
   title text not null,
   capacity integer not null default 1 check (capacity > 0),
+  capacity_text text not null default '',
   image_url text not null default '',
   is_active boolean not null default true,
+  resource_type text not null default 'normal' check (resource_type in ('normal', 'vip', 'premium')),
   sort_order integer not null default 0
 );
+
+alter table public.bookable_resources add column if not exists capacity_text text not null default '';
+alter table public.bookable_resources add column if not exists resource_type text not null default 'normal' check (resource_type in ('normal', 'vip', 'premium'));
 
 create table if not exists public.bookings (
   id uuid primary key default gen_random_uuid(),

@@ -80,6 +80,7 @@ type PlatformCabinRow = {
   title: string;
   capacity: number;
   image_url: string | null;
+  is_active?: boolean | null;
 };
 
 const drinkCategorySlugs = new Set(['fridge', 'lemonades', 'tea']);
@@ -147,7 +148,7 @@ const mapPlatformCabin = (value: PlatformCabinRow): Cabin => ({
   id: value.id,
   title: value.title,
   capacity: `до ${value.capacity} гостей`,
-  feature: '',
+  feature: JSON.stringify({ status: value.is_active === false ? 'inactive' : 'active', type: 'normal' }),
   image_url: value.image_url ?? ''
 });
 
@@ -274,7 +275,7 @@ export async function loadCatalog(catalogSlug?: string) {
       supabase.from('tags').select('id, name, icon, color').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('bookable_resources')
-        .select('id, title, capacity, image_url')
+        .select('id, title, capacity, image_url, is_active')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle()
@@ -561,6 +562,13 @@ export async function replaceCabinsInSupabase(values: Cabin[]) {
       title: value.title,
       capacity: Number.parseInt(value.capacity, 10) || 1,
       image_url: value.image_url,
+      is_active: (() => {
+        try {
+          return (JSON.parse(value.feature || '{}') as { status?: string }).status !== 'inactive';
+        } catch {
+          return true;
+        }
+      })(),
       sort_order: index
     }));
     if (rows.length > 0) {

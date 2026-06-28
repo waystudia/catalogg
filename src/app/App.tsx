@@ -96,6 +96,8 @@ type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
 type CategoryEditorMode = 'list' | 'edit' | 'add';
+type SettingsCatalogTab = 'templates' | 'tags' | 'cabins' | 'categories';
+type CabinEditorMode = 'list' | 'edit' | 'add';
 type OrderFlowState = {
   step: 'category' | 'done';
   categoryId?: string;
@@ -186,6 +188,36 @@ const createCategoryDraft = (name = 'Новая категория'): Category =
     image: demoCategories[0]?.image ?? ''
   };
 };
+
+type CabinMeta = {
+  status: 'active' | 'inactive';
+  type: 'normal' | 'vip' | 'premium';
+};
+
+const defaultCabinMeta: CabinMeta = { status: 'active', type: 'normal' };
+
+const parseCabinMeta = (feature?: string): CabinMeta => {
+  if (!feature) return defaultCabinMeta;
+  try {
+    const parsed = JSON.parse(feature) as Partial<CabinMeta>;
+    return {
+      status: parsed.status === 'inactive' ? 'inactive' : 'active',
+      type: parsed.type === 'vip' || parsed.type === 'premium' ? parsed.type : 'normal'
+    };
+  } catch {
+    return defaultCabinMeta;
+  }
+};
+
+const makeCabinFeature = (meta: CabinMeta) => JSON.stringify(meta);
+
+const createCabinDraft = (): Cabin => ({
+  id: makeId('cabin'),
+  title: '',
+  capacity: '',
+  feature: makeCabinFeature(defaultCabinMeta),
+  image_url: ''
+});
 
 const makeLoadingRestaurant = (catalogSlug: string): Restaurant => ({
   ...demoRestaurant,
@@ -1345,7 +1377,21 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
   const { mode, cabinId, setOrder } = useOrderStore();
   const items = useCartStore((state) => state.items);
   const total = selectCartTotal(items);
-  const selectedCabin = cabins.find((cabin) => cabin.id === cabinId);
+  const activeCabins = useMemo(
+    () => cabins.filter((cabin) => parseCabinMeta(cabin.feature).status === 'active'),
+    [cabins]
+  );
+  const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
+  useEffect(() => {
+    if (mode !== 'hall') return;
+    if (activeCabins.length === 1 && cabinId !== activeCabins[0].id) {
+      setOrder({ cabinId: activeCabins[0].id });
+      return;
+    }
+    if (activeCabins.length > 1 && cabinId && !activeCabins.some((cabin) => cabin.id === cabinId)) {
+      setOrder({ cabinId: '' });
+    }
+  }, [activeCabins, cabinId, mode, setOrder]);
   const orderLines = [
     'Здравствуйте! Хочу оформить заказ.',
     '',
@@ -1356,6 +1402,7 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
     '',
     'Получение:',
     mode === 'hall' ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}` : 'На вынос',
+    ...(mode === 'hall' && selectedCabin ? [`Кабинка: ${selectedCabin.title} (${selectedCabin.capacity})`] : []),
     '',
     'Комментарий:',
     'Пожалуйста, подтвердите заказ.'
@@ -1375,7 +1422,7 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
   return (
     <main className="screen checkout-screen">
       <section className="checkout-segment" aria-label="Тип заказа">
-        <button className={mode === 'hall' ? 'checkout-segment__button is-active' : 'checkout-segment__button'} type="button" onClick={() => setOrder({ mode: 'hall', cabinId: cabinId || 'cabin-1' })}>
+        <button className={mode === 'hall' ? 'checkout-segment__button is-active' : 'checkout-segment__button'} type="button" onClick={() => setOrder({ mode: 'hall', cabinId: cabinId || activeCabins[0]?.id || '' })}>
           <ShoppingCart />
           В зале
         </button>
@@ -1385,15 +1432,14 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
         </button>
       </section>
 
-      {mode === 'hall' && (
+      {mode === 'hall' && activeCabins.length > 0 && (
         <>
           <section className="checkout-section-head">
-            <h2>Кабинки</h2>
-            <p>Выберите кабинку в зале</p>
+            <h2>Выбор кабинки</h2>
+            <p>Выберите кабинку для заказа</p>
           </section>
           <section className="checkout-cabin-grid">
-            {cabins.map(({ id, title, image_url }) => {
-              const Icon = id === 'main-hall' ? Users : Home;
+            {activeCabins.map(({ id, title, capacity, image_url }) => {
               return (
               <button className={cabinId === id ? 'checkout-cabin is-active' : 'checkout-cabin'} type="button" key={id} onClick={() => setOrder({ cabinId: id })}>
                 <SafeImage className="checkout-cabin__image" src={image_url} alt={title} />
@@ -1404,8 +1450,8 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
                   </span>
                 )}
                 <span className="checkout-cabin__label">
-                  <Icon />
                   <strong>{title}</strong>
+                  <small>{capacity}</small>
                 </span>
               </button>
               );
@@ -1437,7 +1483,7 @@ function CheckoutScreen({ restaurant, cabins, onSubmitOrder }: { restaurant: Res
           <h2>Проверьте заказ</h2>
           <p>
             {mode === 'hall'
-              ? `Заказ будет подготовлен для зала${selectedCabin ? `, место: ${selectedCabin.title}.` : '.'}`
+              ? `Заказ будет подготовлен для зала${selectedCabin ? `, кабинка: ${selectedCabin.title} (${selectedCabin.capacity}).` : '.'}`
               : 'Заказ будет подготовлен на самовывоз.'}
           </p>
         </div>
@@ -1858,21 +1904,35 @@ function InlineEditor({
 
 function CategoriesSettings({
   categories,
+  cabins,
   tags,
   products,
+  activeTab,
+  onTabChange,
   mode,
   editingId,
+  cabinMode,
+  editingCabinId,
+  onCabinModeChange,
   onModeChange,
   onChangeCategories,
+  onChangeCabins,
   onDeleteCategory
 }: {
   categories: Category[];
+  cabins: Cabin[];
   tags: CatalogTag[];
   products: Product[];
+  activeTab: SettingsCatalogTab;
+  onTabChange: (tab: SettingsCatalogTab) => void;
   mode: CategoryEditorMode;
   editingId?: string;
+  cabinMode: CabinEditorMode;
+  editingCabinId?: string;
+  onCabinModeChange: (mode: CabinEditorMode, cabinId?: string) => void;
   onModeChange: (mode: CategoryEditorMode, categoryId?: string) => void;
   onChangeCategories: (categories: Category[]) => void;
+  onChangeCabins: (cabins: Cabin[]) => void;
   onDeleteCategory: (categoryId: string) => void;
 }) {
   const move = (index: number, direction: -1 | 1) => {
@@ -1904,6 +1964,96 @@ function CategoriesSettings({
     );
     onModeChange('list');
   };
+  const moveCabin = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= cabins.length) return;
+    const next = [...cabins];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    onChangeCabins(next);
+  };
+  const editingCabin = editingCabinId ? cabins.find((cabin) => cabin.id === editingCabinId) : undefined;
+  const saveCabin = (cabin: Cabin) => {
+    const normalized = {
+      ...cabin,
+      title: cabin.title.trim() || 'Новая кабинка',
+      capacity: cabin.capacity.trim() || '2-4 человека',
+      feature: cabin.feature || makeCabinFeature(defaultCabinMeta)
+    };
+    const exists = cabins.some((item) => item.id === normalized.id);
+    onChangeCabins(exists ? cabins.map((item) => (item.id === normalized.id ? normalized : item)) : [...cabins, normalized]);
+    onCabinModeChange('list');
+  };
+
+  const tabs = [
+    ['templates', ClipboardList, 'Шаблоны'],
+    ['tags', Tags, 'Метки'],
+    ['cabins', Store, 'Кабинки'],
+    ['categories', Tags, 'Категории']
+  ] as const;
+
+  const renderTabs = () => (
+    <nav className="category-tabs" aria-label="Разделы настроек">
+      {tabs.map(([id, Icon, label]) => (
+        <button className={activeTab === id ? 'is-active' : ''} type="button" key={id} onClick={() => onTabChange(id)}>
+          <Icon />
+          <span>{label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+
+  if (activeTab === 'cabins') {
+    if (cabinMode === 'add' || cabinMode === 'edit') {
+      return (
+        <CabinEditScreen
+          cabin={cabinMode === 'edit' ? editingCabin : undefined}
+          mode={cabinMode}
+          sortIndex={cabinMode === 'edit' && editingCabin ? cabins.findIndex((item) => item.id === editingCabin.id) : cabins.length}
+          onCancel={() => onCabinModeChange('list')}
+          onMove={cabinMode === 'edit' && editingCabin ? (direction) => moveCabin(cabins.findIndex((item) => item.id === editingCabin.id), direction) : undefined}
+          onSave={saveCabin}
+        />
+      );
+    }
+
+    return (
+      <main className="settings-screen category-settings-screen">
+        {renderTabs()}
+        <section className="category-settings-card">
+          <div className="category-settings-tip">
+            <Info />
+            <span>Выберите кабинку при оформлении заказа. Данные кабинки будут показаны в итоге заказа.</span>
+          </div>
+          <div className="category-list">
+            {cabins.map((cabin) => {
+              const meta = parseCabinMeta(cabin.feature);
+              return (
+                <button className="category-list-card cabin-list-card" type="button" key={cabin.id} onClick={() => onCabinModeChange('edit', cabin.id)}>
+                  <SafeImage src={cabin.image_url} alt={cabin.title} className="category-list-card__image" />
+                  <span className="category-list-card__content">
+                    <strong>{cabin.title}</strong>
+                    <small className={meta.status === 'active' ? 'cabin-state cabin-state--active' : 'cabin-state'}>
+                      <i />
+                      {meta.status === 'active' ? 'Активна' : 'Неактивна'}
+                    </small>
+                    <span className={`cabin-type-badge cabin-type-badge--${meta.type}`}>
+                      {meta.type === 'vip' ? 'VIP' : meta.type === 'premium' ? 'Премиум' : 'Основная'}
+                    </span>
+                    <em>{cabin.capacity}</em>
+                  </span>
+                  <ArrowRight className="category-list-card__arrow" />
+                </button>
+              );
+            })}
+          </div>
+          <button className="category-add-wide" type="button" onClick={() => onCabinModeChange('add')}>
+            <Plus />
+            Добавить кабинку
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   if (mode === 'add' || mode === 'edit') {
     return (
@@ -1921,19 +2071,7 @@ function CategoriesSettings({
 
   return (
     <main className="settings-screen category-settings-screen">
-      <nav className="category-tabs" aria-label="Разделы настроек">
-        {[
-          ['templates', ClipboardList, 'Шаблоны'],
-          ['tags', Tags, 'Метки'],
-          ['cabins', Store, 'Кабинки'],
-          ['categories', Tags, 'Категории']
-        ].map(([id, Icon, label]) => (
-          <button className={id === 'categories' ? 'is-active' : ''} type="button" key={id as string}>
-            <Icon />
-            <span>{label as string}</span>
-          </button>
-        ))}
-      </nav>
+      {renderTabs()}
       <section className="category-settings-card">
         <div className="category-settings-tip">
           <Info />
@@ -2159,6 +2297,154 @@ function CategoryEditScreen({
 
         <button className="category-save-button" type="button" onClick={() => onSave(draft)}>
           {mode === 'add' ? 'Добавить категорию' : 'Сохранить изменения'}
+        </button>
+        <button className="category-cancel-button" type="button" onClick={onCancel}>
+          Отмена
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function CabinEditScreen({
+  cabin,
+  mode,
+  sortIndex,
+  onCancel,
+  onMove,
+  onSave
+}: {
+  cabin?: Cabin;
+  mode: 'edit' | 'add';
+  sortIndex: number;
+  onCancel: () => void;
+  onMove?: (direction: -1 | 1) => void;
+  onSave: (cabin: Cabin) => void;
+}) {
+  const [draft, setDraft] = useState<Cabin>(() => cabin ?? createCabinDraft());
+
+  useEffect(() => {
+    setDraft(cabin ?? createCabinDraft());
+  }, [cabin, mode]);
+
+  const meta = parseCabinMeta(draft.feature);
+  const updateMeta = (patch: Partial<CabinMeta>) => {
+    setDraft((current) => ({
+      ...current,
+      feature: makeCabinFeature({ ...parseCabinMeta(current.feature), ...patch })
+    }));
+  };
+
+  return (
+    <main className="settings-screen category-edit-screen">
+      <section className="category-edit-card">
+        <div className="category-edit-field">
+          <strong>Фото кабинки</strong>
+          {draft.image_url ? (
+            <div className="category-edit-image">
+              <SafeImage src={draft.image_url} alt={draft.title || 'Фото кабинки'} />
+              <button type="button" onClick={() => setDraft({ ...draft, image_url: '' })} aria-label="Очистить фото">
+                <X />
+              </button>
+            </div>
+          ) : (
+            <label className="category-upload-drop">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setDraft({ ...draft, image_url: await imageFileToDataUrl(file) });
+                  event.target.value = '';
+                }}
+              />
+              <Plus />
+              <span>Загрузите изображение<br />или перетащите сюда</span>
+            </label>
+          )}
+          <div className="category-edit-actions">
+            <label>
+              <CloudUpload />
+              Загрузить
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setDraft({ ...draft, image_url: await imageFileToDataUrl(file) });
+                  event.target.value = '';
+                }}
+              />
+            </label>
+            <button type="button" disabled={!draft.image_url} onClick={() => setDraft({ ...draft, image_url: '' })}>
+              <Trash2 />
+              Очистить
+            </button>
+          </div>
+        </div>
+
+        <label className="category-edit-field">
+          <strong>Название кабинки</strong>
+          <input
+            value={draft.title}
+            placeholder="Кабинка 2"
+            onChange={(event) => setDraft({ ...draft, title: event.target.value })}
+          />
+        </label>
+
+        <label className="category-edit-field">
+          <strong>Вместимость</strong>
+          <input
+            value={draft.capacity}
+            placeholder="8-10 человек"
+            onChange={(event) => setDraft({ ...draft, capacity: event.target.value })}
+          />
+        </label>
+
+        <div className="category-edit-field">
+          <strong>Статус</strong>
+          <div className="category-status-options">
+            <button className={meta.status === 'active' ? 'is-active' : ''} type="button" onClick={() => updateMeta({ status: 'active' })}>
+              Активна
+            </button>
+            <button className={meta.status === 'inactive' ? 'is-active' : ''} type="button" onClick={() => updateMeta({ status: 'inactive' })}>
+              Неактивна
+            </button>
+          </div>
+        </div>
+
+        <div className="category-edit-field">
+          <strong>Тип кабинки</strong>
+          <div className="category-status-options">
+            {[
+              ['normal', 'Обычная'],
+              ['vip', 'VIP'],
+              ['premium', 'Премиум']
+            ].map(([type, label]) => (
+              <button className={meta.type === type ? 'is-active' : ''} type="button" key={type} onClick={() => updateMeta({ type: type as CabinMeta['type'] })}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="category-edit-field">
+          <strong>Порядок сортировки</strong>
+          <div className="category-sort-row">
+            <button type="button" onClick={() => onMove?.(-1)} disabled={!onMove}>
+              ↑
+            </button>
+            <button type="button" onClick={() => onMove?.(1)} disabled={!onMove}>
+              ↓
+            </button>
+            <input value={sortIndex < 0 ? 0 : sortIndex} readOnly aria-label="Порядок сортировки" />
+          </div>
+        </div>
+
+        <button className="category-save-button" type="button" onClick={() => onSave(draft)}>
+          {mode === 'add' ? 'Добавить кабинку' : 'Сохранить изменения'}
         </button>
         <button className="category-cancel-button" type="button" onClick={onCancel}>
           Отмена
@@ -2658,7 +2944,9 @@ function AppContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
+  const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
   const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; categoryId?: string }>({ mode: 'list' });
+  const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; cabinId?: string }>({ mode: 'list' });
   const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
   const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
   const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
@@ -2765,6 +3053,10 @@ function AppContent() {
   const settingsTitle = useMemo(() => {
     if (screen === 'settings-profile') return 'Профиль ресторана';
     if (screen === 'settings-categories') {
+      if (settingsCatalogTab === 'cabins') {
+        if (cabinEditor.mode === 'edit') return 'Редактировать кабинку';
+        if (cabinEditor.mode === 'add') return 'Добавить кабинку';
+      }
       if (categoryEditor.mode === 'edit') return 'Редактировать категорию';
       if (categoryEditor.mode === 'add') return 'Добавить категорию';
       return 'Параметры и категории';
@@ -2774,7 +3066,7 @@ function AppContent() {
     if (screen === 'settings-backup') return 'Импорт и экспорт';
     if (screen === 'settings-delete') return 'Удаление каталога';
     return 'Настройки';
-  }, [categoryEditor.mode, screen]);
+  }, [cabinEditor.mode, categoryEditor.mode, screen, settingsCatalogTab]);
 
   if (catalogSlug !== 'mangal' && isLoading && !data) {
     return (
@@ -2919,6 +3211,11 @@ function AppContent() {
     persist(replaceCabinsInSupabase(values));
   };
 
+  const deleteCabinFromSettings = (cabinId: string) => {
+    saveCabins(catalog.cabins.filter((cabin) => cabin.id !== cabinId));
+    setCabinEditor({ mode: 'list' });
+  };
+
   const saveTags = (values: CatalogTag[]) => {
     setLocalTags(values);
     persist(replaceTagsInSupabase(values));
@@ -3035,6 +3332,10 @@ function AppContent() {
       <SettingsHeader
         title={settingsTitle}
         onBack={() => {
+          if (screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode !== 'list') {
+            setCabinEditor({ mode: 'list' });
+            return;
+          }
           if (screen === 'settings-categories' && categoryEditor.mode !== 'list') {
             setCategoryEditor({ mode: 'list' });
             return;
@@ -3046,14 +3347,22 @@ function AppContent() {
           setScreen('settings');
         }}
         onAction={
-          screen === 'settings-categories' && categoryEditor.mode === 'list'
+          screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode === 'list'
+            ? () => setCabinEditor({ mode: 'add' })
+            : screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode === 'edit' && cabinEditor.cabinId
+              ? () => deleteCabinFromSettings(cabinEditor.cabinId!)
+              : screen === 'settings-categories' && settingsCatalogTab === 'categories' && categoryEditor.mode === 'list'
             ? () => setCategoryEditor({ mode: 'add' })
-            : screen === 'settings-categories' && categoryEditor.mode === 'edit' && categoryEditor.categoryId
+            : screen === 'settings-categories' && settingsCatalogTab === 'categories' && categoryEditor.mode === 'edit' && categoryEditor.categoryId
               ? () => deleteCategoryFromSettings(categoryEditor.categoryId!)
               : undefined
         }
-        actionLabel={categoryEditor.mode === 'edit' ? 'Удалить категорию' : 'Добавить категорию'}
-        actionIcon={categoryEditor.mode === 'edit' ? <Trash2 /> : undefined}
+        actionLabel={
+          settingsCatalogTab === 'cabins'
+            ? cabinEditor.mode === 'edit' ? 'Удалить кабинку' : 'Добавить кабинку'
+            : categoryEditor.mode === 'edit' ? 'Удалить категорию' : 'Добавить категорию'
+        }
+        actionIcon={(settingsCatalogTab === 'cabins' ? cabinEditor.mode : categoryEditor.mode) === 'edit' ? <Trash2 /> : undefined}
       />
       {screen === 'settings' && <SettingsHome onOpen={setScreen} />}
       {screen === 'settings-profile' && (
@@ -3062,12 +3371,23 @@ function AppContent() {
       {screen === 'settings-categories' && (
         <CategoriesSettings
           categories={catalog.categories}
+          cabins={catalog.cabins}
           tags={localTags}
           products={catalog.products}
+          activeTab={settingsCatalogTab}
+          onTabChange={(tab) => {
+            setSettingsCatalogTab(tab);
+            setCategoryEditor({ mode: 'list' });
+            setCabinEditor({ mode: 'list' });
+          }}
           mode={categoryEditor.mode}
           editingId={categoryEditor.categoryId}
+          cabinMode={cabinEditor.mode}
+          editingCabinId={cabinEditor.cabinId}
+          onCabinModeChange={(mode, cabinId) => setCabinEditor({ mode, cabinId })}
           onModeChange={(mode, categoryId) => setCategoryEditor({ mode, categoryId })}
           onChangeCategories={saveCategories}
+          onChangeCabins={saveCabins}
           onDeleteCategory={deleteCategoryFromSettings}
         />
       )}

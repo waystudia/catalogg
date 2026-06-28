@@ -4541,6 +4541,51 @@ a {
   font-weight: 900;
 }
 
+.cabin-list-card {
+  padding-left: 14px;
+}
+
+.cabin-state {
+  color: #6b7280 !important;
+}
+
+.cabin-state i {
+  background: #8f8f8f !important;
+}
+
+.cabin-state--active {
+  color: #15803d !important;
+}
+
+.cabin-state--active i {
+  background: #16a34a !important;
+}
+
+.cabin-type-badge {
+  display: inline-flex;
+  max-width: 100%;
+  flex: 0 1 auto;
+  border-radius: 8px;
+  padding: 4px 8px;
+  overflow: hidden;
+  background: #fff1e8;
+  color: #ff6b00;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cabin-type-badge--vip {
+  background: #f1e8ff;
+  color: #7c3aed;
+}
+
+.cabin-type-badge--premium {
+  background: #111827;
+  color: #ffffff;
+}
+
 .category-list-card__arrow {
   width: 24px;
   height: 24px;
