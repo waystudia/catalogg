@@ -1,0 +1,89 @@
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f6f7fb;
+  color: #111827;
+}
+
+.login-page__card {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  background: #ffffff;
+  box-shadow: 0 20px 52px rgba(15, 23, 42, 0.08);
+}
+
+.login-page__card > span {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 8px;
+  background: #f0edff;
+  color: #5b3df4;
+}
+
+.login-page__card h1,
+.login-page__card p {
+  margin: 0;
+}
+
+.login-page__card p {
+  color: #667085;
+}
+
+.login-page__card label {
+  display: grid;
+  gap: 8px;
+  color: #344054;
+  font-weight: 900;
+}
+
+.login-page__card input {
+  min-height: 46px;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  outline: 0;
+}
+
+.login-page__card input::placeholder {
+  color: #98a2b3;
+}
+
+.login-page__card input:focus {
+  border-color: #5b3df4;
+  box-shadow: 0 0 0 3px rgba(91, 61, 244, 0.14);
+}
+
+.login-page__card strong {
+  color: #d92d20;
+}
+
+.login-page__card button,
+.login-page__card a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: #5b3df4;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 900;
+}
+
+.login-page__card a {
+  border: 1px solid #d8dee9;
+  background: #ffffff;
+  color: #111827;
+}

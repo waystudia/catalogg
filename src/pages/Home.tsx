@@ -1,39 +1,52 @@
+import { Camera, LogIn, MapPin, Search, Store, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const restaurants = [
-  { name: 'Мангал', slug: 'mangal', description: 'Ресторанный каталог' },
-  { name: 'Rizih', slug: 'rizih', description: 'Ресторанный каталог' }
+  { name: 'Мангал', slug: 'mangal', description: 'Шашлык, блюда на углях, зал и самовывоз' },
+  { name: 'Rizih', slug: 'rizih', description: 'Сеть ресторанов, суши, пицца и доставка' }
 ];
+
+const categories = ['Суши', 'Шашлык', 'Пицца', 'Фастфуд', 'Напитки'];
 
 export function Home() {
   return (
     <main style={styles.shell}>
-      <section style={styles.panel}>
-        <div style={styles.header}>
-          <p style={styles.kicker}>Платформа ресторанных каталогов</p>
-          <h1 style={styles.title}>WayCatalog</h1>
+      <section style={styles.hero}>
+        <div style={styles.city}>
+          <MapPin />
+          <span>Грозный</span>
         </div>
+        <h1 style={styles.title}>WayCatalog</h1>
+        <p style={styles.subtitle}>Выберите ресторан, войдите в кабинет или продолжите как клиент.</p>
+      </section>
 
+      <section style={styles.panel}>
         <label style={styles.searchLabel}>
-          <span style={styles.searchText}>Поиск</span>
-          <input style={styles.searchInput} type="search" placeholder="Найти ресторан" />
+          <Search />
+          <input style={styles.searchInput} type="search" placeholder="Найти ресторан или категорию" />
         </label>
 
-        <div style={styles.list} aria-label="Список ресторанов">
+        <div style={styles.categories} aria-label="Категории">
+          {categories.map((category) => <button style={styles.categoryButton} type="button" key={category}>{category}</button>)}
+        </div>
+
+        <div style={styles.list} aria-label="Рестораны">
           {restaurants.map((restaurant) => (
             <Link key={restaurant.slug} style={styles.restaurantLink} to={`/${restaurant.slug}`}>
+              <span style={styles.restaurantIcon}><Store /></span>
               <span>
                 <strong style={styles.restaurantName}>{restaurant.name}</strong>
                 <small style={styles.restaurantDescription}>{restaurant.description}</small>
               </span>
-              <span style={styles.restaurantSlug}>#/{restaurant.slug}</span>
+              <span style={styles.restaurantSlug}>/{restaurant.slug}</span>
             </Link>
           ))}
         </div>
 
         <div style={styles.actions}>
-          <Link style={styles.primaryButton} to="/admin">Войти</Link>
-          <Link style={styles.secondaryButton} to="/admin/clients/new">Регистрация</Link>
+          <Link style={styles.primaryButton} to="/login"><LogIn />Войти</Link>
+          <Link style={styles.secondaryButton} to="/admin/clients/new"><UserPlus />Регистрация</Link>
+          <Link style={styles.secondaryButton} to="/scanner"><Camera />Сканер</Link>
           <Link style={styles.ghostButton} to="/mangal">Пропустить</Link>
         </div>
       </section>
@@ -45,66 +58,107 @@ const styles = {
   shell: {
     minHeight: '100vh',
     display: 'grid',
-    placeItems: 'center',
+    alignContent: 'center',
+    gap: 22,
     padding: '32px 18px',
-    background: '#f6f7f9',
+    background: '#f6f7fb',
     color: '#111827'
   },
-  panel: {
-    width: 'min(100%, 560px)',
+  hero: {
+    width: 'min(100%, 760px)',
     display: 'grid',
-    gap: 22
+    gap: 10,
+    margin: '0 auto'
   },
-  header: {
-    display: 'grid',
-    gap: 8
-  },
-  kicker: {
-    margin: 0,
-    color: '#5b6472',
-    fontSize: 15,
-    fontWeight: 700
+  city: {
+    display: 'inline-flex',
+    width: 'fit-content',
+    minHeight: 34,
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 8,
+    padding: '0 12px',
+    background: '#ffffff',
+    color: '#5b3df4',
+    fontWeight: 900
   },
   title: {
     margin: 0,
-    fontSize: 44,
+    fontSize: 46,
     lineHeight: 1,
     fontWeight: 900
   },
-  searchLabel: {
-    display: 'grid',
-    gap: 8
+  subtitle: {
+    maxWidth: 520,
+    margin: 0,
+    color: '#667085',
+    fontSize: 17
   },
-  searchText: {
-    color: '#4b5563',
-    fontSize: 14,
-    fontWeight: 800
+  panel: {
+    width: 'min(100%, 760px)',
+    display: 'grid',
+    gap: 16,
+    margin: '0 auto'
+  },
+  searchLabel: {
+    display: 'flex',
+    minHeight: 52,
+    alignItems: 'center',
+    gap: 10,
+    border: '1px solid #d8dee9',
+    borderRadius: 8,
+    padding: '0 14px',
+    background: '#ffffff',
+    color: '#667085'
   },
   searchInput: {
     width: '100%',
-    minHeight: 52,
-    border: '1px solid #d8dde6',
-    borderRadius: 8,
-    padding: '0 16px',
+    border: 0,
     background: '#ffffff',
     color: '#111827',
+    font: 'inherit',
     outline: 'none'
+  },
+  categories: {
+    display: 'flex',
+    gap: 8,
+    overflowX: 'auto'
+  },
+  categoryButton: {
+    minHeight: 38,
+    flex: '0 0 auto',
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    padding: '0 14px',
+    background: '#ffffff',
+    color: '#344054',
+    font: 'inherit',
+    fontWeight: 800
   },
   list: {
     display: 'grid',
     gap: 10
   },
   restaurantLink: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: '44px minmax(0, 1fr) auto',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 14,
-    minHeight: 70,
+    minHeight: 76,
     padding: '14px 16px',
     border: '1px solid #e1e5ec',
     borderRadius: 8,
     background: '#ffffff',
     color: '#111827'
+  },
+  restaurantIcon: {
+    display: 'grid',
+    width: 44,
+    height: 44,
+    placeItems: 'center',
+    borderRadius: 8,
+    background: '#f0edff',
+    color: '#5b3df4'
   },
   restaurantName: {
     display: 'block',
@@ -124,7 +178,7 @@ const styles = {
   },
   actions: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
     gap: 10
   },
   primaryButton: {
@@ -132,22 +186,24 @@ const styles = {
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     border: 0,
     borderRadius: 8,
     background: '#111827',
     color: '#ffffff',
-    fontWeight: 800
+    fontWeight: 900
   },
   secondaryButton: {
     display: 'inline-flex',
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     border: '1px solid #cfd6e2',
     borderRadius: 8,
     background: '#ffffff',
     color: '#111827',
-    fontWeight: 800
+    fontWeight: 900
   },
   ghostButton: {
     display: 'inline-flex',
@@ -158,6 +214,6 @@ const styles = {
     borderRadius: 8,
     background: 'transparent',
     color: '#4b5563',
-    fontWeight: 800
+    fontWeight: 900
   }
 } satisfies Record<string, React.CSSProperties>;

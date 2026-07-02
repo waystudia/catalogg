@@ -53,12 +53,15 @@ import {
   GripVertical,
   Info,
   Link2,
+  Copy,
+  CreditCard,
+  QrCode,
   RefreshCcw,
   X
 } from 'lucide-react';
 import JSZip from 'jszip';
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
@@ -101,11 +104,20 @@ import {
   type RestaurantOrderStatus
 } from '../shared/api/restaurantOrdersApi';
 import { imageFileToDataUrl } from '../shared/images';
+import {
+  defaultPaymentSettings,
+  loadPaymentSettings,
+  loadPaymentStatus,
+  savePaymentSettings,
+  savePaymentStatus,
+  type PaymentStatus,
+  type RestaurantPaymentSettings
+} from '../shared/paymentSettings';
 
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
-type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-backup' | 'settings-delete';
+type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-payments' | 'settings-backup' | 'settings-delete';
 type RestaurantAdminScreen = 'admin-home';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | RestaurantAdminScreen | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
@@ -1804,6 +1816,7 @@ function SettingsHome({ onOpen }: { onOpen: (screen: SettingsScreen) => void }) 
     ['settings-categories', Tags, 'Параметры и категории', 'Категории + метки'],
     ['settings-design', Paintbrush, 'Дизайн приложения', 'Цвета, тема'],
     ['settings-stock', Package, 'ОБНОВИТЬ БЛЮДА', 'Остатки на день'],
+    ['settings-payments', CreditCard, 'Платежи', 'Перевод, ФИО, QR'],
     ['settings-backup', CloudUpload, 'Импорт и экспорт', 'Бэкапы'],
     ['settings-delete', Trash2, 'Удалить каталог', 'Красная зона']
   ] as const;
@@ -1858,6 +1871,13 @@ const fulfillmentLabels: Record<string, string> = {
   delivery: 'Доставка'
 };
 
+const paymentStatusLabels: Record<PaymentStatus, string> = {
+  unpaid: 'Не оплачен',
+  awaiting: 'Ожидает подтверждения',
+  confirmed: 'Подтвержден',
+  declined: 'Отклонен'
+};
+
 const defaultAdminDeliverySettings: RestaurantDeliverySettings = {
   enable_orders: false,
   enable_delivery: false,
@@ -1878,27 +1898,37 @@ const defaultAdminDeliverySettings: RestaurantDeliverySettings = {
 };
 
 function RestaurantAdminShell({
+  catalogSlug,
   restaurant,
   categories,
   products,
   orders,
+  routeSection,
+  paymentSettings,
   deliverySettings,
   onOpenScreen,
   onAddDish,
   onOrderStatus,
   onSaveDeliverySettings
 }: {
+  catalogSlug: string;
   restaurant: Restaurant;
   categories: Category[];
   products: Product[];
   orders: RestaurantOrder[];
+  routeSection?: string;
+  paymentSettings: RestaurantPaymentSettings;
   deliverySettings: RestaurantDeliverySettings | null;
   onOpenScreen: (screen: SettingsScreen) => void;
   onAddDish: () => void;
   onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => void;
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
-  const [tab, setTab] = useState<'home' | 'dishes' | 'orders' | 'settings'>('home');
+  const [tab, setTab] = useState<'home' | 'dishes' | 'orders' | 'settings' | 'scanner'>(() =>
+    routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner'
+      ? routeSection
+      : 'home'
+  );
   const [filter, setFilter] = useState<'all' | RestaurantOrderStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
   const logout = useAuthStore((state) => state.logout);
@@ -1910,10 +1940,18 @@ function RestaurantAdminShell({
   const filteredOrders = filter === 'all' ? orders : orders.filter((order) => order.status === filter);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled'].includes(order.status));
 
+  useEffect(() => {
+    if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
+      setTab(routeSection);
+    }
+  }, [routeSection]);
+
   if (selectedOrder) {
     return (
       <OrderDetailsScreen
         order={selectedOrder}
+        catalogSlug={catalogSlug}
+        paymentSettings={paymentSettings}
         onBack={() => setSelectedOrder(null)}
         onStatus={(status, reason) => {
           onOrderStatus(selectedOrder, status, reason);
@@ -1931,6 +1969,7 @@ function RestaurantAdminShell({
           <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => setTab('home')}><Home />Главная</button>
           <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => setTab('dishes')}><Utensils />Блюда</button>
           <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => setTab('orders')}><ClipboardList />Заказы</button>
+          <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => setTab('scanner')}><QrCode />Сканер</button>
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => setTab('settings')}><Settings />Настройки</button>
         </nav>
         <button className="restaurant-admin-sidebar__exit" type="button" onClick={logout}><LogOut />Выход</button>
@@ -1970,10 +2009,10 @@ function RestaurantAdminShell({
             </section>
             <section className="admin-quick-actions">
               <button type="button" onClick={onAddDish}><Plus />Добавить блюдо</button>
-              <button type="button" onClick={() => onOpenScreen('settings-stock')}><Package />Остатки</button>
-              <button type="button" onClick={() => setTab('orders')}><ClipboardList />Заказы</button>
-              <button type="button" onClick={() => onOpenScreen('settings-profile')}><Settings />Настройки</button>
-            </section>
+                <button type="button" onClick={() => onOpenScreen('settings-stock')}><Package />Остатки</button>
+                <button type="button" onClick={() => setTab('orders')}><ClipboardList />Заказы</button>
+                <button type="button" onClick={() => setTab('scanner')}><QrCode />Сканер</button>
+              </section>
           </section>
         )}
 
@@ -2049,10 +2088,26 @@ function RestaurantAdminShell({
                 <button type="button" onClick={() => onOpenScreen('settings-profile')}><Store />Профиль</button>
                 <button type="button" onClick={() => onOpenScreen('settings-design')}><Paintbrush />Дизайн</button>
                 <button type="button" onClick={() => onOpenScreen('settings-categories')}><Tags />Категории</button>
+                <button type="button" onClick={() => onOpenScreen('settings-payments')}><CreditCard />Платежи</button>
                 <button type="button" onClick={() => onOpenScreen('settings-backup')}><CloudUpload />Импорт</button>
               </div>
             </section>
             <DeliverySettingsCard settings={deliverySettings ?? defaultAdminDeliverySettings} onSave={onSaveDeliverySettings} />
+          </section>
+        )}
+
+        {tab === 'scanner' && (
+          <section className="restaurant-admin__content">
+            <section className="admin-section-card">
+              <h2>Сканер QR</h2>
+              <p>Открывает ресторан, заказ, подтверждение курьера или экран оплаты по QR-коду.</p>
+              <div className="admin-quick-actions">
+                <a className="admin-action-link" href={`#/${catalogSlug}/scanner`}><QrCode />Открыть сканер</a>
+                <button type="button" onClick={() => window.location.hash = `/${catalogSlug}`}><Store />Каталог</button>
+                <button type="button" onClick={() => setTab('orders')}><ClipboardList />Заказы</button>
+                <button type="button" onClick={() => onOpenScreen('settings-payments')}><CreditCard />Платежи</button>
+              </div>
+            </section>
           </section>
         )}
       </div>
@@ -2061,6 +2116,7 @@ function RestaurantAdminShell({
         <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => setTab('home')}><Home />Главная</button>
         <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => setTab('dishes')}><Utensils />Блюда</button>
         <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => setTab('orders')}><ClipboardList />Заказы</button>
+        <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => setTab('scanner')}><QrCode />Сканер</button>
         <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => setTab('settings')}><Settings />Настройки</button>
       </nav>
     </main>
@@ -2069,13 +2125,23 @@ function RestaurantAdminShell({
 
 function OrderDetailsScreen({
   order,
+  catalogSlug,
+  paymentSettings,
   onBack,
   onStatus
 }: {
   order: RestaurantOrder;
+  catalogSlug: string;
+  paymentSettings: RestaurantPaymentSettings;
   onBack: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => void;
 }) {
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => loadPaymentStatus(catalogSlug, order.id));
+  const updatePaymentStatus = (status: PaymentStatus) => {
+    savePaymentStatus(catalogSlug, order.id, status);
+    setPaymentStatus(status);
+  };
+
   return (
     <main className="restaurant-admin restaurant-admin--detail">
       <header className="admin-detail-header">
@@ -2114,6 +2180,22 @@ function OrderDetailsScreen({
           <p>Код клиента: <strong>{order.verificationCode ?? 'QR включен'}</strong></p>
         </section>
       )}
+      <section className="admin-section-card admin-payment-status">
+        <h2>Оплата</h2>
+        <p>Статус оплаты: <strong>{paymentStatusLabels[paymentStatus]}</strong></p>
+        {paymentSettings.transferEnabled && (
+          <div className="admin-payment-requisites">
+            <span>Способ: перевод ресторану</span>
+            <span>Получатель: {paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ') || 'Не указан'}</span>
+            <span>Номер: {paymentSettings.transferNumber || 'Не указан'}</span>
+          </div>
+        )}
+        <div className="admin-order-actions">
+          <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает</button>
+          <button type="button" onClick={() => updatePaymentStatus('confirmed')}>Подтвердить</button>
+          <button type="button" onClick={() => updatePaymentStatus('declined')}>Отклонить</button>
+        </div>
+      </section>
       <footer className="admin-order-actions">
         {order.status === 'new' && (
           <>
@@ -2182,6 +2264,94 @@ function DeliverySettingsCard({
       </div>
       <button type="button" onClick={() => onSave(draft)}>Сохранить доставку</button>
     </section>
+  );
+}
+
+function PaymentSettingsCard({
+  slug,
+  settings,
+  onSave,
+  onBack
+}: {
+  slug: string;
+  settings: RestaurantPaymentSettings;
+  onSave: (settings: RestaurantPaymentSettings) => void;
+  onBack: () => void;
+}) {
+  const [draft, setDraft] = useState(settings);
+
+  useEffect(() => {
+    setDraft(settings);
+  }, [settings]);
+
+  const setField = <K extends keyof RestaurantPaymentSettings>(key: K, value: RestaurantPaymentSettings[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const uploadQr = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      setField('qrUrl', await imageFileToDataUrl(file));
+    } catch {
+      toast.error('Не удалось загрузить QR-код');
+    }
+  };
+
+  return (
+    <main className="settings-screen payment-settings-screen">
+      <SettingsHeader title="Платежи" onBack={onBack} />
+      <section className="settings-form-card payment-settings-card">
+        <h2>Реквизиты для перевода</h2>
+        <label className="settings-toggle-row">
+          <input type="checkbox" checked={draft.transferEnabled} onChange={(event) => setField('transferEnabled', event.target.checked)} />
+          Включить оплату переводом
+        </label>
+        <label>
+          Тип реквизита
+          <select value={draft.requisiteType} onChange={(event) => setField('requisiteType', event.target.value as RestaurantPaymentSettings['requisiteType'])}>
+            <option value="phone">Телефон</option>
+            <option value="card">Карта</option>
+            <option value="account">Счет</option>
+          </select>
+        </label>
+        <label>Номер для перевода<input value={draft.transferNumber} onChange={(event) => setField('transferNumber', event.target.value)} /></label>
+        <label>Банк<input value={draft.bankName} onChange={(event) => setField('bankName', event.target.value)} placeholder="Сбер, Тинькофф..." /></label>
+        <div className="settings-form-grid">
+          <label>Фамилия<input value={draft.lastName} onChange={(event) => setField('lastName', event.target.value)} /></label>
+          <label>Имя<input value={draft.firstName} onChange={(event) => setField('firstName', event.target.value)} /></label>
+          <label>Отчество<input value={draft.middleName} onChange={(event) => setField('middleName', event.target.value)} /></label>
+        </div>
+        <label>Отображаемое имя<input value={draft.displayName} onChange={(event) => setField('displayName', event.target.value)} placeholder="ФИО, которое увидит клиент" /></label>
+        <label>Комментарий к оплате<textarea value={draft.comment} onChange={(event) => setField('comment', event.target.value)} /></label>
+        <label className="settings-toggle-row">
+          <input type="checkbox" checked={draft.allowCash} onChange={(event) => setField('allowCash', event.target.checked)} />
+          Разрешить наличные
+        </label>
+        <label className="settings-toggle-row">
+          <input type="checkbox" checked={draft.requireConfirmation} onChange={(event) => setField('requireConfirmation', event.target.checked)} />
+          Требовать подтверждение рестораном
+        </label>
+        <label className="payment-qr-upload">
+          <QrCode />
+          {draft.qrUrl ? 'Заменить QR-код' : 'Загрузить QR-код'}
+          <input type="file" accept="image/*" onChange={uploadQr} />
+        </label>
+        <div className="payment-client-preview">
+          <h3>Как увидит клиент</h3>
+          <strong>{draft.displayName || [draft.lastName, draft.firstName, draft.middleName].filter(Boolean).join(' ') || 'Получатель не указан'}</strong>
+          <span>{draft.bankName || 'Банк не указан'} · {draft.transferNumber || 'Номер не указан'}</span>
+          {draft.qrUrl ? <img src={draft.qrUrl} alt="QR-код для перевода" /> : <QrCode />}
+          <small>{draft.comment}</small>
+        </div>
+        <button className="primary-wide" type="button" onClick={() => {
+          onSave(draft);
+          toast.success(`Платежи сохранены для ${slug}`);
+        }}>
+          Сохранить платежи
+        </button>
+      </section>
+    </main>
   );
 }
 
@@ -3583,7 +3753,7 @@ function DesignEditor({
   );
 }
 
-function AppContent({ catalogSlug }: { catalogSlug: string }) {
+function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeSection?: string }) {
   const catalogQueryKey = useMemo(() => ['catalog', catalogSlug] as const, [catalogSlug]);
   const { data, isLoading } = useQuery({
     queryKey: catalogQueryKey,
@@ -3616,6 +3786,7 @@ function AppContent({ catalogSlug }: { catalogSlug: string }) {
   const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(() => makeLoadingRestaurant(catalogSlug));
   const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
@@ -3653,6 +3824,10 @@ function AppContent({ catalogSlug }: { catalogSlug: string }) {
     void hasAdminSession(catalogSlug).then(setAdmin);
     return onAdminSessionChange(setAdmin, catalogSlug);
   }, [catalogSlug, setAdmin]);
+
+  useEffect(() => {
+    setPaymentSettings(loadPaymentSettings(catalogSlug));
+  }, [catalogSlug]);
 
   useEffect(() => {
     refreshRestaurantOrders();
@@ -3709,6 +3884,15 @@ function AppContent({ catalogSlug }: { catalogSlug: string }) {
       setShowAfterOrderPanel(false);
     }
   }, [cartCount]);
+
+  useEffect(() => {
+    if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
+      setScreen('admin-home');
+    }
+    if (routeSection === 'payments') {
+      setScreen('settings-payments');
+    }
+  }, [routeSection]);
 
   useEffect(() => {
     if (data?.theme) {
