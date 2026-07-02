@@ -194,6 +194,7 @@
 
 .admin-today-card button,
 .admin-quick-actions button,
+.admin-quick-actions .admin-action-link,
 .delivery-settings-card > button,
 .admin-order-actions button {
   display: inline-flex;
@@ -224,6 +225,13 @@
 }
 
 .admin-quick-actions button {
+  min-height: 62px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.admin-quick-actions .admin-action-link {
   min-height: 62px;
   background: #ffffff;
   color: #111827;
@@ -355,7 +363,7 @@
   left: max(16px, calc((100vw - 520px) / 2 + 16px));
   z-index: 30;
   display: none;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 8px;
   border: 1px solid rgba(148, 163, 184, 0.28);
@@ -418,6 +426,12 @@
   .admin-kpi-grid,
   .admin-quick-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-form-grid,
+  .checkout-payment-card > div,
+  .checkout-payment-card dl div {
+    grid-template-columns: 1fr;
   }
 
   .restaurant-admin-nav {
@@ -539,6 +553,134 @@
   color: #111827;
 }
 
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-toggle-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+}
+
+.settings-toggle-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.payment-qr-upload {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed #b9c0d4;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #344054;
+  font-weight: 900;
+}
+
+.payment-qr-upload input {
+  display: none;
+}
+
+.payment-client-preview,
+.checkout-payment-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.payment-client-preview h3,
+.checkout-payment-card h3,
+.checkout-payment-card p {
+  margin: 0;
+}
+
+.payment-client-preview img,
+.checkout-payment-card img {
+  width: 180px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.payment-client-preview > svg,
+.checkout-payment-card > svg {
+  width: 112px;
+  height: 112px;
+  color: #5b3df4;
+}
+
+.checkout-payment-card h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkout-payment-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.checkout-payment-card dl div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.checkout-payment-card dt {
+  color: #667085;
+}
+
+.checkout-payment-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 900;
+}
+
+.checkout-payment-card > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.checkout-payment-card button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 900;
+}
+
+.checkout-payment-card button:first-child {
+  border: 1px solid #d8dee9;
+  background: #ffffff;
+  color: #111827;
+}
+
+.admin-payment-requisites {
+  display: grid;
+  gap: 6px;
+  color: #344054;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -550,8 +692,30 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  color: #111827;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #98a2b3;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 0;
+  border-color: #5b3df4;
+  box-shadow: 0 0 0 3px rgba(91, 61, 244, 0.16);
 }
 
 button {
@@ -1231,8 +1395,8 @@ a {
   width: 100%;
   border: 0;
   outline: 0;
-  background: transparent;
-  color: var(--text);
+  background: #ffffff;
+  color: #111827;
 }
 
 .product-screen {
@@ -3108,18 +3272,20 @@ a {
 
 .settings-form-card input,
 .settings-form-card textarea,
+.settings-form-card select,
 .inline-editor input,
 .settings-list-item input {
   width: 100%;
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid #d8dee9;
   border-radius: var(--button-radius);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text);
+  background: #ffffff;
+  color: #111827;
   outline: 0;
 }
 
 .settings-form-card input,
+.settings-form-card select,
 .inline-editor input,
 .settings-list-item input {
   min-height: 48px;

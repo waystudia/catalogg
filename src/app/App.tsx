@@ -105,7 +105,6 @@ import {
 } from '../shared/api/restaurantOrdersApi';
 import { imageFileToDataUrl } from '../shared/images';
 import {
-  defaultPaymentSettings,
   loadPaymentSettings,
   loadPaymentStatus,
   savePaymentSettings,
@@ -1447,11 +1446,13 @@ function CheckoutScreen({
   catalogSlug,
   restaurant,
   cabins,
+  paymentSettings,
   onSubmitOrder
 }: {
   catalogSlug: string;
   restaurant: Restaurant;
   cabins: Cabin[];
+  paymentSettings: RestaurantPaymentSettings;
   onSubmitOrder: () => void;
 }) {
   const { mode, cabinId, setOrder } = useOrderStore();
@@ -1498,6 +1499,7 @@ function CheckoutScreen({
     }
     window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
   };
+  const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
 
   return (
     <main className="screen checkout-screen">
@@ -1588,6 +1590,28 @@ function CheckoutScreen({
           <span>Итого</span>
           <strong>{formatPrice(total)}</strong>
         </div>
+        {paymentSettings.transferEnabled && (
+          <section className="checkout-payment-card">
+            <h3><CreditCard /> Оплата переводом</h3>
+            <strong>{formatPrice(total)}</strong>
+            <dl>
+              <div><dt>Получатель</dt><dd>{paymentRecipient || 'Получатель не указан'}</dd></div>
+              <div><dt>Номер</dt><dd>{paymentSettings.transferNumber || 'Номер не указан'}</dd></div>
+              <div><dt>Банк</dt><dd>{paymentSettings.bankName || 'Банк не указан'}</dd></div>
+            </dl>
+            {paymentSettings.qrUrl ? <img src={paymentSettings.qrUrl} alt="QR-код для оплаты" /> : <QrCode />}
+            <p>{paymentSettings.comment || 'Переведите сумму ресторану и после оплаты нажмите "Я оплатил".'}</p>
+            <div>
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(paymentSettings.transferNumber).then(() => toast.success('Номер скопирован'))}>
+                <Copy />
+                Скопировать
+              </button>
+              <button type="button" onClick={() => toast.success('Ресторан увидит, что вы отметили оплату')}>
+                Я оплатил
+              </button>
+            </div>
+          </section>
+        )}
         <a
           className={restaurant.whatsapp ? 'primary-wide checkout-summary__action' : 'primary-wide checkout-summary__action is-disabled'}
           href={whatsappHref}
@@ -3961,6 +3985,7 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
     }
     if (screen === 'settings-design') return 'Дизайн приложения';
     if (screen === 'settings-stock') return 'Обновить блюда';
+    if (screen === 'settings-payments') return 'Платежи';
     if (screen === 'settings-backup') return 'Импорт и экспорт';
     if (screen === 'settings-delete') return 'Удаление каталога';
     return 'Настройки';
@@ -4307,6 +4332,17 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
         />
       )}
       {screen === 'settings-design' && <DesignSettings theme={themeStore} onChange={saveTheme} />}
+      {screen === 'settings-payments' && (
+        <PaymentSettingsCard
+          slug={catalogSlug}
+          settings={paymentSettings}
+          onBack={() => setScreen('settings')}
+          onSave={(settings) => {
+            setPaymentSettings(settings);
+            savePaymentSettings(catalogSlug, settings);
+          }}
+        />
+      )}
       {screen === 'settings-stock' && (
         <StockSettings
           products={catalog.products}
@@ -4383,10 +4419,13 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
 
   const renderRestaurantAdmin = () => (
     <RestaurantAdminShell
+      catalogSlug={catalogSlug}
       restaurant={catalog.restaurant}
       categories={catalog.categories}
       products={catalog.products}
       orders={restaurantOrders}
+      routeSection={routeSection}
+      paymentSettings={paymentSettings}
       deliverySettings={deliverySettings}
       onOpenScreen={setScreen}
       onAddDish={() => setAdminEditor('dish')}
@@ -4414,7 +4453,13 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
       }}
     >
       <Toaster richColors position="top-center" />
-      {screen === 'admin-home' ? (
+      {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (
+        <LoginModal
+          catalogSlug={catalogSlug}
+          onClose={() => setScreen('home')}
+          onSuccess={() => setScreen(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
+        />
+      ) : screen === 'admin-home' ? (
         renderRestaurantAdmin()
       ) : screen.startsWith('settings') ? (
         renderSettings()
@@ -4491,6 +4536,7 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
               catalogSlug={catalogSlug}
               restaurant={catalog.restaurant}
               cabins={catalog.cabins}
+              paymentSettings={paymentSettings}
               onSubmitOrder={() => {
                 setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
@@ -4585,6 +4631,8 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
 
 export function App() {
   const { slug } = useParams();
+  const location = useLocation();
+  const routeSection = location.pathname.split('/').filter(Boolean)[1];
 
   if (!slug) {
     return null;
@@ -4592,7 +4640,7 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent catalogSlug={slug} />
+      <AppContent catalogSlug={slug} routeSection={routeSection} />
     </QueryClientProvider>
   );
 }

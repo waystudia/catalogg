@@ -178,7 +178,7 @@ const styles = {
   },
   actions: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
     gap: 10
   },
   primaryButton: {

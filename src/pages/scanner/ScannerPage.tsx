@@ -1,5 +1,5 @@
 import { Camera, Flashlight, QrCode, RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import './scanner.css';
 
@@ -49,7 +49,7 @@ export function ScannerPage() {
     setIsCameraActive(false);
   };
 
-  const handleParsed = (parsed: ParsedQr) => {
+  const handleParsed = useCallback((parsed: ParsedQr) => {
     if (parsed.kind === 'restaurant') {
       navigate(`/${parsed.slug}`);
       return;
@@ -67,7 +67,7 @@ export function ScannerPage() {
       return;
     }
     setMessage('QR не распознан. Проверьте формат или вставьте ссылку каталога.');
-  };
+  }, [navigate, slug]);
 
   const scanManual = () => {
     handleParsed(parseQr(rawValue));
@@ -126,7 +126,7 @@ export function ScannerPage() {
       window.clearTimeout(raf);
       stopCamera();
     };
-  }, [cameraMode]);
+  }, [cameraMode, handleParsed]);
 
   const toggleTorch = async () => {
     const track = streamRef.current?.getVideoTracks()[0];
