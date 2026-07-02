@@ -103,6 +103,7 @@ import {
   type RestaurantOrder,
   type RestaurantOrderStatus
 } from '../shared/api/restaurantOrdersApi';
+import { getRestaurantPaymentsBySlug, saveRestaurantPayments } from '../shared/api/restaurantPaymentsApi';
 import { imageFileToDataUrl } from '../shared/images';
 import {
   loadPaymentSettings,
@@ -3851,6 +3852,11 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
 
   useEffect(() => {
     setPaymentSettings(loadPaymentSettings(catalogSlug));
+    void getRestaurantPaymentsBySlug(catalogSlug)
+      .then(setPaymentSettings)
+      .catch((error) => {
+        console.error('Payment settings load failed', error);
+      });
   }, [catalogSlug]);
 
   useEffect(() => {
@@ -4340,6 +4346,10 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
           onSave={(settings) => {
             setPaymentSettings(settings);
             savePaymentSettings(catalogSlug, settings);
+            void getCatalogIdBySlug(catalogSlug)
+              .then((catalogId) => saveRestaurantPayments(catalogId ?? catalogSlug, catalogSlug, settings))
+              .then(() => toast.success('Сохранено'))
+              .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сохранить платежи'));
           }}
         />
       )}

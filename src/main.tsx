@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { LoginPage } from './pages/login/LoginPage';
 import { PlatformAdminApp } from './pages/platform-admin/PlatformAdminApp';
 import { PrivacyPage } from './pages/privacy/PrivacyPage';
+import { PaymentsPage } from './pages/payments/PaymentsPage';
 import { ScannerPage } from './pages/scanner/ScannerPage';
 import './app/styles.css';
 import './features/dish-editor/styles.css';
@@ -81,6 +82,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <Route path="/scanner" element={<ScannerPage />} />
         <Route path="/:slug/scanner" element={<ScannerPage />} />
         <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
+        <Route path="/admin/payments" element={<PaymentsPage />} />
         <Route path="/admin/*" element={<PlatformAdminApp />} />
         <Route path="/driver/*" element={<DriverRoute />} />
         <Route path="/:slug/*" element={<App />} />
