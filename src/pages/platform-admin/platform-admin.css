@@ -305,7 +305,8 @@
 .client-filters input,
 .client-filters select,
 .client-form input,
-.client-form select {
+.client-form select,
+.client-form textarea {
   width: 100%;
   min-height: 44px;
   border: 1px solid #d8dee9;
@@ -326,12 +327,20 @@
 
 .client-filters select,
 .client-form input,
-.client-form select {
+.client-form select,
+.client-form textarea {
   padding: 0 12px;
+}
+
+.client-form textarea {
+  min-height: 104px;
+  padding: 12px;
+  resize: vertical;
 }
 
 .client-form input:focus,
 .client-form select:focus,
+.client-form textarea:focus,
 .password-field button:focus-visible,
 .platform-sheet-head button:focus-visible,
 .client-form-footer button:focus-visible {
@@ -341,7 +350,8 @@
 }
 
 .client-form input[aria-invalid='true'],
-.client-form select[aria-invalid='true'] {
+.client-form select[aria-invalid='true'],
+.client-form textarea[aria-invalid='true'] {
   border-color: #ef4444;
 }
 

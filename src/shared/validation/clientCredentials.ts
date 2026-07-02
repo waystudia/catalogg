@@ -100,6 +100,8 @@ export const createClientSchema = z.object({
   ownerName: z.string().trim().max(100, 'Максимум 100 символов').optional(),
   email: z.string().trim().toLowerCase().email('Введите корректный email'),
   phone: z.string().trim().max(30, 'Максимум 30 символов').optional(),
+  primaryCity: z.string().trim().max(120, 'Максимум 120 символов').optional(),
+  serviceSettlementsText: z.string().trim().max(1500, 'Слишком длинный список').optional(),
   password: z.string().refine(isStrongPassword, 'Минимум 10 символов: A-z, цифра и спецсимвол'),
   templateVersionId: z.string().uuid('Выберите шаблон'),
   businessType: z.string().min(2, 'Выберите тип бизнеса'),

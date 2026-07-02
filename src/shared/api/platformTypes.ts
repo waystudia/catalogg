@@ -24,6 +24,8 @@ export type PlatformClient = {
   ownerName: string;
   email: string;
   phone: string;
+  primaryCity: string;
+  serviceSettlements: string[];
   status: ClientStatus;
   planCode: string;
   subscriptionStatus: SubscriptionStatus;
@@ -62,6 +64,8 @@ export type CreateClientPayload = {
   ownerName?: string;
   email: string;
   phone?: string;
+  primaryCity?: string;
+  serviceSettlements?: string[];
   password: string;
   templateVersionId: string;
   businessType: string;
@@ -85,6 +89,8 @@ export type UpdateClientPayload = {
   ownerName?: string;
   email?: string;
   phone?: string;
+  primaryCity?: string;
+  serviceSettlements?: string[];
   password?: string;
   status?: ClientStatus;
   planId?: string;

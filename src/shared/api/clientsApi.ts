@@ -16,6 +16,8 @@ const demoClients: PlatformClient[] = [
     ownerName: 'Алексей',
     email: 'grill@house.com',
     phone: '+7 999 123-45-67',
+    primaryCity: 'Грозный',
+    serviceSettlements: ['Черноречье', 'Беркат-Юрт'],
     status: 'active',
     planCode: 'business',
     subscriptionStatus: 'active',
@@ -37,6 +39,8 @@ const demoClients: PlatformClient[] = [
     ownerName: 'Марина',
     email: 'hello@coffeetime.com',
     phone: '+7 999 987-65-43',
+    primaryCity: 'Аргун',
+    serviceSettlements: ['Центр', 'Новая жизнь'],
     status: 'active',
     planCode: 'trial',
     subscriptionStatus: 'trial',
@@ -58,6 +62,8 @@ const demoClients: PlatformClient[] = [
     ownerName: '',
     email: 'admin@fitlife.com',
     phone: '+7 999 111-22-33',
+    primaryCity: '',
+    serviceSettlements: [],
     status: 'inactive',
     planCode: 'basic',
     subscriptionStatus: 'expired',
@@ -81,6 +87,8 @@ type ClientRow = {
   owner_name: string | null;
   email: string;
   phone: string | null;
+  primary_city: string | null;
+  service_settlements: string[] | null;
   status: PlatformClient['status'];
   plan_code: string | null;
   subscription_status: PlatformClient['subscriptionStatus'];
@@ -109,6 +117,8 @@ const mapClient = (row: ClientRow): PlatformClient => ({
   ownerName: row.owner_name ?? '',
   email: row.email,
   phone: row.phone ?? '',
+  primaryCity: row.primary_city ?? '',
+  serviceSettlements: Array.isArray(row.service_settlements) ? row.service_settlements.filter(Boolean) : [],
   status: row.status,
   planCode: row.plan_code ?? 'trial',
   subscriptionStatus: row.subscription_status,
@@ -169,7 +179,7 @@ export async function getClients(params: ClientListParams): Promise<{ data: Plat
   let query = supabase
     .from('clients')
     .select(
-      'id, company_name, owner_name, email, phone, status, plan_code, subscription_status, subscription_ends_at, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
+      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })

@@ -33,6 +33,8 @@ export type RestaurantOrder = {
   fulfillmentType: RestaurantOrderFulfillment;
   cabinLabel: string;
   deliveryAddress: string;
+  deliveryCity: string;
+  deliverySettlement: string;
   comment: string;
   status: RestaurantOrderStatus;
   subtotal: number;
@@ -63,6 +65,9 @@ export type RestaurantDeliverySettings = {
   free_delivery_from: number;
   default_preparation_minutes: number;
   delivery_radius_km: number;
+  delivery_area_mode: 'radius' | 'settlements' | 'hybrid';
+  primary_city: string;
+  service_settlements: string[];
   delivery_hours_start: string;
   delivery_hours_end: string;
   out_of_hours_mode: 'deny' | 'preorder' | 'warn';
@@ -82,6 +87,9 @@ const defaultDeliverySettings: RestaurantDeliverySettings = {
   free_delivery_from: 0,
   default_preparation_minutes: 25,
   delivery_radius_km: 5,
+  delivery_area_mode: 'radius',
+  primary_city: '',
+  service_settlements: [],
   delivery_hours_start: '',
   delivery_hours_end: '',
   out_of_hours_mode: 'warn'
@@ -96,6 +104,8 @@ type OrderRow = {
   cabin_label?: string;
   table_label?: string;
   delivery_address?: string;
+  delivery_city?: string;
+  delivery_settlement?: string;
   comment: string;
   status: RestaurantOrderStatus;
   subtotal: number;
@@ -128,6 +138,8 @@ const demoOrders: RestaurantOrder[] = [
     fulfillmentType: 'hall',
     cabinLabel: 'Кабинка №2',
     deliveryAddress: '',
+    deliveryCity: '',
+    deliverySettlement: '',
     comment: 'Без лука',
     status: 'new',
     subtotal: 1180,
@@ -157,6 +169,8 @@ const orderSelect = `
   cabin_label,
   table_label,
   delivery_address,
+  delivery_city,
+  delivery_settlement,
   comment,
   status,
   subtotal,
@@ -182,6 +196,8 @@ const mapOrder = (row: OrderRow): RestaurantOrder => ({
   fulfillmentType: row.fulfillment_type ?? 'hall',
   cabinLabel: row.cabin_label || row.table_label || '',
   deliveryAddress: row.delivery_address ?? '',
+  deliveryCity: row.delivery_city ?? '',
+  deliverySettlement: row.delivery_settlement ?? '',
   comment: row.comment,
   status: row.status,
   subtotal: row.subtotal,
@@ -258,6 +274,8 @@ export async function updateRestaurantOrderStatus(
         order_id: order.id,
         delivery_status: 'waiting_driver',
         address: order.deliveryAddress,
+        city: order.deliveryCity,
+        settlement: order.deliverySettlement,
         qr_required: Boolean(order.qrToken || order.verificationCode)
       },
       { onConflict: 'order_id' }
@@ -277,7 +295,11 @@ export async function getRestaurantDeliverySettings(slug: string): Promise<Resta
     .maybeSingle();
 
   if (error) throw error;
-  return { ...defaultDeliverySettings, ...(data ?? {}) } as RestaurantDeliverySettings;
+  const nextData = { ...defaultDeliverySettings, ...(data ?? {}) } as RestaurantDeliverySettings;
+  return {
+    ...nextData,
+    service_settlements: Array.isArray(nextData.service_settlements) ? nextData.service_settlements.filter(Boolean) : []
+  };
 }
 
 export async function saveRestaurantDeliverySettings(slug: string, settings: RestaurantDeliverySettings) {
@@ -297,12 +319,18 @@ export async function createRestaurantOrderFromCart({
   items,
   fulfillmentType,
   cabinLabel,
+  deliveryCity = '',
+  deliverySettlement = '',
+  deliveryAddress = '',
   comment = ''
 }: {
   slug: string;
   items: CartItem[];
   fulfillmentType: RestaurantOrderFulfillment;
   cabinLabel?: string;
+  deliveryCity?: string;
+  deliverySettlement?: string;
+  deliveryAddress?: string;
   comment?: string;
 }) {
   if (!supabase) return null;
@@ -315,8 +343,10 @@ export async function createRestaurantOrderFromCart({
     customer_phone: '',
     fulfillment_type: fulfillmentType,
     cabin_label: cabinLabel ?? '',
-    delivery_address: '',
-    client_address_comment: '',
+    delivery_address: deliveryAddress,
+    delivery_city: deliveryCity,
+    delivery_settlement: deliverySettlement,
+    client_address_comment: deliverySettlement,
     comment,
     items: items.map((item) => ({
       product_id: item.product.id,

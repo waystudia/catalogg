@@ -1,7 +1,7 @@
 export type BackgroundType = 'color' | 'gradient' | 'image';
 export type ButtonStyle = 'filled' | 'outline';
 export type HeaderStyle = 'centered' | 'compact';
-export type OrderMode = 'hall' | 'takeaway';
+export type OrderMode = 'hall' | 'takeaway' | 'delivery';
 
 export type ThemeSettings = {
   id: string;

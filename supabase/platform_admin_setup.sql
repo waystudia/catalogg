@@ -43,6 +43,8 @@ create table if not exists public.clients (
   owner_name text,
   email text not null,
   phone text,
+  primary_city text not null default '',
+  service_settlements text[] not null default '{}',
   status text not null default 'active' check (status in ('active', 'inactive', 'blocked', 'pending')),
   plan_code text,
   subscription_status text not null default 'trial' check (subscription_status in ('trial', 'active', 'past_due', 'expired', 'cancelled')),
@@ -63,6 +65,8 @@ alter table public.clients add column if not exists consent_source text;
 alter table public.clients add column if not exists admin_consent_confirmed boolean not null default false;
 alter table public.clients add column if not exists admin_consent_confirmed_at timestamptz;
 alter table public.clients add column if not exists admin_consent_actor_id uuid references auth.users(id) on delete set null;
+alter table public.clients add column if not exists primary_city text not null default '';
+alter table public.clients add column if not exists service_settlements text[] not null default '{}';
 
 create or replace function public.sync_client_catalog_member()
 returns trigger

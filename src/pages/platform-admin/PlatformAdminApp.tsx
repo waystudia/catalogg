@@ -92,6 +92,18 @@ const businessTypeLabels: Record<string, string> = {
 
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
+const parseSettlementsInput = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+
+const formatSettlementsInput = (values: string[]) => values.join('\n');
+
 const getCurrentPlatformPath = () => {
   if (window.location.hash.startsWith('#/')) {
     return window.location.hash.slice(1);
@@ -687,6 +699,8 @@ function CreateClientForm({
       ownerName: '',
       email: '',
       phone: '',
+      primaryCity: '',
+      serviceSettlementsText: '',
       password: generateSecurePassword(),
       templateVersionId: firstTemplate?.templateVersionId ?? '',
       businessType: firstTemplate?.businessType ?? 'restaurant',
@@ -733,6 +747,8 @@ function CreateClientForm({
         ownerName: values.ownerName,
         email: values.email,
         phone: values.phone,
+        primaryCity: values.primaryCity,
+        serviceSettlements: parseSettlementsInput(values.serviceSettlementsText ?? ''),
         password: values.password,
         templateVersionId: values.templateVersionId,
         businessType: values.businessType,
@@ -882,6 +898,10 @@ function CreateClientForm({
               <input {...register('phone')} placeholder="+7 999 000-00-00" inputMode="tel" />
             </label>
             <label>
+              Основной город
+              <input {...register('primaryCity')} placeholder="Например: Грозный" />
+            </label>
+            <label>
               <span>
                 Тариф <b>*</b>
               </span>
@@ -915,6 +935,15 @@ function CreateClientForm({
               </select>
             </label>
           </div>
+          <label>
+            Села и районы обслуживания
+            <textarea
+              {...register('serviceSettlementsText')}
+              rows={4}
+              placeholder={'Одно село на строку\nЧерноречье\nБеркат-Юрт'}
+            />
+            <em>Эти населенные пункты можно будет использовать для маршрутизации заказов водителям.</em>
+          </label>
         </section>
 
         <section className="client-form-section">
@@ -962,6 +991,8 @@ function EditClientForm({
   const [ownerName, setOwnerName] = useState(client.ownerName);
   const [email, setEmail] = useState(client.email);
   const [phone, setPhone] = useState(client.phone);
+  const [primaryCity, setPrimaryCity] = useState(client.primaryCity);
+  const [serviceSettlementsText, setServiceSettlementsText] = useState(formatSettlementsInput(client.serviceSettlements));
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState(client.status);
@@ -980,6 +1011,8 @@ function EditClientForm({
         ownerName,
         email,
         phone,
+        primaryCity,
+        serviceSettlements: parseSettlementsInput(serviceSettlementsText),
         password: password || undefined,
         status,
         planId,
@@ -1032,7 +1065,20 @@ function EditClientForm({
               Телефон
               <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
             </label>
+            <label>
+              Основной город
+              <input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} />
+            </label>
           </div>
+          <label>
+            Села и районы обслуживания
+            <textarea
+              value={serviceSettlementsText}
+              onChange={(event) => setServiceSettlementsText(event.target.value)}
+              rows={4}
+              placeholder={'Одно село на строку\nЧерноречье\nБеркат-Юрт'}
+            />
+          </label>
         </section>
 
         <section className="client-form-section">

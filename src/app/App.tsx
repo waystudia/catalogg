@@ -64,7 +64,7 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useSta
 import { useLocation, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import type { Cabin, CatalogTag, Category, OrderMode, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
 import {
   isSauceProduct,
@@ -117,6 +117,18 @@ import {
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const parseSettlementList = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+const formatSettlementList = (values: string[]) => values.join('\n');
+const buildDeliveryAddress = (city: string, settlement: string, address: string) =>
+  [city.trim(), settlement.trim(), address.trim()].filter(Boolean).join(', ');
 type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-payments' | 'settings-backup' | 'settings-delete';
 type RestaurantAdminScreen = 'admin-home';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | RestaurantAdminScreen | SettingsScreen;
@@ -1447,23 +1459,57 @@ function CheckoutScreen({
   catalogSlug,
   restaurant,
   cabins,
+  deliverySettings,
   paymentSettings,
   onSubmitOrder
 }: {
   catalogSlug: string;
   restaurant: Restaurant;
   cabins: Cabin[];
+  deliverySettings: RestaurantDeliverySettings;
   paymentSettings: RestaurantPaymentSettings;
   onSubmitOrder: () => void;
 }) {
-  const { mode, cabinId, setOrder } = useOrderStore();
+  const {
+    mode,
+    cabinId,
+    deliveryCity,
+    deliverySettlement,
+    deliveryAddress,
+    setOrder
+  } = useOrderStore();
   const items = useCartStore((state) => state.items);
   const total = selectCartTotal(items);
   const activeCabins = useMemo(
     () => cabins.filter((cabin) => parseCabinMeta(cabin.feature).status === 'active'),
     [cabins]
   );
+  const availableModes = useMemo(() => {
+    const modes: Array<{ key: OrderMode; label: string; icon: typeof Home }> = [];
+    if (deliverySettings.enable_hall_orders) modes.push({ key: 'hall', label: 'В зале', icon: ShoppingCart });
+    if (deliverySettings.enable_pickup) modes.push({ key: 'takeaway', label: 'На вынос', icon: ShoppingBag });
+    if (deliverySettings.enable_delivery) modes.push({ key: 'delivery', label: 'Доставка', icon: MapPin });
+    return modes.length > 0 ? modes : [{ key: 'takeaway', label: 'На вынос', icon: ShoppingBag }];
+  }, [deliverySettings.enable_delivery, deliverySettings.enable_hall_orders, deliverySettings.enable_pickup]);
+  const settlementOptions = useMemo(
+    () => (deliverySettings.service_settlements ?? []).filter(Boolean),
+    [deliverySettings.service_settlements]
+  );
+  const configuredCity = deliverySettings.primary_city.trim();
+  const finalDeliveryAddress = buildDeliveryAddress(deliveryCity, deliverySettlement, deliveryAddress);
   const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
+
+  useEffect(() => {
+    if (!configuredCity || deliveryCity === configuredCity) return;
+    setOrder({ deliveryCity: configuredCity });
+  }, [configuredCity, deliveryCity, setOrder]);
+
+  useEffect(() => {
+    if (availableModes.some((item) => item.key === mode)) return;
+    const nextMode = (availableModes[0]?.key as OrderMode | undefined) ?? ('takeaway' as OrderMode);
+    setOrder({ mode: nextMode, cabinId: nextMode === 'hall' ? activeCabins[0]?.id || '' : '' });
+  }, [activeCabins, availableModes, mode, setOrder]);
+
   useEffect(() => {
     if (mode !== 'hall') return;
     if (activeCabins.length === 1 && cabinId !== activeCabins[0].id) {
@@ -1483,8 +1529,15 @@ function CheckoutScreen({
     `Итого: ${formatPrice(total)}`,
     '',
     'Получение:',
-    mode === 'hall' ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}` : 'На вынос',
+    mode === 'hall'
+      ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}`
+      : mode === 'delivery'
+        ? `Доставка${finalDeliveryAddress ? `, ${finalDeliveryAddress}` : ''}`
+        : 'На вынос',
     ...(mode === 'hall' && selectedCabin ? [`Кабинка: ${selectedCabin.title} (${selectedCabin.capacity})`] : []),
+    ...(mode === 'delivery' && deliveryCity ? [`Город: ${deliveryCity}`] : []),
+    ...(mode === 'delivery' && deliverySettlement ? [`Село / район: ${deliverySettlement}`] : []),
+    ...(mode === 'delivery' && deliveryAddress ? [`Адрес: ${deliveryAddress}`] : []),
     '',
     'Комментарий:',
     'Пожалуйста, подтвердите заказ.'
@@ -1505,14 +1558,22 @@ function CheckoutScreen({
   return (
     <main className="screen checkout-screen">
       <section className="checkout-segment" aria-label="Тип заказа">
-        <button className={mode === 'hall' ? 'checkout-segment__button is-active' : 'checkout-segment__button'} type="button" onClick={() => setOrder({ mode: 'hall', cabinId: cabinId || activeCabins[0]?.id || '' })}>
-          <ShoppingCart />
-          В зале
-        </button>
-        <button className={mode === 'takeaway' ? 'checkout-segment__button is-active' : 'checkout-segment__button'} type="button" onClick={() => setOrder({ mode: 'takeaway', cabinId: '' })}>
-          <ShoppingBag />
-          На вынос
-        </button>
+        {availableModes.map(({ key, label, icon: Icon }) => (
+          <button
+            className={mode === key ? 'checkout-segment__button is-active' : 'checkout-segment__button'}
+            type="button"
+            key={key}
+            onClick={() =>
+              setOrder({
+                mode: key as OrderMode,
+                cabinId: key === 'hall' ? cabinId || activeCabins[0]?.id || '' : ''
+              })
+            }
+          >
+            <Icon />
+            {label}
+          </button>
+        ))}
       </section>
 
       {mode === 'hall' && activeCabins.length > 0 && (
@@ -1560,6 +1621,60 @@ function CheckoutScreen({
         </section>
       )}
 
+      {mode === 'delivery' && (
+        <section className="takeaway-note">
+          <div className="takeaway-note__message">
+            <MapPin />
+            <strong>Укажите населенный пункт и адрес доставки</strong>
+          </div>
+          <div className="checkout-delivery-fields">
+            <label className="checkout-field">
+              <span>Город</span>
+              {configuredCity ? (
+                <input value={configuredCity} readOnly />
+              ) : (
+                <input
+                  value={deliveryCity}
+                  onChange={(event) => setOrder({ deliveryCity: event.target.value })}
+                  placeholder="Например: Грозный"
+                />
+              )}
+            </label>
+            <label className="checkout-field">
+              <span>Село / район</span>
+              {settlementOptions.length > 0 ? (
+                <select
+                  value={deliverySettlement}
+                  onChange={(event) => setOrder({ deliverySettlement: event.target.value })}
+                >
+                  <option value="">Выберите населенный пункт</option>
+                  {settlementOptions.map((settlement) => (
+                    <option value={settlement} key={settlement}>
+                      {settlement}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={deliverySettlement}
+                  onChange={(event) => setOrder({ deliverySettlement: event.target.value })}
+                  placeholder="Например: Черноречье"
+                />
+              )}
+            </label>
+            <label className="checkout-field checkout-field--wide">
+              <span>Адрес</span>
+              <textarea
+                value={deliveryAddress}
+                onChange={(event) => setOrder({ deliveryAddress: event.target.value })}
+                rows={3}
+                placeholder="Улица, дом, ориентир"
+              />
+            </label>
+          </div>
+        </section>
+      )}
+
       <section className="checkout-summary">
         <div>
           <span>Финальный шаг</span>
@@ -1567,7 +1682,9 @@ function CheckoutScreen({
           <p>
             {mode === 'hall'
               ? `Заказ будет подготовлен для зала${selectedCabin ? `, кабинка: ${selectedCabin.title} (${selectedCabin.capacity}).` : '.'}`
-              : 'Заказ будет подготовлен на самовывоз.'}
+              : mode === 'delivery'
+                ? `Заказ будет отправлен на адрес: ${finalDeliveryAddress || 'адрес пока не указан'}.`
+                : 'Заказ будет подготовлен на самовывоз.'}
           </p>
         </div>
         <div className="checkout-summary__list">
@@ -1623,12 +1740,23 @@ function CheckoutScreen({
               event.preventDefault();
               return;
             }
+            if (mode === 'delivery') {
+              const effectiveCity = configuredCity || deliveryCity;
+              if (!effectiveCity || !deliverySettlement || !deliveryAddress.trim()) {
+                event.preventDefault();
+                toast.error('Укажите город, населенный пункт и адрес доставки');
+                return;
+              }
+            }
             event.preventDefault();
             void createRestaurantOrderFromCart({
               slug: catalogSlug,
               items,
               fulfillmentType: mode,
               cabinLabel: mode === 'hall' ? selectedCabin?.title ?? '' : '',
+              deliveryCity: configuredCity || deliveryCity,
+              deliverySettlement,
+              deliveryAddress: finalDeliveryAddress,
               comment: mode === 'hall' && selectedCabin ? `Кабинка: ${selectedCabin.title}` : ''
             })
               .catch((error) => {
@@ -1917,6 +2045,9 @@ const defaultAdminDeliverySettings: RestaurantDeliverySettings = {
   free_delivery_from: 0,
   default_preparation_minutes: 25,
   delivery_radius_km: 5,
+  delivery_area_mode: 'radius',
+  primary_city: '',
+  service_settlements: [],
   delivery_hours_start: '',
   delivery_hours_end: '',
   out_of_hours_mode: 'warn'
@@ -2269,6 +2400,14 @@ function DeliverySettingsCard({
     setDraft((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
   };
 
+  const setText = (key: keyof RestaurantDeliverySettings, value: string) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const setSettlements = (value: string) => {
+    setDraft((current) => ({ ...current, service_settlements: parseSettlementList(value) }));
+  };
+
   return (
     <section className="admin-section-card delivery-settings-card">
       <h2>Доставка и заказы</h2>
@@ -2286,6 +2425,27 @@ function DeliverySettingsCard({
         <label>Готовка, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>
         <label>Радиус, км<input value={draft.delivery_radius_km} inputMode="decimal" onChange={(event) => setNumber('delivery_radius_km', event.target.value)} /></label>
         <label>Ожидание курьера<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
+        <label>
+          Зона доставки
+          <select value={draft.delivery_area_mode} onChange={(event) => setText('delivery_area_mode', event.target.value as RestaurantDeliverySettings['delivery_area_mode'])}>
+            <option value="radius">По радиусу</option>
+            <option value="settlements">По городам и селам</option>
+            <option value="hybrid">Смешанный режим</option>
+          </select>
+        </label>
+        <label>
+          Основной город
+          <input value={draft.primary_city} onChange={(event) => setText('primary_city', event.target.value)} placeholder="Например: Грозный" />
+        </label>
+        <label className="delivery-settings-grid__wide">
+          Села и районы обслуживания
+          <textarea
+            value={formatSettlementList(draft.service_settlements)}
+            onChange={(event) => setSettlements(event.target.value)}
+            rows={4}
+            placeholder={'Одно значение на строку\nЧерноречье\nБеркат-Юрт'}
+          />
+        </label>
       </div>
       <button type="button" onClick={() => onSave(draft)}>Сохранить доставку</button>
     </section>
@@ -4546,6 +4706,7 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
               catalogSlug={catalogSlug}
               restaurant={catalog.restaurant}
               cabins={catalog.cabins}
+              deliverySettings={deliverySettings ?? defaultAdminDeliverySettings}
               paymentSettings={paymentSettings}
               onSubmitOrder={() => {
                 setShowAfterOrderPanel(true);

@@ -6,6 +6,8 @@ type UpdateClientPayload = {
   ownerName?: string;
   email?: string;
   phone?: string;
+  primaryCity?: string;
+  serviceSettlements?: string[];
   password?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
   planId?: string;
@@ -42,6 +44,15 @@ const isStrongPassword = (value: string) =>
   /[a-z]/.test(value) &&
   /\d/.test(value) &&
   /[!@#$%&*+\-_]/.test(value);
+
+const normalizeSettlements = (values?: string[]) =>
+  Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
 
 const assertPayload = (payload: UpdateClientPayload) => {
   if (!payload.clientId) throw new Error('Client id is required.');
@@ -94,6 +105,9 @@ Deno.serve(async (request) => {
     if (payload.email) payload.email = payload.email.trim().toLowerCase();
     if (payload.companyName) payload.companyName = payload.companyName.trim();
     if (payload.ownerName) payload.ownerName = payload.ownerName.trim();
+    if (payload.phone !== undefined) payload.phone = payload.phone.trim();
+    if (payload.primaryCity !== undefined) payload.primaryCity = payload.primaryCity.trim();
+    if (payload.serviceSettlements !== undefined) payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
 
     const { data: currentClient, error: currentClientError } = await adminClient
@@ -142,6 +156,8 @@ Deno.serve(async (request) => {
     if (payload.ownerName !== undefined) clientUpdates.owner_name = payload.ownerName;
     if (payload.email !== undefined) clientUpdates.email = payload.email;
     if (payload.phone !== undefined) clientUpdates.phone = payload.phone;
+    if (payload.primaryCity !== undefined) clientUpdates.primary_city = payload.primaryCity;
+    if (payload.serviceSettlements !== undefined) clientUpdates.service_settlements = payload.serviceSettlements;
     if (payload.status !== undefined) clientUpdates.status = payload.status;
     if (payload.planId !== undefined) clientUpdates.plan_code = payload.planId;
     if (payload.subscriptionStatus !== undefined) clientUpdates.subscription_status = payload.subscriptionStatus;
@@ -166,6 +182,28 @@ Deno.serve(async (request) => {
         .update(catalogUpdates)
         .eq('id', currentClient.catalog_id);
       if (catalogUpdateError) throw catalogUpdateError;
+    }
+
+    if (payload.primaryCity !== undefined || payload.serviceSettlements !== undefined) {
+      const { data: currentDeliverySettings, error: currentDeliverySettingsError } = await adminClient
+        .from('restaurant_delivery_settings')
+        .select('primary_city, service_settlements')
+        .eq('catalog_id', currentClient.catalog_id)
+        .maybeSingle();
+      if (currentDeliverySettingsError) throw currentDeliverySettingsError;
+
+      const nextSettlements = payload.serviceSettlements ?? currentDeliverySettings?.service_settlements ?? [];
+      const nextPrimaryCity = payload.primaryCity ?? currentDeliverySettings?.primary_city ?? '';
+      const { error: deliverySettingsError } = await adminClient.from('restaurant_delivery_settings').upsert(
+        {
+          catalog_id: currentClient.catalog_id,
+          delivery_area_mode: nextSettlements.length > 0 ? 'settlements' : 'radius',
+          primary_city: nextPrimaryCity,
+          service_settlements: nextSettlements
+        },
+        { onConflict: 'catalog_id' }
+      );
+      if (deliverySettingsError) throw deliverySettingsError;
     }
 
     if (

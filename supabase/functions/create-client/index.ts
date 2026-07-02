@@ -6,6 +6,8 @@ type CreateClientPayload = {
   ownerName?: string;
   email: string;
   phone?: string;
+  primaryCity?: string;
+  serviceSettlements?: string[];
   password: string;
   templateVersionId: string;
   businessType: string;
@@ -45,6 +47,15 @@ const isStrongPassword = (value: string) =>
   /[a-z]/.test(value) &&
   /\d/.test(value) &&
   /[!@#$%&*+\-_]/.test(value);
+
+const normalizeSettlements = (values?: string[]) =>
+  Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
 
 const assertPayload = (payload: CreateClientPayload) => {
   const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -96,6 +107,10 @@ Deno.serve(async (request) => {
     payload.email = payload.email.trim().toLowerCase();
     payload.name = payload.name.trim();
     payload.slug = payload.slug.trim().toLowerCase();
+    payload.ownerName = payload.ownerName?.trim();
+    payload.phone = payload.phone?.trim();
+    payload.primaryCity = payload.primaryCity?.trim();
+    payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
 
     const [
@@ -179,6 +194,19 @@ Deno.serve(async (request) => {
       });
       if (memberError) throw memberError;
 
+      if (payload.primaryCity || payload.serviceSettlements.length > 0) {
+        const { error: deliverySettingsError } = await adminClient.from('restaurant_delivery_settings').upsert(
+          {
+            catalog_id: catalog.id,
+            delivery_area_mode: payload.serviceSettlements.length > 0 ? 'settlements' : 'radius',
+            primary_city: payload.primaryCity ?? '',
+            service_settlements: payload.serviceSettlements
+          },
+          { onConflict: 'catalog_id' }
+        );
+        if (deliverySettingsError) throw deliverySettingsError;
+      }
+
       const { data: client, error: clientError } = await adminClient
         .from('clients')
         .insert({
@@ -188,6 +216,8 @@ Deno.serve(async (request) => {
           owner_name: payload.ownerName ?? '',
           email: payload.email,
           phone: payload.phone ?? '',
+          primary_city: payload.primaryCity ?? '',
+          service_settlements: payload.serviceSettlements,
           status: payload.status ?? 'active',
           plan_code: payload.planId ?? 'trial',
           subscription_status: payload.subscriptionStatus ?? 'trial',

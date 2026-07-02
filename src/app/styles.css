@@ -545,12 +545,24 @@
   gap: 6px;
 }
 
-.delivery-settings-grid input {
+.delivery-settings-grid input,
+.delivery-settings-grid select,
+.delivery-settings-grid textarea {
   min-height: 42px;
   border: 1px solid #d8e0ec;
   border-radius: 12px;
   padding: 0 10px;
   color: #111827;
+}
+
+.delivery-settings-grid textarea {
+  min-height: 108px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.delivery-settings-grid__wide {
+  grid-column: 1 / -1;
 }
 
 .settings-form-grid {
@@ -2089,7 +2101,7 @@ a {
 
 .checkout-segment {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 4px;
@@ -2252,6 +2264,45 @@ a {
   padding-top: 14px;
 }
 
+.checkout-delivery-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.checkout-field {
+  display: grid;
+  gap: 8px;
+}
+
+.checkout-field span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.checkout-field input,
+.checkout-field select,
+.checkout-field textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.checkout-field textarea {
+  min-height: 96px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.checkout-field--wide {
+  grid-column: 1 / -1;
+}
+
 .restaurant-address > span {
   color: var(--muted);
   font-size: 14px;
@@ -2398,6 +2449,12 @@ a {
 .checkout-summary__action.is-disabled {
   pointer-events: none;
   opacity: 0.55;
+}
+
+@media (max-width: 720px) {
+  .checkout-delivery-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mode-grid,

@@ -33,6 +33,9 @@ type AdminStore = {
 type OrderStore = {
   mode: OrderMode;
   cabinId: string;
+  deliveryCity: string;
+  deliverySettlement: string;
+  deliveryAddress: string;
   date: string;
   time: string;
   guests: number;
@@ -126,6 +129,9 @@ export const useAdminStore = create<AdminStore>((set) => ({
 export const useOrderStore = create<OrderStore>((set) => ({
   mode: 'hall',
   cabinId: 'cabin-1',
+  deliveryCity: '',
+  deliverySettlement: '',
+  deliveryAddress: '',
   date: '24 мая, сб',
   time: '19:00',
   guests: 4,

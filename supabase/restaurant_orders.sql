@@ -11,6 +11,8 @@ alter table public.orders add column if not exists fulfillment_type text not nul
   check (fulfillment_type in ('hall', 'takeaway', 'delivery'));
 alter table public.orders add column if not exists cabin_label text not null default '';
 alter table public.orders add column if not exists delivery_address text not null default '';
+alter table public.orders add column if not exists delivery_city text not null default '';
+alter table public.orders add column if not exists delivery_settlement text not null default '';
 alter table public.orders add column if not exists delivery_coordinates jsonb;
 alter table public.orders add column if not exists client_address_comment text not null default '';
 alter table public.orders add column if not exists accepted_at timestamptz;
@@ -36,6 +38,9 @@ create table if not exists public.restaurant_delivery_settings (
   free_delivery_from integer not null default 0 check (free_delivery_from >= 0),
   default_preparation_minutes integer not null default 25 check (default_preparation_minutes >= 0),
   delivery_radius_km numeric(8,2) not null default 5 check (delivery_radius_km >= 0),
+  delivery_area_mode text not null default 'radius' check (delivery_area_mode in ('radius', 'settlements', 'hybrid')),
+  primary_city text not null default '',
+  service_settlements text[] not null default '{}',
   delivery_hours_start time,
   delivery_hours_end time,
   out_of_hours_mode text not null default 'warn' check (out_of_hours_mode in ('deny', 'preorder', 'warn')),
@@ -52,6 +57,8 @@ create table if not exists public.delivery_tasks (
   delivery_status text not null default 'waiting_driver'
     check (delivery_status in ('waiting_driver', 'driver_assigned', 'on_the_way', 'arrived', 'completed', 'cancelled')),
   address text not null default '',
+  city text not null default '',
+  settlement text not null default '',
   coordinates jsonb,
   qr_required boolean not null default false,
   verified_at timestamptz,
@@ -121,6 +128,8 @@ create or replace function public.create_public_restaurant_order(
   fulfillment_type text,
   cabin_label text,
   delivery_address text,
+  delivery_city text,
+  delivery_settlement text,
   client_address_comment text,
   comment text,
   items jsonb
@@ -160,6 +169,8 @@ begin
     fulfillment_type,
     cabin_label,
     delivery_address,
+    delivery_city,
+    delivery_settlement,
     client_address_comment,
     verification_code,
     qr_token,
@@ -174,6 +185,8 @@ begin
     fulfillment_type,
     coalesce(cabin_label, ''),
     coalesce(delivery_address, ''),
+    coalesce(delivery_city, ''),
+    coalesce(delivery_settlement, ''),
     coalesce(client_address_comment, ''),
     verification_code,
     encode(gen_random_bytes(24), 'hex'),
@@ -235,4 +248,4 @@ begin
 end;
 $$;
 
-grant execute on function public.create_public_restaurant_order(uuid, text, text, text, text, text, text, text, jsonb) to anon, authenticated;
+grant execute on function public.create_public_restaurant_order(uuid, text, text, text, text, text, text, text, text, text, jsonb) to anon, authenticated;
