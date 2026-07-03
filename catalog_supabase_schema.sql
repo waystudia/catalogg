@@ -4,11 +4,40 @@
 
 create extension if not exists pgcrypto;
 
-create type public.catalog_role as enum ('owner', 'admin', 'editor', 'viewer');
-create type public.catalog_status as enum ('draft', 'published', 'archived');
-create type public.product_status as enum ('draft', 'active', 'hidden', 'sold_out', 'archived');
-create type public.order_status as enum ('new', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled');
-create type public.booking_status as enum ('new', 'confirmed', 'completed', 'cancelled');
+do $$
+begin
+  create type public.catalog_role as enum ('owner', 'admin', 'editor', 'viewer');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.catalog_status as enum ('draft', 'published', 'archived');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.product_status as enum ('draft', 'active', 'hidden', 'sold_out', 'archived');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.order_status as enum ('new', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.booking_status as enum ('new', 'confirmed', 'completed', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -334,12 +363,16 @@ as $$
   );
 $$;
 
+drop trigger if exists catalogs_updated_at on public.catalogs;
 create trigger catalogs_updated_at before update on public.catalogs
 for each row execute function public.set_updated_at();
+drop trigger if exists categories_updated_at on public.categories;
 create trigger categories_updated_at before update on public.categories
 for each row execute function public.set_updated_at();
+drop trigger if exists products_updated_at on public.products;
 create trigger products_updated_at before update on public.products
 for each row execute function public.set_updated_at();
+drop trigger if exists orders_updated_at on public.orders;
 create trigger orders_updated_at before update on public.orders
 for each row execute function public.set_updated_at();
 
@@ -366,63 +399,103 @@ alter table public.content_blocks enable row level security;
 alter table public.catalog_snapshots enable row level security;
 alter table public.audit_logs enable row level security;
 
+drop policy if exists "profiles read own" on public.profiles;
 create policy "profiles read own" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "profiles update own" on public.profiles;
 create policy "profiles update own" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
+drop policy if exists "templates public read" on public.templates;
 create policy "templates public read" on public.templates for select using (true);
+drop policy if exists "template versions public read published" on public.template_versions;
 create policy "template versions public read published" on public.template_versions for select using (status in ('published', 'deprecated'));
+drop policy if exists "template presets public read" on public.template_presets;
 create policy "template presets public read" on public.template_presets for select using (true);
 
+drop policy if exists "catalogs public read published" on public.catalogs;
 create policy "catalogs public read published" on public.catalogs for select using (
   (status = 'published' and is_template = false)
   or public.is_catalog_member(id, array['owner','admin','editor','viewer']::public.catalog_role[])
 );
+drop policy if exists "catalogs owner admin update" on public.catalogs;
 create policy "catalogs owner admin update" on public.catalogs for update using (public.is_catalog_member(id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(id, array['owner','admin']::public.catalog_role[]));
+drop policy if exists "catalogs owner delete" on public.catalogs;
 create policy "catalogs owner delete" on public.catalogs for delete using (public.is_catalog_member(id, array['owner']::public.catalog_role[]));
 
+drop policy if exists "members read same catalog" on public.catalog_members;
 create policy "members read same catalog" on public.catalog_members for select using (public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "members owner manage" on public.catalog_members;
 create policy "members owner manage" on public.catalog_members for all using (public.is_catalog_member(catalog_id, array['owner']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner']::public.catalog_role[]));
 
+drop policy if exists "theme public read published" on public.catalog_theme_settings;
 create policy "theme public read published" on public.catalog_theme_settings for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "theme admin write" on public.catalog_theme_settings;
 create policy "theme admin write" on public.catalog_theme_settings for all using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
 
+drop policy if exists "sections public read published" on public.catalog_sections;
 create policy "sections public read published" on public.catalog_sections for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "sections admin write" on public.catalog_sections;
 create policy "sections admin write" on public.catalog_sections for all using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
 
+drop policy if exists "categories public read published" on public.categories;
 create policy "categories public read published" on public.categories for select using ((not is_hidden and public.is_catalog_published(catalog_id)) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "categories editor write" on public.categories;
 create policy "categories editor write" on public.categories for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "tags public read published" on public.tags;
 create policy "tags public read published" on public.tags for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "tags editor write" on public.tags;
 create policy "tags editor write" on public.tags for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "products public read active" on public.products;
 create policy "products public read active" on public.products for select using ((status in ('active','sold_out') and public.is_catalog_published(catalog_id)) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "products editor write" on public.products;
 create policy "products editor write" on public.products for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "product images public read active" on public.product_images;
 create policy "product images public read active" on public.product_images for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "product images editor write" on public.product_images;
 create policy "product images editor write" on public.product_images for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "product tags public read" on public.product_tags;
 create policy "product tags public read" on public.product_tags for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "product tags editor write" on public.product_tags;
 create policy "product tags editor write" on public.product_tags for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "option groups public read" on public.product_option_groups;
 create policy "option groups public read" on public.product_option_groups for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "option groups editor write" on public.product_option_groups;
 create policy "option groups editor write" on public.product_option_groups for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
+drop policy if exists "options public read" on public.product_options;
 create policy "options public read" on public.product_options for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "options editor write" on public.product_options;
 create policy "options editor write" on public.product_options for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "orders admin read" on public.orders;
 create policy "orders admin read" on public.orders for select using (public.is_catalog_member(catalog_id, array['owner','admin','viewer']::public.catalog_role[]));
+drop policy if exists "orders admin update" on public.orders;
 create policy "orders admin update" on public.orders for update using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
+drop policy if exists "order items admin read" on public.order_items;
 create policy "order items admin read" on public.order_items for select using (public.is_catalog_member(catalog_id, array['owner','admin','viewer']::public.catalog_role[]));
 
+drop policy if exists "resources public read active" on public.bookable_resources;
 create policy "resources public read active" on public.bookable_resources for select using ((is_active and public.is_catalog_published(catalog_id)) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "resources admin write" on public.bookable_resources;
 create policy "resources admin write" on public.bookable_resources for all using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
+drop policy if exists "bookings admin read" on public.bookings;
 create policy "bookings admin read" on public.bookings for select using (public.is_catalog_member(catalog_id, array['owner','admin','viewer']::public.catalog_role[]));
+drop policy if exists "bookings admin write" on public.bookings;
 create policy "bookings admin write" on public.bookings for all using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
 
+drop policy if exists "content public read published" on public.content_blocks;
 create policy "content public read published" on public.content_blocks for select using (public.is_catalog_published(catalog_id) or public.is_catalog_member(catalog_id, array['owner','admin','editor','viewer']::public.catalog_role[]));
+drop policy if exists "content editor write" on public.content_blocks;
 create policy "content editor write" on public.content_blocks for all using (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[])) with check (public.is_catalog_member(catalog_id, array['owner','admin','editor']::public.catalog_role[]));
 
+drop policy if exists "snapshots owner admin read" on public.catalog_snapshots;
 create policy "snapshots owner admin read" on public.catalog_snapshots for select using (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
+drop policy if exists "snapshots owner admin insert" on public.catalog_snapshots;
 create policy "snapshots owner admin insert" on public.catalog_snapshots for insert with check (public.is_catalog_member(catalog_id, array['owner','admin']::public.catalog_role[]));
+drop policy if exists "audit members read" on public.audit_logs;
 create policy "audit members read" on public.audit_logs for select using (catalog_id is null or public.is_catalog_member(catalog_id, array['owner','admin','viewer']::public.catalog_role[]));
 
 create or replace function public.create_public_order(
@@ -546,9 +619,11 @@ values
   ('catalog-private', 'catalog-private', false)
 on conflict (id) do nothing;
 
+drop policy if exists "catalog assets public read" on storage.objects;
 create policy "catalog assets public read" on storage.objects
 for select using (bucket_id = 'catalog-assets');
 
+drop policy if exists "catalog assets members write own catalog path" on storage.objects;
 create policy "catalog assets members write own catalog path" on storage.objects
 for all using (
   bucket_id = 'catalog-assets'
@@ -558,6 +633,7 @@ for all using (
   and public.is_catalog_member((storage.foldername(name))[1]::uuid, array['owner','admin','editor']::public.catalog_role[])
 );
 
+drop policy if exists "catalog private members manage own catalog path" on storage.objects;
 create policy "catalog private members manage own catalog path" on storage.objects
 for all using (
   bucket_id = 'catalog-private'
@@ -664,8 +740,10 @@ $$;
 
 grant execute on function public.mark_client_personal_data_consent() to authenticated;
 
+drop trigger if exists clients_updated_at on public.clients;
 create trigger clients_updated_at before update on public.clients
 for each row execute function public.set_updated_at();
+drop trigger if exists client_subscriptions_updated_at on public.client_subscriptions;
 create trigger client_subscriptions_updated_at before update on public.client_subscriptions
 for each row execute function public.set_updated_at();
 
@@ -673,20 +751,25 @@ alter table public.platform_admins enable row level security;
 alter table public.clients enable row level security;
 alter table public.client_subscriptions enable row level security;
 
+drop policy if exists "platform admins read own row" on public.platform_admins;
 create policy "platform admins read own row" on public.platform_admins
 for select using (user_id = auth.uid());
 
+drop policy if exists "platform admins manage clients" on public.clients;
 create policy "platform admins manage clients" on public.clients
 for all using (public.is_platform_admin())
 with check (public.is_platform_admin());
 
+drop policy if exists "clients read own record" on public.clients;
 create policy "clients read own record" on public.clients
 for select using (public.is_platform_admin() or owner_user_id = auth.uid());
 
+drop policy if exists "platform admins manage subscriptions" on public.client_subscriptions;
 create policy "platform admins manage subscriptions" on public.client_subscriptions
 for all using (public.is_platform_admin())
 with check (public.is_platform_admin());
 
+drop policy if exists "clients read own subscription" on public.client_subscriptions;
 create policy "clients read own subscription" on public.client_subscriptions
 for select using (
   public.is_platform_admin()
