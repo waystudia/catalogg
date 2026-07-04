@@ -115,6 +115,7 @@ create table if not exists public.users (
   auth_user_id uuid references auth.users(id) on delete set null,
   name text not null default '',
   phone text not null default '',
+  email text not null default '',
   role text not null default 'client' check (role in ('client', 'restaurant_admin', 'driver', 'super_admin')),
   created_at timestamptz not null default now()
 );

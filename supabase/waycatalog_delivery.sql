@@ -34,6 +34,8 @@ alter table public.orders add column if not exists subtotal_amount numeric(12,2)
 alter table public.orders add column if not exists total_amount numeric(12,2) not null default 0;
 alter table public.orders add column if not exists restaurant_payment_confirmed_at timestamptz;
 
+alter table public.users add column if not exists email text not null default '';
+
 alter table public.drivers add column if not exists vehicle_info text not null default '';
 alter table public.drivers add column if not exists car_number text not null default '';
 alter table public.drivers add column if not exists photo_url text not null default '';

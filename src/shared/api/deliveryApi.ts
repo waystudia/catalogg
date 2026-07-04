@@ -99,6 +99,11 @@ type DriverRow = {
   is_online: boolean | null;
 };
 
+type DriverUserRow = {
+  id: string;
+  auth_user_id: string | null;
+};
+
 type EarningRow = {
   id: string;
   delivery_id: string;
@@ -292,13 +297,39 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
   };
 };
 
+const resolveCurrentDriverId = async (fallbackDriverId: string) => {
+  if (!supabase || fallbackDriverId !== demoDriverId) return fallbackDriverId;
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session?.user.id) return fallbackDriverId;
+
+  const { data: publicUser, error: publicUserError } = await supabase
+    .from('users')
+    .select('id, auth_user_id')
+    .eq('auth_user_id', sessionData.session.user.id)
+    .eq('role', 'driver')
+    .maybeSingle();
+  if (publicUserError || !publicUser) return fallbackDriverId;
+
+  const { data: driver, error: driverError } = await supabase
+    .from('drivers')
+    .select('id')
+    .eq('user_id', (publicUser as DriverUserRow).id)
+    .maybeSingle();
+  if (driverError || !driver) return fallbackDriverId;
+
+  return (driver as Pick<DriverRow, 'id'>).id;
+};
+
 export async function getDriverDashboard(driverId = demoDriverId): Promise<DriverDashboardSnapshot> {
   if (!supabase) return buildDemoSnapshot();
+
+  const resolvedDriverId = await resolveCurrentDriverId(driverId);
 
   const driverResult = await supabase
     .from('drivers')
     .select('id, name, phone, vehicle_info, car_number, photo_url, rating, status, is_online')
-    .eq('id', driverId)
+    .eq('id', resolvedDriverId)
     .maybeSingle();
 
   if (driverResult.error) throw driverResult.error;

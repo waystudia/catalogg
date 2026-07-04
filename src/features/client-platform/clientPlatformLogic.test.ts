@@ -158,8 +158,8 @@ describe('client platform restaurant filtering', () => {
 });
 
 describe('client platform restaurant links', () => {
-  it('opens the existing public catalog slug without the /r prefix', () => {
-    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/rizih');
+  it('opens restaurants through the client checkout route', () => {
+    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/r/rizih');
   });
 });
 

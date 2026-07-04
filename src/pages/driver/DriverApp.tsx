@@ -100,13 +100,15 @@ export function DriverApp() {
     void loadDashboard();
   }, [loadDashboard]);
 
-  useEffect(() => subscribeToDriverRealtime(selectedDriverId, loadDashboard), [loadDashboard, selectedDriverId]);
-
   const profile: DriverProfile = {
     ...snapshot.profile,
     isOnline,
     status: localActiveDelivery ? 'busy' : isOnline ? 'online' : 'offline'
   };
+  const effectiveDriverId = profile.id || selectedDriverId;
+
+  useEffect(() => subscribeToDriverRealtime(effectiveDriverId, loadDashboard), [effectiveDriverId, loadDashboard]);
+
   const activeDelivery = localActiveDelivery ?? snapshot.activeDelivery;
   const availableDeliveries = isOnline
     ? snapshot.availableDeliveries.filter((delivery) => !completedDeliveryIds.includes(delivery.deliveryId))
@@ -119,7 +121,12 @@ export function DriverApp() {
         {route === 'profile' ? (
           <DriverProfileScreen profile={profile} snapshot={snapshot} error={error} />
         ) : route === 'orders' ? (
-          <DriverOrdersScreen offers={availableDeliveries} activeDelivery={activeDelivery} error={error} />
+          <DriverOrdersScreen
+            driverId={effectiveDriverId}
+            offers={availableDeliveries}
+            activeDelivery={activeDelivery}
+            error={error}
+          />
         ) : route === 'active' ? (
           <DriverActiveScreen delivery={activeDelivery} />
         ) : route === 'map' ? (
@@ -263,10 +270,12 @@ function DriverDeliveryCard({ offer, compact = false }: { offer: DeliveryOffer; 
 }
 
 function DriverOrdersScreen({
+  driverId,
   offers,
   activeDelivery,
   error
 }: {
+  driverId: string;
   offers: readonly DeliveryOffer[];
   activeDelivery: DeliveryOffer | null;
   error: string;
@@ -274,7 +283,7 @@ function DriverOrdersScreen({
   const { deliveryId } = useParams();
   const selectedOffer = offers.find((offer) => offer.deliveryId === deliveryId) ?? null;
 
-  if (selectedOffer) return <DriverNewOrderScreen offer={selectedOffer} />;
+  if (selectedOffer) return <DriverNewOrderScreen driverId={driverId} offer={selectedOffer} />;
 
   return (
     <>
@@ -296,9 +305,8 @@ function DriverOrdersScreen({
   );
 }
 
-function DriverNewOrderScreen({ offer }: { offer: DeliveryOffer }) {
+function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: DeliveryOffer }) {
   const navigate = useNavigate();
-  const selectedDriverId = useDriverStore((state) => state.selectedDriverId);
   const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState('');
@@ -307,8 +315,8 @@ function DriverNewOrderScreen({ offer }: { offer: DeliveryOffer }) {
     setIsAccepting(true);
     setError('');
     try {
-      acceptLocalOffer(offer);
-      await acceptDeliveryOffer(offer.deliveryId, selectedDriverId);
+      acceptLocalOffer(offer, driverId);
+      await acceptDeliveryOffer(offer.deliveryId, driverId);
       navigate('/driver/active');
     } catch (acceptError) {
       setError(acceptError instanceof Error ? acceptError.message : 'Не удалось принять заказ');

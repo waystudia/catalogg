@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Store,
   Trash2,
+  Truck,
   UserRound,
   Users,
   X
@@ -43,9 +44,11 @@ import {
   savePlatformGlobalSettings,
   updateClient
 } from '../../shared/api/clientsApi';
+import { createDriver, getDrivers } from '../../shared/api/driversApi';
 import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type {
   ClientSignup,
+  PlatformDriver,
   PlatformBannerAdmin,
   PlatformClient,
   PlatformStats,
@@ -65,6 +68,7 @@ type PlatformRoute =
   | 'dashboard'
   | 'clients'
   | 'client-signups'
+  | 'drivers'
   | 'catalogs'
   | 'templates'
   | 'import-export'
@@ -79,12 +83,19 @@ type CreateClientSuccess = {
   adminUrl: string;
 };
 
+type CreateDriverSuccess = {
+  email: string;
+  password: string;
+  driverId: string;
+};
+
 const platformQueryClient = new QueryClient();
 
 const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Icon: typeof Home }> = [
   { route: 'dashboard', label: 'Главная', detail: 'Дашборд', Icon: Home },
   { route: 'clients', label: 'Клиенты', detail: 'Список клиентов', Icon: Users },
   { route: 'client-signups', label: 'Пользователи', detail: 'Клиенты приложения', Icon: UserRound },
+  { route: 'drivers', label: 'Водители', detail: 'Доступы и статусы', Icon: Truck },
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
   { route: 'templates', label: 'Шаблоны', detail: 'Управление шаблонами', Icon: LayoutTemplate },
   { route: 'import-export', label: 'Импорт / Экспорт', detail: 'Данные и каталоги', Icon: Database },
@@ -137,6 +148,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   const path = getCurrentPlatformPath();
   if (path.includes('/admin/catalogs')) return 'catalogs';
   if (path.includes('/admin/client-signups')) return 'client-signups';
+  if (path.includes('/admin/drivers')) return 'drivers';
   if (path.includes('/admin/templates')) return 'templates';
   if (path.includes('/admin/import-export')) return 'import-export';
   if (path.includes('/admin/subscriptions')) return 'subscriptions';
@@ -1567,6 +1579,188 @@ function ClientSignupsPage() {
   );
 }
 
+function DriversPage() {
+  const queryClient = useQueryClient();
+  const driversQuery = useQuery({ queryKey: ['platform-drivers'], queryFn: getDrivers });
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [vehicleInfo, setVehicleInfo] = useState('');
+  const [carNumber, setCarNumber] = useState('');
+  const [password, setPassword] = useState(generateSecurePassword());
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState<CreateDriverSuccess | null>(null);
+
+  const driverLoginUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/driver`;
+
+  const createNewDriver = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const result = await createDriver({
+        name,
+        email,
+        phone,
+        cityName,
+        vehicleInfo,
+        carNumber,
+        password
+      });
+      setSuccess({ email: result.email, password, driverId: result.driverId });
+      setName('');
+      setEmail('');
+      setPhone('');
+      setCityName('');
+      setVehicleInfo('');
+      setCarNumber('');
+      setPassword(generateSecurePassword());
+      toast.success('Водитель создан');
+      void queryClient.invalidateQueries({ queryKey: ['platform-drivers'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать водителя');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const copyDriverAccess = (driver: CreateDriverSuccess) => {
+    const text = `Email: ${driver.email}\nВременный пароль: ${driver.password}\nКабинет водителя: ${driverLoginUrl}`;
+    void copyText(text).then(() => toast.success('Данные водителя скопированы'));
+  };
+
+  const drivers = driversQuery.data ?? [];
+
+  return (
+    <main className="platform-page">
+      <header className="platform-page-head">
+        <div>
+          <h1>Водители</h1>
+          <p>Создавайте доступы водителям и отслеживайте их онлайн-статус</p>
+        </div>
+      </header>
+
+      {success && (
+        <section className="driver-access-panel">
+          <CheckCircle2 />
+          <span>
+            <strong>Водитель создан</strong>
+            <small>{success.email}</small>
+          </span>
+          <button type="button" onClick={() => copyDriverAccess(success)}>
+            <Copy />
+            Скопировать доступ
+          </button>
+          <button type="button" onClick={() => setSuccess(null)} aria-label="Закрыть">
+            <X />
+          </button>
+        </section>
+      )}
+
+      <form className="client-form driver-create-panel" onSubmit={createNewDriver}>
+        <section className="client-form-section">
+          <h3>Новый водитель</h3>
+          <div className="client-form-grid client-form-grid--three">
+            <label>
+              Имя
+              <input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} />
+            </label>
+            <label>
+              Email для входа
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                autoComplete="email"
+                required
+              />
+            </label>
+            <label>
+              Телефон
+              <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
+            </label>
+            <label>
+              Город
+              <input value={cityName} onChange={(event) => setCityName(event.target.value)} placeholder="Грозный" />
+            </label>
+            <label>
+              Транспорт
+              <input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Hyundai Solaris" />
+            </label>
+            <label>
+              Госномер
+              <input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="A123BC 95" />
+            </label>
+          </div>
+          <label>
+            Временный пароль
+            <span className="password-field">
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+              />
+              <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Показать пароль">
+                <Eye />
+              </button>
+              <button type="button" onClick={() => setPassword(generateSecurePassword())} aria-label="Сгенерировать пароль">
+                <KeyRound />
+              </button>
+              <button type="button" onClick={() => void copyText(password).then(() => toast.success('Пароль скопирован'))} aria-label="Скопировать пароль">
+                <Copy />
+              </button>
+            </span>
+          </label>
+        </section>
+        <footer className="client-form-footer">
+          <button type="submit" disabled={isSubmitting}>
+            <Plus />
+            {isSubmitting ? 'Создаём...' : 'Создать водителя'}
+          </button>
+        </footer>
+      </form>
+
+      {driversQuery.isLoading && <div className="platform-state">Загружаем водителей...</div>}
+      {driversQuery.isError && (
+        <div className="platform-state">
+          Не удалось загрузить водителей.
+          <button type="button" onClick={() => void driversQuery.refetch()}>
+            Повторить
+          </button>
+        </div>
+      )}
+      {!driversQuery.isLoading && !driversQuery.isError && drivers.length === 0 && (
+        <section className="platform-placeholder">
+          <Truck />
+          <h2>Водителей пока нет</h2>
+          <p>Создайте первого водителя и передайте ему email, пароль и ссылку на кабинет.</p>
+        </section>
+      )}
+      {drivers.length > 0 && (
+        <section className="driver-admin-list">
+          {drivers.map((driver: PlatformDriver) => (
+            <article className="driver-admin-card" key={driver.id}>
+              <span className={driver.isOnline ? 'is-online' : ''}>{driver.isOnline ? 'Онлайн' : 'Оффлайн'}</span>
+              <div>
+                <strong>{driver.name}</strong>
+                <small>{driver.email || driver.phone}</small>
+              </div>
+              <div>
+                <strong>{driver.vehicleInfo || 'Транспорт не указан'}</strong>
+                <small>{driver.carNumber || driver.cityName || 'Город не указан'}</small>
+              </div>
+              <b>{driver.rating.toFixed(1)}</b>
+            </article>
+          ))}
+        </section>
+      )}
+    </main>
+  );
+}
+
 function PlatformSettingsPage() {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
@@ -1860,6 +2054,9 @@ function PlatformAdminContent() {
     }
     if (route === 'client-signups') {
       return <ClientSignupsPage />;
+    }
+    if (route === 'drivers') {
+      return <DriversPage />;
     }
     if (route === 'settings') {
       return <PlatformSettingsPage />;

@@ -9,7 +9,7 @@ type DriverStore = {
   localActiveDelivery: DeliveryOffer | null;
   completedDeliveryIds: string[];
   setOnline: (isOnline: boolean) => void;
-  acceptLocalOffer: (offer: DeliveryOffer) => void;
+  acceptLocalOffer: (offer: DeliveryOffer, driverId?: string) => void;
   updateLocalDeliveryStatus: (status: DeliveryStatus) => void;
   completeLocalDelivery: () => void;
   clearLocalActiveDelivery: () => void;
@@ -23,9 +23,9 @@ export const useDriverStore = create<DriverStore>()(
       localActiveDelivery: null,
       completedDeliveryIds: [],
       setOnline: (isOnline) => set({ isOnline }),
-      acceptLocalOffer: (offer) =>
+      acceptLocalOffer: (offer, driverId) =>
         set((state) => ({
-          localActiveDelivery: buildLocalAcceptedOffer(offer, state.selectedDriverId),
+          localActiveDelivery: buildLocalAcceptedOffer(offer, driverId ?? state.selectedDriverId),
           isOnline: true
         })),
       updateLocalDeliveryStatus: (status) =>

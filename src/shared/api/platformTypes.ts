@@ -120,6 +120,40 @@ export type CreateClientResult = {
   email: string;
 };
 
+export type PlatformDriver = {
+  id: string;
+  userId: string;
+  name: string;
+  phone: string;
+  email: string;
+  vehicleInfo: string;
+  carNumber: string;
+  photoUrl: string;
+  cityName: string;
+  isActive: boolean;
+  isOnline: boolean;
+  status: string;
+  rating: number;
+  createdAt: string;
+};
+
+export type CreateDriverPayload = {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+  cityName?: string;
+  vehicleInfo?: string;
+  carNumber?: string;
+  photoUrl?: string;
+};
+
+export type CreateDriverResult = {
+  driverId: string;
+  userId: string;
+  email: string;
+};
+
 export type UpdateClientPayload = {
   clientId: string;
   companyName?: string;
