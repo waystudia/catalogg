@@ -303,7 +303,9 @@ export async function getRestaurantDeliverySettings(slug: string): Promise<Resta
   const nextData = { ...defaultDeliverySettings, ...(data ?? {}) } as RestaurantDeliverySettings;
   return {
     ...nextData,
-    service_settlements: Array.isArray(nextData.service_settlements) ? nextData.service_settlements.filter(Boolean) : []
+    service_settlements: Array.isArray(nextData.service_settlements) ? nextData.service_settlements.filter(Boolean) : [],
+    delivery_hours_start: nextData.delivery_hours_start ?? '',
+    delivery_hours_end: nextData.delivery_hours_end ?? ''
   };
 }
 

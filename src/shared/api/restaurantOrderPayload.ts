@@ -2,8 +2,8 @@ import type { CartItem } from '../../entities/models';
 
 type DeliverySettingsForSave = {
   service_settlements: string[];
-  delivery_hours_start: string;
-  delivery_hours_end: string;
+  delivery_hours_start: string | null | undefined;
+  delivery_hours_end: string | null | undefined;
 };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -23,6 +23,6 @@ export const resolvePublicOrderRpcName = (items: CartItem[]) =>
 export const normalizeRestaurantDeliverySettingsForSave = <T extends DeliverySettingsForSave>(settings: T) => ({
   ...settings,
   service_settlements: (settings.service_settlements ?? []).map((item) => item.trim()).filter(Boolean),
-  delivery_hours_start: settings.delivery_hours_start.trim() || null,
-  delivery_hours_end: settings.delivery_hours_end.trim() || null
+  delivery_hours_start: settings.delivery_hours_start?.trim() || null,
+  delivery_hours_end: settings.delivery_hours_end?.trim() || null
 });
