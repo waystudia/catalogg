@@ -20,6 +20,14 @@ export async function resolveLoginRedirect(email: string, password: string) {
   const user = sessionData.session?.user;
   if (!user) return '/';
 
+  const { data: platformUser } = await supabase
+    .from('users')
+    .select('role')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (platformUser?.role === 'driver') return '/driver';
+
   const { data: client } = await supabase
     .from('clients')
     .select('catalogs(slug)')

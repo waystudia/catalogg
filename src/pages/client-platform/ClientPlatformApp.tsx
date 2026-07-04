@@ -1594,7 +1594,7 @@ function ProfilePage() {
     }
   };
 
-  const submitRestaurantLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const submitStaffLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRestaurantError('');
     setIsSigningRestaurant(true);
@@ -1603,6 +1603,9 @@ function ProfilePage() {
       const redirect = await resolveLoginRedirect(restaurantEmail, restaurantPassword);
       if (!redirect) {
         throw new Error('Неверный email или пароль.');
+      }
+      if (activeRole === 'driver' && redirect !== '/driver') {
+        throw new Error('Этот аккаунт не является водителем.');
       }
       navigate(redirect === '/admin' ? '/admin/clients' : redirect, { replace: true });
     } catch (error) {
@@ -1691,7 +1694,7 @@ function ProfilePage() {
           )}
 
           {activeRole === 'restaurant' && (
-            <form className="profile-inline-form" onSubmit={submitRestaurantLogin}>
+            <form className="profile-inline-form" onSubmit={submitStaffLogin}>
               <label className="field-label">
                 <span>Email</span>
                 <input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />
@@ -1709,16 +1712,22 @@ function ProfilePage() {
           )}
 
           {activeRole === 'driver' && (
-            <div className="profile-driver-entry">
-              <Car />
-              <span>
-                <strong>Водительский кабинет</strong>
-                <small>Аккаунт водителя выдаёт супер-админ</small>
-              </span>
-              <Link className="wide-action" to="/driver">
-                Открыть вход водителя
-              </Link>
-            </div>
+            <form className="profile-inline-form" onSubmit={submitStaffLogin}>
+              <label className="field-label">
+                <span>Email</span>
+                <input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />
+              </label>
+              <label className="field-label">
+                <span>Пароль</span>
+                <input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />
+              </label>
+              <small className="form-muted">Аккаунт водителя создаёт и выдаёт супер-админ.</small>
+              {restaurantError && <small className="form-error">{restaurantError}</small>}
+              <button className="wide-action" type="submit" disabled={isSigningRestaurant}>
+                <Car />
+                {isSigningRestaurant ? 'Проверяем...' : 'Войти как водитель'}
+              </button>
+            </form>
           )}
         </section>
       )}

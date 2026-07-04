@@ -29,6 +29,7 @@ import type { DeliveryStatus } from '../../features/order/orderLifecycle';
 import {
   acceptDeliveryOffer,
   completeDeliveryProgress,
+  getAuthenticatedDriverId,
   getDriverDashboard,
   setDriverAvailability,
   subscribeToDriverRealtime,
@@ -37,6 +38,7 @@ import {
   type DriverDashboardSnapshot,
   type DriverProfile
 } from '../../shared/api/deliveryApi';
+import { supabase } from '../../shared/supabase';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -86,6 +88,8 @@ export function DriverApp() {
   const completedDeliveryIds = useDriverStore((state) => state.completedDeliveryIds);
   const [snapshot, setSnapshot] = useState<DriverDashboardSnapshot>(emptySnapshot);
   const [error, setError] = useState('');
+  const [authChecked, setAuthChecked] = useState(!supabase);
+  const [hasDriverAccess, setHasDriverAccess] = useState(!supabase);
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -101,6 +105,21 @@ export function DriverApp() {
     void loadDashboard();
   }, [loadDashboard]);
 
+  useEffect(() => {
+    if (!supabase) return;
+
+    let isMounted = true;
+    void getAuthenticatedDriverId().then((driverId) => {
+      if (!isMounted) return;
+      setHasDriverAccess(Boolean(driverId));
+      setAuthChecked(true);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const profile: DriverProfile = {
     ...snapshot.profile,
     isOnline,
@@ -115,6 +134,32 @@ export function DriverApp() {
     ? snapshot.availableDeliveries.filter((delivery) => !completedDeliveryIds.includes(delivery.deliveryId))
     : [];
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
+
+  if (!authChecked) {
+    return (
+      <main className="driver-app">
+        <section className="driver-phone driver-auth-state">
+          <ClipboardList />
+          <strong>Проверяем вход водителя...</strong>
+        </section>
+      </main>
+    );
+  }
+
+  if (!hasDriverAccess) {
+    return (
+      <main className="driver-app">
+        <section className="driver-phone driver-auth-state">
+          <User />
+          <strong>Войдите как водитель</strong>
+          <small>Используйте email и пароль, которые выдал супер-админ.</small>
+          <Link className="driver-primary driver-link-button" to="/login">
+            Открыть вход
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="driver-app">

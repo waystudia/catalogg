@@ -1397,7 +1397,8 @@
 }
 
 .form-error,
-.form-success {
+.form-success,
+.form-muted {
   font-weight: 800;
 }
 
@@ -1407,6 +1408,10 @@
 
 .form-success {
   color: #047857;
+}
+
+.form-muted {
+  color: #667085;
 }
 
 .profile-menu {
