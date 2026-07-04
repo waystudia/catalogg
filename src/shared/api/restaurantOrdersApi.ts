@@ -471,6 +471,9 @@ export async function createRestaurantOrderFromCart({
   deliveryCity = '',
   deliverySettlement = '',
   deliveryAddress = '',
+  deliveryLat = null,
+  deliveryLng = null,
+  deliveryAccuracyM = null,
   comment = '',
   customerName = 'Гость',
   customerPhone = ''
@@ -482,6 +485,9 @@ export async function createRestaurantOrderFromCart({
   deliveryCity?: string;
   deliverySettlement?: string;
   deliveryAddress?: string;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
+  deliveryAccuracyM?: number | null;
   comment?: string;
   customerName?: string;
   customerPhone?: string;
@@ -505,5 +511,20 @@ export async function createRestaurantOrderFromCart({
   });
 
   if (error) throw error;
-  return String(data);
+  const orderId = String(data);
+
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({
+      delivery_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
+      delivery_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
+      client_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
+      client_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
+      client_accuracy_m: fulfillmentType === 'delivery' ? deliveryAccuracyM : null,
+      delivery_address_snapshot: fulfillmentType === 'delivery' ? deliveryAddress : null
+    })
+    .eq('id', orderId);
+  if (updateError) throw updateError;
+
+  return orderId;
 }

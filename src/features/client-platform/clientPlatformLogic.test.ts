@@ -167,8 +167,8 @@ describe('client platform restaurant filtering', () => {
 });
 
 describe('client platform restaurant links', () => {
-  it('opens restaurants through the client checkout route', () => {
-    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/r/rizih');
+  it('opens restaurants through their existing catalog route', () => {
+    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/rizih');
   });
 });
 

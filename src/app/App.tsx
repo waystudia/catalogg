@@ -25,6 +25,7 @@ import {
   IceCreamBowl,
   Instagram,
   LogOut,
+  LocateFixed,
   MapPin,
   MessageCircle,
   Milk,
@@ -66,6 +67,7 @@ import { cabins as demoCabins, categories as demoCategories, products as demoPro
 import type { Cabin, CatalogTag, Category, OrderMode, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
 import {
+  CART_TTL_MS,
   isSauceProduct,
   selectCartCount,
   selectCartTotal,
@@ -1483,6 +1485,9 @@ function CheckoutScreen({
     deliveryCity,
     deliverySettlement,
     deliveryAddress,
+    deliveryLat,
+    deliveryLng,
+    deliveryAccuracyM,
     clientName,
     clientPhone,
     setOrder
@@ -1507,6 +1512,37 @@ function CheckoutScreen({
   const configuredCity = deliverySettings.primary_city.trim();
   const finalDeliveryAddress = buildDeliveryAddress(deliveryCity, deliverySettlement, deliveryAddress);
   const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
+  const [isLocating, setIsLocating] = useState(false);
+  const [geoError, setGeoError] = useState('');
+
+  const locateDeliveryAddress = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Геолокация недоступна в этом браузере.');
+      return;
+    }
+
+    setIsLocating(true);
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextLat = Number(position.coords.latitude.toFixed(7));
+        const nextLng = Number(position.coords.longitude.toFixed(7));
+        const accuracyM = Math.round(position.coords.accuracy);
+        setOrder({
+          deliveryLat: nextLat,
+          deliveryLng: nextLng,
+          deliveryAccuracyM: accuracyM,
+          deliveryAddress: deliveryAddress || `${nextLat}, ${nextLng}`
+        });
+        setIsLocating(false);
+      },
+      () => {
+        setGeoError('Не удалось получить геолокацию. Проверьте разрешение браузера.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 }
+    );
+  };
 
   useEffect(() => {
     if (!configuredCity || deliveryCity === configuredCity) return;
@@ -1638,6 +1674,20 @@ function CheckoutScreen({
             <MapPin />
             <strong>Укажите населенный пункт и адрес доставки</strong>
           </div>
+          <button className="map-link-button checkout-location-button" type="button" onClick={locateDeliveryAddress} disabled={isLocating}>
+            <LocateFixed />
+            <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
+          </button>
+          {(deliveryLat !== null && deliveryLng !== null) && (
+            <p className="checkout-location-hint">
+              Координаты: {deliveryLat.toFixed(7)}, {deliveryLng.toFixed(7)}
+              {deliveryAccuracyM ? ` · точность ${deliveryAccuracyM} м` : ''}
+            </p>
+          )}
+          {deliveryAccuracyM && deliveryAccuracyM > 100 && (
+            <p className="checkout-location-warning">Точность слабая. Проверьте адрес перед отправкой заказа.</p>
+          )}
+          {geoError && <p className="checkout-location-warning">{geoError}</p>}
           <div className="checkout-delivery-fields">
             <label className="checkout-field">
               <span>Имя</span>
@@ -1790,6 +1840,9 @@ function CheckoutScreen({
               deliveryCity: configuredCity || deliveryCity,
               deliverySettlement,
               deliveryAddress: finalDeliveryAddress,
+              deliveryLat,
+              deliveryLng,
+              deliveryAccuracyM,
               comment: mode === 'hall' && selectedCabin ? `Кабинка: ${selectedCabin.title}` : '',
               customerName: mode === 'delivery' ? clientName.trim() : 'Гость',
               customerPhone: mode === 'delivery' ? clientPhone.trim() : ''
@@ -4030,6 +4083,7 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
+  const cartUpdatedAt = useCartStore((state) => state.updatedAt);
   const clearCart = useCartStore((state) => state.clear);
   const cartCount = selectCartCount(items);
   const persist = <T,>(action: Promise<T>, onSuccess?: (value: T) => void) => {
@@ -4130,6 +4184,24 @@ function AppContent({ catalogSlug, routeSection }: { catalogSlug: string; routeS
       setShowAfterOrderPanel(false);
     }
   }, [cartCount]);
+
+  useEffect(() => {
+    if (cartCount === 0 || !cartUpdatedAt) return undefined;
+
+    const remainingMs = cartUpdatedAt + CART_TTL_MS - Date.now();
+    if (remainingMs <= 0) {
+      clearCart();
+      toast.info('Корзина очищена: прошло 5 минут.');
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      clearCart();
+      toast.info('Корзина очищена: прошло 5 минут.');
+    }, remainingMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cartCount, cartUpdatedAt, clearCart]);
 
   useEffect(() => {
     if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {

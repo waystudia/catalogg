@@ -5,6 +5,7 @@ import { themeSettings } from '../data/catalog';
 
 type CartStore = {
   items: CartItem[];
+  updatedAt: number | null;
   add: (product: Product) => void;
   remove: (productId: string) => void;
   decrement: (productId: string) => void;
@@ -36,6 +37,9 @@ type OrderStore = {
   deliveryCity: string;
   deliverySettlement: string;
   deliveryAddress: string;
+  deliveryLat: number | null;
+  deliveryLng: number | null;
+  deliveryAccuracyM: number | null;
   clientName: string;
   clientPhone: string;
   date: string;
@@ -44,10 +48,21 @@ type OrderStore = {
   setOrder: (patch: Partial<Omit<OrderStore, 'setOrder'>>) => void;
 };
 
+export const CART_TTL_MS = 5 * 60 * 1000;
+
+const touchCart = () => Date.now();
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const persistedCartIsFresh = (updatedAt: unknown) =>
+  typeof updatedAt === 'number' && Number.isFinite(updatedAt) && Date.now() - updatedAt < CART_TTL_MS;
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set) => ({
       items: [],
+      updatedAt: null,
       add: (product) =>
         set((state) => {
           if (product.stock_count <= 0) {
@@ -58,41 +73,56 @@ export const useCartStore = create<CartStore>()(
 
           if (existing) {
             return {
+              updatedAt: touchCart(),
               items: state.items.map((item) =>
                 item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
               )
             };
           }
 
-          return { items: [...state.items, { product, quantity: 1 }] };
+          return { items: [...state.items, { product, quantity: 1 }], updatedAt: touchCart() };
         }),
       remove: (productId) =>
-        set((state) => ({
-          items: state.items.filter((item) => item.product.id !== productId)
-        })),
+        set((state) => {
+          const items = state.items.filter((item) => item.product.id !== productId);
+          return { items, updatedAt: items.length > 0 ? touchCart() : null };
+        }),
       decrement: (productId) =>
-        set((state) => ({
-          items: state.items
+        set((state) => {
+          const items = state.items
             .map((item) =>
               item.product.id === productId ? { ...item, quantity: item.quantity - 1 } : item
             )
-            .filter((item) => item.quantity > 0)
-        })),
+            .filter((item) => item.quantity > 0);
+          return { items, updatedAt: items.length > 0 ? touchCart() : null };
+        }),
       updateQuantity: (productId, quantity) =>
-        set((state) => ({
-          items:
+        set((state) => {
+          const items =
             quantity <= 0
               ? state.items.filter((item) => item.product.id !== productId)
               : state.items.map((item) =>
                   item.product.id === productId ? { ...item, quantity } : item
-                )
-        })),
-      clear: () => set({ items: [] })
+                );
+          return { items, updatedAt: items.length > 0 ? touchCart() : null };
+        }),
+      clear: () => set({ items: [], updatedAt: null })
     }),
     {
       name: 'mangal-cart',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items })
+      partialize: (state) => ({ items: state.items, updatedAt: state.updatedAt }),
+      merge: (persisted, current) => {
+        if (!isRecord(persisted)) return current;
+        const items = Array.isArray(persisted.items) && persistedCartIsFresh(persisted.updatedAt)
+          ? (persisted.items as CartItem[])
+          : [];
+        return {
+          ...current,
+          items,
+          updatedAt: items.length > 0 && typeof persisted.updatedAt === 'number' ? persisted.updatedAt : null
+        };
+      }
     }
   )
 );
@@ -134,6 +164,9 @@ export const useOrderStore = create<OrderStore>((set) => ({
   deliveryCity: '',
   deliverySettlement: '',
   deliveryAddress: '',
+  deliveryLat: null,
+  deliveryLng: null,
+  deliveryAccuracyM: null,
   clientName: '',
   clientPhone: '',
   date: '24 мая, сб',

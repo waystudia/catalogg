@@ -64,7 +64,7 @@ export const filterRestaurants = (
 };
 
 export const buildRestaurantPublicPath = (restaurant: Pick<ClientRestaurant, 'slug' | 'publicPath'>) =>
-  restaurant.publicPath?.startsWith('/r/') ? restaurant.publicPath : `/r/${restaurant.slug}`;
+  restaurant.publicPath ?? `/${restaurant.slug}`;
 
 export const buildYandexMapsUrl = (address: Pick<ClientAddress, 'addressLine' | 'lat' | 'lng'>) => {
   const coordinatesAreUsable = Number.isFinite(address.lat) && Number.isFinite(address.lng);
