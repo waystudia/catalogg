@@ -39,6 +39,7 @@
 
 .platform-brand {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 12px;
   padding: 0 8px;
@@ -68,7 +69,23 @@
 
 .platform-sidebar__nav {
   display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
   gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+}
+
+.platform-sidebar__nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.platform-sidebar__nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.55);
 }
 
 .platform-sidebar button,
@@ -123,7 +140,7 @@
 }
 
 .platform-sidebar__logout {
-  margin-top: auto;
+  flex: 0 0 auto;
   padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0;
