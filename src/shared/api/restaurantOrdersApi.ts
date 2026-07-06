@@ -1,5 +1,4 @@
 import { supabase } from '../supabase';
-import type { CartItem } from '../../entities/models';
 import {
   buildYandexMapsRouteUrl,
   canSendOrderToDelivery,
@@ -7,9 +6,9 @@ import {
   type PaymentStatus
 } from '../../features/order/orderLifecycle';
 import {
-  buildPublicRestaurantOrderItems,
+  createRestaurantOrderWithClient,
   normalizeRestaurantDeliverySettingsForSave,
-  resolvePublicOrderRpcName
+  type CreateRestaurantOrderFromCartInput
 } from './restaurantOrderPayload';
 
 type MaybeArray<T> = T | T[];
@@ -463,68 +462,11 @@ export async function saveRestaurantDeliverySettings(slug: string, settings: Res
   if (error) throw error;
 }
 
-export async function createRestaurantOrderFromCart({
-  slug,
-  items,
-  fulfillmentType,
-  cabinLabel,
-  deliveryCity = '',
-  deliverySettlement = '',
-  deliveryAddress = '',
-  deliveryLat = null,
-  deliveryLng = null,
-  deliveryAccuracyM = null,
-  comment = '',
-  customerName = 'Гость',
-  customerPhone = ''
-}: {
-  slug: string;
-  items: CartItem[];
-  fulfillmentType: RestaurantOrderFulfillment;
-  cabinLabel?: string;
-  deliveryCity?: string;
-  deliverySettlement?: string;
-  deliveryAddress?: string;
-  deliveryLat?: number | null;
-  deliveryLng?: number | null;
-  deliveryAccuracyM?: number | null;
-  comment?: string;
-  customerName?: string;
-  customerPhone?: string;
-}) {
+export async function createRestaurantOrderFromCart(input: CreateRestaurantOrderFromCartInput) {
   if (!supabase) return null;
+  const { slug } = input;
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return null;
 
-  const { data, error } = await supabase.rpc(resolvePublicOrderRpcName(items), {
-    target_catalog_id: catalogId,
-    customer_name: customerName,
-    customer_phone: customerPhone,
-    fulfillment_type: fulfillmentType,
-    cabin_label: cabinLabel ?? '',
-    delivery_address: deliveryAddress,
-    delivery_city: deliveryCity,
-    delivery_settlement: deliverySettlement,
-    client_address_comment: deliverySettlement,
-    comment,
-    items: buildPublicRestaurantOrderItems(items)
-  });
-
-  if (error) throw error;
-  const orderId = String(data);
-
-  const { error: updateError } = await supabase
-    .from('orders')
-    .update({
-      delivery_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
-      delivery_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
-      client_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
-      client_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
-      client_accuracy_m: fulfillmentType === 'delivery' ? deliveryAccuracyM : null,
-      delivery_address_snapshot: fulfillmentType === 'delivery' ? deliveryAddress : null
-    })
-    .eq('id', orderId);
-  if (updateError) throw updateError;
-
-  return orderId;
+  return createRestaurantOrderWithClient(supabase, catalogId, input);
 }

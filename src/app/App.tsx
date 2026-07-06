@@ -107,6 +107,12 @@ import {
 import { getRestaurantPaymentsBySlug, saveRestaurantPayments } from '../shared/api/restaurantPaymentsApi';
 import { imageFileToDataUrl } from '../shared/images';
 import {
+  chooseMoreAccuratePosition,
+  deliveryPositionIsAccurateEnough,
+  normalizeDeliveryCoordinates,
+  type DeliveryCoordinates
+} from '../shared/deliveryLocation';
+import {
   loadPaymentSettings,
   loadPaymentStatus,
   savePaymentSettings,
@@ -118,6 +124,8 @@ import {
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const DELIVERY_TARGET_ACCURACY_M = 35;
+const DELIVERY_LOCATION_TIMEOUT_MS = 15_000;
 const parseSettlementList = (value: string) =>
   Array.from(
     new Set(
@@ -1510,10 +1518,43 @@ function CheckoutScreen({
     [deliverySettings.service_settlements]
   );
   const configuredCity = deliverySettings.primary_city.trim();
-  const finalDeliveryAddress = buildDeliveryAddress(deliveryCity, deliverySettlement, deliveryAddress);
+  const effectiveDeliveryCity = configuredCity || deliveryCity;
+  const finalDeliveryAddress = buildDeliveryAddress(effectiveDeliveryCity, deliverySettlement, deliveryAddress);
   const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
   const [isLocating, setIsLocating] = useState(false);
   const [geoError, setGeoError] = useState('');
+  const locationSessionRef = useRef<{ watchId: number | null; timeoutId: number | null }>({
+    watchId: null,
+    timeoutId: null
+  });
+
+  const clearLocationSession = useCallback(() => {
+    const { watchId, timeoutId } = locationSessionRef.current;
+    if (watchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+    locationSessionRef.current = { watchId: null, timeoutId: null };
+  }, []);
+
+  const applyDeliveryCoordinates = useCallback(
+    (coordinates: DeliveryCoordinates) => {
+      const { lat, lng, accuracyM } = normalizeDeliveryCoordinates(coordinates);
+      setOrder({
+        deliveryLat: lat,
+        deliveryLng: lng,
+        deliveryAccuracyM: accuracyM,
+        deliveryAddress: deliveryAddress || `${lat}, ${lng}`
+      });
+
+      if (accuracyM > DELIVERY_TARGET_ACCURACY_M) {
+        setGeoError('Получили лучшее доступное местоположение, но точность ниже желаемой. Проверьте адрес.');
+      }
+    },
+    [deliveryAddress, setOrder]
+  );
 
   const locateDeliveryAddress = () => {
     if (!navigator.geolocation) {
@@ -1521,28 +1562,60 @@ function CheckoutScreen({
       return;
     }
 
+    clearLocationSession();
     setIsLocating(true);
     setGeoError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextLat = Number(position.coords.latitude.toFixed(7));
-        const nextLng = Number(position.coords.longitude.toFixed(7));
-        const accuracyM = Math.round(position.coords.accuracy);
-        setOrder({
-          deliveryLat: nextLat,
-          deliveryLng: nextLng,
-          deliveryAccuracyM: accuracyM,
-          deliveryAddress: deliveryAddress || `${nextLat}, ${nextLng}`
-        });
-        setIsLocating(false);
-      },
-      () => {
-        setGeoError('Не удалось получить геолокацию. Проверьте разрешение браузера.');
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 }
-    );
+
+    let bestCoordinates: DeliveryCoordinates | null = null;
+    let finished = false;
+
+    const finish = (coordinates: DeliveryCoordinates | null, message = '') => {
+      if (finished) return;
+      finished = true;
+      clearLocationSession();
+
+      if (coordinates) {
+        applyDeliveryCoordinates(coordinates);
+      } else {
+        setGeoError(message || 'Не удалось получить геолокацию. Проверьте разрешение браузера.');
+      }
+
+      setIsLocating(false);
+    };
+
+    const handlePosition = (position: GeolocationPosition) => {
+      bestCoordinates = chooseMoreAccuratePosition(bestCoordinates, position.coords);
+
+      if (deliveryPositionIsAccurateEnough(bestCoordinates, DELIVERY_TARGET_ACCURACY_M)) {
+        finish(bestCoordinates);
+      }
+    };
+
+    const handleError = () => {
+      if (bestCoordinates) {
+        finish(bestCoordinates);
+        return;
+      }
+      finish(null, 'Не удалось получить геолокацию. Проверьте разрешение браузера.');
+    };
+
+    try {
+      const watchId = navigator.geolocation.watchPosition(
+        handlePosition,
+        handleError,
+        { enableHighAccuracy: true, timeout: DELIVERY_LOCATION_TIMEOUT_MS, maximumAge: 0 }
+      );
+      const timeoutId = window.setTimeout(
+        () => finish(bestCoordinates, 'Не удалось получить точную геолокацию. Проверьте адрес вручную.'),
+        DELIVERY_LOCATION_TIMEOUT_MS + 1_000
+      );
+      locationSessionRef.current = { watchId, timeoutId };
+    } catch {
+      finish(null, 'Не удалось запустить геолокацию. Проверьте разрешение браузера.');
+    }
   };
+
+  useEffect(() => clearLocationSession, [clearLocationSession]);
 
   useEffect(() => {
     if (!configuredCity || deliveryCity === configuredCity) return;
@@ -1819,13 +1892,12 @@ function CheckoutScreen({
               return;
             }
             if (mode === 'delivery') {
-              const effectiveCity = configuredCity || deliveryCity;
               if (!clientName.trim() || !clientPhone.trim()) {
                 event.preventDefault();
                 toast.error('Введите имя и номер телефона для доставки');
                 return;
               }
-              if (!effectiveCity || !deliverySettlement || !deliveryAddress.trim()) {
+              if (!effectiveDeliveryCity || !deliverySettlement || !deliveryAddress.trim()) {
                 event.preventDefault();
                 toast.error('Укажите город, населенный пункт и адрес доставки');
                 return;
@@ -1837,7 +1909,7 @@ function CheckoutScreen({
               items,
               fulfillmentType: mode,
               cabinLabel: mode === 'hall' ? selectedCabin?.title ?? '' : '',
-              deliveryCity: configuredCity || deliveryCity,
+              deliveryCity: effectiveDeliveryCity,
               deliverySettlement,
               deliveryAddress: finalDeliveryAddress,
               deliveryLat,
