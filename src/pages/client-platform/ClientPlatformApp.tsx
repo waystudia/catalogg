@@ -40,7 +40,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, getDeliveryProviderLabel } from '../../features/client-platform/clientPlatformLogic';
+import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, getDeliveryProviderLabel, requireSavedRestaurantOrderId } from '../../features/client-platform/clientPlatformLogic';
 import { clientPlatformSnapshot, fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   selectAllCartCount,
@@ -1292,8 +1292,7 @@ function PaymentConfirmPage({
   const confirmPayment = async () => {
     setIsSubmitting(true);
     setOrderError('');
-    const fallbackOrderId = `WC-${Math.floor(10000 + Math.random() * 89999)}`;
-    let orderId = fallbackOrderId;
+    let orderId = '';
 
     try {
       const remoteOrderId = await createClientPlatformOrder({
@@ -1306,10 +1305,11 @@ function PaymentConfirmPage({
         deliveryFee: summary.deliveryFee,
         total: summary.total
       });
-      orderId = remoteOrderId ?? fallbackOrderId;
+      orderId = requireSavedRestaurantOrderId(remoteOrderId);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'неизвестная ошибка';
-      setOrderError(`Заказ сохранён на устройстве. Supabase: ${message}`);
+      setOrderError(`Заказ не создан в системе ресторана. Supabase: ${message}`);
+      return;
     } finally {
       setIsSubmitting(false);
     }

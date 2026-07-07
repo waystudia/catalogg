@@ -380,7 +380,7 @@ create or replace function public.accept_available_delivery(
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   accepted_order_id uuid;

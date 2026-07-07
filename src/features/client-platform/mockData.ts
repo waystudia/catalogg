@@ -68,7 +68,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       },
       orderTypes: ['dine_in', 'pickup', 'delivery'],
       paymentMethods: ['qr', 'bank_transfer', 'cash'],
-      publicPath: '/rizih'
+      publicPath: '/r/rizih'
     },
     {
       id: 'restaurant-mangal',
@@ -100,7 +100,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       },
       orderTypes: ['dine_in', 'pickup', 'delivery'],
       paymentMethods: ['bank_transfer', 'cash'],
-      publicPath: '/mangal'
+      publicPath: '/r/mangal'
     },
     {
       id: 'restaurant-barakat',
@@ -132,7 +132,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       },
       orderTypes: ['pickup', 'delivery'],
       paymentMethods: ['qr', 'cash'],
-      publicPath: '/barakat'
+      publicPath: '/r/barakat'
     },
     {
       id: 'restaurant-halal-house',
@@ -164,7 +164,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       },
       orderTypes: ['dine_in', 'pickup'],
       paymentMethods: ['cash'],
-      publicPath: '/halal-house'
+      publicPath: '/r/halal-house'
     },
     {
       id: 'restaurant-vostok',
@@ -196,7 +196,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       },
       orderTypes: ['pickup', 'delivery'],
       paymentMethods: ['bank_transfer', 'cash'],
-      publicPath: '/vkus-vostoka'
+      publicPath: '/r/vkus-vostoka'
     }
   ],
   restaurantCategories: [

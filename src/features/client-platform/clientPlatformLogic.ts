@@ -64,7 +64,7 @@ export const filterRestaurants = (
 };
 
 export const buildRestaurantPublicPath = (restaurant: Pick<ClientRestaurant, 'slug' | 'publicPath'>) =>
-  restaurant.publicPath ?? `/r/${restaurant.slug}`;
+  restaurant.publicPath?.startsWith('/r/') ? restaurant.publicPath : `/r/${restaurant.slug}`;
 
 export const buildYandexMapsUrl = (address: Pick<ClientAddress, 'addressLine' | 'lat' | 'lng'>) => {
   const coordinatesAreUsable = Number.isFinite(address.lat) && Number.isFinite(address.lng);
@@ -78,6 +78,14 @@ export const buildYandexMapsUrl = (address: Pick<ClientAddress, 'addressLine' | 
 export const buildSupportWhatsappUrl = (phone: string) => {
   const normalizedPhone = phone.replace(/\D/g, '') || '79990000000';
   return `https://wa.me/${normalizedPhone}`;
+};
+
+export const requireSavedRestaurantOrderId = (orderId: string | null) => {
+  if (!orderId) {
+    throw new Error('Заказ не был сохранён в системе ресторана.');
+  }
+
+  return orderId;
 };
 
 export const buildClientReviewPayload = (input: ClientReviewInput) => {

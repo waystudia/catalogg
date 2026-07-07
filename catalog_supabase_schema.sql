@@ -635,7 +635,7 @@ create or replace function public.create_legacy_public_restaurant_order(
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   created_order_id uuid;

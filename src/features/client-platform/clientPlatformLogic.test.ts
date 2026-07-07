@@ -5,6 +5,7 @@ import {
   buildClientReviewPayload,
   buildRestaurantPublicPath,
   buildOrderAfterClientPaymentNotice,
+  requireSavedRestaurantOrderId,
   buildSupportWhatsappUrl,
   calculateCartSummary,
   filterRestaurants,
@@ -170,6 +171,10 @@ describe('client platform restaurant links', () => {
   it('opens restaurants through the client platform restaurant route', () => {
     assert.equal(buildRestaurantPublicPath(restaurants[0]), '/r/rizih');
   });
+
+  it('keeps legacy catalog public paths out of the client platform restaurant cards', () => {
+    assert.equal(buildRestaurantPublicPath({ slug: 'mangal', publicPath: '/mangal' }), '/r/mangal');
+  });
 });
 
 describe('client platform address maps', () => {
@@ -203,6 +208,12 @@ describe('client platform support links', () => {
 
   it('uses the platform fallback number when support number is empty', () => {
     assert.equal(buildSupportWhatsappUrl(''), 'https://wa.me/79990000000');
+  });
+});
+
+describe('client platform order persistence', () => {
+  it('does not allow a client-visible order without a saved restaurant order id', () => {
+    assert.throws(() => requireSavedRestaurantOrderId(null), /Заказ не был сохранён в системе ресторана/);
   });
 });
 

@@ -60,6 +60,31 @@ type ProductRow = {
   is_popular: boolean;
 };
 
+type LegacyCategoryRow = {
+  id: string;
+  name: string;
+  image: string;
+  icon: string;
+  kind: string;
+  sort_order: number;
+};
+
+type LegacyProductRow = {
+  id: string;
+  category_id: string;
+  title: string;
+  price: number;
+  description: string;
+  image_url: string;
+  weight: string;
+  stock_count: number;
+  current_stock: number | null;
+  is_popular: boolean;
+  is_hidden: boolean;
+  is_unlimited: boolean | null;
+  sort_order: number;
+};
+
 type ProductImageRow = {
   product_id: string;
   url: string;
@@ -198,6 +223,33 @@ const getOrderTypes = (settings?: DeliverySettingsRow): ClientOrderType[] => {
   return orderTypes.length > 0 ? orderTypes : ['pickup'];
 };
 
+const mapLegacyCategoryToPlatformCategory = (catalogId: string, category: LegacyCategoryRow): CategoryRow => ({
+  id: category.id,
+  catalog_id: catalogId,
+  slug: category.id,
+  name: category.name,
+  image_url: category.image,
+  is_hidden: category.kind === 'space',
+  sort_order: category.sort_order
+});
+
+const mapLegacyProductToPlatformProduct = (catalogId: string, product: LegacyProductRow): ProductRow => {
+  const stockCount = product.current_stock ?? product.stock_count;
+
+  return {
+    id: product.id,
+    catalog_id: catalogId,
+    category_id: product.category_id,
+    title: product.title,
+    status: product.is_hidden ? 'hidden' : stockCount <= 0 && !product.is_unlimited ? 'sold_out' : 'active',
+    price: product.price,
+    description: product.description,
+    weight: product.weight,
+    stock_count: stockCount,
+    is_popular: product.is_popular
+  };
+};
+
 const mapPaymentSettings = (row: PaymentRow | undefined, restaurantSlug: string): PaymentSettings => ({
   restaurantSlug,
   enableQr: Boolean(row?.qr_image_url),
@@ -257,7 +309,7 @@ export async function saveClientReview(input: {
 }
 
 type ClientPlatformOrderInput = {
-  restaurant: Pick<ClientRestaurant, 'id' | 'slug' | 'description' | 'addressLine' | 'lat' | 'lng' | 'deliveryProvider'>;
+  restaurant: Pick<ClientRestaurant, 'slug' | 'description' | 'addressLine' | 'lat' | 'lng' | 'deliveryProvider'>;
   profile: ClientProfile;
   draft: ClientCheckoutDraft;
   lines: ClientCartLine[];
@@ -359,7 +411,6 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
   const updateResult = await supabase
     .from('orders')
     .update({
-      restaurant_id: input.restaurant.id,
       order_type: input.draft.orderType,
       status,
       payment_status: paymentStatus,
@@ -502,8 +553,8 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()
     ]);
 
-  const categories = (categoriesResult.data ?? []) as CategoryRow[];
-  const products = (productsResult.data ?? []) as ProductRow[];
+  let categories = (categoriesResult.data ?? []) as CategoryRow[];
+  let products = (productsResult.data ?? []) as ProductRow[];
   const productImages = (productImagesResult.data ?? []) as ProductImageRow[];
   const themes = (themeResult.data ?? []) as ThemeRow[];
   const deliverySettings = (deliveryResult.data ?? []) as DeliverySettingsRow[];
@@ -511,6 +562,51 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   const restaurantProfiles = (restaurantProfilesResult.data ?? []) as RestaurantProfileRow[];
   const bannerRows = (bannersResult.data ?? []) as PlatformBannerRow[];
   const settingsRow = settingsResult.data as PlatformSettingsRow | null;
+
+  const mangalCatalog = catalogs.find((catalog) => catalog.slug === 'mangal');
+  if (mangalCatalog) {
+    const mangalCategoriesAreEmpty = !categories.some((category) => category.catalog_id === mangalCatalog.id);
+    const mangalProductsAreEmpty = !products.some((product) => product.catalog_id === mangalCatalog.id);
+
+    if (mangalCategoriesAreEmpty || mangalProductsAreEmpty) {
+      const [legacyCategoriesResult, legacyProductsResult] = await Promise.all([
+        supabase
+          .from('category')
+          .select('id, name, image, icon, kind, sort_order')
+          .order('sort_order', { ascending: true })
+          .order('name'),
+        supabase
+          .from('product')
+          .select('id, category_id, title, price, description, image_url, weight, stock_count, current_stock, is_popular, is_hidden, is_unlimited, sort_order')
+          .order('sort_order', { ascending: true })
+          .order('title')
+      ]);
+
+      if (mangalCategoriesAreEmpty) {
+        categories = [
+          ...categories,
+          ...((legacyCategoriesResult.data ?? []) as LegacyCategoryRow[]).map((category) =>
+            mapLegacyCategoryToPlatformCategory(mangalCatalog.id, category)
+          )
+        ];
+      }
+
+      if (mangalProductsAreEmpty) {
+        const legacyProducts = ((legacyProductsResult.data ?? []) as LegacyProductRow[]).filter(
+          (product) => !product.is_hidden
+        );
+        products = [
+          ...products,
+          ...legacyProducts.map((product) => mapLegacyProductToPlatformProduct(mangalCatalog.id, product))
+        ];
+        legacyProducts.forEach((product) => {
+          if (product.image_url) {
+            productImages.push({ product_id: product.id, url: product.image_url, sort_order: product.sort_order });
+          }
+        });
+      }
+    }
+  }
 
   const categoriesByCatalog = new Map<string, CategoryRow[]>();
   categories
@@ -596,7 +692,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         paymentByCatalog.get(catalog.id)?.enable_transfer === false ? undefined : 'bank_transfer',
         paymentByCatalog.get(catalog.id)?.allow_cash === false ? undefined : 'cash'
       ].filter((method): method is ClientPaymentMethod => Boolean(method)),
-      publicPath: `/${catalog.slug}`
+      publicPath: `/r/${catalog.slug}`
     };
   });
 
