@@ -692,7 +692,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         paymentByCatalog.get(catalog.id)?.enable_transfer === false ? undefined : 'bank_transfer',
         paymentByCatalog.get(catalog.id)?.allow_cash === false ? undefined : 'cash'
       ].filter((method): method is ClientPaymentMethod => Boolean(method)),
-      publicPath: `/r/${catalog.slug}`
+      publicPath: `/${catalog.slug}`
     };
   });
 

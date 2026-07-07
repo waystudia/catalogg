@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-import { HashRouter, Route, Routes, useParams } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { App } from './app/App';
 import { CatalogAdminApp } from './pages/catalog-admin/CatalogAdminApp';
 import { ClientPlatformApp } from './pages/client-platform/ClientPlatformApp';
@@ -69,6 +69,11 @@ function CatalogAdminRoute() {
   return <CatalogAdminApp slug={decodeURIComponent(slug)} />;
 }
 
+function RestaurantRouteRedirect() {
+  const { slug = '' } = useParams();
+  return <Navigate replace to={`/${decodeURIComponent(slug)}`} />;
+}
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <HashRouter>
@@ -79,7 +84,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <Route path="/restaurants" element={<ClientPlatformApp />} />
         <Route path="/cart" element={<ClientPlatformApp />} />
         <Route path="/profile/*" element={<ClientPlatformApp />} />
-        <Route path="/r/:slug/*" element={<ClientPlatformApp />} />
+        <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/scanner" element={<ScannerPage />} />

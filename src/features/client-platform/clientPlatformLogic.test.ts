@@ -169,11 +169,11 @@ describe('client platform restaurant filtering', () => {
 
 describe('client platform restaurant links', () => {
   it('opens restaurants through the client platform restaurant route', () => {
-    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/r/rizih');
+    assert.equal(buildRestaurantPublicPath(restaurants[0]), '/rizih');
   });
 
-  it('keeps legacy catalog public paths out of the client platform restaurant cards', () => {
-    assert.equal(buildRestaurantPublicPath({ slug: 'mangal', publicPath: '/mangal' }), '/r/mangal');
+  it('keeps editable catalog public paths on the editable restaurant app', () => {
+    assert.equal(buildRestaurantPublicPath({ slug: 'mangal', publicPath: '/mangal' }), '/mangal');
   });
 });
 
