@@ -399,26 +399,26 @@ export function RestaurantAdminShell({
   );
 
   useEffect(() => {
-    const refreshIfVisible = () => {
-      if (document.visibilityState !== 'hidden') {
-        void refreshData({ silent: true });
-      }
+    const refreshSilently = () => {
+      void refreshData({ silent: true });
     };
     const refreshOnVisible = () => {
       if (document.visibilityState === 'visible') {
         void refreshData({ silent: true });
       }
     };
-    const intervalId = window.setInterval(refreshIfVisible, 12_000);
+    const intervalId = window.setInterval(refreshSilently, 12_000);
 
-    window.addEventListener('focus', refreshIfVisible);
-    window.addEventListener('online', refreshIfVisible);
+    window.addEventListener('focus', refreshSilently);
+    window.addEventListener('pageshow', refreshSilently);
+    window.addEventListener('online', refreshSilently);
     document.addEventListener('visibilitychange', refreshOnVisible);
 
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener('focus', refreshIfVisible);
-      window.removeEventListener('online', refreshIfVisible);
+      window.removeEventListener('focus', refreshSilently);
+      window.removeEventListener('pageshow', refreshSilently);
+      window.removeEventListener('online', refreshSilently);
       document.removeEventListener('visibilitychange', refreshOnVisible);
     };
   }, [refreshData]);
@@ -1047,18 +1047,34 @@ function OrderDetails({
         </section>
       )}
       <div className="ra-order-actions">
-        <button type="button" onClick={() => onStatusChange(order, 'accepted')}>Принять</button>
-        <button type="button" onClick={() => onStatusChange(order, 'preparing')}>Готовится</button>
-        <button type="button" onClick={() => onStatusChange(order, 'ready')}>Готово</button>
-        <button
-          type="button"
-          disabled={order.fulfillmentType === 'delivery' && order.paymentStatus !== 'confirmed'}
-          onClick={() => onStatusChange(order, order.fulfillmentType === 'delivery' ? 'waiting_driver' : 'on_the_way')}
-        >
-          В доставку
-        </button>
-        <button type="button" onClick={() => onStatusChange(order, 'completed')}>Завершить</button>
-        <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>
+        {order.status === 'new' && (
+          <button type="button" onClick={() => onStatusChange(order, 'accepted')}>Принять</button>
+        )}
+        {['accepted', 'confirmed'].includes(order.status) && (
+          <button type="button" onClick={() => onStatusChange(order, 'preparing')}>Готовится</button>
+        )}
+        {order.status === 'preparing' && (
+          <button type="button" onClick={() => onStatusChange(order, 'ready')}>Готово</button>
+        )}
+        {order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+          <button
+            type="button"
+            disabled={order.paymentStatus !== 'confirmed'}
+            onClick={() => onStatusChange(order, 'waiting_driver')}
+          >
+            Вызвать доставку
+          </button>
+        )}
+        {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
+          <button type="button" onClick={() => onStatusChange(order, 'completed')}>Завершить</button>
+        )}
+        {order.status === 'waiting_driver' && (
+          <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>Передано водителю</button>
+        )}
+        {order.status === 'on_the_way' && (
+          <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
+        )}
+        {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
         {!['cancelled', 'canceled', 'completed'].includes(order.status) && (
           <button
             className="ra-order-actions__danger"

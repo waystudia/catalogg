@@ -473,38 +473,36 @@ export async function updateRestaurantOrderStatus(
     reason
   });
 
-  if ((status === 'ready' || status === 'waiting_driver') && order.fulfillmentType === 'delivery') {
-    if (status === 'waiting_driver') {
-      await supabase.from('deliveries').upsert(
-        {
-          order_id: order.id,
-          delivery_provider: 'platform',
-          status: 'waiting_courier',
-          route_to_restaurant_url: buildYandexMapsRouteUrl({
-            to: {
-              lat: order.restaurantLat,
-              lng: order.restaurantLng,
-              address: order.restaurantAddress
-            }
-          }),
-          route_to_client_url: buildYandexMapsRouteUrl({
-            from: {
-              lat: order.restaurantLat,
-              lng: order.restaurantLng,
-              address: order.restaurantAddress
-            },
-            to: {
-              lat: order.deliveryLat,
-              lng: order.deliveryLng,
-              address: order.deliveryAddress
-            }
-          }),
-          estimated_time_min: 20,
-          estimated_time_max: 40
-        },
-        { onConflict: 'order_id' }
-      );
-    }
+  if (status === 'waiting_driver' && order.fulfillmentType === 'delivery') {
+    await supabase.from('deliveries').upsert(
+      {
+        order_id: order.id,
+        delivery_provider: 'platform',
+        status: 'waiting_courier',
+        route_to_restaurant_url: buildYandexMapsRouteUrl({
+          to: {
+            lat: order.restaurantLat,
+            lng: order.restaurantLng,
+            address: order.restaurantAddress
+          }
+        }),
+        route_to_client_url: buildYandexMapsRouteUrl({
+          from: {
+            lat: order.restaurantLat,
+            lng: order.restaurantLng,
+            address: order.restaurantAddress
+          },
+          to: {
+            lat: order.deliveryLat,
+            lng: order.deliveryLng,
+            address: order.deliveryAddress
+          }
+        }),
+        estimated_time_min: 20,
+        estimated_time_max: 40
+      },
+      { onConflict: 'order_id' }
+    );
 
     await supabase.from('delivery_tasks').upsert(
       {

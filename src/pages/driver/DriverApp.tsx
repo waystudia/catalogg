@@ -139,6 +139,7 @@ const emptySnapshot: DriverDashboardSnapshot = {
 export function DriverApp() {
   const location = useLocation();
   const selectedDriverId = useDriverStore((state) => state.selectedDriverId);
+  const setSelectedDriverId = useDriverStore((state) => state.setSelectedDriverId);
   const isOnline = useDriverStore((state) => state.isOnline);
   const localActiveDelivery = useDriverStore((state) => state.localActiveDelivery);
   const completedDeliveryIds = useDriverStore((state) => state.completedDeliveryIds);
@@ -202,6 +203,9 @@ export function DriverApp() {
     let isMounted = true;
     void getAuthenticatedDriverId().then((driverId) => {
       if (!isMounted) return;
+      if (driverId) {
+        setSelectedDriverId(driverId);
+      }
       setHasDriverAccess(Boolean(driverId));
       setAuthChecked(true);
     });
@@ -209,7 +213,7 @@ export function DriverApp() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [setSelectedDriverId]);
 
   const profile: DriverProfile = {
     ...snapshot.profile,
@@ -219,6 +223,33 @@ export function DriverApp() {
   const effectiveDriverId = profile.id || selectedDriverId;
 
   useEffect(() => subscribeToDriverRealtime(effectiveDriverId, loadDashboard), [effectiveDriverId, loadDashboard]);
+
+  useEffect(() => {
+    if (!authChecked || !hasDriverAccess) return undefined;
+
+    const refreshDriverDashboard = () => {
+      void loadDashboard();
+    };
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshDriverDashboard();
+      }
+    };
+    const intervalId = window.setInterval(refreshDriverDashboard, 12_000);
+
+    window.addEventListener('focus', refreshDriverDashboard);
+    window.addEventListener('pageshow', refreshDriverDashboard);
+    window.addEventListener('online', refreshDriverDashboard);
+    document.addEventListener('visibilitychange', refreshOnVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshDriverDashboard);
+      window.removeEventListener('pageshow', refreshDriverDashboard);
+      window.removeEventListener('online', refreshDriverDashboard);
+      document.removeEventListener('visibilitychange', refreshOnVisible);
+    };
+  }, [authChecked, hasDriverAccess, loadDashboard]);
 
   const activeDelivery = localActiveDelivery ?? snapshot.activeDelivery;
   const availableDeliveries = isOnline

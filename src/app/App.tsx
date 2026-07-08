@@ -146,6 +146,7 @@ import {
   normalizeSettlementName,
   savePublicClientProfile
 } from '../shared/clientIdentity';
+import { appIsRunningStandalone, rememberPwaResumePath } from '../shared/pwaSession';
 
 const queryClient = new QueryClient();
 
@@ -2362,8 +2363,8 @@ function LoginModal({
     const success = await login(String(formData.get('email')), String(formData.get('password')), catalogSlug);
     setIsLoading(false);
     if (success) {
+      void requestRestaurantOrderNotificationPermission();
       onSuccess();
-      onClose();
       return;
     }
     setError('Неверный email или пароль.');
@@ -3057,10 +3058,18 @@ function OrderDetailsPanel({
         {order.status === 'preparing' && (
           <button
             type="button"
-            disabled={order.fulfillmentType === 'delivery' && order.paymentStatus !== 'confirmed'}
-            onClick={() => onStatus(order.fulfillmentType === 'delivery' ? 'waiting_driver' : 'ready')}
+            onClick={() => onStatus('ready')}
           >
             Готово
+          </button>
+        )}
+        {order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+          <button
+            type="button"
+            disabled={order.paymentStatus !== 'confirmed'}
+            onClick={() => onStatus('waiting_driver')}
+          >
+            Вызвать доставку
           </button>
         )}
         {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
@@ -4709,6 +4718,15 @@ function AppContent({
       toast.error(message ? `Не удалось сохранить: ${message}` : 'Не удалось сохранить изменения в Supabase');
     });
   };
+  const openRestaurantAdminPath = useCallback(
+    (nextScreen: Screen = 'admin-home') => {
+      const targetPath = nextScreen === 'settings-payments' ? `/${catalogSlug}/payments` : `/${catalogSlug}/dashboard`;
+      setScreen(nextScreen);
+      rememberPwaResumePath(targetPath);
+      navigate(targetPath, { replace: true });
+    },
+    [catalogSlug, navigate]
+  );
 
   const refreshRestaurantOrders = useCallback(() => {
     if (!isAdmin) return;
@@ -4740,25 +4758,25 @@ function AppContent({
   useEffect(() => {
     if (!isAdmin) return undefined;
 
-    const refreshIfVisible = () => {
-      if (document.visibilityState !== 'hidden') {
-        refreshRestaurantOrders();
-      }
+    const refreshOrders = () => {
+      refreshRestaurantOrders();
     };
     const refreshOnVisible = () => {
       if (document.visibilityState === 'visible') {
         refreshRestaurantOrders();
       }
     };
-    const intervalId = window.setInterval(refreshIfVisible, 12_000);
+    const intervalId = window.setInterval(refreshOrders, 12_000);
 
     window.addEventListener('focus', refreshRestaurantOrders);
+    window.addEventListener('pageshow', refreshOrders);
     window.addEventListener('online', refreshRestaurantOrders);
     document.addEventListener('visibilitychange', refreshOnVisible);
 
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshRestaurantOrders);
+      window.removeEventListener('pageshow', refreshOrders);
       window.removeEventListener('online', refreshRestaurantOrders);
       document.removeEventListener('visibilitychange', refreshOnVisible);
     };
@@ -4777,6 +4795,11 @@ function AppContent({
     void hasAdminSession(catalogSlug).then(setAdmin);
     return onAdminSessionChange(setAdmin, catalogSlug);
   }, [catalogSlug, setAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || routeSection || !appIsRunningStandalone()) return;
+    openRestaurantAdminPath('admin-home');
+  }, [isAdmin, openRestaurantAdminPath, routeSection]);
 
   useEffect(() => {
     setPaymentSettings(loadPaymentSettings(catalogSlug));
@@ -5417,7 +5440,7 @@ function AppContent({
         <LoginModal
           catalogSlug={catalogSlug}
           onClose={() => setScreen('home')}
-          onSuccess={() => setScreen(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
+          onSuccess={() => openRestaurantAdminPath(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
         />
       ) : screen === 'admin-home' ? (
         renderRestaurantAdmin()
@@ -5561,7 +5584,10 @@ function AppContent({
         <LoginModal
           catalogSlug={catalogSlug}
           onClose={() => setShowLogin(false)}
-          onSuccess={() => setScreen('admin-home')}
+          onSuccess={() => {
+            setShowLogin(false);
+            openRestaurantAdminPath('admin-home');
+          }}
         />
       )}
       {orderFlow.step !== 'done' && activeFlowCategory && screen !== 'catalog' && screen !== 'drinks' && (

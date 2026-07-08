@@ -74,7 +74,7 @@ import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getDeliveryGeolocationErrorMessage } from '../../shared/deliveryLocation';
-import { clearPwaResumePath } from '../../shared/pwaSession';
+import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
 import './client-platform.css';
 
 const clientPlatformQueryClient = new QueryClient();
@@ -1644,7 +1644,9 @@ function ProfilePage() {
       if (activeRole === 'driver' && redirect !== '/driver') {
         throw new Error('Этот аккаунт не является водителем.');
       }
-      navigate(redirect === '/admin' ? '/admin/clients' : redirect, { replace: true });
+      const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
+      rememberPwaResumePath(targetPath);
+      navigate(targetPath, { replace: true });
     } catch (error) {
       setRestaurantError(error instanceof Error ? error.message : 'Не удалось войти.');
     } finally {

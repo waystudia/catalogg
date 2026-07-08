@@ -253,6 +253,7 @@ export async function hasAdminSession(catalogSlug?: string) {
   const normalizedSlug = normalizeCatalogSlug(catalogSlug);
   const platformCatalogId = await getPlatformCatalogId(normalizedSlug);
   let hasPlatformClientAccess = false;
+  let hasCatalogMemberAccess = false;
 
   if (platformCatalogId) {
     const { data: client } = await supabase
@@ -260,10 +261,19 @@ export async function hasAdminSession(catalogSlug?: string) {
       .select('id')
       .eq('catalog_id', platformCatalogId)
       .eq('owner_user_id', data.session.user.id)
-      .eq('email', data.session.user.email?.toLowerCase() ?? '')
       .maybeSingle();
 
     hasPlatformClientAccess = Boolean(client);
+
+    const { data: member } = await supabase
+      .from('catalog_members')
+      .select('user_id')
+      .eq('catalog_id', platformCatalogId)
+      .eq('user_id', data.session.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    hasCatalogMemberAccess = Boolean(member);
   }
 
   const { data: adminUser } = await supabase
@@ -274,7 +284,7 @@ export async function hasAdminSession(catalogSlug?: string) {
 
   return catalogAccessAllowsAdmin({
     isLegacyCatalogSlug: isLegacyCatalog(normalizedSlug),
-    hasPlatformClientAccess,
+    hasPlatformClientAccess: hasPlatformClientAccess || hasCatalogMemberAccess,
     hasLegacyAdminAccess: Boolean(adminUser)
   });
 }

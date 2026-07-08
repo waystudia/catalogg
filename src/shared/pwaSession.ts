@@ -15,6 +15,16 @@ export const routeCanBeResumed = (path: string) => {
   return true;
 };
 
+export const routeIsRoleAppPath = (path: string) => {
+  const normalizedPath = path.trim().split('?')[0].replace(/\/+$/, '') || '/';
+  if (normalizedPath === '/driver' || normalizedPath.startsWith('/driver/')) return true;
+  if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) return true;
+  if (normalizedPath === '/profile' || normalizedPath.startsWith('/profile/')) return true;
+
+  const [, , section] = normalizedPath.split('/');
+  return Boolean(section && ['dashboard', 'orders', 'dishes', 'settings', 'scanner', 'payments'].includes(section));
+};
+
 export const rememberPwaResumePath = (path: string) => {
   if (!isBrowser() || !routeCanBeResumed(path)) return;
   window.localStorage.setItem(pwaResumePathKey, path);

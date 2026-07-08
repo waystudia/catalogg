@@ -74,10 +74,13 @@ type DeliveryRow = {
   orders?: MaybeArray<{
     id: string;
     order_type: OrderLifecycleSnapshot['orderType'];
+    fulfillment_type?: 'hall' | 'takeaway' | 'delivery' | null;
     status: OrderLifecycleSnapshot['status'];
     payment_status: OrderLifecycleSnapshot['paymentStatus'];
     client_name: string | null;
     client_phone: string | null;
+    customer_name?: string | null;
+    customer_phone?: string | null;
     delivery_address: string | null;
     delivery_lat: number | null;
     delivery_lng: number | null;
@@ -146,6 +149,7 @@ type MaybeArray<T> = T | T[];
 
 const firstRelation = <T,>(value: MaybeArray<T> | null | undefined): T | null =>
   Array.isArray(value) ? value[0] ?? null : value ?? null;
+type DeliveryOrderRow = NonNullable<NonNullable<DeliveryRow['orders']> extends MaybeArray<infer T> ? T : never>;
 
 export const demoDriverId = 'driver-demo';
 
@@ -251,6 +255,15 @@ const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboar
 const normalizeDeliveryStatus = (status: DeliveryRow['status']): DeliveryStatus =>
   status === 'waiting_driver' ? 'waiting_courier' : status;
 
+const normalizeOrderType = (order: DeliveryOrderRow): OrderLifecycleSnapshot['orderType'] => {
+  if (order.order_type === 'delivery' || order.order_type === 'pickup' || order.order_type === 'dine_in') {
+    return order.order_type;
+  }
+  if (order.fulfillment_type === 'delivery') return 'delivery';
+  if (order.fulfillment_type === 'takeaway') return 'pickup';
+  return 'dine_in';
+};
+
 const orderNumber = (orderId: string) => orderId.slice(0, 8).toUpperCase();
 
 const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | null => {
@@ -261,11 +274,11 @@ const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | n
   const deliveryFee = Number(order.delivery_fee ?? 0);
   const lifecycleOrder: OrderLifecycleSnapshot = {
     id: order.id,
-    orderType: order.order_type,
+    orderType: normalizeOrderType(order),
     status: order.status,
     paymentStatus: order.payment_status,
-    clientName: order.client_name ?? '',
-    clientPhone: order.client_phone ?? '',
+    clientName: order.client_name || order.customer_name || '',
+    clientPhone: order.client_phone || order.customer_phone || '',
     deliveryAddress: order.delivery_address ?? '',
     deliveryLat: order.delivery_lat,
     deliveryLng: order.delivery_lng,
@@ -338,10 +351,16 @@ export const getAuthenticatedDriverId = async (): Promise<string | null> => {
   const metadataDriverId =
     typeof authUser.user_metadata?.driver_id === 'string' ? authUser.user_metadata.driver_id : '';
   if (metadataDriverId) {
+    return metadataDriverId;
+  }
+
+  const metadataPublicUserId =
+    typeof authUser.user_metadata?.public_user_id === 'string' ? authUser.user_metadata.public_user_id : '';
+  if (metadataPublicUserId) {
     const { data: metadataDriver, error: metadataDriverError } = await supabase
       .from('drivers')
       .select('id')
-      .eq('id', metadataDriverId)
+      .eq('user_id', metadataPublicUserId)
       .maybeSingle();
     if (!metadataDriverError && metadataDriver) return (metadataDriver as Pick<DriverRow, 'id'>).id;
   }
@@ -402,7 +421,7 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
 
   const deliveriesResult = await supabase
     .from('deliveries')
-    .select('id, order_id, driver_id, status, delivery_provider, pickup_qr_token, pickup_qr_expires_at, assigned_at, route_to_restaurant_url, route_to_client_url, estimated_time_min, estimated_time_max, created_at, orders(id, order_type, status, payment_status, client_name, client_phone, delivery_address, delivery_lat, delivery_lng, delivery_comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot, delivery_fee, total, total_amount, created_at, order_items(quantity), restaurants(name, logo_url, cover_url, description, address_line, lat, lng))')
+    .select('id, order_id, driver_id, status, delivery_provider, pickup_qr_token, pickup_qr_expires_at, assigned_at, route_to_restaurant_url, route_to_client_url, estimated_time_min, estimated_time_max, created_at, orders(id, order_type, fulfillment_type, status, payment_status, client_name, client_phone, customer_name, customer_phone, delivery_address, delivery_lat, delivery_lng, delivery_comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot, delivery_fee, total, total_amount, created_at, order_items(quantity), restaurants(name, logo_url, cover_url, description, address_line, lat, lng))')
     .in('status', ['waiting_courier', 'waiting_driver', 'assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way'])
     .or(`driver_id.is.null,driver_id.eq.${profile.id}`)
     .order('created_at', { ascending: false });

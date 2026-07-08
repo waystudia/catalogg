@@ -3,7 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { App } from './app/App';
 import { ClientPlatformApp } from './pages/client-platform/ClientPlatformApp';
 import { CatalogAdminApp } from './pages/catalog-admin/CatalogAdminApp';
-import { appIsRunningStandalone, readPwaResumePath, rememberPwaResumePath } from './shared/pwaSession';
+import { appIsRunningStandalone, readPwaResumePath, rememberPwaResumePath, routeIsRoleAppPath } from './shared/pwaSession';
 
 export function CatalogAdminRoute() {
   const { slug = '' } = useParams();
@@ -31,7 +31,11 @@ export function PwaResumeTracker() {
 
 export function PwaHomeRoute() {
   const resumePath = React.useMemo(
-    () => (appIsRunningStandalone() ? readPwaResumePath() : null),
+    () => {
+      const path = readPwaResumePath();
+      if (!path) return null;
+      return appIsRunningStandalone() || routeIsRoleAppPath(path) ? path : null;
+    },
     []
   );
 

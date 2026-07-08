@@ -2,6 +2,7 @@ import { LockKeyhole } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
+import { rememberPwaResumePath } from '../../shared/pwaSession';
 import './login.css';
 
 export function LoginPage() {
@@ -21,7 +22,9 @@ export function LoginPage() {
         setError('Неверный email или пароль.');
         return;
       }
-      navigate(redirect, { replace: true });
+      const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
+      rememberPwaResumePath(targetPath);
+      navigate(targetPath, { replace: true });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось войти');
     } finally {

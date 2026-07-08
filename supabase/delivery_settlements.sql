@@ -20,6 +20,28 @@ alter table public.drivers
   add column if not exists city_name text not null default '',
   add column if not exists service_settlements text[] not null default '{}';
 
+drop policy if exists "catalog members read own membership" on public.catalog_members;
+create policy "catalog members read own membership"
+  on public.catalog_members
+  for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create or replace function public.current_platform_user_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id
+  from public.users
+  where auth_user_id = auth.uid()
+     or lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  order by case when auth_user_id = auth.uid() then 0 else 1 end
+  limit 1
+$$;
+
 create table if not exists public.settlement_requests (
   id uuid primary key default gen_random_uuid(),
   city_name text not null default '',

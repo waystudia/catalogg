@@ -198,7 +198,12 @@ stable
 security definer
 set search_path = public
 as $$
-  select id from public.users where auth_user_id = auth.uid() limit 1
+  select id
+  from public.users
+  where auth_user_id = auth.uid()
+     or lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  order by case when auth_user_id = auth.uid() then 0 else 1 end
+  limit 1
 $$;
 
 create or replace function public.is_driver_profile(target_driver_id uuid)

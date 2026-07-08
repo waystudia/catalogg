@@ -187,6 +187,10 @@ drop policy if exists "platform admins read catalog members" on public.catalog_m
 create policy "platform admins read catalog members" on public.catalog_members
 for select using (public.is_platform_admin());
 
+drop policy if exists "catalog members read own membership" on public.catalog_members;
+create policy "catalog members read own membership" on public.catalog_members
+for select to authenticated using (user_id = auth.uid());
+
 drop policy if exists "platform admins read audit logs" on public.audit_logs;
 create policy "platform admins read audit logs" on public.audit_logs
 for select using (public.is_platform_admin());
