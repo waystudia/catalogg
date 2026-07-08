@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Beef,
+  Bell,
   CakeSlice,
   Check,
   ChefHat,
@@ -118,6 +119,11 @@ import {
   type CreateRestaurantOrderFromCartInput
 } from '../shared/api/restaurantOrderPayload';
 import { formatOrderTime, groupOrdersByDate } from '../shared/orderListGroups';
+import {
+  getRestaurantOrderNotificationPermission,
+  requestRestaurantOrderNotificationPermission,
+  showRestaurantOrderNotification
+} from '../shared/restaurantOrderNotifications';
 import { imageFileToDataUrl } from '../shared/images';
 import {
   chooseMoreAccuratePosition,
@@ -2118,14 +2124,11 @@ function CheckoutScreen({
                   window.setTimeout(onSubmitOrder, 500);
                   return;
                 }
-                window.open(whatsappHref, '_blank', 'noopener,noreferrer');
-                window.setTimeout(onSubmitOrder, 500);
+                toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
               })
               .catch((error) => {
                 console.error('Order creation failed', error);
-                toast.warning('Заказ откроется в WhatsApp. В системе ресторана он пока не сохранён.');
-                window.open(whatsappHref, '_blank', 'noopener,noreferrer');
-                window.setTimeout(onSubmitOrder, 500);
+                toast.error('Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
               })
               .finally(() => {
                 submitLockRef.current = false;
@@ -2637,6 +2640,7 @@ function RestaurantAdminShell({
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
+  const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
   const today = new Date().toDateString();
   const todayOrders = orders.filter((order) => new Date(order.createdAt).toDateString() === today);
@@ -2649,6 +2653,9 @@ function RestaurantAdminShell({
     : null;
   const orderGroups = useMemo(() => groupOrdersByDate(filteredOrders), [filteredOrders]);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled'].includes(order.status));
+  const enableOrderNotifications = () => {
+    void requestRestaurantOrderNotificationPermission().then(setNotificationPermission);
+  };
 
   useEffect(() => {
     if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
@@ -2663,9 +2670,18 @@ function RestaurantAdminShell({
       : [];
 
     if (newOrderIds.length > 0) {
+      const newOrders = orders.filter((order) => newOrderIds.includes(order.id));
       setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
       toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
       playRestaurantAdminOrderSound();
+      newOrders.slice(0, 3).forEach((order) => {
+        void showRestaurantOrderNotification({
+          title: `Новый заказ #${order.orderNumber}`,
+          body: `${order.clientName || 'Клиент'} · ${formatPrice(order.total)}`,
+          tag: `restaurant-order-${order.id}`,
+          url: `${window.location.origin}${window.location.pathname}${window.location.search}#/${catalogSlug}/orders`
+        });
+      });
       window.setTimeout(() => {
         setRecentOrderIds((current) => {
           const next = new Set(current);
@@ -2677,7 +2693,7 @@ function RestaurantAdminShell({
 
     knownOrderIdsRef.current = new Set(orders.map((order) => order.id));
     hasLoadedOrdersRef.current = true;
-  }, [orders]);
+  }, [catalogSlug, orders]);
 
   return (
     <main className="restaurant-admin">
@@ -2700,8 +2716,16 @@ function RestaurantAdminShell({
             <h1>{restaurant.name || 'Ресторан'}</h1>
             <p>{restaurant.subtitle || 'Управляйте меню, заказами и доставкой'}</p>
           </div>
-          <div className="restaurant-admin__logo">
-            {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" /> : <Store />}
+          <div className="restaurant-admin__hero-actions">
+            {notificationPermission === 'default' && (
+              <button className="restaurant-admin__notification-button" type="button" onClick={enableOrderNotifications}>
+                <Bell />
+                Уведомления
+              </button>
+            )}
+            <div className="restaurant-admin__logo">
+              {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" /> : <Store />}
+            </div>
           </div>
         </section>
 
@@ -4652,6 +4676,33 @@ function AppContent({
     };
   }, [catalogSlug, isAdmin, refreshRestaurantOrders]);
 
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== 'hidden') {
+        refreshRestaurantOrders();
+      }
+    };
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshRestaurantOrders();
+      }
+    };
+    const intervalId = window.setInterval(refreshIfVisible, 12_000);
+
+    window.addEventListener('focus', refreshRestaurantOrders);
+    window.addEventListener('online', refreshRestaurantOrders);
+    document.addEventListener('visibilitychange', refreshOnVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshRestaurantOrders);
+      window.removeEventListener('online', refreshRestaurantOrders);
+      document.removeEventListener('visibilitychange', refreshOnVisible);
+    };
+  }, [isAdmin, refreshRestaurantOrders]);
+
   const refreshDeliverySettings = useCallback(() => {
     if (!isAdmin) return;
     void getRestaurantDeliverySettings(catalogSlug)
@@ -4679,29 +4730,6 @@ function AppContent({
     refreshRestaurantOrders();
     refreshDeliverySettings();
   }, [refreshDeliverySettings, refreshRestaurantOrders]);
-
-  useEffect(() => {
-    const client = supabase;
-    if (!client || !isAdmin) return undefined;
-    let channel: ReturnType<typeof client.channel> | null = null;
-    let disposed = false;
-
-    void getCatalogIdBySlug(catalogSlug).then((catalogId) => {
-      if (!catalogId || disposed) return;
-      channel = client
-        .channel(`restaurant-admin-orders-${catalogId}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `catalog_id=eq.${catalogId}` }, refreshRestaurantOrders)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items', filter: `catalog_id=eq.${catalogId}` }, refreshRestaurantOrders)
-        .subscribe();
-    });
-
-    return () => {
-      disposed = true;
-      if (channel) {
-        void client.removeChannel(channel);
-      }
-    };
-  }, [catalogSlug, isAdmin, refreshRestaurantOrders]);
 
   useEffect(() => {
     const client = supabase;

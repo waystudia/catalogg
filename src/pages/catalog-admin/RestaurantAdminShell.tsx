@@ -47,6 +47,11 @@ import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/or
 import { copyText, getCatalogPublicUrl } from '../../shared/platformUrls';
 import { loadCatalog } from '../../shared/supabase';
 import type { CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
+import {
+  getRestaurantOrderNotificationPermission,
+  requestRestaurantOrderNotificationPermission,
+  showRestaurantOrderNotification
+} from '../../shared/restaurantOrderNotifications';
 
 type AdminSection = 'home' | 'catalog' | 'dishes' | 'orders' | 'stocks' | 'settings';
 type SettingsSection =
@@ -329,12 +334,16 @@ export function RestaurantAdminShell({
   );
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
+  const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
 
   const slug = access.catalog?.slug ?? 'demo';
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
+  const enableOrderNotifications = () => {
+    void requestRestaurantOrderNotificationPermission().then(setNotificationPermission);
+  };
 
-  const refreshData = useCallback(async () => {
-    setIsLoadingData(true);
+  const refreshData = useCallback(async (options: { silent?: boolean } = {}) => {
+    if (!options.silent) setIsLoadingData(true);
     try {
       const [catalog, restaurantOrders] = await Promise.all([loadCatalog(slug), getRestaurantOrders(slug)]);
       setCatalogData({
@@ -345,15 +354,22 @@ export function RestaurantAdminShell({
         theme: catalog.theme
       });
       const knownIds = knownOrderIdsRef.current;
-      const newOrderIds = hasLoadedOrdersRef.current
-        ? restaurantOrders
-            .filter((order) => order.status === 'new' && !knownIds.has(order.id))
-            .map((order) => order.id)
+      const newOrders = hasLoadedOrdersRef.current
+        ? restaurantOrders.filter((order) => order.status === 'new' && !knownIds.has(order.id))
         : [];
+      const newOrderIds = newOrders.map((order) => order.id);
       if (newOrderIds.length > 0) {
         setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
         toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
         playNewOrderSound();
+        newOrders.slice(0, 3).forEach((order) => {
+          void showRestaurantOrderNotification({
+            title: `Новый заказ #${order.orderNumber}`,
+            body: `${order.clientName || 'Клиент'} · ${formatPrice(order.total)}`,
+            tag: `restaurant-order-${order.id}`,
+            url: window.location.href
+          });
+        });
         window.setTimeout(() => {
           setRecentOrderIds((current) => {
             const next = new Set(current);
@@ -381,6 +397,31 @@ export function RestaurantAdminShell({
     () => subscribeToRestaurantOrdersRealtime(access.catalog?.id, () => void refreshData()),
     [access.catalog?.id, refreshData]
   );
+
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== 'hidden') {
+        void refreshData({ silent: true });
+      }
+    };
+    const refreshOnVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshData({ silent: true });
+      }
+    };
+    const intervalId = window.setInterval(refreshIfVisible, 12_000);
+
+    window.addEventListener('focus', refreshIfVisible);
+    window.addEventListener('online', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshOnVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshIfVisible);
+      window.removeEventListener('online', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshOnVisible);
+    };
+  }, [refreshData]);
 
   useEffect(() => {
     localStorage.setItem(paymentStorageKey(slug), JSON.stringify(paymentSettings));
@@ -510,7 +551,12 @@ export function RestaurantAdminShell({
             <select aria-label="Ресторан" value={slug} onChange={() => toast.info('Переключение ресторанов будет подключено к доступам пользователя')}>
               <option value={slug}>{catalogData.restaurant.name}</option>
             </select>
-            <button className="ra-icon-button" type="button" aria-label="Уведомления">
+            <button
+              className="ra-icon-button"
+              type="button"
+              onClick={enableOrderNotifications}
+              aria-label={notificationPermission === 'granted' ? 'Уведомления включены' : 'Включить уведомления'}
+            >
               <Bell />
               {orders.some((order) => order.status === 'new') && <span />}
             </button>

@@ -112,6 +112,30 @@ $$;
 
 grant execute on function public.record_settlement_request(text, text, text) to anon, authenticated;
 
+do $$
+begin
+  alter publication supabase_realtime add table public.orders;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.order_items;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.order_status_history;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
 create or replace function public.create_public_restaurant_order(
   target_catalog_id uuid,
   customer_name text,

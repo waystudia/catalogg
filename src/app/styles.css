@@ -262,6 +262,32 @@
   object-fit: cover;
 }
 
+.restaurant-admin__hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.restaurant-admin__notification-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 900;
+}
+
+.restaurant-admin__notification-button svg {
+  width: 17px;
+  height: 17px;
+}
+
 .restaurant-admin__content {
   display: grid;
   gap: 14px;
@@ -662,7 +688,13 @@
   }
 
   .restaurant-admin__hero {
+    align-items: flex-start;
     border-radius: 18px;
+  }
+
+  .restaurant-admin__hero-actions {
+    flex-direction: column-reverse;
+    align-items: flex-end;
   }
 
   .admin-kpi-grid,

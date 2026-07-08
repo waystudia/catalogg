@@ -528,6 +528,22 @@ end $$;
 
 do $$
 begin
+  alter publication supabase_realtime add table public.order_items;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.order_status_history;
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
   alter publication supabase_realtime add table public.deliveries;
 exception
   when duplicate_object then null;
