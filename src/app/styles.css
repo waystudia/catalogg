@@ -863,6 +863,13 @@
   background: #12b76a;
 }
 
+.admin-order-actions button.admin-order-actions__danger {
+  grid-column: 1 / -1;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #b42318;
+}
+
 .admin-order-actions button:only-child {
   grid-column: 1 / -1;
 }

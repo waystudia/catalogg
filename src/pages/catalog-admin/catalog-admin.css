@@ -1341,6 +1341,13 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.ra-order-actions button.ra-order-actions__danger {
+  grid-column: 1 / -1;
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #b42318;
+}
+
 .ra-stock-note {
   justify-content: space-between;
   gap: 16px;

@@ -2111,6 +2111,26 @@ function CheckoutScreen({
               customerName: mode === 'delivery' ? clientName.trim() : 'Гость',
               customerPhone: mode === 'delivery' ? clientPhone.trim() : ''
             };
+            let whatsappWindow: Window | null = null;
+            try {
+              whatsappWindow = window.open('about:blank', '_blank');
+            } catch {
+              whatsappWindow = null;
+            }
+            const openCreatedOrderWhatsapp = (href: string) => {
+              if (whatsappWindow && !whatsappWindow.closed) {
+                whatsappWindow.location.href = href;
+                return;
+              }
+              window.location.href = href;
+            };
+            const closeReservedWhatsappWindow = () => {
+              try {
+                whatsappWindow?.close();
+              } catch {
+                // The browser may block controlling a tab after opening it.
+              }
+            };
             submitLockRef.current = true;
             setIsSubmittingOrder(true);
             void createRestaurantOrderFromCart({
@@ -2120,14 +2140,16 @@ function CheckoutScreen({
               .then((orderId) => {
                 if (orderId) {
                   toast.success('Заказ создан в системе ресторана');
-                  window.open(buildWhatsappHref(orderId), '_blank', 'noopener,noreferrer');
+                  openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
                   window.setTimeout(onSubmitOrder, 500);
                   return;
                 }
+                closeReservedWhatsappWindow();
                 toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
               })
               .catch((error) => {
                 console.error('Order creation failed', error);
+                closeReservedWhatsappWindow();
                 toast.error('Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
               })
               .finally(() => {
@@ -2610,11 +2632,13 @@ function RestaurantAdminShell({
   products,
   orders,
   routeSection,
+  routeOrderId,
   paymentSettings,
   deliverySettings,
   onOpenScreen,
   onAddDish,
   onOrderStatus,
+  onOrderDelete,
   onSaveDeliverySettings
 }: {
   catalogSlug: string;
@@ -2623,16 +2647,20 @@ function RestaurantAdminShell({
   products: Product[];
   orders: RestaurantOrder[];
   routeSection?: string;
+  routeOrderId?: string;
   paymentSettings: RestaurantPaymentSettings;
   deliverySettings: RestaurantDeliverySettings | null;
   onOpenScreen: (screen: SettingsScreen) => void;
   onAddDish: () => void;
   onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => void;
+  onOrderDelete: (order: RestaurantOrder) => void;
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
   const [tab, setTab] = useState<'home' | 'dishes' | 'orders' | 'settings' | 'scanner'>(() =>
-    routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner'
-      ? routeSection
+    routeSection === 'order'
+      ? 'orders'
+      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner'
+        ? routeSection
       : 'home'
   );
   const [filter, setFilter] = useState<'all' | RestaurantOrderStatus>('all');
@@ -2658,10 +2686,23 @@ function RestaurantAdminShell({
   };
 
   useEffect(() => {
+    if (routeSection === 'order') {
+      setTab('orders');
+      return;
+    }
     if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
       setTab(routeSection);
     }
   }, [routeSection]);
+
+  useEffect(() => {
+    if (!routeOrderId) return;
+    const order = orders.find((item) => item.id === routeOrderId);
+    if (order) {
+      setSelectedOrder(order);
+      setFilter('all');
+    }
+  }, [orders, routeOrderId]);
 
   useEffect(() => {
     const knownIds = knownOrderIdsRef.current;
@@ -2851,6 +2892,10 @@ function RestaurantAdminShell({
                     onOrderStatus(selectedVisibleOrder, status, reason);
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
                   }}
+                  onDelete={() => {
+                    onOrderDelete(selectedVisibleOrder);
+                    setSelectedOrder(null);
+                  }}
                 />
               )}
             </div>
@@ -2905,13 +2950,15 @@ function OrderDetailsPanel({
   catalogSlug,
   paymentSettings,
   onClose,
-  onStatus
+  onStatus,
+  onDelete
 }: {
   order: RestaurantOrder;
   catalogSlug: string;
   paymentSettings: RestaurantPaymentSettings;
   onClose: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => void;
+  onDelete: () => void;
 }) {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => loadPaymentStatus(catalogSlug, order.id));
   const updatePaymentStatus = (status: PaymentStatus) => {
@@ -3024,6 +3071,20 @@ function OrderDetailsPanel({
         )}
         {order.status === 'on_the_way' && (
           <button type="button" onClick={() => onStatus('delivered')}>Доставлен</button>
+        )}
+        {!['cancelled', 'canceled', 'completed', 'delivered'].includes(order.status) && (
+          <button
+            className="admin-order-actions__danger"
+            type="button"
+            onClick={() => {
+              if (window.confirm('Удалить заказ из работы ресторана?')) {
+                onDelete();
+              }
+            }}
+          >
+            <Trash2 />
+            Удалить заказ
+          </button>
         )}
       </footer>
     </aside>
@@ -5292,16 +5353,27 @@ function AppContent({
       products={catalog.products}
       orders={restaurantOrders}
       routeSection={routeSection}
+      routeOrderId={routeOrderId}
       paymentSettings={paymentSettings}
       deliverySettings={deliverySettings}
       onOpenScreen={setScreen}
       onAddDish={() => setAdminEditor('dish')}
       onOrderStatus={changeOrderStatus}
+      onOrderDelete={(order) => changeOrderStatus(order, 'cancelled', 'restaurant_deleted')}
       onSaveDeliverySettings={saveDeliverySettings}
     />
   );
 
   if (routeSection === 'order' && routeOrderId) {
+    if (isAdmin) {
+      return (
+        <div className="app-shell" style={applyTheme(themeStore)}>
+          <Toaster richColors position="top-center" />
+          {renderRestaurantAdmin()}
+        </div>
+      );
+    }
+
     return (
       <div className="app-shell" style={applyTheme(themeStore)}>
         <Toaster richColors position="top-center" />

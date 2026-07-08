@@ -172,6 +172,16 @@ Deno.serve(async (request) => {
       if (driverError || !driver) throw driverError ?? new Error('Could not create driver profile.');
       driverId = driver.id;
 
+      const { error: metadataError } = await adminClient.auth.admin.updateUserById(authUserId, {
+        user_metadata: {
+          full_name: payload.name,
+          role: 'driver',
+          public_user_id: publicUser.id,
+          driver_id: driver.id
+        }
+      });
+      if (metadataError) throw metadataError;
+
       return jsonResponse({
         driverId: driver.id,
         userId: publicUser.id,

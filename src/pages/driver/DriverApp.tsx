@@ -43,6 +43,10 @@ import {
   type DriverProfile
 } from '../../shared/api/deliveryApi';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
+import {
+  requestRestaurantOrderNotificationPermission,
+  showRestaurantOrderNotification
+} from '../../shared/restaurantOrderNotifications';
 import { supabase } from '../../shared/supabase';
 import './driver.css';
 
@@ -160,8 +164,17 @@ export function DriverApp() {
             .map((offer) => offer.deliveryId)
         : [];
       if (newDeliveryIds.length > 0) {
+        const newOffers = visibleDeliveries.filter((offer) => newDeliveryIds.includes(offer.deliveryId));
         setRecentDeliveryIds((current) => new Set([...current, ...newDeliveryIds]));
         playDriverNewOrderSound();
+        newOffers.slice(0, 3).forEach((offer) => {
+          void showRestaurantOrderNotification({
+            title: `Новая доставка #${offer.orderNumber}`,
+            body: `${offer.restaurantName} · ${offer.deliveryAddress}`,
+            tag: `driver-delivery-${offer.deliveryId}`,
+            url: `${window.location.origin}${window.location.pathname}${window.location.search}#/driver/orders/${offer.deliveryId}`
+          });
+        });
         window.setTimeout(() => {
           setRecentDeliveryIds((current) => {
             const next = new Set(current);
@@ -309,6 +322,9 @@ function DriverHomeScreen({
   const setOnline = useDriverStore((state) => state.setOnline);
   const toggleOnline = async () => {
     const nextOnline = !profile.isOnline;
+    if (nextOnline) {
+      void requestRestaurantOrderNotificationPermission();
+    }
     setOnline(nextOnline);
     await setDriverAvailability(profile.id, nextOnline);
   };

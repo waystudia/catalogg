@@ -5,6 +5,12 @@ const getClientCatalogSlug = (client: { catalogs?: { slug?: string } | { slug?: 
   return Array.isArray(catalog) ? catalog[0]?.slug : catalog?.slug;
 };
 
+const metadataRole = (metadata: unknown) => {
+  if (!metadata || typeof metadata !== 'object') return '';
+  const role = (metadata as { role?: unknown }).role;
+  return typeof role === 'string' ? role : '';
+};
+
 export async function resolveLoginRedirect(email: string, password: string) {
   if (!supabase) {
     return email.trim().toLowerCase() === 'admin' && password.trim() === '1234' ? '/mangal/dashboard' : null;
@@ -19,6 +25,7 @@ export async function resolveLoginRedirect(email: string, password: string) {
   const { data: sessionData } = await supabase.auth.getSession();
   const user = sessionData.session?.user;
   if (!user) return '/';
+  const normalizedEmail = user.email?.trim().toLowerCase() || email.trim().toLowerCase();
 
   const { data: platformUser } = await supabase
     .from('users')
@@ -27,6 +34,16 @@ export async function resolveLoginRedirect(email: string, password: string) {
     .maybeSingle();
 
   if (platformUser?.role === 'driver') return '/driver';
+
+  const { data: platformUserByEmail } = await supabase
+    .from('users')
+    .select('role')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (platformUserByEmail?.role === 'driver' || metadataRole(user.user_metadata) === 'driver') {
+    return '/driver';
+  }
 
   const { data: client } = await supabase
     .from('clients')

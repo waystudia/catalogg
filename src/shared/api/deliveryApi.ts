@@ -120,6 +120,8 @@ type DriverRow = {
 type DriverUserRow = {
   id: string;
   auth_user_id: string | null;
+  email?: string | null;
+  role?: string | null;
 };
 
 type EarningRow = {
@@ -330,24 +332,53 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
 export const getAuthenticatedDriverId = async (): Promise<string | null> => {
   if (!supabase) return demoDriverId;
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData.session?.user.id) return null;
+  const authUser = sessionData.session?.user;
+  if (sessionError || !authUser?.id) return null;
 
-  const { data: publicUser, error: publicUserError } = await supabase
+  const metadataDriverId =
+    typeof authUser.user_metadata?.driver_id === 'string' ? authUser.user_metadata.driver_id : '';
+  if (metadataDriverId) {
+    const { data: metadataDriver, error: metadataDriverError } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('id', metadataDriverId)
+      .maybeSingle();
+    if (!metadataDriverError && metadataDriver) return (metadataDriver as Pick<DriverRow, 'id'>).id;
+  }
+
+  const { data: publicUserByAuth, error: publicUserByAuthError } = await supabase
     .from('users')
-    .select('id, auth_user_id')
-    .eq('auth_user_id', sessionData.session.user.id)
+    .select('id, auth_user_id, email, role')
+    .eq('auth_user_id', authUser.id)
     .eq('role', 'driver')
     .maybeSingle();
-  if (publicUserError || !publicUser) return null;
+  const publicUsers: DriverUserRow[] = [];
+  if (!publicUserByAuthError && publicUserByAuth) {
+    publicUsers.push(publicUserByAuth as DriverUserRow);
+  }
 
-  const { data: driver, error: driverError } = await supabase
-    .from('drivers')
-    .select('id')
-    .eq('user_id', (publicUser as DriverUserRow).id)
-    .maybeSingle();
-  if (driverError || !driver) return null;
+  if (authUser.email) {
+    const { data: publicUserByEmail, error: publicUserByEmailError } = await supabase
+      .from('users')
+      .select('id, auth_user_id, email, role')
+      .eq('email', authUser.email.trim().toLowerCase())
+      .eq('role', 'driver')
+      .maybeSingle();
+    if (!publicUserByEmailError && publicUserByEmail) {
+      publicUsers.push(publicUserByEmail as DriverUserRow);
+    }
+  }
 
-  return (driver as Pick<DriverRow, 'id'>).id;
+  for (const publicUser of publicUsers) {
+    const { data: driver, error: driverError } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('user_id', publicUser.id)
+      .maybeSingle();
+    if (!driverError && driver) return (driver as Pick<DriverRow, 'id'>).id;
+  }
+
+  return null;
 };
 
 const resolveCurrentDriverId = async (fallbackDriverId: string) => {

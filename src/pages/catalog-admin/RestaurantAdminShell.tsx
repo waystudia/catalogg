@@ -1059,6 +1059,20 @@ function OrderDetails({
         </button>
         <button type="button" onClick={() => onStatusChange(order, 'completed')}>Завершить</button>
         <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>
+        {!['cancelled', 'canceled', 'completed'].includes(order.status) && (
+          <button
+            className="ra-order-actions__danger"
+            type="button"
+            onClick={() => {
+              if (window.confirm('Удалить заказ из работы ресторана?')) {
+                onStatusChange(order, 'cancelled');
+              }
+            }}
+          >
+            <Trash2 />
+            Удалить заказ
+          </button>
+        )}
       </div>
     </aside>
   );
