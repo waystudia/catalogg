@@ -152,7 +152,9 @@ type VerifyPickupQrResult =
   | { readonly ok: false; readonly reason: 'mismatch' | 'expired' | 'not_assigned' };
 
 export const canSendOrderToDelivery = (order: Pick<OrderLifecycleSnapshot, 'orderType' | 'status' | 'paymentStatus'>) =>
-  order.orderType === 'delivery' && order.status === 'ready' && order.paymentStatus === 'confirmed';
+  order.orderType === 'delivery' &&
+  order.status === 'ready' &&
+  (order.paymentStatus === 'confirmed' || order.paymentStatus === 'unpaid');
 
 export const createPickupQrToken = ({ orderId, driverId, nonce }: CreatePickupQrTokenInput) =>
   [orderId.trim(), driverId.trim(), nonce.trim()].join(':');
@@ -165,16 +167,27 @@ const hasCoordinates = (point: RoutePoint) =>
 
 const formatCoordinates = (point: RoutePoint) => `${point.lat},${point.lng}`;
 
+const coordinatesInAddress = (address: string): RoutePoint | null => {
+  const match = address.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if (!match) return null;
+  const lat = Number(match[1]);
+  const lng = Number(match[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng, address };
+};
+
 export const buildYandexMapsRouteUrl = ({ from, to }: BuildYandexMapsRouteUrlInput) => {
   const params = new URLSearchParams();
+  const exactTo = hasCoordinates(to) ? to : coordinatesInAddress(to.address) ?? to;
+  const exactFrom = from && hasCoordinates(from) ? from : from ? coordinatesInAddress(from.address) ?? from : undefined;
 
-  if (from && hasCoordinates(from) && hasCoordinates(to)) {
-    params.set('rtext', `${formatCoordinates(from)}~${formatCoordinates(to)}`);
+  if (exactFrom && hasCoordinates(exactFrom) && hasCoordinates(exactTo)) {
+    params.set('rtext', `${formatCoordinates(exactFrom)}~${formatCoordinates(exactTo)}`);
     params.set('rtt', 'auto');
     return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;
   }
 
-  params.set('text', hasCoordinates(to) ? formatCoordinates(to) : to.address.trim());
+  params.set('text', hasCoordinates(exactTo) ? formatCoordinates(exactTo) : exactTo.address.trim());
   return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;
 };
 

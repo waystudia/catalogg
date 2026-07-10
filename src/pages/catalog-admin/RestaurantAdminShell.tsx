@@ -1071,7 +1071,7 @@ function OrderDetails({
         {order.status === 'ready' && order.fulfillmentType === 'delivery' && (
           <button
             type="button"
-            disabled={order.paymentStatus !== 'confirmed'}
+            disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
             onClick={() => onStatusChange(order, 'waiting_driver')}
           >
             Вызвать доставку

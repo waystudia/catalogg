@@ -503,15 +503,17 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
   if (!client) return () => undefined;
 
   const fetchOrder = async () => {
-    const { data, error } = await client
-      .from('orders')
-      .select('id, status, payment_status, deliveries(driver_id, drivers(name, phone))')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    if (error || !data) return;
-    const delivery = Array.isArray(data.deliveries) ? data.deliveries[0] : data.deliveries;
-    const driver = Array.isArray(delivery?.drivers) ? delivery?.drivers[0] : delivery?.drivers;
+    const { data: statusData, error: statusError } = await client.rpc('get_public_restaurant_order_status', {
+      target_order_id: orderId
+    });
+    if (statusError || !statusData || typeof statusData !== 'object') return;
+    const status = statusData as {
+      id?: unknown;
+      status?: unknown;
+      payment_status?: unknown;
+      driver_name?: unknown;
+      driver_phone?: unknown;
+    };
     const { data: trackingData } = await client.rpc('get_public_order_tracking', {
       target_order_id: orderId
     });
@@ -524,11 +526,11 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       : null;
 
     onChange({
-      id: String(data.id),
-      status: String(data.status),
-      paymentStatus: data.payment_status as ClientPaymentStatus,
-      driverName: driver?.name ? String(driver.name) : undefined,
-      driverPhone: driver?.phone ? String(driver.phone) : undefined,
+      id: String(status.id ?? orderId),
+      status: String(status.status ?? 'new'),
+      paymentStatus: status.payment_status as ClientPaymentStatus,
+      driverName: status.driver_name ? String(status.driver_name) : undefined,
+      driverPhone: status.driver_phone ? String(status.driver_phone) : undefined,
       driverLat: tracking?.driver_lat ?? null,
       driverLng: tracking?.driver_lng ?? null,
       driverLocationAt: tracking?.driver_location_at ?? null

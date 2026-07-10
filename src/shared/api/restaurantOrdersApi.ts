@@ -495,7 +495,7 @@ export async function updateRestaurantOrderStatus(
       paymentStatus: order.paymentStatus
     })
   ) {
-    throw new Error('Подтвердите оплату перед отправкой заказа водителю.');
+    throw new Error('Укажите способ оплаты или подтвердите оплату перед отправкой заказа водителю.');
   }
 
   const now = new Date().toISOString();

@@ -92,6 +92,7 @@ describe('order delivery lifecycle', () => {
     );
 
     assert.equal(canSendOrderToDelivery(order()), true);
+    assert.equal(canSendOrderToDelivery(order({ paymentStatus: 'unpaid' })), true);
   });
 
   it('does not request a driver for dine-in and pickup orders even when payment is confirmed', () => {
@@ -182,6 +183,11 @@ describe('order delivery lifecycle', () => {
     assert.equal(
       buildYandexMapsRouteUrl({ to: { lat: null, lng: null, address: 'ул. Ленина, 123' } }),
       'https://yandex.ru/maps/?text=%D1%83%D0%BB.+%D0%9B%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0%2C+123'
+    );
+
+    assert.equal(
+      buildYandexMapsRouteUrl({ to: { lat: null, lng: null, address: 'Цоци-Юрт, 43.23131, 46.0033982' } }),
+      'https://yandex.ru/maps/?text=43.23131%2C46.0033982'
     );
   });
 
