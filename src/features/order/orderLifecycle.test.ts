@@ -186,8 +186,16 @@ describe('order delivery lifecycle', () => {
     );
 
     assert.equal(
+      buildYandexMapsRouteUrl({
+        from: { lat: null, lng: null, address: 'Rizih' },
+        to: { lat: 43.23131, lng: 46.0033982, address: 'Цоци-Юрт' }
+      }),
+      'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'
+    );
+
+    assert.equal(
       buildYandexMapsRouteUrl({ to: { lat: null, lng: null, address: 'Цоци-Юрт, 43.23131, 46.0033982' } }),
-      'https://yandex.ru/maps/?text=43.23131%2C46.0033982'
+      'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'
     );
   });
 
@@ -205,7 +213,7 @@ describe('order delivery lifecycle', () => {
 
     assert.equal(
       availableView.routeToRestaurantUrl,
-      'https://yandex.ru/maps/?text=43.322%2C45.705'
+      'https://yandex.ru/maps/?rtext=~43.322%2C45.705&rtt=auto'
     );
     assert.equal(availableView.routeToClientUrl, undefined);
     assert.equal(

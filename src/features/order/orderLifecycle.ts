@@ -187,6 +187,12 @@ export const buildYandexMapsRouteUrl = ({ from, to }: BuildYandexMapsRouteUrlInp
     return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;
   }
 
+  if (hasCoordinates(exactTo)) {
+    params.set('rtext', `~${formatCoordinates(exactTo)}`);
+    params.set('rtt', 'auto');
+    return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;
+  }
+
   params.set('text', hasCoordinates(exactTo) ? formatCoordinates(exactTo) : exactTo.address.trim());
   return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;
 };
