@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { resolveStoredDeliveryLocation } from '../../src/shared/deliveryLocation';
+import {
+  DELIVERY_GEOLOCATION_OPTIONS,
+  DELIVERY_LOCATION_TIMEOUT_MS,
+  DELIVERY_TARGET_ACCURACY_M,
+  resolveStoredDeliveryLocation
+} from '../../src/shared/deliveryLocation';
 
 describe('stored delivery location', () => {
+  it('keeps precise browser tracking settings for delivery GPS capture', () => {
+    expect(DELIVERY_TARGET_ACCURACY_M).toBe(10);
+    expect(DELIVERY_LOCATION_TIMEOUT_MS).toBe(20_000);
+    expect(DELIVERY_GEOLOCATION_OPTIONS).toEqual({
+      enableHighAccuracy: true,
+      timeout: DELIVERY_LOCATION_TIMEOUT_MS,
+      maximumAge: 0
+    });
+  });
+
   it('prefers valid explicit numeric fields and normalizes accuracy', () => {
     expect(resolveStoredDeliveryLocation({
       lat: '43.3021000',

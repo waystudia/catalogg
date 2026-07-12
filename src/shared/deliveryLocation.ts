@@ -1,5 +1,13 @@
 export type DeliveryCoordinates = Pick<GeolocationCoordinates, 'latitude' | 'longitude' | 'accuracy'>;
 
+export const DELIVERY_TARGET_ACCURACY_M = 10;
+export const DELIVERY_LOCATION_TIMEOUT_MS = 20_000;
+export const DELIVERY_GEOLOCATION_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: DELIVERY_LOCATION_TIMEOUT_MS,
+  maximumAge: 0
+};
+
 export const chooseMoreAccuratePosition = <T extends DeliveryCoordinates>(
   current: T | null,
   candidate: T

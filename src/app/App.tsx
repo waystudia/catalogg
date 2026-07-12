@@ -131,6 +131,9 @@ import {
 import { imageFileToDataUrl } from '../shared/images';
 import {
   chooseMoreAccuratePosition,
+  DELIVERY_GEOLOCATION_OPTIONS,
+  DELIVERY_LOCATION_TIMEOUT_MS,
+  DELIVERY_TARGET_ACCURACY_M,
   deliveryPositionIsAccurateEnough,
   getDeliveryGeolocationErrorMessage,
   normalizeDeliveryCoordinates,
@@ -161,8 +164,6 @@ import {
 const queryClient = new QueryClient();
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
-const DELIVERY_TARGET_ACCURACY_M = 35;
-const DELIVERY_LOCATION_TIMEOUT_MS = 15_000;
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatSettlementList = (values: string[]) => values.join('\n');
 const buildDeliveryAddress = (city: string, settlement: string, address: string) =>
@@ -1699,7 +1700,7 @@ function CheckoutScreen({
       const watchId = navigator.geolocation.watchPosition(
         handlePosition,
         handleError,
-        { enableHighAccuracy: true, timeout: DELIVERY_LOCATION_TIMEOUT_MS, maximumAge: 0 }
+        DELIVERY_GEOLOCATION_OPTIONS
       );
       const timeoutId = window.setTimeout(
         () => finish(bestCoordinates, 'Не удалось получить точную геолокацию. Проверьте адрес вручную.'),

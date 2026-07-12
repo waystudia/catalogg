@@ -2,7 +2,7 @@
 const config = {
   mutate: [
     'src/shared/pwaSession.ts:37:0-87:0',
-    'src/shared/deliveryLocation.ts:45:0-87:0'
+    'src/shared/deliveryLocation.ts:1:0-95:0'
   ],
   testRunner: 'vitest',
   vitest: {

@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { clientPlatformSnapshot, fallbackPaymentSettings } from '../../features/client-platform/mockData';
@@ -77,7 +77,16 @@ import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
-import { getDeliveryGeolocationErrorMessage } from '../../shared/deliveryLocation';
+import {
+  chooseMoreAccuratePosition,
+  DELIVERY_GEOLOCATION_OPTIONS,
+  DELIVERY_LOCATION_TIMEOUT_MS,
+  DELIVERY_TARGET_ACCURACY_M,
+  deliveryPositionIsAccurateEnough,
+  getDeliveryGeolocationErrorMessage,
+  normalizeDeliveryCoordinates,
+  type DeliveryCoordinates
+} from '../../shared/deliveryLocation';
 import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
 import './client-platform.css';
 
@@ -1085,6 +1094,39 @@ function AddressPage({ restaurant }: { restaurant: ClientRestaurant }) {
   const [newAddress, setNewAddress] = useState('');
   const [geoError, setGeoError] = useState('');
   const [isLocating, setIsLocating] = useState(false);
+  const locationSessionRef = useRef<{ watchId: number | null; timeoutId: number | null }>({
+    watchId: null,
+    timeoutId: null
+  });
+
+  const clearLocationSession = useCallback(() => {
+    const { watchId, timeoutId } = locationSessionRef.current;
+    if (watchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+    locationSessionRef.current = { watchId: null, timeoutId: null };
+  }, []);
+
+  const applyClientCoordinates = useCallback(
+    (coordinates: DeliveryCoordinates) => {
+      const { lat, lng, accuracyM } = normalizeDeliveryCoordinates(coordinates);
+      updateDraft(restaurant.slug, {
+        deliveryLat: lat,
+        deliveryLng: lng,
+        deliveryAccuracyM: accuracyM,
+        deliveryAddress: draft.deliveryAddress || `${lat}, ${lng}`
+      });
+      setTab('map');
+
+      if (accuracyM > DELIVERY_TARGET_ACCURACY_M) {
+        setGeoError('Получили лучшее доступное местоположение, но точность ниже желаемой. Проверьте адрес.');
+      }
+    },
+    [draft.deliveryAddress, restaurant.slug, updateDraft]
+  );
 
   const locateClient = () => {
     if (!navigator.geolocation) {
@@ -1092,29 +1134,60 @@ function AddressPage({ restaurant }: { restaurant: ClientRestaurant }) {
       return;
     }
 
+    clearLocationSession();
     setIsLocating(true);
     setGeoError('');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextLat = Number(position.coords.latitude.toFixed(7));
-        const nextLng = Number(position.coords.longitude.toFixed(7));
-        const accuracyM = Math.round(position.coords.accuracy);
-        updateDraft(restaurant.slug, {
-          deliveryLat: nextLat,
-          deliveryLng: nextLng,
-          deliveryAccuracyM: accuracyM,
-          deliveryAddress: draft.deliveryAddress || `${nextLat}, ${nextLng}`
-        });
-        setTab('map');
-        setIsLocating(false);
-      },
-      (error) => {
-        setGeoError(getDeliveryGeolocationErrorMessage(error));
-        setIsLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 60_000 }
-    );
+
+    let bestCoordinates: DeliveryCoordinates | null = null;
+    let finished = false;
+
+    const finish = (coordinates: DeliveryCoordinates | null, message = '') => {
+      if (finished) return;
+      finished = true;
+      clearLocationSession();
+
+      if (coordinates) {
+        applyClientCoordinates(coordinates);
+      } else {
+        setGeoError(message || 'Не удалось получить геолокацию. Проверьте разрешение браузера.');
+      }
+
+      setIsLocating(false);
+    };
+
+    const handlePosition = (position: GeolocationPosition) => {
+      bestCoordinates = chooseMoreAccuratePosition(bestCoordinates, position.coords);
+
+      if (deliveryPositionIsAccurateEnough(bestCoordinates, DELIVERY_TARGET_ACCURACY_M)) {
+        finish(bestCoordinates);
+      }
+    };
+
+    const handleError = (error: GeolocationPositionError) => {
+      if (bestCoordinates) {
+        finish(bestCoordinates);
+        return;
+      }
+      finish(null, getDeliveryGeolocationErrorMessage(error));
+    };
+
+    try {
+      const watchId = navigator.geolocation.watchPosition(
+        handlePosition,
+        handleError,
+        DELIVERY_GEOLOCATION_OPTIONS
+      );
+      const timeoutId = window.setTimeout(
+        () => finish(bestCoordinates, 'Не удалось получить точную геолокацию. Проверьте адрес вручную.'),
+        DELIVERY_LOCATION_TIMEOUT_MS + 1_000
+      );
+      locationSessionRef.current = { watchId, timeoutId };
+    } catch {
+      finish(null, 'Не удалось запустить геолокацию. Проверьте разрешение браузера.');
+    }
   };
+
+  useEffect(() => clearLocationSession, [clearLocationSession]);
 
   const selectMapPoint = ({ lat, lng }: { lat: number; lng: number }) => {
     const nextLat = Number(lat.toFixed(7));

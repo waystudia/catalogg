@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delivery Location Precision"
+  short_description: "Protect precise client delivery GPS tracking."
+  default_prompt: "Preserve WayCatalog delivery location precision while changing checkout or map code."

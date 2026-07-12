@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  DELIVERY_GEOLOCATION_OPTIONS,
+  DELIVERY_LOCATION_TIMEOUT_MS,
+  DELIVERY_TARGET_ACCURACY_M,
   chooseMoreAccuratePosition,
   deliveryPositionIsAccurateEnough,
   formatDeliveryLocationNote,
@@ -18,6 +21,16 @@ const coordinates = (overrides: Partial<DeliveryCoordinates> = {}): DeliveryCoor
 });
 
 describe('delivery location precision', () => {
+  it('uses a strict delivery tracking target and never accepts cached browser positions', () => {
+    assert.equal(DELIVERY_TARGET_ACCURACY_M, 10);
+    assert.equal(DELIVERY_LOCATION_TIMEOUT_MS, 20_000);
+    assert.deepEqual(DELIVERY_GEOLOCATION_OPTIONS, {
+      enableHighAccuracy: true,
+      timeout: DELIVERY_LOCATION_TIMEOUT_MS,
+      maximumAge: 0
+    });
+  });
+
   it('keeps whichever coordinate reading has the better accuracy', () => {
     const weak = coordinates({ accuracy: 120 });
     const precise = coordinates({ latitude: 43.4, longitude: 45.8, accuracy: 18 });
