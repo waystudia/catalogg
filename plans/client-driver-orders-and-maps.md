@@ -1,7 +1,7 @@
 # Plan: Client Order History, Driver Offers, and Chechnya Maps
 
 **Branch**: current workspace
-**Status**: Active — Slice 5 implemented and verified locally; database deployment awaits Supabase CLI authentication and user review
+**Status**: Active — Slices 4 and 5 implemented and verified; driver pickup RPC deployed to linked Supabase; awaiting user review
 
 ## Goal
 
@@ -14,10 +14,10 @@ Clients can reopen persisted orders from their profile and track the restaurant 
 - [ ] Client order detail shows live order/payment/delivery status, ordered items and total, restaurant address/location, and assigned driver name/phone/current location when available.
 - [ ] A driver can open every visible offer by its delivery ID, including after a direct notification/deep link or realtime refresh, and sees delivery compensation, order total, restaurant (point A), client destination (point B), and no client PII before acceptance beyond the delivery destination already exposed by the dispatch contract.
 - [ ] Accept assigns the delivery to the authenticated driver; decline removes it only for that driver and keeps it available to other eligible drivers.
-- [ ] The delivery-location picker supports an explicit city/village search constrained to the Chechen Republic, fresh high-accuracy browser geolocation, manual pin selection, and the existing visible low-accuracy warning.
+- [x] The delivery-location picker supports an explicit city/village search constrained to the Chechen Republic, fresh high-accuracy browser geolocation, manual pin selection, and the existing visible low-accuracy warning.
 - [x] Client and driver maps provide switchable detailed street and satellite/hybrid layers, interactive pan/zoom, settlements/streets, and an actual road route when the routing service succeeds; usable points/straight fallback remain when it fails.
 - [x] The driver always has explicit Yandex Maps actions for “Маршрут до ресторана” and “Маршрут до клиента”; the restaurant action is primary before pickup, and the client action becomes primary after QR handoff confirmation or “Я взял заказ”.
-- [ ] Public OSM attribution is visible, search is submit-only and throttled/cached, provider endpoints are configurable, and no background/bulk geocoding or tile prefetch is introduced.
+- [x] Public OSM attribution is visible, search is submit-only and throttled/cached, provider endpoints are configurable, and no background/bulk geocoding or tile prefetch is introduced.
 
 ## Slices
 
@@ -100,6 +100,6 @@ Before each slice handoff:
 
 ## Deployment Notes
 
-- Database changes require applying `supabase/waycatalog_delivery.sql` to the linked Supabase project after authentication; frontend compatibility must remain usable before migration.
+- The `confirm_driver_pickup(uuid)` function from `supabase/waycatalog_delivery.sql` was applied to the linked Supabase project on 2026-07-15 and verified as executable by `authenticated` with `search_path=public`.
 - OSM public services are best-effort. Tile/geocoder/router base URLs must remain configurable so production can move to a hosted or self-hosted provider without a client release.
 - Nominatim public search must remain explicit-submit only, at most one request per second per application, cached, visibly attributed, and suitable only for moderate traffic.

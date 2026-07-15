@@ -8,6 +8,8 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const clientApp = readFileSync(resolve(repoRoot, 'src/pages/client-platform/ClientPlatformApp.tsx'), 'utf8');
 const restaurantApp = readFileSync(resolve(repoRoot, 'src/app/App.tsx'), 'utf8');
 const deliveryLocation = readFileSync(resolve(repoRoot, 'src/shared/deliveryLocation.ts'), 'utf8');
+const deliveryMapPicker = readFileSync(resolve(repoRoot, 'src/shared/DeliveryMapPicker.tsx'), 'utf8');
+const deliveryGeocoder = readFileSync(resolve(repoRoot, 'src/shared/deliveryGeocoder.ts'), 'utf8');
 
 describe('client delivery location precision contract', () => {
   it('uses one strict shared target for restaurant checkout and client platform checkout', () => {
@@ -24,5 +26,15 @@ describe('client delivery location precision contract', () => {
     assert.doesNotMatch(clientApp, /navigator\.geolocation\.getCurrentPosition/);
     assert.match(clientApp, /chooseMoreAccuratePosition\(bestCoordinates, position\.coords\)/);
     assert.match(clientApp, /deliveryPositionIsAccurateEnough\(bestCoordinates, DELIVERY_TARGET_ACCURACY_M\)/);
+  });
+
+  it('keeps map search explicit, Chechnya-bounded, and wired into both checkout paths', () => {
+    assert.match(deliveryMapPicker, /onSubmit=/);
+    assert.doesNotMatch(deliveryMapPicker, /onChange=\{[^}]*searchLocations/);
+    assert.match(deliveryGeocoder, /minimumSearchIntervalMs = 1_000/);
+    assert.match(deliveryGeocoder, /'ISO3166-2-lvl4'\] !== 'RU-CE'/);
+    assert.match(deliveryGeocoder, /bounded', '1'/);
+    assert.match(restaurantApp, /onSearchSelect=\{applySearchedDeliveryPlace\}/);
+    assert.match(clientApp, /onSearchSelect=\{selectSearchedMapPoint\}/);
   });
 });

@@ -71,6 +71,7 @@ import {
   subscribeClientOrderRealtime
 } from '../../shared/api/clientPlatformApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
+import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
@@ -1201,6 +1202,10 @@ function AddressPage({ restaurant }: { restaurant: ClientRestaurant }) {
     });
   };
 
+  const selectSearchedMapPoint = (result: DeliveryLocationSearchResult) => {
+    updateDraft(restaurant.slug, { deliveryAddress: result.label });
+  };
+
   const saveNewAddress = () => {
     if (!newAddress.trim()) return;
     const address: ClientAddress = {
@@ -1310,6 +1315,7 @@ function AddressPage({ restaurant }: { restaurant: ClientRestaurant }) {
               error={geoError}
               onLocate={locateClient}
               onChange={selectMapPoint}
+              onSearchSelect={selectSearchedMapPoint}
             />
           </section>
         )}

@@ -140,6 +140,7 @@ import {
   type DeliveryCoordinates
 } from '../shared/deliveryLocation';
 import { DeliveryMapPicker } from '../shared/DeliveryMapPicker';
+import type { DeliveryLocationSearchResult } from '../shared/deliveryGeocoder';
 import { DeliveryTrackingMap } from '../shared/DeliveryTrackingMap';
 import {
   loadPaymentSettings,
@@ -1653,6 +1654,21 @@ function CheckoutScreen({
     [deliveryAddress, setOrder]
   );
 
+  const applySearchedDeliveryPlace = useCallback(
+    (result: DeliveryLocationSearchResult) => {
+      const isKnownSettlement = settlementOptions.some(
+        (settlement) => normalizeSettlementName(settlement) === normalizeSettlementName(result.name)
+      );
+      setUsesCustomSettlement(!isKnownSettlement);
+      setCustomSettlement(isKnownSettlement ? '' : result.name);
+      setOrder({
+        deliverySettlement: result.name,
+        deliveryAddress: result.label
+      });
+    },
+    [setOrder, settlementOptions]
+  );
+
   const locateDeliveryAddress = () => {
     if (!navigator.geolocation) {
       setGeoError('Геолокация недоступна в этом браузере.');
@@ -2010,6 +2026,7 @@ function CheckoutScreen({
                   error={geoError}
                   onLocate={locateDeliveryAddress}
                   onChange={applyManualDeliveryPoint}
+                  onSearchSelect={applySearchedDeliveryPlace}
                   onDone={() => setIsDeliveryMapOpen(false)}
                 />
               </div>
