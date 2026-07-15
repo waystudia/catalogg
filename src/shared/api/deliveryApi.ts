@@ -591,6 +591,17 @@ export async function confirmDeliveryPickupQr(deliveryId: string, token: string)
   return Boolean(data);
 }
 
+export async function confirmDriverPickup(deliveryId: string): Promise<boolean> {
+  if (!supabase) return true;
+
+  const { data, error } = await supabase.rpc('confirm_driver_pickup', {
+    target_delivery_id: deliveryId
+  });
+
+  if (error) throw error;
+  return Boolean(data);
+}
+
 export function subscribeToDriverRealtime(driverId: string, onChange: () => void) {
   if (!supabase) return () => undefined;
 

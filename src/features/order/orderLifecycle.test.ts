@@ -6,6 +6,8 @@ import {
   buildYandexMapsRouteAppUrl,
   buildYandexMapsRouteUrl,
   findDeliveryPrice,
+  getDriverRoutePoints,
+  getDriverNavigationStage,
   canSendOrderToDelivery,
   createPickupQrToken,
   rotatePickupQr,
@@ -220,5 +222,42 @@ describe('order delivery lifecycle', () => {
       assignedView.routeToClientUrl,
       'https://yandex.ru/maps/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'
     );
+  });
+
+  it('switches the primary navigation leg only after the restaurant handoff or driver pickup confirmation', () => {
+    assert.deepEqual(getDriverNavigationStage('assigned'), {
+      activeLeg: 'restaurant',
+      canConfirmPickup: false,
+      clientRouteAvailable: false
+    });
+    assert.deepEqual(getDriverNavigationStage('arrived_to_restaurant'), {
+      activeLeg: 'restaurant',
+      canConfirmPickup: true,
+      clientRouteAvailable: false
+    });
+    assert.deepEqual(getDriverNavigationStage('handed_over'), {
+      activeLeg: 'client',
+      canConfirmPickup: false,
+      clientRouteAvailable: true
+    });
+    assert.deepEqual(getDriverNavigationStage('on_the_way'), {
+      activeLeg: 'client',
+      canConfirmPickup: false,
+      clientRouteAvailable: true
+    });
+  });
+
+  it('routes from the driver current position to the active workflow destination', () => {
+    const points = {
+      driver: { lat: 43.31, lng: 45.69 },
+      restaurant: { lat: 43.322, lng: 45.705 },
+      client: { lat: 43.318123, lng: 45.698456 }
+    };
+
+    assert.deepEqual(getDriverRoutePoints({ status: 'assigned', ...points }), [points.driver, points.restaurant]);
+    assert.deepEqual(getDriverRoutePoints({ status: 'arrived_to_restaurant', ...points }), [points.driver, points.restaurant]);
+    assert.deepEqual(getDriverRoutePoints({ status: 'handed_over', ...points }), [points.driver, points.client]);
+    assert.deepEqual(getDriverRoutePoints({ status: 'on_the_way', ...points }), [points.driver, points.client]);
+    assert.deepEqual(getDriverRoutePoints({ status: 'assigned', ...points, driver: null }), [points.restaurant]);
   });
 });

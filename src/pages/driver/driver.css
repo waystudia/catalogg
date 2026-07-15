@@ -622,6 +622,25 @@
   width: 100%;
 }
 
+.driver-yandex-navigation {
+  display: grid;
+  gap: 8px;
+}
+
+.driver-yandex-navigation__routes {
+  display: grid;
+  gap: 8px;
+}
+
+.driver-yandex-navigation__routes a,
+.driver-yandex-navigation__routes a:visited {
+  text-decoration: none;
+}
+
+.driver-yandex-navigation__routes [aria-current='step'] {
+  box-shadow: 0 10px 24px rgba(91, 61, 244, 0.24);
+}
+
 .driver-action-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

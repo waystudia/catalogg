@@ -774,6 +774,51 @@ $$;
 
 grant execute on function public.confirm_delivery_pickup_qr(uuid, text) to authenticated;
 
+create or replace function public.confirm_driver_pickup(
+  target_delivery_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_order_id uuid;
+  viewer_driver_id uuid := public.current_driver_id();
+begin
+  if viewer_driver_id is null then
+    raise exception 'Driver authentication is required';
+  end if;
+
+  update public.deliveries
+  set status = 'handed_over',
+      picked_up_at = now()
+  where id = target_delivery_id
+    and driver_id = viewer_driver_id
+    and status = 'arrived_to_restaurant'
+  returning order_id into target_order_id;
+
+  if target_order_id is null then
+    return false;
+  end if;
+
+  update public.orders
+  set status = 'picked_up'
+  where id = target_order_id;
+
+  update public.drivers
+  set status = 'picked_up'
+  where id = viewer_driver_id;
+
+  insert into public.delivery_status_history (delivery_id, status, comment)
+  values (target_delivery_id, 'handed_over', 'driver confirmed pickup');
+
+  return true;
+end;
+$$;
+
+grant execute on function public.confirm_driver_pickup(uuid) to authenticated;
+
 create or replace function public.complete_driver_delivery(
   target_delivery_id uuid
 )

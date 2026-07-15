@@ -16,8 +16,22 @@ export type DeliveryMapCoordinateInput = {
 export type OsmTile = {
   key: string;
   url: string;
+  overlayUrls?: readonly string[];
   x: number;
   y: number;
+};
+
+export type DeliveryMapStyle = 'street' | 'satellite';
+
+export type DeliveryMapTile = OsmTile & {
+  readonly overlayUrls: readonly string[];
+};
+
+type BuildMapTileGridInput = {
+  readonly center: DeliveryMapCoordinates;
+  readonly zoom: number;
+  readonly mapSize: number;
+  readonly style: DeliveryMapStyle;
 };
 
 const tileSize = 256;
@@ -139,3 +153,55 @@ export const buildOsmTileGrid = (
 
   return tiles;
 };
+
+const streetTileTemplate = import.meta.env?.VITE_STREET_TILE_URL ??
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const satelliteTileTemplate = import.meta.env?.VITE_SATELLITE_TILE_URL ??
+  'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const satelliteOverlayTemplates = [
+  import.meta.env?.VITE_SATELLITE_ROADS_TILE_URL ??
+    'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
+  import.meta.env?.VITE_SATELLITE_LABELS_TILE_URL ??
+    'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+] as const;
+
+const resolveTileUrl = ({
+  template,
+  zoom,
+  tileX,
+  tileY
+}: {
+  readonly template: string;
+  readonly zoom: number;
+  readonly tileX: number;
+  readonly tileY: number;
+}) => template
+  .replace('{z}', String(zoom))
+  .replace('{x}', String(tileX))
+  .replace('{y}', String(tileY));
+
+export const buildMapTileGrid = ({
+  center,
+  zoom,
+  mapSize,
+  style
+}: BuildMapTileGridInput): DeliveryMapTile[] => buildOsmTileGrid(center, zoom, mapSize).map((tile) => {
+  const [, tileX, tileY] = tile.key.split('-');
+  const coordinates = {
+    zoom,
+    tileX: Number(tileX),
+    tileY: Number(tileY)
+  };
+  const isSatellite = style === 'satellite';
+
+  return {
+    ...tile,
+    url: resolveTileUrl({
+      template: isSatellite ? satelliteTileTemplate : streetTileTemplate,
+      ...coordinates
+    }),
+    overlayUrls: isSatellite
+      ? satelliteOverlayTemplates.map((template) => resolveTileUrl({ template, ...coordinates }))
+      : []
+  };
+});

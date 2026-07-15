@@ -38,6 +38,24 @@ export type DriverStatus =
   | 'at_client'
   | 'completed';
 
+export type DriverNavigationStage = {
+  readonly activeLeg: 'restaurant' | 'client';
+  readonly canConfirmPickup: boolean;
+  readonly clientRouteAvailable: boolean;
+};
+
+export type DriverRouteCoordinate = {
+  readonly lat: number | null;
+  readonly lng: number | null;
+};
+
+type GetDriverRoutePointsInput = {
+  readonly status: DeliveryStatus;
+  readonly driver?: DriverRouteCoordinate | null;
+  readonly restaurant: DriverRouteCoordinate;
+  readonly client: DriverRouteCoordinate;
+};
+
 export type OrderLifecycleSnapshot = {
   readonly id: string;
   readonly orderType: OrderType;
@@ -155,6 +173,30 @@ export const canSendOrderToDelivery = (order: Pick<OrderLifecycleSnapshot, 'orde
   order.orderType === 'delivery' &&
   order.status === 'ready' &&
   (order.paymentStatus === 'confirmed' || order.paymentStatus === 'unpaid');
+
+export const getDriverNavigationStage = (status: DeliveryStatus): DriverNavigationStage => {
+  const clientRouteAvailable = status === 'handed_over' || status === 'on_the_way' || status === 'arrived_to_client';
+  return {
+    activeLeg: clientRouteAvailable ? 'client' : 'restaurant',
+    canConfirmPickup: status === 'arrived_to_restaurant',
+    clientRouteAvailable
+  };
+};
+
+const isDriverRouteCoordinate = (point: DriverRouteCoordinate | null | undefined): point is { lat: number; lng: number } =>
+  typeof point?.lat === 'number' && Number.isFinite(point.lat) &&
+  typeof point.lng === 'number' && Number.isFinite(point.lng);
+
+export const getDriverRoutePoints = ({
+  status,
+  driver,
+  restaurant,
+  client
+}: GetDriverRoutePointsInput): ReadonlyArray<{ lat: number; lng: number }> => {
+  const destination = getDriverNavigationStage(status).activeLeg === 'client' ? client : restaurant;
+  if (!isDriverRouteCoordinate(destination)) return [];
+  return isDriverRouteCoordinate(driver) ? [driver, destination] : [destination];
+};
 
 export const createPickupQrToken = ({ orderId, driverId, nonce }: CreatePickupQrTokenInput) =>
   [orderId.trim(), driverId.trim(), nonce.trim()].join(':');

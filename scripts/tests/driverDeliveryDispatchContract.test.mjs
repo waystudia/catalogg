@@ -66,4 +66,15 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(acceptSql, /target_driver_id is distinct from public\.current_driver_id\(\)/);
     assert.match(acceptSql, /public\.driver_serves_delivery_location/);
   });
+
+  it('lets only the assigned driver confirm pickup without QR and advances the order atomically', () => {
+    const pickupSql = extractFunction('confirm_driver_pickup');
+
+    assert.match(pickupSql, /public\.current_driver_id\(\)/);
+    assert.match(pickupSql, /update public\.deliveries[\s\S]*status = 'handed_over'/);
+    assert.match(pickupSql, /where id = target_delivery_id[\s\S]*driver_id = viewer_driver_id[\s\S]*status = 'arrived_to_restaurant'/);
+    assert.match(pickupSql, /returning order_id into target_order_id/);
+    assert.match(pickupSql, /update public\.orders[\s\S]*status = 'picked_up'/);
+    assert.match(driverApi, /rpc\('confirm_driver_pickup'/);
+  });
 });

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildMapTileGrid,
   buildOsmTileGrid,
   getMapCenter,
   getMapZoomForPoints,
@@ -8,6 +9,7 @@ import {
   coordinatesToMapPoint,
   type DeliveryMapPoint
 } from './deliveryMap';
+import { buildRoadRouteRequestUrl, parseRoadRoutePayload } from './deliveryNavigation';
 
 describe('delivery map picker geometry', () => {
   it('centers a tracking map on all available delivery points', () => {
@@ -56,5 +58,80 @@ describe('delivery map picker geometry', () => {
 
     assert.equal(tiles.length > 0, true);
     assert.equal(tiles.every((tile) => tile.url.startsWith('https://tile.openstreetmap.org/16/')), true);
+  });
+
+  it('builds a labeled satellite tile stack without changing tile coordinates', () => {
+    const tiles = buildMapTileGrid({
+      center: { lat: 43.3181235, lng: 45.6987654 },
+      zoom: 16,
+      mapSize: 320,
+      style: 'satellite'
+    });
+
+    assert.equal(tiles.length > 0, true);
+    assert.equal(
+      tiles.every((tile) => tile.url.includes('/World_Imagery/MapServer/tile/16/')),
+      true
+    );
+    assert.equal(
+      tiles.every((tile) => tile.overlayUrls.some((url) => url.includes('/World_Transportation/MapServer/tile/16/'))),
+      true
+    );
+    assert.equal(
+      tiles.every((tile) => tile.overlayUrls.some((url) => url.includes('/World_Boundaries_and_Places/MapServer/tile/16/'))),
+      true
+    );
+  });
+
+  it('builds a road-route request with longitude before latitude', () => {
+    assert.equal(
+      buildRoadRouteRequestUrl({
+        baseUrl: 'https://router.project-osrm.org',
+        points: [
+          { lat: 43.322, lng: 45.705 },
+          { lat: 43.318123, lng: 45.698456 }
+        ]
+      }),
+      'https://router.project-osrm.org/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=false'
+    );
+  });
+
+  it('validates and converts road geometry into map coordinates', () => {
+    assert.deepEqual(
+      parseRoadRoutePayload({
+        code: 'Ok',
+        routes: [{
+          distance: 3450,
+          duration: 482,
+          geometry: {
+            type: 'LineString',
+            coordinates: [[45.705, 43.322], [45.701, 43.32], [45.698456, 43.318123]]
+          }
+        }]
+      }),
+      {
+        success: true,
+        data: {
+          distanceM: 3450,
+          durationS: 482,
+          geometry: [
+            { lat: 43.322, lng: 45.705 },
+            { lat: 43.32, lng: 45.701 },
+            { lat: 43.318123, lng: 45.698456 }
+          ]
+        }
+      }
+    );
+  });
+
+  it('rejects empty and malformed road-route responses', () => {
+    assert.deepEqual(parseRoadRoutePayload({ code: 'NoRoute', routes: [] }), {
+      success: false,
+      error: 'Маршрут по дорогам не найден.'
+    });
+    assert.deepEqual(parseRoadRoutePayload({ code: 'Ok', routes: [{ geometry: null }] }), {
+      success: false,
+      error: 'Сервис маршрутов вернул некорректные данные.'
+    });
   });
 });
