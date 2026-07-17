@@ -134,7 +134,6 @@
   position: absolute;
   width: 256px;
   height: 256px;
-  transition: left 180ms ease, top 180ms ease;
 }
 
 .delivery-tracking-map__tile img {
@@ -180,7 +179,7 @@
   color: #ffffff;
   appearance: none;
   transform: translate(-50%, -90%) rotate(-45deg);
-  transition: left 180ms ease, top 180ms ease, transform 160ms ease;
+  transition: transform 160ms ease;
 }
 
 .delivery-tracking-map__marker:hover {

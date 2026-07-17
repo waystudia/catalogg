@@ -100,15 +100,17 @@ export const coordinatesToMapPoint = (
   coordinates: DeliveryMapCoordinates,
   center: DeliveryMapCoordinates,
   zoom: number,
-  mapSize: number
+  mapSize: number,
+  options: { readonly clampToViewport?: boolean } = {}
 ): DeliveryMapPoint => {
   const centerPixel = latLngToWorldPixel(center, zoom);
   const coordinatePixel = latLngToWorldPixel(coordinates, zoom);
+  const x = mapSize / 2 + coordinatePixel.x - centerPixel.x;
+  const y = mapSize / 2 + coordinatePixel.y - centerPixel.y;
 
-  return {
-    x: Math.round(clamp(mapSize / 2 + coordinatePixel.x - centerPixel.x, 0, mapSize)),
-    y: Math.round(clamp(mapSize / 2 + coordinatePixel.y - centerPixel.y, 0, mapSize))
-  };
+  if (options.clampToViewport === false) return { x, y };
+
+  return { x: clamp(x, 0, mapSize), y: clamp(y, 0, mapSize) };
 };
 
 export const mapPointToCoordinates = (
@@ -193,10 +195,11 @@ export const buildMapTileGrid = ({
   const startX = centerPixel.x - mapSize / 2;
   const startY = centerPixel.y - mapSize / 2;
   const scaledTileSize = tileSize * zoomScale;
-  const firstTileX = Math.floor(startX / scaledTileSize);
-  const firstTileY = Math.floor(startY / scaledTileSize);
-  const lastTileX = Math.floor((startX + mapSize) / scaledTileSize);
-  const lastTileY = Math.floor((startY + mapSize) / scaledTileSize);
+  const tileBuffer = 2;
+  const firstTileX = Math.floor(startX / scaledTileSize) - tileBuffer;
+  const firstTileY = Math.floor(startY / scaledTileSize) - tileBuffer;
+  const lastTileX = Math.floor((startX + mapSize) / scaledTileSize) + tileBuffer;
+  const lastTileY = Math.floor((startY + mapSize) / scaledTileSize) + tileBuffer;
   const tileCount = 2 ** tileZoom;
   const isSatellite = style === 'satellite';
 
@@ -215,9 +218,9 @@ export const buildMapTileGrid = ({
         overlayUrls: isSatellite
           ? satelliteOverlayTemplates.map((template) => resolveTileUrl({ template, ...coordinates }))
           : [],
-        x: Math.round(tileX * scaledTileSize - startX),
-        y: Math.round(tileY * scaledTileSize - startY),
-        size: Math.ceil(scaledTileSize)
+        x: tileX * scaledTileSize - startX,
+        y: tileY * scaledTileSize - startY,
+        size: Math.ceil(scaledTileSize + 1)
       });
     }
   }

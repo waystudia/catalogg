@@ -67,27 +67,43 @@ export function DeliveryTrackingMap({
   const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const points = useMemo(() => [restaurant, client, ...(driver ? [driver] : [])], [client, driver, restaurant]);
-  const effectiveRoutePoints = useMemo(
-    () => routePoints ?? [restaurant, client],
-    [client, restaurant, routePoints]
+  const effectiveRoutePoints = useMemo<ReadonlyArray<DeliveryMapCoordinates>>(
+    () => routePoints?.map((point) => ({ lat: point.lat, lng: point.lng })) ?? [
+      { lat: restaurant.lat, lng: restaurant.lng },
+      { lat: client.lat, lng: client.lng }
+    ],
+    [client.lat, client.lng, restaurant.lat, restaurant.lng, routePoints]
   );
-  const routeKey = effectiveRoutePoints.map((point) => `${point.lat},${point.lng}`).join(';');
-  const fitKey = `${restaurant.lat},${restaurant.lng};${client.lat},${client.lng}`;
-  const defaultCenter = useMemo(() => getMapCenter(points), [points]);
-  const defaultMapZoom = useMemo(() => getMapZoomForPoints(points), [points]);
+  const defaultCenter = useMemo(
+    () => getMapCenter([
+      { lat: restaurant.lat, lng: restaurant.lng },
+      { lat: client.lat, lng: client.lng }
+    ]),
+    [client.lat, client.lng, restaurant.lat, restaurant.lng]
+  );
+  const defaultMapZoom = useMemo(
+    () => getMapZoomForPoints([
+      { lat: restaurant.lat, lng: restaurant.lng },
+      { lat: client.lat, lng: client.lng }
+    ]),
+    [client.lat, client.lng, restaurant.lat, restaurant.lng]
+  );
   const [center, setCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(defaultMapZoom);
   useEffect(() => {
     setCenter(defaultCenter);
     setMapZoom(defaultMapZoom);
     setSelectedPointKind(null);
-  }, [fitKey]);
+  }, [defaultCenter, defaultMapZoom]);
   const tiles = useMemo(
     () => buildMapTileGrid({ center, zoom: mapZoom, mapSize, style: mapStyle }),
     [center, mapStyle, mapZoom]
   );
   const projectedPoints = useMemo(
-    () => points.map((point) => ({ ...point, ...coordinatesToMapPoint(point, center, mapZoom, mapSize) })),
+    () => points.map((point) => ({
+      ...point,
+      ...coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })
+    })),
     [center, mapZoom, points]
   );
   const restaurantPoint = projectedPoints[0];
@@ -102,11 +118,11 @@ export function DeliveryTrackingMap({
           ? driverPoint
           : null;
   const fallbackRoutePoints = useMemo(
-    () => effectiveRoutePoints.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize)),
+    () => effectiveRoutePoints.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })),
     [center, effectiveRoutePoints, mapZoom]
   );
   const projectedRoadRoute = useMemo(
-    () => roadRoute?.geometry.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize)) ?? fallbackRoutePoints,
+    () => roadRoute?.geometry.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
     [center, fallbackRoutePoints, mapZoom, roadRoute]
   );
 
@@ -128,7 +144,7 @@ export function DeliveryTrackingMap({
     return () => {
       active = false;
     };
-  }, [loadRoute, routeKey]);
+  }, [effectiveRoutePoints, loadRoute]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -297,9 +313,9 @@ export function DeliveryTrackingMap({
         <div className="delivery-tracking-map__scene" style={{ transform: `scale(${scale})` }}>
           {tiles.map((tile) => (
             <span className="delivery-tracking-map__tile" key={tile.key} style={{ left: tile.x, top: tile.y, width: tile.size, height: tile.size }}>
-              <img src={tile.url} alt="" aria-hidden="true" draggable={false} />
+              <img src={tile.url} alt="" aria-hidden="true" draggable={false} loading="eager" decoding="async" />
               {tile.overlayUrls.map((url) => (
-                <img className="delivery-tracking-map__tile-overlay" key={url} src={url} alt="" aria-hidden="true" draggable={false} />
+                <img className="delivery-tracking-map__tile-overlay" key={url} src={url} alt="" aria-hidden="true" draggable={false} loading="eager" decoding="async" />
               ))}
             </span>
           ))}

@@ -53,6 +53,19 @@ describe('delivery map picker geometry', () => {
     });
   });
 
+  it('can project tracking routes outside the viewport without pinning them to the edge', () => {
+    const center = { lat: 43.3181235, lng: 45.6987654 };
+    const point = coordinatesToMapPoint(
+      { lat: 43.38, lng: 45.6987654 },
+      center,
+      16,
+      320,
+      { clampToViewport: false }
+    );
+
+    assert.equal(point.y < 0, true);
+  });
+
   it('builds a non-empty free OSM tile grid around the current point', () => {
     const tiles = buildOsmTileGrid({ lat: 43.3181235, lng: 45.6987654 }, 16, 320);
 
@@ -81,6 +94,21 @@ describe('delivery map picker geometry', () => {
       tiles.every((tile) => tile.overlayUrls.some((url) => url.includes('/World_Boundaries_and_Places/MapServer/tile/16/'))),
       true
     );
+  });
+
+  it('adds offscreen tile buffer while zooming between tile levels', () => {
+    const tiles = buildMapTileGrid({
+      center: { lat: 43.3181235, lng: 45.6987654 },
+      zoom: 16.5,
+      mapSize: 320,
+      style: 'satellite'
+    });
+
+    assert.equal(tiles.length > 9, true);
+    assert.equal(Math.min(...tiles.map((tile) => tile.x)) < 0, true);
+    assert.equal(Math.max(...tiles.map((tile) => tile.x + (tile.size ?? 256))) > 320, true);
+    assert.equal(Math.min(...tiles.map((tile) => tile.y)) < 0, true);
+    assert.equal(Math.max(...tiles.map((tile) => tile.y + (tile.size ?? 256))) > 320, true);
   });
 
   it('builds a road-route request with longitude before latitude', () => {

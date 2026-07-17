@@ -608,7 +608,18 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
     await savePlatformRestaurantLocation(activePlatformCatalogId, value);
     return;
   }
-  const { lat: _lat, lng: _lng, ...legacyRestaurant } = normalizeRestaurant(value);
+  const normalizedRestaurant = normalizeRestaurant(value);
+  const legacyRestaurant: Omit<Restaurant, 'lat' | 'lng'> = {
+    id: normalizedRestaurant.id,
+    name: normalizedRestaurant.name,
+    subtitle: normalizedRestaurant.subtitle,
+    logo_url: normalizedRestaurant.logo_url,
+    banner_url: normalizedRestaurant.banner_url,
+    whatsapp: normalizedRestaurant.whatsapp,
+    instagram_url: normalizedRestaurant.instagram_url,
+    address: normalizedRestaurant.address,
+    mapLink: normalizedRestaurant.mapLink
+  };
   await throwOnError(supabase.from('restaurant').upsert(legacyRestaurant, { onConflict: 'id' }));
   const platformCatalogId = await getPlatformCatalogId(value.id);
   if (platformCatalogId) {
