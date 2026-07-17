@@ -99,6 +99,14 @@ type PlatformCatalogRow = {
   map_url: string | null;
 };
 
+type PlatformRestaurantLocationRow = {
+  id: string;
+  catalog_id: string | null;
+  address_line: string | null;
+  lat: number | null;
+  lng: number | null;
+};
+
 type PlatformCategoryRow = {
   id: string;
   slug: string;
@@ -152,6 +160,16 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   instagram_url: value.instagram_url ?? '',
   address: value.address ?? '',
   mapLink: value.map_url ?? ''
+});
+
+const withRestaurantLocation = (
+  value: Restaurant,
+  location?: Pick<PlatformRestaurantLocationRow, 'address_line' | 'lat' | 'lng'> | null
+): Restaurant => ({
+  ...value,
+  address: value.address || location?.address_line || '',
+  lat: location?.lat ?? value.lat ?? null,
+  lng: location?.lng ?? value.lng ?? null
 });
 
 const parseCategoryMeta = (value?: string | null) => {
@@ -218,6 +236,33 @@ async function getPlatformCatalogId(catalogSlug: string) {
 
   if (error || !data) return null;
   return data.id as string;
+}
+
+async function getPlatformRestaurantLocation(catalogId: string) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('restaurants')
+    .select('id, catalog_id, address_line, lat, lng')
+    .eq('catalog_id', catalogId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as PlatformRestaurantLocationRow;
+}
+
+async function savePlatformRestaurantLocation(catalogId: string, value: Restaurant) {
+  if (!supabase) return;
+  const payload = {
+    address_line: value.address,
+    lat: value.lat,
+    lng: value.lng
+  };
+  const existing = await getPlatformRestaurantLocation(catalogId);
+  if (existing?.id) {
+    const { error } = await supabase.from('restaurants').update(payload).eq('id', existing.id);
+    if (error) throw error;
+  }
 }
 
 export async function signInAdmin(email: string, password: string, catalogSlug?: string) {
@@ -333,7 +378,7 @@ export async function loadCatalog(catalogSlug?: string) {
     const catalog = catalogResult.data as PlatformCatalogRow;
     activePlatformCatalogId = catalog.id;
 
-    const [categoriesResult, productsResult, productImagesResult, tagsResult, cabinsResult, themeResult] = await Promise.all([
+    const [categoriesResult, productsResult, productImagesResult, tagsResult, cabinsResult, themeResult, restaurantLocation] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
@@ -351,7 +396,8 @@ export async function loadCatalog(catalogSlug?: string) {
         .select('id, title, capacity, image_url, is_active')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
-      supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle()
+      supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),
+      getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string>();
     ((productImagesResult.data ?? []) as PlatformProductImageRow[]).forEach((imageRow) => {
@@ -361,7 +407,7 @@ export async function loadCatalog(catalogSlug?: string) {
     });
 
     return {
-      restaurant: mapPlatformRestaurant(catalog),
+      restaurant: withRestaurantLocation(mapPlatformRestaurant(catalog), restaurantLocation),
       categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
       products: ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
         mapPlatformProduct(product, productImages.get(product.id) ?? '')
@@ -373,17 +419,19 @@ export async function loadCatalog(catalogSlug?: string) {
     };
   }
 
-  const [restaurantResult, categoriesResult, productsResult, cabinsResult, tagsResult, themeResult] = await Promise.all([
+  const platformCatalogId = await getPlatformCatalogId(normalizedSlug);
+  const [restaurantResult, categoriesResult, productsResult, cabinsResult, tagsResult, themeResult, restaurantLocation] = await Promise.all([
     supabase.from('restaurant').select('*').limit(1).single(),
     supabase.from('category').select('*').order('sort_order', { ascending: true }).order('name'),
     supabase.from('product').select('*').order('sort_order', { ascending: true }).order('title'),
     supabase.from('cabin').select('*').order('sort_order', { ascending: true }).order('title'),
     supabase.from('catalog_tag').select('*').order('sort_order', { ascending: true }).order('name'),
-    supabase.from('theme_settings').select('*').limit(1).single()
+    supabase.from('theme_settings').select('*').limit(1).single(),
+    platformCatalogId ? getPlatformRestaurantLocation(platformCatalogId) : Promise.resolve(null)
   ]);
 
   return {
-    restaurant: normalizeRestaurant(restaurantResult.data),
+    restaurant: withRestaurantLocation(normalizeRestaurant(restaurantResult.data), restaurantLocation),
     categories: ((categoriesResult.data ?? categories) as Category[]).map((category) => ({
       ...category,
       showOnHome: category.showOnHome ?? true,
@@ -557,9 +605,15 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
         })
         .eq('id', activePlatformCatalogId)
     );
+    await savePlatformRestaurantLocation(activePlatformCatalogId, value);
     return;
   }
-  await throwOnError(supabase.from('restaurant').upsert(normalizeRestaurant(value), { onConflict: 'id' }));
+  const { lat: _lat, lng: _lng, ...legacyRestaurant } = normalizeRestaurant(value);
+  await throwOnError(supabase.from('restaurant').upsert(legacyRestaurant, { onConflict: 'id' }));
+  const platformCatalogId = await getPlatformCatalogId(value.id);
+  if (platformCatalogId) {
+    await savePlatformRestaurantLocation(platformCatalogId, value);
+  }
 }
 
 export async function saveThemeToSupabase(value: ThemeSettings) {

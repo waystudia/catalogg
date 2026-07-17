@@ -1716,6 +1716,53 @@ a {
   gap: 18px;
 }
 
+.restaurant-home-cover {
+  position: relative;
+  min-height: 172px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.restaurant-home-cover img,
+.restaurant-home-cover .image-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.restaurant-home-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.68));
+}
+
+.restaurant-home-cover > div {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 172px;
+  align-content: end;
+  gap: 4px;
+  padding: 18px;
+  color: #ffffff;
+}
+
+.restaurant-home-cover span,
+.restaurant-home-cover small {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 800;
+}
+
+.restaurant-home-cover strong {
+  font-size: 26px;
+  line-height: 1.05;
+}
+
 .pills {
   display: flex;
   gap: 16px;
@@ -4251,6 +4298,51 @@ a {
   font-weight: 700;
 }
 
+.profile-location-tools,
+.profile-location-grid {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.profile-location-tools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-location-tools button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d8dee9;
+  border-radius: var(--button-radius);
+  padding: 0 12px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-weight: 900;
+}
+
+.profile-location-tools button:disabled {
+  opacity: 0.65;
+}
+
+.profile-location-tools svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.profile-location-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-location-note {
+  line-height: 1.4;
+}
+
 .settings-form-card small,
 .settings-status {
   color: var(--accent-2);
@@ -6647,6 +6739,13 @@ a {
 
 .app-shell--settings.app-shell--stock .stock-dish-card p strong {
   color: #7c3aed;
+}
+
+@media (max-width: 420px) {
+  .profile-location-tools,
+  .profile-location-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-shell--category-settings .settings-header .icon-button:last-child,

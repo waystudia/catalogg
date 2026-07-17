@@ -344,6 +344,52 @@ const makeLoadingRestaurant = (catalogSlug: string): Restaurant => ({
   banner_url: ''
 });
 
+const parseCoordinateInput = (value: string) => {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? Number(number.toFixed(7)) : null;
+};
+
+const isValidRestaurantCoordinates = (lat: number | null, lng: number | null) =>
+  lat !== null &&
+  lng !== null &&
+  Math.abs(lat) <= 90 &&
+  Math.abs(lng) <= 180;
+
+const makeRestaurantCoordinates = (lat: number | null, lng: number | null) =>
+  typeof lat === 'number' &&
+  typeof lng === 'number' &&
+  Math.abs(lat) <= 90 &&
+  Math.abs(lng) <= 180
+    ? { lat, lng }
+    : null;
+
+const buildYandexMapLink = (lat: number, lng: number) =>
+  `https://yandex.ru/maps/?ll=${lng},${lat}&z=16&pt=${lng},${lat},pm2rdm`;
+
+const parseRestaurantCoordinatesFromMapLink = (value: string) => {
+  const text = value.trim();
+  if (!text) return null;
+  try {
+    const url = new URL(text);
+    const point = url.searchParams.get('pt') ?? url.searchParams.get('ll');
+    const match = point?.match(/(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)/);
+    if (match) {
+      const lng = parseCoordinateInput(match[1]);
+      const lat = parseCoordinateInput(match[2]);
+      return makeRestaurantCoordinates(lat, lng);
+    }
+  } catch {
+    // Fall back to parsing pasted coordinate text below.
+  }
+  const match = text.match(/(-?\d{1,3}(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:[.,]\d+)?)/);
+  if (!match) return null;
+  const lat = parseCoordinateInput(match[1]);
+  const lng = parseCoordinateInput(match[2]);
+  return makeRestaurantCoordinates(lat, lng);
+};
+
 const loadStockTargets = (): StockTargets => {
   try {
     return JSON.parse(localStorage.getItem(stockTargetsStorageKey) ?? '{}') as StockTargets;
@@ -1204,6 +1250,17 @@ function HomeScreen({
         }}
         includeAll={false}
       />
+
+      {restaurant.banner_url && (
+        <section className="restaurant-home-cover">
+          <SafeImage src={restaurant.banner_url} alt={restaurant.name || 'Фото ресторана'} />
+          <div>
+            <span>{restaurant.subtitle || 'Ресторан'}</span>
+            <strong>{restaurant.name || 'Ресторан'}</strong>
+            {restaurant.address && <small>{restaurant.address}</small>}
+          </div>
+        </section>
+      )}
 
       <section className="category-grid">
         {featuredCategories.map((category) => {
@@ -3526,6 +3583,7 @@ function ProfileSettings({
 }) {
   const [draft, setDraft] = useState(restaurant);
   const [error, setError] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     setDraft(restaurant);
@@ -3574,8 +3632,52 @@ function ProfileSettings({
         return;
       }
     }
-    onSave({ ...draft, name: draft.name.trim() });
+    if ((draft.lat !== null || draft.lng !== null) && !isValidRestaurantCoordinates(draft.lat, draft.lng)) {
+      setError('Укажите корректные координаты ресторана.');
+      return;
+    }
+    const coordinates = makeRestaurantCoordinates(draft.lat, draft.lng);
+    onSave({ ...draft, name: draft.name.trim(), mapLink: draft.mapLink || (coordinates ? buildYandexMapLink(coordinates.lat, coordinates.lng) : '') });
     setError('Сохранено');
+  };
+
+  const applyCoordinates = (lat: number, lng: number) => {
+    setDraft((current) => ({
+      ...current,
+      lat,
+      lng,
+      mapLink: current.mapLink || buildYandexMapLink(lat, lng)
+    }));
+    setError('');
+  };
+
+  const applyCoordinatesFromMapLink = () => {
+    const coordinates = parseRestaurantCoordinatesFromMapLink(draft.mapLink);
+    if (!coordinates) {
+      setError('Не удалось найти координаты в ссылке.');
+      return;
+    }
+    applyCoordinates(coordinates.lat, coordinates.lng);
+  };
+
+  const locateRestaurant = () => {
+    if (!navigator.geolocation) {
+      setError('Браузер не поддерживает геолокацию.');
+      return;
+    }
+    setIsLocating(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        applyCoordinates(Number(position.coords.latitude.toFixed(7)), Number(position.coords.longitude.toFixed(7)));
+        setIsLocating(false);
+      },
+      () => {
+        setError('Не удалось получить местоположение. Проверьте разрешение браузера.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
   };
 
   return (
@@ -3666,6 +3768,39 @@ function ProfileSettings({
             onChange={(event) => setDraft({ ...draft, mapLink: event.target.value })}
           />
         </label>
+        <div className="profile-location-tools">
+          <button type="button" onClick={locateRestaurant} disabled={isLocating}>
+            <LocateFixed />
+            {isLocating ? 'Определяем...' : 'Определить местоположение'}
+          </button>
+          <button type="button" onClick={applyCoordinatesFromMapLink}>
+            <MapPin />
+            Взять из ссылки
+          </button>
+        </div>
+        <div className="profile-location-grid">
+          <label>
+            Широта для нашей карты
+            <input
+              inputMode="decimal"
+              value={draft.lat ?? ''}
+              placeholder="43.3178000"
+              onChange={(event) => setDraft({ ...draft, lat: parseCoordinateInput(event.target.value) })}
+            />
+          </label>
+          <label>
+            Долгота для нашей карты
+            <input
+              inputMode="decimal"
+              value={draft.lng ?? ''}
+              placeholder="45.6986000"
+              onChange={(event) => setDraft({ ...draft, lng: parseCoordinateInput(event.target.value) })}
+            />
+          </label>
+        </div>
+        <small className="profile-location-note">
+          Координаты используются в нашей карте и в маршруте до ресторана. Яндекс-ссылка нужна для внешней навигации.
+        </small>
         {error && <p className={error === 'Сохранено' ? 'settings-status' : 'settings-error'}>{error}</p>}
         <button className="primary-wide" type="submit">
           Сохранить изменения
@@ -5457,7 +5592,7 @@ function AppContent({
     setLocalCategories([]);
     setLocalCabins([]);
     setLocalTags([]);
-    const emptyRestaurant = { ...demoRestaurant, id: catalogSlug, name: '', subtitle: '', whatsapp: '', instagram_url: '', address: '', mapLink: '' };
+    const emptyRestaurant = { ...demoRestaurant, id: catalogSlug, name: '', subtitle: '', whatsapp: '', instagram_url: '', address: '', mapLink: '', lat: null, lng: null };
     setLocalRestaurant(emptyRestaurant);
     saveTheme({
       ...darkThemePreset,

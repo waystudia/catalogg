@@ -41,6 +41,8 @@ export type Restaurant = {
   instagram_url: string;
   address: string;
   mapLink: string;
+  lat: number | null;
+  lng: number | null;
 };
 
 export type Category = {
