@@ -163,14 +163,14 @@ type MaybeArray<T> = T | T[];
 
 type OrderContactRow = {
   id: string;
-  customer_name: string | null;
-  customer_phone: string | null;
-  client_name: string | null;
-  client_phone: string | null;
-  delivery_comment: string | null;
-  delivery_comment_snapshot: string | null;
-  client_address_comment: string | null;
-  comment: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  client_name?: string | null;
+  client_phone?: string | null;
+  delivery_comment?: string | null;
+  delivery_comment_snapshot?: string | null;
+  client_address_comment?: string | null;
+  comment?: string | null;
 };
 
 const firstRelation = <T,>(value: MaybeArray<T> | null | undefined): T | null =>

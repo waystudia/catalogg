@@ -120,6 +120,23 @@ const getDriverDeliveryMapData = (delivery: DeliveryOffer) => {
   };
 };
 
+type CompleteDriverDeliveryMapData = ReturnType<typeof getDriverDeliveryMapData> & {
+  restaurantLat: number;
+  restaurantLng: number;
+  deliveryLat: number;
+  deliveryLng: number;
+  isComplete: true;
+};
+
+const hasCompleteDriverDeliveryMapData = (
+  mapData: ReturnType<typeof getDriverDeliveryMapData> | null
+): mapData is CompleteDriverDeliveryMapData =>
+  mapData?.isComplete === true &&
+  mapData.restaurantLat !== null &&
+  mapData.restaurantLng !== null &&
+  mapData.deliveryLat !== null &&
+  mapData.deliveryLng !== null;
+
 const parseDriverSettlements = (value: string) =>
   Array.from(
     new Set(
@@ -374,7 +391,7 @@ export function DriverApp() {
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
   const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
   const mapDelivery = routeDeliveryId
-    ? [activeDelivery, ...availableDeliveries].find((delivery): delivery is DeliveryOffer => Boolean(delivery) && delivery.deliveryId === routeDeliveryId) ?? null
+    ? [activeDelivery, ...availableDeliveries].find((delivery) => delivery !== null && delivery.deliveryId === routeDeliveryId) ?? null
     : activeDelivery ?? availableDeliveries[0] ?? null;
 
   if (!authChecked) {
@@ -913,6 +930,7 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [error, setError] = useState('');
   const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
+  const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
 
   const nextAction = useMemo(() => {
@@ -967,23 +985,23 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
   return (
     <>
       <DriverHeader title={`Заказ №${delivery.orderNumber}`} action={<small>{deliveryStatusLabels[delivery.status]}</small>} />
-      {mapData?.isComplete ? (
+      {completeMapData ? (
         <DeliveryTrackingMap
           className="driver-tracking-map"
           initialStyle="satellite"
-          restaurant={{ lat: mapData.restaurantLat, lng: mapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
+          restaurant={{ lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
           client={{
-            lat: mapData.deliveryLat,
-            lng: mapData.deliveryLng,
+            lat: completeMapData.deliveryLat,
+            lng: completeMapData.deliveryLng,
             label: delivery.clientName || 'Клиент',
             address: displayDeliveryAddress,
-            details: [delivery.clientPhone, delivery.deliveryComment].filter(Boolean)
+            details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
           }}
           routePoints={getDriverRoutePoints({
             status: delivery.status,
             driver: { lat: profile.lastLat, lng: profile.lastLng },
-            restaurant: { lat: mapData.restaurantLat, lng: mapData.restaurantLng },
-            client: { lat: mapData.deliveryLat, lng: mapData.deliveryLng }
+            restaurant: { lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng },
+            client: { lat: completeMapData.deliveryLat, lng: completeMapData.deliveryLng }
           })}
           driver={profile.lastLat !== null && profile.lastLng !== null
             ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
@@ -1036,6 +1054,7 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
   const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
+  const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
   const nextAddress = navigationStage?.activeLeg === 'client'
     ? displayDeliveryAddress
@@ -1059,18 +1078,18 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
       <DriverHeader title="Карта" />
       {delivery && (
         <>
-          {mapData?.isComplete ? (
+          {completeMapData ? (
             <DeliveryTrackingMap
               className="driver-tracking-map"
               initialStyle="satellite"
               enableSearch
-              restaurant={{ lat: mapData.restaurantLat, lng: mapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
+              restaurant={{ lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
               client={{
-                lat: mapData.deliveryLat,
-                lng: mapData.deliveryLng,
+                lat: completeMapData.deliveryLat,
+                lng: completeMapData.deliveryLng,
                 label: delivery.clientName || 'Клиент',
                 address: displayDeliveryAddress,
-                details: [delivery.clientPhone, delivery.deliveryComment].filter(Boolean)
+                details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
               }}
               routePoints={currentRoutePoints}
               driver={profile.lastLat !== null && profile.lastLng !== null
