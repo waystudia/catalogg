@@ -82,6 +82,33 @@ const demoAddressIds = new Set(['address-home', 'address-work']);
 const demoFavoriteRestaurantId = 'restaurant-rizih';
 const demoFavoriteDishId = 'rizih-philadelphia';
 const demoCartDishIds = new Set(['rizih-philadelphia', 'rizih-four-seasons', 'rizih-pepperoni']);
+const demoOrderDishIds = new Set(['rizih-philadelphia', 'rizih-four-seasons', 'rizih-pepperoni']);
+
+const normalizeText = (value: string | undefined) =>
+  (value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru-RU');
+
+export const isLegacyDemoClientOrder = (order: ClientOrder) => {
+  if (order.id === demoOrderId) return true;
+
+  const itemIds = new Set(order.items.map((item) => item.dishId));
+  const hasDemoItems =
+    order.items.length === demoOrderDishIds.size &&
+    order.items.every((item) => item.quantity === 1 && demoOrderDishIds.has(item.dishId)) &&
+    itemIds.size === demoOrderDishIds.size;
+  const isDemoDriver =
+    normalizeText(order.driverName).startsWith('алан') || order.driverPhone?.replace(/\D/g, '') === '79285551212';
+
+  return (
+    order.restaurantSlug === 'rizih' &&
+    normalizeText(order.restaurantName) === 'rizih' &&
+    order.orderType === 'delivery' &&
+    order.deliveryProvider === 'restaurant' &&
+    order.totalAmount === 1470 &&
+    normalizeText(order.addressLine) === 'ул. ленина, 123, кв. 45' &&
+    isDemoDriver &&
+    hasDemoItems
+  );
+};
 
 const isPersistedClientStore = (value: unknown): value is Partial<ClientPlatformStore> =>
   typeof value === 'object' && value !== null;
@@ -216,7 +243,7 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
     {
       name: 'waycatalog-client-platform',
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
       migrate: (persistedState, version) => {
         if (!isPersistedClientStore(persistedState)) {
           return persistedState as ClientPlatformStore;
@@ -250,7 +277,14 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
             ),
             favoriteDishIds: (nextState.favoriteDishIds ?? []).filter((dishId) => dishId !== demoFavoriteDishId),
             carts,
-            orders: (nextState.orders ?? []).filter((order) => order.id !== demoOrderId)
+            orders: (nextState.orders ?? []).filter((order) => !isLegacyDemoClientOrder(order))
+          };
+        }
+
+        if (version < 4) {
+          nextState = {
+            ...nextState,
+            orders: (nextState.orders ?? []).filter((order) => !isLegacyDemoClientOrder(order))
           };
         }
 
