@@ -72,6 +72,7 @@ export type Product = {
   price: number;
   description: string;
   image_url: string;
+  image_urls?: string[];
   ingredients: string;
   weight: string;
   spicy_level: 0 | 1 | 2 | 3;

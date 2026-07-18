@@ -472,6 +472,26 @@
   min-height: 520px;
 }
 
+.driver-map-unavailable {
+  display: grid;
+  min-height: 238px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 24px;
+  background: #f8fafc;
+  color: #667085;
+  text-align: center;
+}
+
+.driver-map-unavailable--tall { min-height: 420px; }
+.driver-map-unavailable svg { width: 42px; height: 42px; color: #5b3df4; }
+.driver-map-unavailable strong { color: #111827; }
+.driver-map-unavailable small { max-width: 260px; }
+
 .driver-map-preview > div {
   position: absolute;
   right: 16px;

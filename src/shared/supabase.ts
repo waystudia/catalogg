@@ -199,12 +199,13 @@ const mapPlatformCategory = (value: PlatformCategoryRow): Category => {
   };
 };
 
-const mapPlatformProduct = (value: PlatformProductRow, imageUrl = ''): Product => ({
+const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly string[] = []): Product => ({
   id: value.id,
   title: value.title,
   price: value.price,
   description: value.description,
-  image_url: imageUrl,
+  image_url: imageUrls[0] ?? '',
+  image_urls: [...imageUrls],
   ingredients: value.ingredients,
   weight: value.weight,
   spicy_level: 0,
@@ -419,18 +420,16 @@ export async function loadCatalog(catalogSlug?: string) {
       supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),
       getPlatformRestaurantLocation(catalog.id)
     ]);
-    const productImages = new Map<string, string>();
+    const productImages = new Map<string, string[]>();
     ((productImagesResult.data ?? []) as PlatformProductImageRow[]).forEach((imageRow) => {
-      if (!productImages.has(imageRow.product_id)) {
-        productImages.set(imageRow.product_id, imageRow.url);
-      }
+      productImages.set(imageRow.product_id, [...(productImages.get(imageRow.product_id) ?? []), imageRow.url]);
     });
 
     return {
       restaurant: withRestaurantLocation(mapPlatformRestaurant(catalog), restaurantLocation),
       categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
       products: ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
-        mapPlatformProduct(product, productImages.get(product.id) ?? '')
+        mapPlatformProduct(product, productImages.get(product.id) ?? [])
       ),
       cabins: ((cabinsResult.data ?? []) as PlatformCabinRow[]).map(mapPlatformCabin),
       tags: (tagsResult.data ?? []) as CatalogTag[],
@@ -537,20 +536,21 @@ const productPatchToPlatformRow = (patch: Partial<Product>) => {
   return row;
 };
 
-async function syncPlatformProductImage(productId: string, imageUrl?: string) {
+async function syncPlatformProductImages(productId: string, imageUrls: readonly string[]) {
   if (!supabase || !activePlatformCatalogId || !uuidPattern.test(productId)) return;
   await throwOnError(
     supabase.from('product_images').delete().eq('catalog_id', activePlatformCatalogId).eq('product_id', productId)
   );
-  if (!imageUrl) return;
+  const images = imageUrls.filter(Boolean).slice(0, 3);
+  if (images.length === 0) return;
   await throwOnError(
-    supabase.from('product_images').insert({
+    supabase.from('product_images').insert(images.map((url, sortOrder) => ({
       catalog_id: activePlatformCatalogId,
       product_id: productId,
-      url: imageUrl,
+      url,
       alt: '',
-      sort_order: 0
-    })
+      sort_order: sortOrder
+    })))
   );
 }
 
@@ -560,18 +560,20 @@ export async function saveProductToSupabase(product: Product) {
     const row = productToPlatformRow(product);
     if (uuidPattern.test(product.id)) {
       await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));
-      await syncPlatformProductImage(product.id, product.image_url);
+      await syncPlatformProductImages(product.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
       return;
     }
     const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
       | { id: string }
       | null;
     if (created?.id) {
-      await syncPlatformProductImage(String(created.id), product.image_url);
+      await syncPlatformProductImages(String(created.id), product.image_urls?.length ? product.image_urls : [product.image_url]);
     }
     return;
   }
-  await throwOnError(supabase.from('product').upsert(product, { onConflict: 'id' }));
+  const legacyProduct = { ...product };
+  delete legacyProduct.image_urls;
+  await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
 }
 
 export async function updateProductInSupabase(productId: string, patch: Partial<Product>) {
@@ -579,12 +581,14 @@ export async function updateProductInSupabase(productId: string, patch: Partial<
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(productId)) return;
     await throwOnError(supabase.from('products').update(productPatchToPlatformRow(patch)).eq('id', productId).eq('catalog_id', activePlatformCatalogId));
-    if (patch.image_url !== undefined) {
-      await syncPlatformProductImage(productId, patch.image_url);
+    if (patch.image_url !== undefined || patch.image_urls !== undefined) {
+      await syncPlatformProductImages(productId, patch.image_urls?.length ? patch.image_urls : patch.image_url ? [patch.image_url] : []);
     }
     return;
   }
-  await throwOnError(supabase.from('product').update(patch).eq('id', productId));
+  const legacyPatch = { ...patch };
+  delete legacyPatch.image_urls;
+  await throwOnError(supabase.from('product').update(legacyPatch).eq('id', productId));
 }
 
 export async function deleteProductFromSupabase(productId: string) {

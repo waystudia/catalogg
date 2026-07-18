@@ -1,0 +1,4 @@
+interface:
+  display_name: "WayCatalog Driver Map"
+  short_description: "Preserve interactive driver map behavior"
+  default_prompt: "Use $catalogg-driver-map to change or debug the WayCatalog driver map safely."

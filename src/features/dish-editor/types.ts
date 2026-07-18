@@ -33,7 +33,7 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     weight: Number.parseInt(product?.weight ?? '0', 10) || 0,
     dailyQuantity: product?.stock_count ?? 10,
     serveWith: product?.serving ?? 'с луком',
-    images: product?.image_url ? [product.image_url] : [],
+    images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
     pairIds: product?.pair_ids ?? []
   };
 }
@@ -45,6 +45,7 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     price: dish.price,
     description: dish.description,
     image_url: dish.images[0] ?? '',
+    image_urls: dish.images,
     ingredients: dish.ingredients,
     weight: `${dish.weight} г`,
     spicy_level: current?.spicy_level ?? 0,

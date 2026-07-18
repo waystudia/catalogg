@@ -450,6 +450,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
 function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const bannerIds = banners.map((banner) => banner.id).join('|');
   const activeBanner = banners[activeIndex] ?? null;
 
@@ -470,8 +471,22 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   if (!activeBanner) return null;
 
   return (
-    <section className="promo-carousel" aria-label="Баннеры">
-      <article className={activeBanner.imageUrl ? 'promo-band promo-band--media' : 'promo-band'}>
+    <section
+      className="promo-carousel"
+      aria-label="Баннеры"
+      onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }}
+      onTouchEnd={(event) => {
+        if (touchStartX.current === null || banners.length < 2) return;
+        const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+        touchStartX.current = null;
+        if (Math.abs(delta) < 36) return;
+        setActiveIndex((index) => (index + (delta < 0 ? 1 : -1) + banners.length) % banners.length);
+      }}
+    >
+      <article
+        className={`${activeBanner.imageUrl ? 'promo-band promo-band--media' : 'promo-band'} promo-band--slide`}
+        key={activeBanner.id}
+      >
         {activeBanner.imageUrl && (
           <span className="promo-band__media">
             {isVideoMediaUrl(activeBanner.imageUrl)
@@ -796,8 +811,9 @@ function RestaurantCard({
         <small>{categoryNames}</small>
         <b>от {formatPrice(restaurant.minOrderAmount)} · {restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин</b>
         <em>
-          {providerLabel}
-          {restaurant.freeDeliveryFrom > 0 && ` · бесплатно от ${formatPrice(restaurant.freeDeliveryFrom)}`}
+          {restaurant.freeDeliveryFrom > 0
+            ? `Бесплатная доставка от ${formatPrice(restaurant.freeDeliveryFrom)}`
+            : providerLabel}
         </em>
       </span>
     </Link>

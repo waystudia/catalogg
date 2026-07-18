@@ -1,4 +1,4 @@
-import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, Search } from 'lucide-react';
+import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, RotateCcw, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import {
@@ -59,7 +59,7 @@ export function DeliveryTrackingMap({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; center: DeliveryMapCoordinates; zoom: number } | null>(null);
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pinchStartRef = useRef<{ distance: number; angle: number; zoom: number; rotation: number } | null>(null);
   const wheelDeltaRef = useRef(0);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
@@ -70,13 +70,15 @@ export function DeliveryTrackingMap({
   const [searchResults, setSearchResults] = useState<ReadonlyArray<DeliveryLocationSearchResult>>([]);
   const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const points = useMemo(() => [restaurant, client, ...(driver ? [driver] : [])], [client, driver, restaurant]);
+  const routePointKey = (routePoints ?? [restaurant, client])
+    .map((point) => `${point.lat},${point.lng}`)
+    .join('|');
   const effectiveRoutePoints = useMemo<ReadonlyArray<DeliveryMapCoordinates>>(
-    () => routePoints?.map((point) => ({ lat: point.lat, lng: point.lng })) ?? [
-      { lat: restaurant.lat, lng: restaurant.lng },
-      { lat: client.lat, lng: client.lng }
-    ],
-    [client.lat, client.lng, restaurant.lat, restaurant.lng, routePoints]
+    () => routePointKey.split('|').filter(Boolean).map((pair) => {
+      const [lat, lng] = pair.split(',').map(Number);
+      return { lat, lng };
+    }),
+    [routePointKey]
   );
   const defaultCenter = useMemo(
     () => getMapCenter([
@@ -94,21 +96,23 @@ export function DeliveryTrackingMap({
   );
   const [center, setCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(defaultMapZoom);
+  const [manualRotation, setManualRotation] = useState(0);
   useEffect(() => {
     setCenter(defaultCenter);
     setMapZoom(defaultMapZoom);
     setSelectedPointKind(null);
+    setManualRotation(0);
   }, [defaultCenter, defaultMapZoom]);
   const tiles = useMemo(
     () => buildMapTileGrid({ center, zoom: mapZoom, mapSize, style: mapStyle }),
     [center, mapStyle, mapZoom]
   );
   const projectedPoints = useMemo(
-    () => points.map((point) => ({
+    () => [restaurant, client, ...(driver ? [driver] : [])].map((point) => ({
       ...point,
       ...coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })
     })),
-    [center, mapZoom, points]
+    [center, mapZoom, restaurant, client, driver]
   );
   const restaurantPoint = projectedPoints[0];
   const clientPoint = projectedPoints[1];
@@ -121,7 +125,7 @@ export function DeliveryTrackingMap({
     if (routeTarget) return calculateBearing(driver, routeTarget);
     return calculateBearing(driver, client);
   }, [client, driver, effectiveRoutePoints]);
-  const mapRotation = followDriverHeading && driver ? -driverHeading : 0;
+  const mapRotation = (followDriverHeading && driver ? -driverHeading : 0) + manualRotation;
   const selectedPoint =
     selectedPointKind === 'restaurant'
       ? restaurantPoint
@@ -149,6 +153,7 @@ export function DeliveryTrackingMap({
     }
 
     let active = true;
+    setRoadRoute(null);
     void loadRoute(effectiveRoutePoints)
       .then((route) => {
         if (active) setRoadRoute(route);
@@ -201,6 +206,20 @@ export function DeliveryTrackingMap({
     setIsDragging(false);
   };
 
+  const releasePointer = (event: PointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.delete(event.pointerId);
+    if (activePointersRef.current.size === 0) {
+      endDrag();
+      return;
+    }
+
+    pinchStartRef.current = null;
+    const remaining = Array.from(activePointersRef.current.values())[0];
+    dragStartRef.current = remaining
+      ? { x: remaining.x, y: remaining.y, center, zoom: mapZoom }
+      : null;
+  };
+
   const trackPointer = (event: PointerEvent<HTMLDivElement>) => {
     activePointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
   };
@@ -210,6 +229,13 @@ export function DeliveryTrackingMap({
     if (pointers.length < 2) return null;
     const [first, second] = pointers;
     return Math.hypot(first.x - second.x, first.y - second.y);
+  };
+
+  const getPinchAngle = () => {
+    const pointers = Array.from(activePointersRef.current.values());
+    if (pointers.length < 2) return null;
+    const [first, second] = pointers;
+    return (Math.atan2(second.y - first.y, second.x - first.x) * 180) / Math.PI;
   };
 
   const submitSearch = async () => {
@@ -245,6 +271,7 @@ export function DeliveryTrackingMap({
   };
 
   const centerOnDriver = () => {
+    setManualRotation(0);
     if (driver) {
       setCenter({ lat: driver.lat, lng: driver.lng });
       setMapZoom(17);
@@ -304,7 +331,12 @@ export function DeliveryTrackingMap({
           trackPointer(event);
           if (activePointersRef.current.size === 2) {
             const distance = getPinchDistance();
-            if (distance !== null) pinchStartRef.current = { distance, zoom: mapZoom };
+            const angle = getPinchAngle();
+            if (distance !== null && angle !== null) {
+              pinchStartRef.current = { distance, angle, zoom: mapZoom, rotation: manualRotation };
+              dragStartRef.current = null;
+              setIsDragging(true);
+            }
             return;
           }
           startDrag(event);
@@ -313,16 +345,18 @@ export function DeliveryTrackingMap({
           if (activePointersRef.current.has(event.pointerId)) trackPointer(event);
           const pinchStart = pinchStartRef.current;
           const pinchDistance = getPinchDistance();
-          if (pinchStart && pinchDistance !== null) {
+          const pinchAngle = getPinchAngle();
+          if (pinchStart && pinchDistance !== null && pinchAngle !== null) {
             event.preventDefault();
             const nextZoom = pinchStart.zoom + Math.log2(pinchDistance / pinchStart.distance) * 1.15;
             setMapZoom(Math.min(18, Math.max(10, nextZoom)));
+            setManualRotation(pinchStart.rotation + pinchAngle - pinchStart.angle);
             return;
           }
           dragMap(event);
         }}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerUp={releasePointer}
+        onPointerCancel={releasePointer}
         onWheel={(event) => {
           event.preventDefault();
           wheelDeltaRef.current += event.deltaY;
@@ -390,7 +424,8 @@ export function DeliveryTrackingMap({
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
           <button type="button" onClick={() => setMapZoom((value) => Math.min(18, value + 1))} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => setMapZoom((value) => Math.max(10, value - 1))} aria-label="Отдалить"><Minus /></button>
-          <button type="button" onClick={() => { setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
+          <button type="button" onClick={centerOnDriver} aria-label="Вернуть обзор и направление на водителя"><RotateCcw /></button>
+          <button type="button" onClick={() => { setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
         </div>
         <div className="delivery-tracking-map__layers" aria-label="Слой карты" onPointerDown={(event) => event.stopPropagation()}>
           <Layers3 aria-hidden="true" />

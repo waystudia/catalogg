@@ -101,6 +101,7 @@
   width: 640px;
   height: 640px;
   transform-origin: top left;
+  background: #cbd5e1;
   transition: transform 180ms ease;
 }
 
@@ -151,6 +152,8 @@
   max-width: none;
   user-select: none;
 }
+
+.delivery-tracking-map__tile > img:first-child { background: #cbd5e1; }
 
 .delivery-tracking-map__tile-overlay { z-index: 1; }
 
@@ -218,7 +221,7 @@
   height: 22px;
   fill: currentColor;
   stroke-width: 2.6;
-  transform: rotate(45deg);
+  transform: rotate(-45deg);
 }
 
 .delivery-tracking-map__marker--client { background: #ef4444; }

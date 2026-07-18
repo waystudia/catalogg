@@ -749,6 +749,72 @@ function SafeImage({ src, alt, className, ...props }: React.ImgHTMLAttributes<HT
   return <img {...props} className={className} src={src} alt={alt} onError={() => setFailed(true)} />;
 }
 
+function ProductImageCarousel({ product, hero = false }: { product: Product; hero?: boolean }) {
+  const images = product.image_urls?.filter(Boolean).length
+    ? product.image_urls.filter(Boolean)
+    : product.image_url
+      ? [product.image_url]
+      : [];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const didSwipe = useRef(false);
+
+  useEffect(() => setActiveIndex(0), [product.id]);
+
+  const move = (direction: number) => {
+    if (images.length < 2) return;
+    setActiveIndex((index) => (index + direction + images.length) % images.length);
+  };
+
+  return (
+    <div
+      className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
+      onClick={(event) => {
+        if (!didSwipe.current) return;
+        event.stopPropagation();
+        didSwipe.current = false;
+      }}
+      onTouchStart={(event) => {
+        touchStartX.current = event.touches[0]?.clientX ?? null;
+        didSwipe.current = false;
+      }}
+      onTouchEnd={(event) => {
+        if (touchStartX.current === null) return;
+        const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+        touchStartX.current = null;
+        if (Math.abs(delta) < 36) return;
+        didSwipe.current = true;
+        move(delta < 0 ? 1 : -1);
+      }}
+    >
+      <div className="product-photo-carousel__track" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
+        {(images.length ? images : ['']).map((image, index) => (
+          <SafeImage
+            className={hero ? 'product-hero' : undefined}
+            src={image}
+            alt={index === 0 ? product.title : `${product.title}, фото ${index + 1}`}
+            loading={hero ? undefined : 'lazy'}
+            key={`${image}-${index}`}
+          />
+        ))}
+      </div>
+      {images.length > 1 && (
+        <>
+          <button className="product-photo-carousel__previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Предыдущее фото">
+            <ArrowLeft />
+          </button>
+          <button className="product-photo-carousel__next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Следующее фото">
+            <ArrowRight />
+          </button>
+          <span className="product-photo-carousel__dots" aria-label={`Фото ${activeIndex + 1} из ${images.length}`}>
+            {images.map((image, index) => <i className={index === activeIndex ? 'is-active' : ''} key={`${image}-dot-${index}`} />)}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TopBar({
   title,
   canBack,
@@ -877,7 +943,7 @@ function ProductTile({
       onClick={() => onOpen(product)}
     >
       <div className="product-tile__image">
-        <SafeImage src={product.image_url} alt={product.title} loading="lazy" />
+        <ProductImageCarousel product={product} />
         {product.is_popular && (
           <span className="product-state product-state--popular">
             <Star />
@@ -1477,7 +1543,7 @@ function ProductScreen({
 
   return (
     <main className="screen product-screen">
-      <SafeImage className="product-hero" src={product.image_url} alt={product.title} />
+      <ProductImageCarousel product={product} hero />
       <div className="product-heading">
         <div>
           <h2>{product.title}</h2>

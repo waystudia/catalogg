@@ -389,8 +389,10 @@ export function DriverApp() {
     : [];
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
   const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
+  const mapCandidates = [activeDelivery, ...snapshot.availableDeliveries]
+    .filter((delivery): delivery is DeliveryOffer => Boolean(delivery));
   const mapDelivery = routeDeliveryId
-    ? [activeDelivery, ...availableDeliveries].find((delivery) => delivery !== null && delivery.deliveryId === routeDeliveryId) ?? null
+    ? mapCandidates.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
     : activeDelivery ?? availableDeliveries[0] ?? null;
 
   if (!authChecked) {
@@ -1000,7 +1002,7 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
             ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
             : null}
         />
-      ) : <DriverMapPreview offer={delivery} />}
+      ) : <DriverMapUnavailable />}
       <section className="driver-order-panel">
         <h2>{delivery.restaurantName}</h2>
         <DriverRouteLine icon={<MapPin />} label="Адрес клиента" value={displayDeliveryAddress} />
@@ -1090,10 +1092,10 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
                 ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
                 : null}
             />
-          ) : <DriverMapPreview offer={delivery} tall />}
+          ) : <DriverMapUnavailable tall />}
         </>
       )}
-      {!delivery && <DriverMapPreview offer={delivery} tall />}
+      {!delivery && <DriverMapUnavailable tall message="Выберите заказ, чтобы открыть его маршрут" />}
       {delivery && (
         <section className="driver-order-panel">
           <DriverRouteLine icon={<MapPin />} label="Следующая точка" value={nextAddress ?? ''} />
@@ -1362,6 +1364,16 @@ function DriverMapPreview({ offer, tall = false }: { offer: DeliveryOffer | null
         </div>
       )}
     </Link>
+  );
+}
+
+function DriverMapUnavailable({ tall = false, message = 'Для этого заказа не сохранены координаты маршрута' }: { tall?: boolean; message?: string }) {
+  return (
+    <section className={tall ? 'driver-map-unavailable driver-map-unavailable--tall' : 'driver-map-unavailable'}>
+      <MapPin />
+      <strong>Карта пока недоступна</strong>
+      <small>{message}</small>
+    </section>
   );
 }
 
