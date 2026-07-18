@@ -116,6 +116,7 @@ import {
   type RestaurantOrderStatus
 } from '../shared/api/restaurantOrdersApi';
 import { useClientPlatformStore } from '../features/client-platform/store';
+import type { ClientAddress, ClientOrder } from '../features/client-platform/types';
 import { getClientCityId } from '../shared/api/clientPlatformApi';
 import { getRestaurantPaymentsBySlug, saveRestaurantPayments } from '../shared/api/restaurantPaymentsApi';
 import { getDeliverySettlements, submitSettlementRequest } from '../shared/api/settlementsApi';
@@ -1211,17 +1212,6 @@ function HomeScreen({
         includeAll={false}
       />
 
-      {restaurant.banner_url && (
-        <section className="restaurant-home-cover">
-          <SafeImage src={restaurant.banner_url} alt={restaurant.name || 'Фото ресторана'} />
-          <div>
-            <span>{restaurant.subtitle || 'Ресторан'}</span>
-            <strong>{restaurant.name || 'Ресторан'}</strong>
-            {restaurant.address && <small>{restaurant.address}</small>}
-          </div>
-        </section>
-      )}
-
       <section className="category-grid">
         {featuredCategories.map((category) => {
           const Icon = iconMap[category.icon as keyof typeof iconMap] ?? ChefHat;
@@ -1574,6 +1564,9 @@ function CheckoutScreen({
     setOrder
   } = useOrderStore();
   const selectedClientCityId = useClientPlatformStore((state) => state.selectedCityId);
+  const saveClientProfile = useClientPlatformStore((state) => state.saveProfile);
+  const addClientAddress = useClientPlatformStore((state) => state.addAddress);
+  const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
   const items = useCartStore((state) => state.items);
   const total = selectCartTotal(items);
   const activeCabins = useMemo(
@@ -2194,6 +2187,73 @@ function CheckoutScreen({
             })
               .then((orderId) => {
                 if (orderId) {
+                  const orderType: ClientOrder['orderType'] =
+                    mode === 'hall' ? 'dine_in' : mode === 'takeaway' ? 'pickup' : 'delivery';
+                  const deliveryProvider: ClientOrder['deliveryProvider'] =
+                    orderType === 'delivery'
+                      ? deliverySettings.use_platform_drivers
+                        ? 'platform'
+                        : 'restaurant'
+                      : orderType === 'pickup'
+                        ? 'pickup'
+                        : 'dine_in';
+                  const profileName = clientName.trim() || 'Гость';
+                  const profilePhone = clientPhone.trim();
+                  const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
+
+                  if (mode === 'delivery') {
+                    const clientAddress: ClientAddress = {
+                      id: `checkout-${catalogSlug}`,
+                      title: effectiveDeliverySettlement || effectiveDeliveryCity || 'Адрес доставки',
+                      addressLine: finalDeliveryAddress,
+                      lat: selectedDeliveryLat,
+                      lng: selectedDeliveryLng,
+                      accuracyM: deliveryAccuracyM,
+                      entrance: '',
+                      floor: '',
+                      apartment: '',
+                      intercomCode: '',
+                      landmark: '',
+                      comment: '',
+                      isDefault: true
+                    };
+
+                    saveClientProfile({ name: profileName, phone: profilePhone });
+                    addClientAddress(clientAddress);
+                  }
+
+                  submitClientOrder({
+                    id: orderId,
+                    restaurantSlug: catalogSlug,
+                    restaurantName: restaurant.name || catalogSlug,
+                    orderType,
+                    deliveryProvider,
+                    paymentMethod: paymentSettings.transferEnabled ? 'bank_transfer' : 'cash',
+                    status: paymentSettings.transferEnabled && paymentSettings.requireConfirmation
+                      ? 'waiting_payment_confirmation'
+                      : 'new',
+                    paymentStatus: paymentSettings.transferEnabled ? 'waiting_confirmation' : 'unpaid',
+                    totalAmount: total,
+                    addressLine:
+                      orderType === 'delivery'
+                        ? finalDeliveryAddress
+                        : orderType === 'dine_in'
+                          ? selectedCabin?.title ?? 'В зале'
+                          : restaurant.address || 'Самовывоз',
+                    deliveryLat: orderType === 'delivery' ? deliveryLat : null,
+                    deliveryLng: orderType === 'delivery' ? deliveryLng : null,
+                    clientName: profileName,
+                    clientPhone: profilePhone,
+                    createdAt: new Date().toISOString(),
+                    estimatedTimeMin: preparationMinutes,
+                    estimatedTimeMax: preparationMinutes + (orderType === 'delivery' ? 20 : 10),
+                    items: items.map((item) => ({
+                      dishId: item.product.id,
+                      name: item.product.title,
+                      price: item.product.price,
+                      quantity: item.quantity
+                    }))
+                  });
                   toast.success('Заказ создан в системе ресторана');
                   openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
                   window.setTimeout(onSubmitOrder, 500);

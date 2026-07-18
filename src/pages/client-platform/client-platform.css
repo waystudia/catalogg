@@ -1532,6 +1532,20 @@
   gap: 4px;
 }
 
+.profile-card__address {
+  display: inline-flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.profile-card__address svg {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+}
+
 .profile-inline-form {
   display: grid;
   gap: 12px;

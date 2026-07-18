@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { defaultClientAddresses, defaultClientOrders } from './mockData';
 import type {
   ClientAddress,
   ClientCartLine,
@@ -53,16 +52,16 @@ const defaultDraft = (): ClientCheckoutDraft => ({
   clientName: '',
   clientPhone: '',
   boothName: 'Кабинка №1',
-  addressId: 'address-home',
+  addressId: '',
   deliverySettlement: '',
-  deliveryAddress: 'ул. Ленина, 123, кв. 45',
+  deliveryAddress: '',
   deliveryLat: 43.3184,
   deliveryLng: 45.6927,
   deliveryAccuracyM: 15,
-  deliveryEntrance: '2',
-  deliveryFloor: '4',
-  deliveryApartment: '45',
-  deliveryIntercomCode: '45',
+  deliveryEntrance: '',
+  deliveryFloor: '',
+  deliveryApartment: '',
+  deliveryIntercomCode: '',
   deliveryLandmark: '',
   deliveryComment: '',
   paymentMethod: 'qr'
@@ -78,6 +77,11 @@ const orderItemsToCart = (items: ClientOrderItem[]): ClientCartLine[] =>
   items.map((item) => ({ dishId: item.dishId, quantity: item.quantity }));
 
 const demoProfile: ClientProfile = { name: 'Адам М.', phone: '+7 928 123-45-67' };
+const demoOrderId = 'WC-12345';
+const demoAddressIds = new Set(['address-home', 'address-work']);
+const demoFavoriteRestaurantId = 'restaurant-rizih';
+const demoFavoriteDishId = 'rizih-philadelphia';
+const demoCartDishIds = new Set(['rizih-philadelphia', 'rizih-four-seasons', 'rizih-pepperoni']);
 
 const isPersistedClientStore = (value: unknown): value is Partial<ClientPlatformStore> =>
   typeof value === 'object' && value !== null;
@@ -85,21 +89,15 @@ const isPersistedClientStore = (value: unknown): value is Partial<ClientPlatform
 export const useClientPlatformStore = create<ClientPlatformStore>()(
   persist(
     (set) => ({
-      selectedCityId: 'grozny',
-      recentCityIds: ['grozny'],
+      selectedCityId: '',
+      recentCityIds: [],
       profile: { name: '', phone: '' },
-      addresses: defaultClientAddresses,
-      favoriteRestaurantIds: ['restaurant-rizih'],
-      favoriteDishIds: ['rizih-philadelphia'],
-      carts: {
-        rizih: [
-          { dishId: 'rizih-philadelphia', quantity: 1 },
-          { dishId: 'rizih-four-seasons', quantity: 1 },
-          { dishId: 'rizih-pepperoni', quantity: 1 }
-        ]
-      },
+      addresses: [],
+      favoriteRestaurantIds: [],
+      favoriteDishIds: [],
+      carts: {},
       checkoutDrafts: {},
-      orders: defaultClientOrders,
+      orders: [],
       setSelectedCity: (cityId) =>
         set((state) => ({
           selectedCityId: cityId,
@@ -108,7 +106,12 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
       saveProfile: (profile) => set({ profile }),
       addAddress: (address) =>
         set((state) => ({
-          addresses: [address, ...state.addresses.map((item) => ({ ...item, isDefault: false }))]
+          addresses: [
+            address,
+            ...state.addresses
+              .filter((item) => item.id !== address.id)
+              .map((item) => ({ ...item, isDefault: false }))
+          ]
         })),
       selectDraftAddress: (restaurantSlug, address) =>
         set((state) => {
@@ -213,18 +216,45 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
     {
       name: 'waycatalog-client-platform',
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (persistedState, version) => {
-        if (version >= 2 || !isPersistedClientStore(persistedState)) {
+        if (!isPersistedClientStore(persistedState)) {
           return persistedState as ClientPlatformStore;
         }
 
-        const persistedProfile = persistedState.profile;
-        if (persistedProfile?.name === demoProfile.name && persistedProfile.phone === demoProfile.phone) {
-          return { ...persistedState, profile: { name: '', phone: '' } } as ClientPlatformStore;
+        let nextState = { ...persistedState };
+        const persistedProfile = nextState.profile;
+        if (
+          version < 2 &&
+          persistedProfile?.name === demoProfile.name &&
+          persistedProfile.phone === demoProfile.phone
+        ) {
+          nextState = { ...nextState, profile: { name: '', phone: '' } };
         }
 
-        return persistedState as ClientPlatformStore;
+        if (version < 3) {
+          const carts = { ...(nextState.carts ?? {}) };
+          const rizihCart = carts.rizih;
+          const isDemoCart =
+            rizihCart?.length === demoCartDishIds.size &&
+            rizihCart.every((line) => line.quantity === 1 && demoCartDishIds.has(line.dishId));
+          if (isDemoCart) delete carts.rizih;
+
+          nextState = {
+            ...nextState,
+            selectedCityId: nextState.selectedCityId === 'grozny' ? '' : nextState.selectedCityId,
+            recentCityIds: (nextState.recentCityIds ?? []).filter((cityId) => cityId !== 'grozny'),
+            addresses: (nextState.addresses ?? []).filter((address) => !demoAddressIds.has(address.id)),
+            favoriteRestaurantIds: (nextState.favoriteRestaurantIds ?? []).filter(
+              (restaurantId) => restaurantId !== demoFavoriteRestaurantId
+            ),
+            favoriteDishIds: (nextState.favoriteDishIds ?? []).filter((dishId) => dishId !== demoFavoriteDishId),
+            carts,
+            orders: (nextState.orders ?? []).filter((order) => order.id !== demoOrderId)
+          };
+        }
+
+        return nextState as ClientPlatformStore;
       },
       partialize: (state) => ({
         selectedCityId: state.selectedCityId,

@@ -1,6 +1,4 @@
 import type {
-  ClientAddress,
-  ClientOrder,
   ClientPlatformSnapshot,
   PaymentSettings
 } from './types';
@@ -342,66 +340,6 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
     }
   ]
 };
-
-export const defaultClientAddresses: ClientAddress[] = [
-  {
-    id: 'address-home',
-    title: 'Дом',
-    addressLine: 'ул. Ленина, 123, кв. 45',
-    lat: 43.3184,
-    lng: 45.6927,
-    accuracyM: 15,
-    entrance: '2',
-    floor: '4',
-    apartment: '45',
-    intercomCode: '45',
-    landmark: '',
-    comment: 'Подъезд 2, домофон 45',
-    isDefault: true
-  },
-  {
-    id: 'address-work',
-    title: 'Работа',
-    addressLine: 'ул. Мира, 56, офис 12',
-    lat: 43.3221,
-    lng: 45.7012,
-    accuracyM: 25,
-    entrance: '',
-    floor: '',
-    apartment: '12',
-    intercomCode: '',
-    landmark: 'Офисный центр',
-    comment: '',
-    isDefault: false
-  }
-];
-
-export const defaultClientOrders: ClientOrder[] = [
-  {
-    id: 'WC-12345',
-    restaurantSlug: 'rizih',
-    restaurantName: 'Rizih',
-    orderType: 'delivery',
-    deliveryProvider: 'restaurant',
-    paymentMethod: 'qr',
-    status: 'on_the_way',
-    paymentStatus: 'confirmed',
-    totalAmount: 1470,
-    addressLine: 'ул. Ленина, 123, кв. 45',
-    clientName: 'Адам М.',
-    clientPhone: '+7 928 123-45-67',
-    createdAt: new Date().toISOString(),
-    estimatedTimeMin: 20,
-    estimatedTimeMax: 30,
-    driverName: 'Алан М.',
-    driverPhone: '+7 928 555-12-12',
-    items: [
-      { dishId: 'rizih-philadelphia', name: 'Филадельфия', price: 500, quantity: 1 },
-      { dishId: 'rizih-four-seasons', name: 'Четыре сезона', price: 550, quantity: 1 },
-      { dishId: 'rizih-pepperoni', name: 'Пицца Пепперони', price: 290, quantity: 1 }
-    ]
-  }
-];
 
 export const fallbackPaymentSettings: PaymentSettings = {
   restaurantSlug: '',

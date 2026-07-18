@@ -1943,6 +1943,7 @@ function SupportPage({ supportWhatsapp }: { supportWhatsapp: string }) {
 function ProfilePage() {
   const navigate = useNavigate();
   const profile = useClientPlatformStore((state) => state.profile);
+  const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
   const [clientPhone, setClientPhone] = useState(profile.phone);
@@ -1965,6 +1966,7 @@ function ProfilePage() {
   ];
   const displayName = profile.name || 'Гость WayCatalog';
   const displayPhone = profile.phone || 'Телефон не указан';
+  const displayAddress = addresses.find((address) => address.isDefault)?.addressLine ?? addresses[0]?.addressLine ?? '';
 
   const submitClientProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2038,6 +2040,7 @@ function ProfilePage() {
         <span>
           <strong>{displayName}</strong>
           <small>{displayPhone}</small>
+          {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
         </span>
         <ChevronRight />
       </section>
