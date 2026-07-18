@@ -2,7 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  BadgePercent,
   BookOpen,
+  Ban,
   Bell,
   CheckCircle2,
   ChevronLeft,
@@ -25,6 +27,8 @@ import {
   ShieldAlert,
   Store,
   Trash2,
+  Trophy,
+  Ticket,
   Truck,
   UserRound,
   Users,
@@ -36,9 +40,11 @@ import { Toaster, toast } from 'sonner';
 import {
   createClient,
   deleteClientSignup,
+  deletePlatformContestTicket,
   deletePlatformBanner,
   getClientSignups,
   getClients,
+  getPlatformContestTickets,
   getPlatformBanners,
   getPlatformGlobalSettings,
   getPlatformStats,
@@ -54,6 +60,13 @@ import {
   reviewDeliveryPriceRequest,
   saveDeliveryPricingRule
 } from '../../shared/api/deliveryPricingApi';
+import {
+  getPlatformBillingSettings,
+  getPlatformCustomTariffs,
+  getSubscriptions,
+  savePlatformBillingSettings,
+  savePlatformCustomTariff
+} from '../../shared/api/subscriptionsApi';
 import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type {
   ClientSignup,
@@ -62,6 +75,8 @@ import type {
   PlatformDriver,
   PlatformBannerAdmin,
   PlatformClient,
+  PlatformBillingSettings,
+  PlatformContestTicket,
   PlatformStats,
   PlatformTemplateOption
 } from '../../shared/api/platformTypes';
@@ -89,6 +104,7 @@ type PlatformRoute =
   | 'catalogs'
   | 'templates'
   | 'import-export'
+  | 'contests'
   | 'subscriptions'
   | 'settings'
   | 'audit-log';
@@ -117,6 +133,7 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
   { route: 'templates', label: 'Шаблоны', detail: 'Управление шаблонами', Icon: LayoutTemplate },
   { route: 'import-export', label: 'Импорт / Экспорт', detail: 'Данные и каталоги', Icon: Database },
+  { route: 'contests', label: 'Акции', detail: 'Конкурсы и билеты', Icon: Trophy },
   { route: 'subscriptions', label: 'Подписки и платежи', detail: 'Управление оплатами', Icon: CreditCard },
   { route: 'settings', label: 'Настройки', detail: 'Система и дизайн', Icon: Settings },
   { route: 'audit-log', label: 'Журнал действий', detail: 'История изменений', Icon: Activity }
@@ -170,6 +187,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   if (path.includes('/admin/drivers')) return 'drivers';
   if (path.includes('/admin/templates')) return 'templates';
   if (path.includes('/admin/import-export')) return 'import-export';
+  if (path.includes('/admin/contests')) return 'contests';
   if (path.includes('/admin/subscriptions')) return 'subscriptions';
   if (path.includes('/admin/settings')) return 'settings';
   if (path.includes('/admin/audit-log')) return 'audit-log';
@@ -351,7 +369,19 @@ function StatsCards({ stats }: { stats?: PlatformStats }) {
 }
 
 function RestaurantStatsTable({ stats }: { stats?: PlatformStats }) {
+  const queryClient = useQueryClient();
   const restaurants = stats?.restaurantStats ?? [];
+  const blockRestaurant = async (restaurant: PlatformStats['restaurantStats'][number]) => {
+    if (!restaurant.clientId) return;
+    try {
+      await updateClient({ clientId: restaurant.clientId, status: 'blocked' });
+      toast.success(`${restaurant.name} заблокирован`);
+      void queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
+      void queryClient.invalidateQueries({ queryKey: ['platform-clients'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось заблокировать ресторан');
+    }
+  };
 
   if (restaurants.length === 0) {
     return null;
@@ -371,9 +401,13 @@ function RestaurantStatsTable({ stats }: { stats?: PlatformStats }) {
               {restaurant.slug && <small>/{restaurant.slug}</small>}
             </span>
             <b>{formatMoney(restaurant.revenue)}</b>
-            <small>Долг: {restaurant.debt}</small>
+            <small>Долг: {formatMoney(restaurant.debt)}</small>
             <small>Заказы: {restaurant.ordersCount}</small>
             <small>Водители: {restaurant.driverDeliveries}</small>
+            <button type="button" disabled={!restaurant.clientId} onClick={() => void blockRestaurant(restaurant)}>
+              <Ban />
+              Блокировать
+            </button>
           </article>
         ))}
       </div>
@@ -393,8 +427,38 @@ function DashboardPage() {
         </div>
       </header>
       <StatsCards stats={statsQuery.data} />
+      <DebtControlPanel stats={statsQuery.data} />
       <RestaurantStatsTable stats={statsQuery.data} />
     </main>
+  );
+}
+
+function DebtControlPanel({ stats }: { stats?: PlatformStats }) {
+  const debtors = (stats?.restaurantStats ?? []).filter((restaurant) => restaurant.debt > 0);
+
+  return (
+    <section className="platform-debt-panel">
+      <header>
+        <span><ShieldAlert /></span>
+        <div>
+          <h2>Долги и ограничения</h2>
+          <p>Комиссия платформы по заказам ресторанов. Блокировка ресторана выполняется в таблице ниже.</p>
+        </div>
+        <strong>{formatMoney(stats?.totalDebt ?? 0)}</strong>
+      </header>
+      {debtors.length === 0 ? (
+        <small>Активных долгов нет</small>
+      ) : (
+        <div>
+          {debtors.slice(0, 4).map((restaurant) => (
+            <span key={restaurant.id}>
+              <b>{restaurant.name}</b>
+              <em>{formatMoney(restaurant.debt)}</em>
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -2157,11 +2221,269 @@ function DriverAdminCard({
             : driver.carNumber || driver.cityName || 'Город не указан'}
         </small>
       </div>
+      <div>
+        <strong>{formatMoney(driver.debt)}</strong>
+        <small>Долг водителя</small>
+      </div>
       <b>{driver.rating.toFixed(1)}</b>
       <button type="button" onClick={() => setIsEditing(true)}>
         Редактировать
       </button>
     </article>
+  );
+}
+
+type BillingDraft = PlatformBillingSettings & {
+  customSubject: string;
+  customTariff: number;
+};
+
+const billingDraftStorageKey = 'waycatalog-platform-billing-draft';
+
+const readBillingDraft = (): BillingDraft => {
+  const defaults: BillingDraft = {
+    clientFee: 0,
+    restaurantCommission: 7,
+    driverTariff: 5,
+    restaurantLimit: 5000,
+    driverLimit: 3000,
+    warningPercent: 80,
+    customSubject: '',
+    customTariff: 0
+  };
+  try {
+    const raw = window.localStorage.getItem(billingDraftStorageKey);
+    return raw ? { ...defaults, ...JSON.parse(raw) as Partial<BillingDraft> } : defaults;
+  } catch {
+    return defaults;
+  }
+};
+
+function SubscriptionsPage() {
+  const subscriptionsQuery = useQuery({ queryKey: ['platform-subscriptions'], queryFn: getSubscriptions });
+  const billingSettingsQuery = useQuery({ queryKey: ['platform-billing-settings'], queryFn: getPlatformBillingSettings });
+  const customTariffsQuery = useQuery({ queryKey: ['platform-custom-tariffs'], queryFn: getPlatformCustomTariffs });
+  const pricingRulesQuery = useQuery({ queryKey: ['delivery-pricing-rules'], queryFn: getDeliveryPricingRules });
+  const priceRequestsQuery = useQuery({ queryKey: ['delivery-price-requests'], queryFn: getDeliveryPriceRequests });
+  const clientsQuery = useQuery({ queryKey: ['platform-clients-for-billing'], queryFn: () => getClients({ page: 1, pageSize: 1000, status: 'all', payment: 'all', templateId: 'all' }) });
+  const driversQuery = useQuery({ queryKey: ['platform-drivers-for-billing'], queryFn: getDrivers });
+  const queryClient = useQueryClient();
+  const [billing, setBilling] = useState<BillingDraft>(() => readBillingDraft());
+  const [fromSettlement, setFromSettlement] = useState('');
+  const [toSettlement, setToSettlement] = useState('');
+  const [amount, setAmount] = useState(200);
+
+  useEffect(() => {
+    if (!billingSettingsQuery.data) return;
+    setBilling((current) => ({ ...current, ...billingSettingsQuery.data }));
+  }, [billingSettingsQuery.data]);
+
+  const selectedCustomTariff = customTariffsQuery.data?.find((tariff) => `${tariff.subjectType}:${tariff.subjectId}` === billing.customSubject);
+
+  useEffect(() => {
+    if (!selectedCustomTariff) return;
+    setBilling((current) => ({ ...current, customTariff: selectedCustomTariff.tariffPercent }));
+  }, [selectedCustomTariff]);
+
+  const saveBilling = async () => {
+    const settings: PlatformBillingSettings = {
+      clientFee: billing.clientFee,
+      restaurantCommission: billing.restaurantCommission,
+      driverTariff: billing.driverTariff,
+      restaurantLimit: billing.restaurantLimit,
+      driverLimit: billing.driverLimit,
+      warningPercent: billing.warningPercent
+    };
+    try {
+      await savePlatformBillingSettings(settings);
+      window.localStorage.setItem(billingDraftStorageKey, JSON.stringify(billing));
+      toast.success('Тарифы сохранены');
+      void queryClient.invalidateQueries({ queryKey: ['platform-billing-settings'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить тарифы');
+    }
+  };
+
+  const saveCustomTariff = async () => {
+    try {
+      await savePlatformCustomTariff({
+        subject: billing.customSubject,
+        tariffPercent: billing.customTariff
+      });
+      window.localStorage.setItem(billingDraftStorageKey, JSON.stringify(billing));
+      toast.success('Индивидуальный тариф сохранён');
+      void queryClient.invalidateQueries({ queryKey: ['platform-custom-tariffs'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить индивидуальный тариф');
+    }
+  };
+
+  const saveRoutePrice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      await saveDeliveryPricingRule({ fromSettlement, toSettlement, amount });
+      setFromSettlement('');
+      setToSettlement('');
+      setAmount(200);
+      toast.success('Тариф маршрута сохранён');
+      void queryClient.invalidateQueries({ queryKey: ['delivery-pricing-rules'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить тариф');
+    }
+  };
+
+  return (
+    <main className="platform-page">
+      <header className="platform-page-head">
+        <div>
+          <h1>Подписки и платежи</h1>
+          <p>Комиссии, тарифы, лимиты и предупреждения для ресторанов и водителей</p>
+        </div>
+      </header>
+
+      <section className="platform-billing-grid">
+        <article className="platform-billing-card">
+          <BadgePercent />
+          <h2>Комиссии</h2>
+          <label>Комиссия с клиента, ₽<input type="number" min="0" value={billing.clientFee} onChange={(event) => setBilling({ ...billing, clientFee: Number(event.target.value) })} /></label>
+          <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>
+          <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>
+          <button type="button" onClick={() => void saveBilling()}>Сохранить тарифы</button>
+        </article>
+
+        <article className="platform-billing-card">
+          <ShieldAlert />
+          <h2>Лимиты</h2>
+          <label>Лимит ресторана, ₽<input type="number" min="0" value={billing.restaurantLimit} onChange={(event) => setBilling({ ...billing, restaurantLimit: Number(event.target.value) })} /></label>
+          <label>Лимит водителя, ₽<input type="number" min="0" value={billing.driverLimit} onChange={(event) => setBilling({ ...billing, driverLimit: Number(event.target.value) })} /></label>
+          <label>Предупредить на, %<input type="number" min="1" max="100" value={billing.warningPercent} onChange={(event) => setBilling({ ...billing, warningPercent: Number(event.target.value) })} /></label>
+          <small>При превышении лимита используйте блокировку в разделах «Клиенты» или «Водители».</small>
+        </article>
+
+        <article className="platform-billing-card">
+          <Users />
+          <h2>Индивидуальный тариф</h2>
+          <select value={billing.customSubject} onChange={(event) => setBilling({ ...billing, customSubject: event.target.value })}>
+            <option value="">Выберите ресторан или водителя</option>
+            {(clientsQuery.data?.data ?? []).map((client) => <option value={`restaurant:${client.id}`} key={client.id}>{client.companyName}</option>)}
+            {(driversQuery.data ?? []).map((driver) => <option value={`driver:${driver.id}`} key={driver.id}>{driver.name}</option>)}
+          </select>
+          <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>
+          <button type="button" onClick={() => void saveCustomTariff()}>Сохранить отдельно</button>
+        </article>
+      </section>
+
+      <form className="platform-settings-form platform-settings-form--pricing" onSubmit={saveRoutePrice}>
+        <label>Откуда<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Цоци-Юрт" /></label>
+        <label>Куда<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Курчалой" /></label>
+        <label>Цена, ₽<input type="number" min="0" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label>
+        <button type="submit"><Plus />Добавить маршрут</button>
+      </form>
+
+      <section className="platform-billing-list">
+        <h2>Текущие подписки</h2>
+        {(subscriptionsQuery.data ?? []).map((subscription) => (
+          <article key={subscription.id}>
+            <strong>{subscription.clientName}</strong>
+            <span>{subscription.planCode}</span>
+            <b>{formatMoney(subscription.amount)}</b>
+            <small>{subscription.status}</small>
+          </article>
+        ))}
+        {!subscriptionsQuery.isLoading && (subscriptionsQuery.data ?? []).length === 0 && <small>Подписок пока нет</small>}
+      </section>
+
+      <section className="platform-billing-list">
+        <h2>Тарифы маршрутов</h2>
+        {(pricingRulesQuery.data ?? []).map((rule) => (
+          <article key={rule.id}>
+            <strong>{rule.fromSettlement} → {rule.toSettlement}</strong>
+            <b>{formatMoney(rule.amount)}</b>
+            <small>{rule.isActive ? 'Активен' : 'Выключен'}</small>
+          </article>
+        ))}
+        {!pricingRulesQuery.isLoading && (pricingRulesQuery.data ?? []).length === 0 && <small>Маршрутных тарифов пока нет</small>}
+      </section>
+
+      <section className="platform-billing-list">
+        <h2>Согласование цен водителей</h2>
+        {(priceRequestsQuery.data ?? []).map((request) => (
+          <article key={request.id}>
+            <strong>{request.driverName}</strong>
+            <span>{formatMoney(request.currentAmount)} → {formatMoney(request.requestedAmount)}</span>
+            <small>{request.comment || 'Без комментария'}</small>
+            <button type="button" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: true, amount: request.requestedAmount }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Одобрить</button>
+            <button type="button" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: false }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Отклонить</button>
+          </article>
+        ))}
+        {!priceRequestsQuery.isLoading && (priceRequestsQuery.data ?? []).length === 0 && <small>Новых запросов нет</small>}
+      </section>
+    </main>
+  );
+}
+
+function ContestsPage() {
+  const queryClient = useQueryClient();
+  const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
+  const contests = (bannersQuery.data ?? []).filter((banner) => banner.kind === 'contest');
+  const [selectedContestId, setSelectedContestId] = useState('');
+  const activeContestId = selectedContestId || contests[0]?.id || 'all';
+  const ticketsQuery = useQuery({
+    queryKey: ['platform-contest-tickets', activeContestId],
+    queryFn: () => getPlatformContestTickets(activeContestId)
+  });
+
+  useEffect(() => {
+    if (!selectedContestId && contests[0]?.id) setSelectedContestId(contests[0].id);
+  }, [contests, selectedContestId]);
+
+  const removeTicket = async (ticket: PlatformContestTicket) => {
+    await deletePlatformContestTicket(ticket.id);
+    toast.success('Билет удалён из списка');
+    void queryClient.invalidateQueries({ queryKey: ['platform-contest-tickets', activeContestId] });
+  };
+
+  return (
+    <main className="platform-page">
+      <header className="platform-page-head">
+        <div>
+          <h1>Акции и конкурсы</h1>
+          <p>Конкурсы берутся из баннеров главной, один заказ создаёт один билет</p>
+        </div>
+      </header>
+
+      <section className="platform-contest-toolbar">
+        <Trophy />
+        <select value={activeContestId} onChange={(event) => setSelectedContestId(event.target.value)}>
+          {contests.length === 0 && <option value="all">Все заказы</option>}
+          {contests.map((contest) => <option value={contest.id} key={contest.id}>{contest.title}</option>)}
+        </select>
+      </section>
+
+      <section className="platform-ticket-list">
+        {(ticketsQuery.data ?? []).map((ticket) => (
+          <article className="platform-ticket-card" key={ticket.id}>
+            <Ticket />
+            <div>
+              <strong>{ticket.customerName}</strong>
+              <small>{ticket.customerPhone || 'Телефон не указан'}</small>
+              <span>{ticket.restaurantName} · {formatMoney(ticket.totalAmount)}</span>
+              <em>{ticket.orderedItems.length > 0 ? ticket.orderedItems.join(', ') : 'Состав заказа не найден'}</em>
+            </div>
+            <button type="button" onClick={() => void removeTicket(ticket)} aria-label="Удалить билет">
+              <Trash2 />
+            </button>
+          </article>
+        ))}
+        {!ticketsQuery.isLoading && (ticketsQuery.data ?? []).length === 0 && (
+          <section className="platform-placeholder">
+            <Ticket />
+            <h2>Билетов пока нет</h2>
+            <p>Когда клиент оформит заказ, он появится здесь как билет конкурса.</p>
+          </section>
+        )}
+      </section>
+    </main>
   );
 }
 
@@ -2470,6 +2792,12 @@ function PlatformAdminContent() {
     }
     if (route === 'drivers') {
       return <DriversPage />;
+    }
+    if (route === 'contests') {
+      return <ContestsPage />;
+    }
+    if (route === 'subscriptions') {
+      return <SubscriptionsPage />;
     }
     if (route === 'settings') {
       return <PlatformSettingsPage />;

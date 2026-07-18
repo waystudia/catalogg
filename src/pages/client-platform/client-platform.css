@@ -446,12 +446,16 @@
 .restaurant-card em {
   width: 100%;
   align-self: end;
-  padding: 4px 6px;
+  display: -webkit-box;
+  min-height: 30px;
+  align-content: center;
+  padding: 4px 7px;
   overflow: hidden;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-transform: uppercase;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .restaurant-card__title small,

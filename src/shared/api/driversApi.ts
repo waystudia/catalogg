@@ -16,6 +16,7 @@ type DriverRow = {
   is_online: boolean | null;
   status: string | null;
   rating: number | null;
+  debt_amount?: number | string | null;
   created_at: string;
   users?: {
     email?: string | null;
@@ -41,6 +42,7 @@ const demoDrivers: PlatformDriver[] = [
     isOnline: true,
     status: 'online',
     rating: 4.9,
+    debt: 0,
     createdAt: new Date().toISOString()
   }
 ];
@@ -60,6 +62,7 @@ const mapDriver = (row: DriverRow): PlatformDriver => ({
   isOnline: row.is_online ?? false,
   status: row.status ?? 'offline',
   rating: Number(row.rating ?? 5),
+  debt: Number(row.debt_amount ?? 0),
   createdAt: row.created_at
 });
 
@@ -84,7 +87,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
 
   const result = await supabase
     .from('drivers')
-    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, created_at, users(email), cities(name)')
+    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, debt_amount, created_at, users(email), cities(name)')
     .order('created_at', { ascending: false });
 
   if (!result.error) {

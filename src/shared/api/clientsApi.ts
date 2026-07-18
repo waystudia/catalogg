@@ -5,6 +5,7 @@ import type {
   CreateClientPayload,
   CreateClientResult,
   PlatformBannerAdmin,
+  PlatformContestTicket,
   PlatformGlobalSettings,
   PlatformClient,
   PlatformStats,
@@ -156,6 +157,43 @@ type PlatformBannerRow = {
   link_url: string;
   sort_order: number;
   is_active: boolean;
+};
+
+type ContestOrderRow = {
+  id: string;
+  client_name?: string | null;
+  client_phone?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  total?: number | string | null;
+  total_amount?: number | string | null;
+  created_at: string;
+  restaurants?: { name?: string | null } | Array<{ name?: string | null }> | null;
+  order_items?: Array<{
+    quantity?: number | null;
+    dish_name_snapshot?: string | null;
+    title?: string | null;
+  }> | null;
+};
+
+const hiddenContestTicketStorageKey = 'waycatalog-hidden-contest-tickets';
+
+const firstRelation = <T,>(value: T | T[] | null | undefined): T | null =>
+  Array.isArray(value) ? value[0] ?? null : value ?? null;
+
+const readHiddenContestTickets = () => {
+  if (typeof window === 'undefined') return new Set<string>();
+  try {
+    const value = window.localStorage.getItem(hiddenContestTicketStorageKey);
+    return new Set<string>(value ? JSON.parse(value) as string[] : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const writeHiddenContestTickets = (ids: Set<string>) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(hiddenContestTicketStorageKey, JSON.stringify(Array.from(ids)));
 };
 
 const mapClient = (row: ClientRow): PlatformClient => ({
@@ -399,6 +437,56 @@ export async function deletePlatformBanner(id: string) {
   if (!supabase) return;
   const { error } = await supabase.from('platform_banners').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function getPlatformContestTickets(contestId = 'all'): Promise<PlatformContestTicket[]> {
+  const hiddenIds = readHiddenContestTickets();
+  if (!supabase) {
+    return [{
+      id: 'demo-ticket',
+      contestId,
+      orderId: 'demo-order',
+      restaurantName: 'Мангал',
+      customerName: 'Адам М.',
+      customerPhone: '+7 928 555-12-12',
+      totalAmount: 1470,
+      orderedItems: ['Шашлык из баранины x 1', 'Чеченский чай x 1'],
+      createdAt: new Date().toISOString()
+    }].filter((ticket) => !hiddenIds.has(ticket.id));
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, client_name, client_phone, customer_name, customer_phone, total, total_amount, created_at, restaurants(name), order_items(quantity, dish_name_snapshot, title)')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) return [];
+
+  return ((data ?? []) as unknown as ContestOrderRow[])
+    .map((order) => {
+      const ticket: PlatformContestTicket = {
+        id: `${contestId}-${order.id}`,
+        contestId,
+        orderId: order.id,
+        restaurantName: firstRelation(order.restaurants)?.name ?? 'Ресторан',
+        customerName: order.client_name || order.customer_name || 'Клиент',
+        customerPhone: order.client_phone || order.customer_phone || '',
+        totalAmount: Number(order.total_amount ?? order.total ?? 0),
+        orderedItems: (order.order_items ?? []).map((item) => {
+          const quantity = Math.max(1, Number(item.quantity ?? 1));
+          return `${item.dish_name_snapshot || item.title || 'Блюдо'} x ${quantity}`;
+        }),
+        createdAt: order.created_at
+      };
+      return ticket;
+    })
+    .filter((ticket) => !hiddenIds.has(ticket.id));
+}
+
+export async function deletePlatformContestTicket(id: string) {
+  const hiddenIds = readHiddenContestTickets();
+  hiddenIds.add(id);
+  writeHiddenContestTickets(hiddenIds);
 }
 
 export async function createClient(payload: CreateClientPayload): Promise<CreateClientResult> {

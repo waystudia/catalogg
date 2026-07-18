@@ -86,6 +86,7 @@ export type PlatformGlobalSettings = {
 
 export type PlatformRestaurantStats = {
   id: string;
+  clientId: string;
   name: string;
   slug: string;
   revenue: number;
@@ -154,7 +155,37 @@ export type PlatformDriver = {
   isOnline: boolean;
   status: string;
   rating: number;
+  debt: number;
   createdAt: string;
+};
+
+export type PlatformContestTicket = {
+  id: string;
+  contestId: string;
+  orderId: string;
+  restaurantName: string;
+  customerName: string;
+  customerPhone: string;
+  totalAmount: number;
+  orderedItems: string[];
+  createdAt: string;
+};
+
+export type PlatformBillingSettings = {
+  clientFee: number;
+  restaurantCommission: number;
+  driverTariff: number;
+  restaurantLimit: number;
+  driverLimit: number;
+  warningPercent: number;
+};
+
+export type PlatformCustomTariff = {
+  id: string;
+  subjectType: 'restaurant' | 'driver';
+  subjectId: string;
+  tariffPercent: number;
+  isActive: boolean;
 };
 
 export type CreateDriverPayload = {

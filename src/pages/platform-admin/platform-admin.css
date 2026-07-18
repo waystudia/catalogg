@@ -330,7 +330,7 @@
 
 .restaurant-stats-table article {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 140px repeat(3, minmax(88px, auto));
+  grid-template-columns: minmax(0, 1.4fr) 130px repeat(3, minmax(88px, auto)) 142px;
   align-items: center;
   gap: 12px;
   min-height: 56px;
@@ -338,6 +338,92 @@
   border-radius: 8px;
   padding: 10px 12px;
   background: #f8fafc;
+}
+
+.restaurant-stats-table article button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 900;
+}
+
+.restaurant-stats-table article button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.restaurant-stats-table article button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.platform-debt-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--platform-border);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-debt-panel header {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.platform-debt-panel header > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.platform-debt-panel h2,
+.platform-debt-panel p {
+  margin: 0;
+}
+
+.platform-debt-panel p,
+.platform-debt-panel small {
+  color: #667085;
+}
+
+.platform-debt-panel header > strong {
+  color: #111827;
+  font-size: 24px;
+}
+
+.platform-debt-panel > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-debt-panel > div span {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff7ed;
+}
+
+.platform-debt-panel em {
+  color: #c2410c;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .restaurant-stats-table span {
@@ -1271,6 +1357,178 @@
   font-weight: 900;
 }
 
+.platform-billing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.platform-billing-card,
+.platform-billing-list,
+.platform-contest-toolbar,
+.platform-ticket-card {
+  border: 1px solid var(--platform-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-billing-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 16px;
+}
+
+.platform-billing-card > svg {
+  width: 30px;
+  height: 30px;
+  color: #5b3df4;
+}
+
+.platform-billing-card h2,
+.platform-billing-list h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.platform-billing-card label {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.platform-billing-card input,
+.platform-billing-card select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #111827;
+}
+
+.platform-billing-card button,
+.platform-billing-list button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.platform-billing-card small,
+.platform-billing-list small {
+  color: #667085;
+}
+
+.platform-settings-form--pricing {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 190px;
+}
+
+.platform-billing-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.platform-billing-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.platform-billing-list span,
+.platform-billing-list em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #667085;
+  font-style: normal;
+}
+
+.platform-contest-toolbar {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.platform-contest-toolbar > svg {
+  color: #5b3df4;
+}
+
+.platform-contest-toolbar select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #111827;
+  font-weight: 900;
+}
+
+.platform-ticket-list {
+  display: grid;
+  gap: 10px;
+}
+
+.platform-ticket-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.platform-ticket-card > svg {
+  color: #5b3df4;
+}
+
+.platform-ticket-card div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.platform-ticket-card strong,
+.platform-ticket-card small,
+.platform-ticket-card span,
+.platform-ticket-card em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.platform-ticket-card small,
+.platform-ticket-card span,
+.platform-ticket-card em {
+  color: #667085;
+}
+
+.platform-ticket-card em {
+  font-style: normal;
+}
+
+.platform-ticket-card button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+}
+
 .clients-table-wrap--skeleton {
   display: grid;
   gap: 0;
@@ -1691,7 +1949,7 @@
 
 .driver-admin-card {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1.3fr) minmax(0, 1fr) 56px auto;
+  grid-template-columns: 96px minmax(0, 1.3fr) minmax(0, 1fr) 110px 56px auto;
   align-items: center;
   gap: 16px;
   padding: 16px;
@@ -2060,9 +2318,16 @@
 
   .platform-template-create,
   .platform-settings-form,
-  .platform-settings-form--banner {
+  .platform-settings-form--banner,
+  .platform-settings-form--pricing,
+  .platform-billing-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .platform-settings-form,
+  .platform-settings-form--banner,
+  .platform-settings-form--pricing {
     padding: 14px;
   }
 
@@ -2070,6 +2335,24 @@
   .platform-settings-form button {
     width: 100%;
     min-height: 48px;
+  }
+
+  .platform-debt-panel header,
+  .platform-debt-panel > div,
+  .restaurant-stats-table article,
+  .platform-billing-list article,
+  .platform-ticket-card {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-debt-panel header > span,
+  .platform-ticket-card > svg,
+  .platform-ticket-card button {
+    justify-self: start;
+  }
+
+  .restaurant-stats-table article button {
+    width: 100%;
   }
 
   .platform-banner-card {

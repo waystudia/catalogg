@@ -267,7 +267,9 @@ async function savePlatformRestaurantLocation(catalogId: string, value: Restaura
   const existing = await getPlatformRestaurantLocation(catalogId);
   if (existing?.id) {
     const { error } = await supabase.from('restaurants').update(payload).eq('id', existing.id);
-    if (error) throw error;
+    if (error) {
+      console.warn('Could not sync platform restaurant location', error);
+    }
     return;
   }
 
@@ -283,7 +285,9 @@ async function savePlatformRestaurantLocation(catalogId: string, value: Restaura
     lat: payload.lat,
     lng: payload.lng
   }, { onConflict: 'slug' });
-  if (error) throw error;
+  if (error) {
+    console.warn('Could not create platform restaurant location', error);
+  }
 }
 
 export async function signInAdmin(email: string, password: string, catalogSlug?: string) {

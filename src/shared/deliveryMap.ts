@@ -222,11 +222,15 @@ export const buildMapTileGrid = ({
 }: BuildMapTileGridInput): DeliveryMapTile[] => {
   const tileZoom = Math.max(0, Math.floor(zoom));
   const zoomScale = 2 ** (zoom - tileZoom);
-  const centerPixel = latLngToWorldPixel(center, zoom);
+  const centerPixelAtTileZoom = latLngToWorldPixel(center, tileZoom);
+  const centerPixel = {
+    x: centerPixelAtTileZoom.x * zoomScale,
+    y: centerPixelAtTileZoom.y * zoomScale
+  };
   const startX = centerPixel.x - mapSize / 2;
   const startY = centerPixel.y - mapSize / 2;
   const scaledTileSize = tileSize * zoomScale;
-  const tileBuffer = 1;
+  const tileBuffer = 2;
   const firstTileX = Math.floor(startX / scaledTileSize) - tileBuffer;
   const firstTileY = Math.floor(startY / scaledTileSize) - tileBuffer;
   const lastTileX = Math.floor((startX + mapSize) / scaledTileSize) + tileBuffer;

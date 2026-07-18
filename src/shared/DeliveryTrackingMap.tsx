@@ -258,7 +258,7 @@ export function DeliveryTrackingMap({
 
   const selectSearchResult = (result: DeliveryLocationSearchResult) => {
     setCenter({ lat: result.lat, lng: result.lng });
-    setMapZoom(17);
+    setMapZoom(16);
     setSearchQuery(result.name);
     setSearchResults([]);
     setSearchMessage('');
@@ -267,14 +267,14 @@ export function DeliveryTrackingMap({
   const focusPoint = (kind: 'restaurant' | 'driver' | 'client', point: TrackingPoint) => {
     setSelectedPointKind(kind);
     setCenter({ lat: point.lat, lng: point.lng });
-    setMapZoom((zoom) => Math.min(18, zoom + 1));
+    setMapZoom((zoom) => Math.min(17, Math.max(15, zoom + 0.55)));
   };
 
   const centerOnDriver = () => {
     setManualRotation(0);
     if (driver) {
       setCenter({ lat: driver.lat, lng: driver.lng });
-      setMapZoom(17);
+      setMapZoom(16);
       return;
     }
     setCenter(defaultCenter);
@@ -348,7 +348,7 @@ export function DeliveryTrackingMap({
           const pinchAngle = getPinchAngle();
           if (pinchStart && pinchDistance !== null && pinchAngle !== null) {
             event.preventDefault();
-            const nextZoom = pinchStart.zoom + Math.log2(pinchDistance / pinchStart.distance) * 1.15;
+            const nextZoom = pinchStart.zoom + Math.log2(pinchDistance / pinchStart.distance) * 0.72;
             setMapZoom(Math.min(18, Math.max(10, nextZoom)));
             setManualRotation(pinchStart.rotation + pinchAngle - pinchStart.angle);
             return;
@@ -363,7 +363,7 @@ export function DeliveryTrackingMap({
           if (Math.abs(wheelDeltaRef.current) < 160) return;
           const direction = wheelDeltaRef.current < 0 ? 1 : -1;
           wheelDeltaRef.current = 0;
-          setMapZoom((value) => Math.min(18, Math.max(10, value + direction)));
+          setMapZoom((value) => Math.min(18, Math.max(10, value + direction * 0.5)));
         }}
       >
         <div className="delivery-tracking-map__scene" style={{ transform: `scale(${scale})` }}>
@@ -422,8 +422,8 @@ export function DeliveryTrackingMap({
           )}
         </div>
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
-          <button type="button" onClick={() => setMapZoom((value) => Math.min(18, value + 1))} aria-label="Приблизить"><Plus /></button>
-          <button type="button" onClick={() => setMapZoom((value) => Math.max(10, value - 1))} aria-label="Отдалить"><Minus /></button>
+          <button type="button" onClick={() => setMapZoom((value) => Math.min(18, value + 0.5))} aria-label="Приблизить"><Plus /></button>
+          <button type="button" onClick={() => setMapZoom((value) => Math.max(10, value - 0.5))} aria-label="Отдалить"><Minus /></button>
           <button type="button" onClick={centerOnDriver} aria-label="Вернуть обзор и направление на водителя"><RotateCcw /></button>
           <button type="button" onClick={() => { setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
         </div>

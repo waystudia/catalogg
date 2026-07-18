@@ -78,7 +78,7 @@ describe('platform revenue stats', () => {
     assert.equal(stats.totalClients, 2);
     assert.equal(stats.activeCatalogs, 2);
     assert.equal(stats.monthlyRevenue, 1900);
-    assert.equal(stats.totalDebt, 1);
+    assert.equal(stats.totalDebt, 133);
     assert.equal(stats.totalOrders, 3);
     assert.equal(stats.driverDeliveries, 1);
     assert.deepEqual(
@@ -90,8 +90,8 @@ describe('platform revenue stats', () => {
         driverDeliveries: restaurant.driverDeliveries
       })),
       [
-        { slug: 'rizih', revenue: 1200, debt: 0, ordersCount: 2, driverDeliveries: 1 },
-        { slug: 'mangal', revenue: 700, debt: 1, ordersCount: 1, driverDeliveries: 0 }
+        { slug: 'rizih', revenue: 1200, debt: 84, ordersCount: 2, driverDeliveries: 1 },
+        { slug: 'mangal', revenue: 700, debt: 49, ordersCount: 1, driverDeliveries: 0 }
       ]
     );
   });

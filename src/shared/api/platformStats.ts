@@ -12,6 +12,7 @@ export type PlatformOrderStatsRow = {
 };
 
 const canceledStatuses = new Set(['canceled', 'cancelled']);
+const defaultRestaurantCommissionRate = 0.07;
 
 const getOrderRestaurantId = (order: PlatformOrderStatsRow) =>
   order.catalog_id || order.restaurant_id || 'unknown-restaurant';
@@ -27,10 +28,11 @@ export const summarizePlatformStats = (
       client.catalogId || client.id,
       {
         id: client.catalogId || client.id,
+        clientId: client.id,
         name: client.catalogName || client.companyName,
         slug: client.catalogSlug,
         revenue: 0,
-        debt: client.subscriptionStatus === 'past_due' ? 1 : 0,
+        debt: 0,
         ordersCount: 0,
         driverDeliveries: 0
       }
@@ -43,6 +45,7 @@ export const summarizePlatformStats = (
       restaurantStatsById.get(restaurantId) ??
       {
         id: restaurantId,
+        clientId: '',
         name: order.restaurant_name || 'Ресторан',
         slug: order.restaurant_slug || '',
         revenue: 0,
@@ -54,7 +57,9 @@ export const summarizePlatformStats = (
 
     current.ordersCount += 1;
     if (!isCanceled) {
-      current.revenue += getOrderAmount(order);
+      const orderAmount = getOrderAmount(order);
+      current.revenue += orderAmount;
+      current.debt += Math.round(orderAmount * defaultRestaurantCommissionRate);
     }
     if (order.delivery_provider === 'platform') {
       current.driverDeliveries += 1;
@@ -71,7 +76,7 @@ export const summarizePlatformStats = (
     activeCatalogs: clients.filter((client) => client.catalogStatus === 'published').length,
     monthlyRevenue: completedOrders.reduce((sum, order) => sum + getOrderAmount(order), 0),
     monthlyViews: 0,
-    totalDebt: clients.filter((client) => client.subscriptionStatus === 'past_due').length,
+    totalDebt: restaurantStats.reduce((sum, restaurant) => sum + restaurant.debt, 0),
     totalOrders: orders.length,
     driverDeliveries: orders.filter((order) => order.delivery_provider === 'platform').length,
     restaurantStats

@@ -9,6 +9,74 @@
   text-rendering: optimizeLegibility;
 }
 
+@media (max-width: 340px) {
+  .screen {
+    gap: 14px;
+  }
+
+  .category-grid,
+  .catalog-grid,
+  .popular-grid,
+  .pair-grid,
+  .drink-grid {
+    gap: 8px;
+  }
+
+  .category-card {
+    min-height: 132px;
+    padding: 9px;
+  }
+
+  .category-card strong {
+    right: 22px;
+    bottom: 11px;
+    left: 10px;
+    font-size: 15px;
+    line-height: 1.04;
+  }
+
+  .product-tile {
+    grid-template-rows: 104px 88px;
+    height: 192px;
+  }
+
+  .product-tile__image {
+    height: 104px;
+  }
+
+  .product-tile__body {
+    padding: 7px 9px 8px;
+  }
+
+  .product-tile h3 {
+    font-size: 12px;
+    line-height: 1.08;
+  }
+
+  .product-tile p {
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
+  .product-tile strong {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .product-photo-carousel--hero,
+  .product-hero {
+    height: 156px;
+  }
+
+  .product-heading h2 {
+    font-size: 24px;
+  }
+
+  .product-heading strong {
+    font-size: 20px;
+  }
+}
+
 .modal-backdrop.delivery-map-backdrop {
   place-items: end center;
   padding: 0 12px;
