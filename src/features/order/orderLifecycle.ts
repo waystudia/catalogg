@@ -175,7 +175,10 @@ export const canSendOrderToDelivery = (order: Pick<OrderLifecycleSnapshot, 'orde
   (order.paymentStatus === 'confirmed' || order.paymentStatus === 'unpaid');
 
 export const getDriverNavigationStage = (status: DeliveryStatus): DriverNavigationStage => {
-  const clientRouteAvailable = status === 'on_the_way' || status === 'arrived_to_client';
+  const clientRouteAvailable =
+    status === 'handed_over' ||
+    status === 'on_the_way' ||
+    status === 'arrived_to_client';
   return {
     activeLeg: clientRouteAvailable ? 'client' : 'restaurant',
     canConfirmPickup: status === 'arrived_to_restaurant',

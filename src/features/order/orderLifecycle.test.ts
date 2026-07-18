@@ -224,7 +224,7 @@ describe('order delivery lifecycle', () => {
     );
   });
 
-  it('switches the primary navigation leg only after the driver starts the client route', () => {
+  it('switches the primary navigation leg after the restaurant hands over the order', () => {
     assert.deepEqual(getDriverNavigationStage('assigned'), {
       activeLeg: 'restaurant',
       canConfirmPickup: false,
@@ -236,9 +236,9 @@ describe('order delivery lifecycle', () => {
       clientRouteAvailable: false
     });
     assert.deepEqual(getDriverNavigationStage('handed_over'), {
-      activeLeg: 'restaurant',
+      activeLeg: 'client',
       canConfirmPickup: false,
-      clientRouteAvailable: false
+      clientRouteAvailable: true
     });
     assert.deepEqual(getDriverNavigationStage('on_the_way'), {
       activeLeg: 'client',
@@ -256,7 +256,7 @@ describe('order delivery lifecycle', () => {
 
     assert.deepEqual(getDriverRoutePoints({ status: 'assigned', ...points }), [points.driver, points.restaurant]);
     assert.deepEqual(getDriverRoutePoints({ status: 'arrived_to_restaurant', ...points }), [points.driver, points.restaurant]);
-    assert.deepEqual(getDriverRoutePoints({ status: 'handed_over', ...points }), [points.driver, points.restaurant]);
+    assert.deepEqual(getDriverRoutePoints({ status: 'handed_over', ...points }), [points.driver, points.client]);
     assert.deepEqual(getDriverRoutePoints({ status: 'on_the_way', ...points }), [points.driver, points.client]);
     assert.deepEqual(getDriverRoutePoints({ status: 'assigned', ...points, driver: null }), [points.restaurant]);
   });
