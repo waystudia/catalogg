@@ -2513,6 +2513,7 @@ function PlatformSettingsPage() {
   const [bannerKind, setBannerKind] = useState<PlatformBannerAdmin['kind']>('promo');
   const [bannerLink, setBannerLink] = useState('/restaurants');
   const [bannerImage, setBannerImage] = useState('');
+  const [bannerBackgroundColor, setBannerBackgroundColor] = useState('#5b3df4');
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -2539,6 +2540,7 @@ function PlatformSettingsPage() {
         subtitle: bannerSubtitle,
         kind: bannerKind,
         imageUrl: bannerImage,
+        backgroundColor: bannerBackgroundColor,
         linkUrl: bannerLink,
         sortOrder: bannersQuery.data?.length ?? 0,
         isActive: true
@@ -2593,8 +2595,12 @@ function PlatformSettingsPage() {
           <input value={bannerLink} onChange={(event) => setBannerLink(event.target.value)} placeholder="/restaurants или https://..." />
         </label>
         <label>
-          Фото или видео
+          Фото или видео для фона
           <input value={bannerImage} onChange={(event) => setBannerImage(event.target.value)} placeholder="https://...jpg или https://...mp4" />
+        </label>
+        <label>
+          Цвет фона
+          <input type="color" value={bannerBackgroundColor} onChange={(event) => setBannerBackgroundColor(event.target.value)} />
         </label>
         <button type="submit">
           <Plus />

@@ -475,13 +475,13 @@ export const getAuthenticatedDriverId = async (): Promise<string | null> => {
   }
 
   const metadataDriverId =
-    typeof authUser.user_metadata?.driver_id === 'string' ? authUser.user_metadata.driver_id : '';
+    typeof authUser.app_metadata?.driver_id === 'string' ? authUser.app_metadata.driver_id : '';
   if (metadataDriverId) {
     return metadataDriverId;
   }
 
   const metadataPublicUserId =
-    typeof authUser.user_metadata?.public_user_id === 'string' ? authUser.user_metadata.public_user_id : '';
+    typeof authUser.app_metadata?.public_user_id === 'string' ? authUser.app_metadata.public_user_id : '';
   if (metadataPublicUserId) {
     const { data: metadataDriver, error: metadataDriverError } = await supabase
       .from('drivers')
@@ -535,19 +535,26 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
   if (!supabase) return buildDemoSnapshot();
 
   const resolvedDriverId = await resolveCurrentDriverId(driverId);
-
-  const driverResult = await supabase
-    .from('drivers')
-    .select('id, name, phone, vehicle_info, car_number, photo_url, service_settlements, rating, status, is_online, last_lat, last_lng, last_location_at')
-    .eq('id', resolvedDriverId)
-    .maybeSingle();
+  const [driverResult, deliveriesResult, earningsResult] = await Promise.all([
+    supabase
+      .from('drivers')
+      .select('id, name, phone, vehicle_info, car_number, photo_url, service_settlements, rating, status, is_online, last_lat, last_lng, last_location_at')
+      .eq('id', resolvedDriverId)
+      .maybeSingle(),
+    supabase.rpc('get_driver_delivery_offers'),
+    supabase
+      .from('earnings')
+      .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
+      .eq('driver_id', resolvedDriverId)
+      .order('created_at', { ascending: false })
+      .limit(30)
+  ]);
 
   if (driverResult.error) throw driverResult.error;
   const profile = rowToDriverProfile(driverResult.data as DriverRow | null);
 
-  const deliveriesResult = await supabase.rpc('get_driver_delivery_offers');
-
   if (deliveriesResult.error) throw deliveriesResult.error;
+  if (earningsResult.error) throw earningsResult.error;
 
   let offers = ((deliveriesResult.data ?? []) as unknown as DeliveryRow[])
     .map((row) => rowToOffer(row, profile.id))
@@ -647,15 +654,6 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
     ? offers.filter((offer) => !offer.isAssignedToViewer && offer.status === 'waiting_courier')
     : [];
 
-  const earningsResult = await supabase
-    .from('earnings')
-    .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
-    .eq('driver_id', profile.id)
-    .order('created_at', { ascending: false })
-    .limit(30);
-
-  if (earningsResult.error) throw earningsResult.error;
-
   const history = ((earningsResult.data ?? []) as unknown as EarningRow[]).map(rowToEarning);
   const earningsToday = history.reduce((sum, earning) => sum + earning.amount, 0);
 
@@ -675,15 +673,15 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
   };
 }
 
-export async function setDriverAvailability(driverId: string, isOnline: boolean) {
+export async function setDriverAvailability(isOnline: boolean) {
   if (!supabase) return;
 
-  const { error } = await supabase
-    .from('drivers')
-    .update({ is_online: isOnline, status: isOnline ? 'online' : 'offline' })
-    .eq('id', driverId);
+  const { data, error } = await supabase.rpc('set_current_driver_availability', {
+    next_is_online: isOnline
+  });
 
   if (error) throw error;
+  if (data !== isOnline) throw new Error('Онлайн-статус не был сохранён');
 }
 
 export async function updateDriverLocation(
@@ -729,12 +727,11 @@ export async function changeDriverPassword(newPassword: string) {
   if (error) throw error;
 }
 
-export async function acceptDeliveryOffer(deliveryId: string, driverId: string) {
+export async function acceptDeliveryOffer(deliveryId: string) {
   if (!supabase) return;
 
   const { error } = await supabase.rpc('accept_available_delivery', {
-    target_delivery_id: deliveryId,
-    target_driver_id: driverId
+    target_delivery_id: deliveryId
   });
 
   if (error) throw error;

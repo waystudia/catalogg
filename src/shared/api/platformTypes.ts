@@ -75,6 +75,7 @@ export type PlatformBannerAdmin = {
   subtitle: string;
   kind: 'contest' | 'promo' | 'news';
   imageUrl: string;
+  backgroundColor: string;
   linkUrl: string;
   sortOrder: number;
   isActive: boolean;

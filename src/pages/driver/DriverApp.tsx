@@ -265,47 +265,57 @@ export function DriverApp() {
   const [recentDeliveryIds, setRecentDeliveryIds] = useState<Set<string>>(() => new Set());
   const knownDeliveryIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedDeliveriesRef = useRef(false);
+  const dashboardLoadRef = useRef<Promise<void> | null>(null);
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      const nextSnapshot = await getDriverDashboard(selectedDriverId);
-      const visibleDeliveries = [
-        nextSnapshot.activeDelivery,
-        ...nextSnapshot.availableDeliveries
-      ].filter((offer): offer is DeliveryOffer => Boolean(offer));
-      const knownIds = knownDeliveryIdsRef.current;
-      const newDeliveryIds = hasLoadedDeliveriesRef.current
-        ? visibleDeliveries
-            .filter((offer) => offer.status === 'waiting_courier' && !knownIds.has(offer.deliveryId))
-            .map((offer) => offer.deliveryId)
-        : [];
-      if (newDeliveryIds.length > 0) {
-        const newOffers = visibleDeliveries.filter((offer) => newDeliveryIds.includes(offer.deliveryId));
-        setRecentDeliveryIds((current) => new Set([...current, ...newDeliveryIds]));
-        playDriverNewOrderSound();
-        newOffers.slice(0, 3).forEach((offer) => {
-          void showRestaurantOrderNotification({
-            title: `Новая доставка ${offer.orderNumber}`,
-            body: `${offer.restaurantName} · ${offer.deliveryAddress}`,
-            tag: `driver-delivery-${offer.deliveryId}`,
-            url: `${window.location.origin}${window.location.pathname}${window.location.search}#/driver/orders/${offer.deliveryId}`
+  const loadDashboard = useCallback(() => {
+    if (dashboardLoadRef.current) return dashboardLoadRef.current;
+
+    const pendingLoad = (async () => {
+      try {
+        const nextSnapshot = await getDriverDashboard(selectedDriverId);
+        const visibleDeliveries = [
+          nextSnapshot.activeDelivery,
+          ...nextSnapshot.availableDeliveries
+        ].filter((offer): offer is DeliveryOffer => Boolean(offer));
+        const knownIds = knownDeliveryIdsRef.current;
+        const newDeliveryIds = hasLoadedDeliveriesRef.current
+          ? visibleDeliveries
+              .filter((offer) => offer.status === 'waiting_courier' && !knownIds.has(offer.deliveryId))
+              .map((offer) => offer.deliveryId)
+          : [];
+        if (newDeliveryIds.length > 0) {
+          const newOffers = visibleDeliveries.filter((offer) => newDeliveryIds.includes(offer.deliveryId));
+          setRecentDeliveryIds((current) => new Set([...current, ...newDeliveryIds]));
+          playDriverNewOrderSound();
+          newOffers.slice(0, 3).forEach((offer) => {
+            void showRestaurantOrderNotification({
+              title: `Новая доставка ${offer.orderNumber}`,
+              body: `${offer.restaurantName} · ${offer.deliveryAddress}`,
+              tag: `driver-delivery-${offer.deliveryId}`,
+              url: `${window.location.origin}${window.location.pathname}${window.location.search}#/driver/orders/${offer.deliveryId}`
+            });
           });
-        });
-        window.setTimeout(() => {
-          setRecentDeliveryIds((current) => {
-            const next = new Set(current);
-            newDeliveryIds.forEach((id) => next.delete(id));
-            return next;
-          });
-        }, 9000);
+          window.setTimeout(() => {
+            setRecentDeliveryIds((current) => {
+              const next = new Set(current);
+              newDeliveryIds.forEach((id) => next.delete(id));
+              return next;
+            });
+          }, 9000);
+        }
+        knownDeliveryIdsRef.current = new Set(visibleDeliveries.map((offer) => offer.deliveryId));
+        hasLoadedDeliveriesRef.current = true;
+        setSnapshot(nextSnapshot);
+        setError('');
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить доставки');
       }
-      knownDeliveryIdsRef.current = new Set(visibleDeliveries.map((offer) => offer.deliveryId));
-      hasLoadedDeliveriesRef.current = true;
-      setSnapshot(nextSnapshot);
-      setError('');
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить доставки');
-    }
+    })().finally(() => {
+      if (dashboardLoadRef.current === pendingLoad) dashboardLoadRef.current = null;
+    });
+
+    dashboardLoadRef.current = pendingLoad;
+    return pendingLoad;
   }, [selectedDriverId]);
 
   useEffect(() => {
@@ -528,14 +538,22 @@ function DriverHomeScreen({
 }) {
   const [availabilityError, setAvailabilityError] = useState('');
   const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
+  const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
+  const displayedOnline = optimisticOnline ?? profile.isOnline;
+
+  useEffect(() => {
+    if (optimisticOnline === profile.isOnline) setOptimisticOnline(null);
+  }, [optimisticOnline, profile.isOnline]);
+
   const toggleOnline = async () => {
     if (isUpdatingAvailability) return;
-    const nextOnline = !profile.isOnline;
+    const nextOnline = !displayedOnline;
     setIsUpdatingAvailability(true);
     setAvailabilityError('');
     try {
-      await setDriverAvailability(profile.id, nextOnline);
-      await onRefresh();
+      await setDriverAvailability(nextOnline);
+      setOptimisticOnline(nextOnline);
+      void onRefresh();
       if (nextOnline) {
         void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id });
       }
@@ -552,7 +570,7 @@ function DriverHomeScreen({
     <>
       <header className="driver-topbar">
         <div>
-          <strong>{profile.isOnline ? 'Вы в сети' : 'Вы не в сети'}</strong>
+          <strong>{displayedOnline ? 'Вы в сети' : 'Вы не в сети'}</strong>
           <small>{profile.name}</small>
         </div>
         <div className="driver-topbar__actions">
@@ -560,7 +578,7 @@ function DriverHomeScreen({
             <RefreshCw />
           </button>
           <button className="driver-online-button" type="button" disabled={isUpdatingAvailability} onClick={() => void toggleOnline()} aria-label="Онлайн статус">
-            {profile.isOnline ? <ToggleRight /> : <ToggleLeft />}
+            {displayedOnline ? <ToggleRight /> : <ToggleLeft />}
           </button>
         </div>
       </header>
@@ -859,8 +877,8 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
     setIsAccepting(true);
     setError('');
     try {
+      await acceptDeliveryOffer(offer.deliveryId);
       acceptLocalOffer(offer, driverId);
-      await acceptDeliveryOffer(offer.deliveryId, driverId);
       navigate('/driver/active');
     } catch (acceptError) {
       setError(acceptError instanceof Error ? acceptError.message : 'Не удалось принять заказ');

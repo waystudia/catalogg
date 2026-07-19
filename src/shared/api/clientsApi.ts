@@ -154,6 +154,7 @@ type PlatformBannerRow = {
   subtitle: string;
   kind: PlatformBannerAdmin['kind'];
   image_url: string;
+  background_color: string;
   link_url: string;
   sort_order: number;
   is_active: boolean;
@@ -242,6 +243,7 @@ const mapPlatformBanner = (row: PlatformBannerRow): PlatformBannerAdmin => ({
   subtitle: row.subtitle,
   kind: row.kind,
   imageUrl: row.image_url,
+  backgroundColor: row.background_color || '#5b3df4',
   linkUrl: row.link_url,
   sortOrder: row.sort_order,
   isActive: row.is_active
@@ -401,6 +403,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
       subtitle: 'Закажи на 1000₽ и выиграй приз',
       kind: 'contest',
       imageUrl: '',
+      backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
       sortOrder: 0,
       isActive: true
@@ -409,7 +412,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
 
   const { data, error } = await supabase
     .from('platform_banners')
-    .select('id, title, subtitle, kind, image_url, link_url, sort_order, is_active')
+    .select('id, title, subtitle, kind, image_url, background_color, link_url, sort_order, is_active')
     .order('sort_order');
   if (error) throw error;
   return ((data ?? []) as PlatformBannerRow[]).map(mapPlatformBanner);
@@ -422,6 +425,7 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
     subtitle: banner.subtitle,
     kind: banner.kind,
     image_url: banner.imageUrl,
+    background_color: banner.backgroundColor,
     link_url: banner.linkUrl,
     sort_order: banner.sortOrder,
     is_active: banner.isActive

@@ -47,7 +47,8 @@ export default defineConfig(({ mode }) => {
           ]
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,svg,ico,png,webp}']
+          globPatterns: ['**/*.{js,css,svg,ico,png,webp}'],
+          globIgnores: ['index.html']
         }
       })
     ],

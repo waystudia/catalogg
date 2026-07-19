@@ -458,62 +458,72 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
 function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const touchStartX = useRef<number | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const bannerIds = banners.map((banner) => banner.id).join('|');
-  const activeBanner = banners[activeIndex] ?? null;
 
   useEffect(() => {
     setActiveIndex(0);
+    trackRef.current?.scrollTo({ left: 0 });
   }, [bannerIds]);
 
   useEffect(() => {
     if (banners.length < 2) return undefined;
 
     const timer = window.setInterval(() => {
-      setActiveIndex((index) => (index + 1) % banners.length);
+      setActiveIndex((index) => {
+        const nextIndex = (index + 1) % banners.length;
+        const track = trackRef.current;
+        if (track) track.scrollTo({ left: nextIndex * track.clientWidth, behavior: 'smooth' });
+        return nextIndex;
+      });
     }, 5000);
 
     return () => window.clearInterval(timer);
   }, [banners.length]);
 
-  if (!activeBanner) return null;
+  if (banners.length === 0) return null;
 
   return (
-    <section
-      className="promo-carousel"
-      aria-label="Баннеры"
-      onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }}
-      onTouchEnd={(event) => {
-        if (touchStartX.current === null || banners.length < 2) return;
-        const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-        touchStartX.current = null;
-        if (Math.abs(delta) < 36) return;
-        setActiveIndex((index) => (index + (delta < 0 ? 1 : -1) + banners.length) % banners.length);
-      }}
-    >
-      <article
-        className={`${activeBanner.imageUrl ? 'promo-band promo-band--media' : 'promo-band'} promo-band--slide`}
-        key={activeBanner.id}
+    <section className="promo-carousel" aria-label="Баннеры">
+      <div
+        className="promo-carousel__track"
+        ref={trackRef}
+        onScroll={(event) => {
+          const width = event.currentTarget.clientWidth;
+          if (width > 0) setActiveIndex(Math.round(event.currentTarget.scrollLeft / width));
+        }}
       >
-        {activeBanner.imageUrl && (
-          <span className="promo-band__media">
-            {isVideoMediaUrl(activeBanner.imageUrl)
-              ? <video src={activeBanner.imageUrl} muted playsInline autoPlay loop />
-              : <img src={activeBanner.imageUrl} alt="" />}
-          </span>
-        )}
-        <div>
-          <strong>{activeBanner.title}</strong>
-          <span>{activeBanner.subtitle}</span>
-        </div>
-        <Link to={getPromoDetailPath(activeBanner)}>Подробнее</Link>
-      </article>
+        {banners.map((banner) => (
+          <article
+            className={banner.imageUrl ? 'promo-band promo-band--media' : 'promo-band'}
+            style={{ backgroundColor: banner.backgroundColor }}
+            key={banner.id}
+          >
+            {banner.imageUrl && (
+              <span className="promo-band__media">
+                {isVideoMediaUrl(banner.imageUrl)
+                  ? <video src={banner.imageUrl} muted playsInline autoPlay loop />
+                  : <img src={banner.imageUrl} alt="" />}
+              </span>
+            )}
+            <div>
+              <strong>{banner.title}</strong>
+              <span>{banner.subtitle}</span>
+            </div>
+            <Link to={getPromoDetailPath(banner)}>Подробнее</Link>
+          </article>
+        ))}
+      </div>
       <div className="promo-carousel__dots" aria-label={`Баннер ${activeIndex + 1} из ${banners.length}`}>
         {banners.map((banner, index) => (
           <button
             className={index === activeIndex ? 'is-active' : ''}
             type="button"
-            onClick={() => setActiveIndex(index)}
+            onClick={() => {
+              setActiveIndex(index);
+              const track = trackRef.current;
+              if (track) track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' });
+            }}
             aria-label={`Показать баннер ${index + 1}`}
             aria-current={index === activeIndex ? 'true' : undefined}
             key={banner.id}
@@ -798,13 +808,8 @@ function RestaurantCard({
     .map((category) => category.name)
     .slice(0, 3)
     .join(' · ');
-  const providerLabel = restaurant.deliveryProvider === 'platform'
-    ? 'Водитель платформы'
-    : restaurant.deliveryProvider === 'restaurant'
-      ? 'Курьер ресторана'
-      : restaurant.deliveryProvider === 'pickup'
-        ? 'Самовывоз'
-        : 'В зале';
+  const hasDelivery = restaurant.orderTypes.includes('delivery') &&
+    (restaurant.deliveryProvider === 'platform' || restaurant.deliveryProvider === 'restaurant');
 
   return (
     <Link className="restaurant-card" to={buildRestaurantPublicPath(restaurant)}>
@@ -818,11 +823,9 @@ function RestaurantCard({
         </span>
         <small>{categoryNames}</small>
         <b>от {formatPrice(restaurant.minOrderAmount)} · {restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин</b>
-        <em>
-          {restaurant.freeDeliveryFrom > 0
-            ? `Бесплатная доставка от ${formatPrice(restaurant.freeDeliveryFrom)}`
-            : providerLabel}
-        </em>
+        {hasDelivery && restaurant.freeDeliveryFrom > 0 && (
+          <em>Бесплатная доставка от {formatPrice(restaurant.freeDeliveryFrom)}</em>
+        )}
       </span>
     </Link>
   );

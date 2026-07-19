@@ -169,18 +169,23 @@
   overflow: hidden;
 }
 
-.promo-band--slide {
-  animation: promo-slide-left 360ms cubic-bezier(0.22, 1, 0.36, 1);
+.promo-carousel__track {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
 }
 
-@keyframes promo-slide-left {
-  from { opacity: 0.5; transform: translateX(42%); }
-  to { opacity: 1; transform: translateX(0); }
-}
+.promo-carousel__track::-webkit-scrollbar { display: none; }
 
 .promo-band {
   position: relative;
   display: grid;
+  width: 100%;
+  min-width: 100%;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
@@ -190,6 +195,8 @@
   background: #5b3df4;
   color: #ffffff;
   overflow: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .promo-band--media {
@@ -379,7 +386,8 @@
 
 .restaurant-card__body {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: repeat(4, auto);
+  align-content: start;
   gap: 3px;
   min-height: 0;
   padding: 8px;
@@ -445,7 +453,7 @@
 
 .restaurant-card em {
   width: 100%;
-  align-self: end;
+  margin-top: auto;
   display: -webkit-box;
   min-height: 30px;
   align-content: center;

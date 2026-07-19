@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { clientsClaim } from 'workbox-core';
+import { clientsClaim, skipWaiting } from 'workbox-core';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst } from 'workbox-strategies';
@@ -9,8 +9,18 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
 };
 
+skipWaiting();
 clientsClaim();
 cleanupOutdatedCaches();
+
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'catalog-pages',
+    networkTimeoutSeconds: 3
+  })
+);
+
 precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(

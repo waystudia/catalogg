@@ -199,6 +199,7 @@ export type PlatformBanner = {
   subtitle: string;
   kind: 'contest' | 'promo' | 'news';
   imageUrl: string;
+  backgroundColor: string;
   linkUrl: string;
   isActive: boolean;
 };

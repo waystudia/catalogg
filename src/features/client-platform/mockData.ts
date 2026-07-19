@@ -14,6 +14,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       subtitle: 'Закажи на 1000₽ и выиграй приз',
       kind: 'contest',
       imageUrl: '',
+      backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
       isActive: true
     }

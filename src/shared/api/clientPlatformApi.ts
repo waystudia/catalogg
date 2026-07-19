@@ -147,6 +147,7 @@ type PlatformBannerRow = {
   subtitle: string;
   kind: PlatformBanner['kind'];
   image_url: string;
+  background_color: string;
   link_url: string;
   is_active: boolean;
   sort_order: number;
@@ -658,7 +659,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .in('catalog_id', catalogIds),
       supabase
         .from('platform_banners')
-        .select('id, title, subtitle, kind, image_url, link_url, is_active, sort_order')
+        .select('id, title, subtitle, kind, image_url, background_color, link_url, is_active, sort_order')
         .eq('is_active', true)
         .order('sort_order'),
       supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle(),
@@ -879,6 +880,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
           subtitle: banner.subtitle,
           kind: banner.kind,
           imageUrl: banner.image_url,
+          backgroundColor: banner.background_color || '#5b3df4',
           linkUrl: banner.link_url,
           isActive: banner.is_active
         }))

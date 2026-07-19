@@ -118,27 +118,28 @@ as $$
   from (
     select d.id as driver_id, 0 as priority
     from public.drivers d
-    where d.id::text = coalesce(auth.jwt() -> 'user_metadata' ->> 'driver_id', '')
+    join public.users u on u.id = d.user_id
+    where u.auth_user_id = auth.uid()
 
     union all
 
     select d.id as driver_id, 1 as priority
     from public.drivers d
     join public.users u on u.id = d.user_id
-    where u.auth_user_id = auth.uid()
+    where lower(u.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and u.role = 'driver'
 
     union all
 
     select d.id as driver_id, 2 as priority
     from public.drivers d
-    join public.users u on u.id = d.user_id
-    where lower(u.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
-      and u.role = 'driver'
+    where d.id::text = coalesce(auth.jwt() -> 'app_metadata' ->> 'driver_id', '')
   ) candidates
   order by priority
   limit 1
 $$;
 
+revoke all on function public.current_driver_id() from public, anon;
 grant execute on function public.current_driver_id() to authenticated;
 
 create table if not exists public.settlement_requests (

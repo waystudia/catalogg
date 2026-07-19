@@ -302,7 +302,11 @@ export async function signInAdmin(email: string, password: string, catalogSlug?:
 
   if (error) return false;
 
-  const isAdmin = await hasAdminSession(catalogSlug);
+  const normalizedSlug = normalizeCatalogSlug(catalogSlug);
+  const { data: rpcAccess, error: rpcError } = await supabase.rpc('has_catalog_admin_access', {
+    target_slug: normalizedSlug
+  });
+  const isAdmin = rpcError ? await hasAdminSession(normalizedSlug) : Boolean(rpcAccess);
   if (!isAdmin) {
     await supabase.auth.signOut();
   }

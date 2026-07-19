@@ -164,6 +164,45 @@ create table if not exists public.platform_banners (
   updated_at timestamptz not null default now()
 );
 
+alter table public.platform_banners
+  add column if not exists background_color text not null default '#5b3df4';
+
+create or replace function public.has_catalog_admin_access(target_slug text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when auth.uid() is null then false
+    else exists (
+      select 1
+      from public.catalogs c
+      where lower(c.slug) = lower(trim(target_slug))
+        and (
+          exists (
+            select 1 from public.clients cl
+            where cl.catalog_id = c.id and cl.owner_user_id = auth.uid()
+          )
+          or exists (
+            select 1 from public.catalog_members cm
+            where cm.catalog_id = c.id and cm.user_id = auth.uid()
+          )
+        )
+    )
+    or (
+      lower(trim(target_slug)) = 'mangal'
+      and exists (
+        select 1 from public.admin_user au where au.user_id = auth.uid()
+      )
+    )
+  end
+$$;
+
+revoke all on function public.has_catalog_admin_access(text) from public, anon;
+grant execute on function public.has_catalog_admin_access(text) to authenticated;
+
 create table if not exists public.client_addresses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
