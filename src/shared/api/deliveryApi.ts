@@ -10,6 +10,7 @@ import {
 import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { supabase } from '../supabase';
+import { getSupabaseAuthStorageKey } from '../supabaseAuthScope';
 
 export type DriverProfile = {
   readonly id: string;
@@ -61,6 +62,13 @@ export type DriverDashboardSnapshot = {
     readonly earningsMonth: number;
   };
 };
+
+export class DriverActionError extends Error {
+  constructor(message: string, readonly code: 'auth' | 'unavailable' | 'network' | 'unknown' = 'unknown') {
+    super(message);
+    this.name = 'DriverActionError';
+  }
+}
 
 type DeliveryRow = {
   id: string;
@@ -298,6 +306,24 @@ const demoHistory: readonly DriverEarning[] = [
   }
 ];
 
+const withDriverRequestTimeout = async <T,>(
+  request: PromiseLike<T>,
+  message: string,
+  timeoutMs = 8_000
+): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new DriverActionError(message, 'network')), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+};
+
 const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboardSnapshot => ({
   profile,
   activeDelivery: null,
@@ -458,12 +484,20 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
 
 export const getAuthenticatedDriverId = async (): Promise<string | null> => {
   if (!supabase) return demoDriverId;
-  const { data: rpcDriverId, error: rpcDriverError } = await supabase.rpc('current_driver_id');
+  const { data: rpcDriverId, error: rpcDriverError } = await withDriverRequestTimeout(
+    supabase.rpc('current_driver_id'),
+    'Не удалось проверить вход водителя.',
+    6_000
+  );
   if (!rpcDriverError) {
     return typeof rpcDriverId === 'string' && rpcDriverId ? rpcDriverId : null;
   }
 
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await withDriverRequestTimeout(
+    supabase.auth.getSession(),
+    'Не удалось проверить сессию водителя.',
+    6_000
+  );
   const authUser = sessionData.session?.user;
   if (sessionError || !authUser?.id) return null;
   const metadataDriverId =
@@ -480,20 +514,24 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
   if (!supabase) return buildDemoSnapshot();
 
   const resolvedDriverId = await resolveCurrentDriverId(driverId);
-  const [driverResult, deliveriesResult, earningsResult] = await Promise.all([
-    supabase
-      .from('drivers')
-      .select('id, name, phone, vehicle_info, car_number, photo_url, service_settlements, rating, status, is_online, last_lat, last_lng, last_location_at')
-      .eq('id', resolvedDriverId)
-      .maybeSingle(),
-    supabase.rpc('get_driver_delivery_offers'),
-    supabase
-      .from('earnings')
-      .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
-      .eq('driver_id', resolvedDriverId)
-      .order('created_at', { ascending: false })
-      .limit(30)
-  ]);
+  const [driverResult, deliveriesResult, earningsResult] = await withDriverRequestTimeout(
+    Promise.all([
+      supabase
+        .from('drivers')
+        .select('id, name, phone, vehicle_info, car_number, photo_url, service_settlements, rating, status, is_online, last_lat, last_lng, last_location_at')
+        .eq('id', resolvedDriverId)
+        .maybeSingle(),
+      supabase.rpc('get_driver_delivery_offers'),
+      supabase
+        .from('earnings')
+        .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
+        .eq('driver_id', resolvedDriverId)
+        .order('created_at', { ascending: false })
+        .limit(30)
+    ]),
+    'Не удалось загрузить данные водителя. Повторите обновление.',
+    9_000
+  );
 
   if (driverResult.error) throw driverResult.error;
   const profile = rowToDriverProfile(driverResult.data as DriverRow | null);
@@ -509,10 +547,14 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
     .filter((offer) => offer.isAssignedToViewer)
     .map((offer) => offer.orderId)));
   if (assignedOrderIds.length > 0) {
-    const contactsResult = await supabase
-      .from('orders')
-      .select('id, catalog_id, restaurant_id, customer_name, customer_phone, client_name, client_phone, delivery_comment, delivery_comment_snapshot, client_address_comment, comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot')
-      .in('id', assignedOrderIds);
+    const contactsResult = await withDriverRequestTimeout(
+      supabase
+        .from('orders')
+        .select('id, catalog_id, restaurant_id, customer_name, customer_phone, client_name, client_phone, delivery_comment, delivery_comment_snapshot, client_address_comment, comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot')
+        .in('id', assignedOrderIds),
+      'Не удалось загрузить контакты заказа.',
+      6_000
+    );
 
     if (!contactsResult.error) {
       const contactRows = (contactsResult.data ?? []) as OrderContactRow[];
@@ -621,12 +663,23 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
 export async function setDriverAvailability(isOnline: boolean) {
   if (!supabase) return;
 
-  const { data, error } = await supabase.rpc('set_current_driver_availability', {
-    next_is_online: isOnline
-  });
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('set_current_driver_availability', {
+      next_is_online: isOnline
+    }),
+    'Не удалось изменить онлайн-статус. Проверьте связь и повторите.',
+    6_000
+  );
 
-  if (error) throw error;
-  if (data !== isOnline) throw new Error('Онлайн-статус не был сохранён');
+  if (error) {
+    throw new DriverActionError(
+      /authentication|required|jwt|auth/i.test(error.message)
+        ? 'Войдите как водитель ещё раз.'
+        : 'Не удалось изменить онлайн-статус. Проверьте связь и повторите.',
+      /authentication|required|jwt|auth/i.test(error.message) ? 'auth' : 'network'
+    );
+  }
+  if (data !== isOnline) throw new DriverActionError('Онлайн-статус не был сохранён', 'unknown');
 }
 
 export async function updateDriverLocation(
@@ -635,19 +688,32 @@ export async function updateDriverLocation(
 ) {
   if (!supabase) return;
 
-  const { error } = await supabase.rpc('update_current_driver_location', {
-    next_lat: location.lat,
-    next_lng: location.lng,
-    next_accuracy: location.accuracy ?? null
-  });
+  const { error } = await withDriverRequestTimeout(
+    supabase.rpc('update_current_driver_location', {
+      next_lat: location.lat,
+      next_lng: location.lng,
+      next_accuracy: location.accuracy ?? null
+    }),
+    'Не удалось обновить местоположение водителя.',
+    5_000
+  );
 
   if (error) throw error;
 }
 
 export async function signOutDriver() {
   clearPwaResumePath();
+  try {
+    window.localStorage.removeItem(getSupabaseAuthStorageKey('driver'));
+  } catch {
+    // The navigation below should still complete if storage is unavailable.
+  }
   if (!supabase) return;
-  await supabase.auth.signOut();
+  void withDriverRequestTimeout(
+    supabase.auth.signOut({ scope: 'local' }),
+    'Не удалось выйти из профиля водителя.',
+    3_000
+  ).catch(() => undefined);
 }
 
 export async function saveDriverServiceSettlements(driverId: string, serviceSettlements: readonly string[]) {
@@ -671,28 +737,36 @@ export async function changeDriverPassword(newPassword: string) {
 export async function acceptDeliveryOffer(deliveryId: string) {
   if (!supabase) return;
 
-  const { error } = await supabase.rpc('accept_available_delivery', {
-    target_delivery_id: deliveryId
-  });
+  const { error } = await withDriverRequestTimeout(
+    supabase.rpc('accept_available_delivery', {
+      target_delivery_id: deliveryId
+    }),
+    'Не удалось принять заказ. Проверьте связь и повторите.',
+    7_000
+  );
 
-  if (error) throw error;
+  if (!error) return;
+
+  if (/not available|cannot accept|another account/i.test(error.message)) {
+    throw new DriverActionError('Этот заказ уже забрал другой водитель или он больше недоступен.', 'unavailable');
+  }
+  if (/authentication|required|jwt|auth/i.test(error.message)) {
+    throw new DriverActionError('Войдите как водитель ещё раз.', 'auth');
+  }
+  throw new DriverActionError('Не удалось принять заказ. Проверьте связь и повторите.', 'network');
 }
 
 export async function updateDeliveryProgress(deliveryId: string, status: DeliveryStatus) {
   if (!supabase) return;
 
-  const patch: Record<string, unknown> = { status };
-  if (status === 'arrived_to_restaurant') {
-    patch.driver_arrived_restaurant_at = new Date().toISOString();
-  }
-  if (status === 'arrived_to_client') {
-    patch.driver_arrived_client_at = new Date().toISOString();
-  }
-
-  const { error } = await supabase
-    .from('deliveries')
-    .update(patch)
-    .eq('id', deliveryId);
+  const { error } = await withDriverRequestTimeout(
+    supabase.rpc('update_current_driver_delivery_status', {
+      target_delivery_id: deliveryId,
+      next_status: status
+    }),
+    'Не удалось обновить статус. Проверьте связь и повторите.',
+    7_000
+  );
 
   if (!error) return;
 
@@ -702,15 +776,22 @@ export async function updateDeliveryProgress(deliveryId: string, status: Deliver
     /deliveries_status_check|check constraint|violates.*constraint/i.test(errorText);
   if (liveSchemaRejectsClientArrival) return;
 
-  throw error;
+  if (/authentication|required|jwt|auth/i.test(errorText)) {
+    throw new DriverActionError('Войдите как водитель ещё раз.', 'auth');
+  }
+  throw new DriverActionError('Не удалось обновить статус. Проверьте связь и повторите.', 'network');
 }
 
 export async function completeDeliveryProgress(deliveryId: string) {
   if (!supabase) return;
 
-  const { error } = await supabase.rpc('complete_driver_delivery', {
-    target_delivery_id: deliveryId
-  });
+  const { error } = await withDriverRequestTimeout(
+    supabase.rpc('complete_driver_delivery', {
+      target_delivery_id: deliveryId
+    }),
+    'Не удалось завершить доставку. Проверьте связь и повторите.',
+    7_000
+  );
 
   if (error) throw error;
 }
@@ -730,9 +811,13 @@ export async function confirmDeliveryPickupQr(deliveryId: string, token: string)
 export async function confirmDriverPickup(deliveryId: string): Promise<boolean> {
   if (!supabase) return true;
 
-  const { data, error } = await supabase.rpc('confirm_driver_pickup', {
-    target_delivery_id: deliveryId
-  });
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('confirm_driver_pickup', {
+      target_delivery_id: deliveryId
+    }),
+    'Не удалось подтвердить получение заказа.',
+    7_000
+  );
 
   if (error) throw error;
   return Boolean(data);
@@ -752,9 +837,7 @@ export function subscribeToDriverRealtime(driverId: string, onChange: () => void
 
   const channel = supabase
     .channel(`driver-deliveries-${driverId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, scheduleRefresh)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_status_history' }, scheduleRefresh)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers', filter: `id=eq.${driverId}` }, scheduleRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `driver_id=eq.${driverId}` }, scheduleRefresh)
     .subscribe();
 
   return () => {

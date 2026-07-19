@@ -1411,10 +1411,9 @@ function DriverSettingsScreen({ profile }: { profile: DriverProfile }) {
         <button
           type="button"
           onClick={() => {
-            void signOutDriver().then(() => {
-              clearLocalActiveDelivery();
-              navigate('/login', { replace: true });
-            });
+            clearLocalActiveDelivery();
+            void signOutDriver();
+            navigate('/login', { replace: true });
           }}
         >
           <LogOut />
