@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -28,10 +29,12 @@ test('explicitly pressing Главная is not undone by a saved PWA resume pat
     <MemoryRouter initialEntries={['/profile/orders']}>
       <PwaResumeTracker />
       <LocationProbe />
-      <Routes>
-        <Route path="/" element={<PwaHomeRoute />} />
-        <Route path="/profile/*" element={<ClientProfileFixture />} />
-      </Routes>
+      <Suspense fallback={<p>Загрузка...</p>}>
+        <Routes>
+          <Route path="/" element={<PwaHomeRoute />} />
+          <Route path="/profile/*" element={<ClientProfileFixture />} />
+        </Routes>
+      </Suspense>
     </MemoryRouter>
   );
 
