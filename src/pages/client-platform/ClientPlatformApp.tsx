@@ -95,7 +95,15 @@ import {
 import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
 import './client-platform.css';
 
-const clientPlatformQueryClient = new QueryClient();
+const clientPlatformQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always'
+    }
+  }
+});
 const clientPlatformLoadingSnapshot: ClientPlatformSnapshot = {
   ...clientPlatformSnapshot,
   cities: [],

@@ -418,24 +418,24 @@ export function RestaurantAdminShell({
     const refreshSilently = () => {
       void refreshData({ silent: true });
     };
-    const refreshOnVisible = () => {
+    const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
-        void refreshData({ silent: true });
+        refreshSilently();
       }
     };
-    const intervalId = window.setInterval(refreshSilently, 12_000);
+    const intervalId = window.setInterval(refreshWhenVisible, 12_000);
 
-    window.addEventListener('focus', refreshSilently);
-    window.addEventListener('pageshow', refreshSilently);
-    window.addEventListener('online', refreshSilently);
-    document.addEventListener('visibilitychange', refreshOnVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('pageshow', refreshWhenVisible);
+    window.addEventListener('online', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener('focus', refreshSilently);
-      window.removeEventListener('pageshow', refreshSilently);
-      window.removeEventListener('online', refreshSilently);
-      document.removeEventListener('visibilitychange', refreshOnVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('pageshow', refreshWhenVisible);
+      window.removeEventListener('online', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [refreshData]);
 

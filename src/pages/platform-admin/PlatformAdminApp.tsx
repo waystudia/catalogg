@@ -122,7 +122,15 @@ type CreateDriverSuccess = {
   driverId: string;
 };
 
-const platformQueryClient = new QueryClient();
+const platformQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always'
+    }
+  }
+});
 
 const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Icon: typeof Home }> = [
   { route: 'dashboard', label: 'Главная', detail: 'Дашборд', Icon: Home },

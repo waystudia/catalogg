@@ -175,7 +175,15 @@ import {
   type RestaurantAdminTab
 } from '../shared/pwaSession';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always'
+    }
+  }
+});
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
@@ -5272,8 +5280,9 @@ function AppContent({
   const { data, isLoading } = useQuery({
     queryKey: catalogQueryKey,
     queryFn: () => loadCatalog(catalogSlug),
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    staleTime: 30_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });
   const themeStore = useThemeStore((state) => state.theme);
@@ -5362,24 +5371,24 @@ function AppContent({
     const refreshOrders = () => {
       refreshRestaurantOrders();
     };
-    const refreshOnVisible = () => {
+    const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
-        refreshRestaurantOrders();
+        refreshOrders();
       }
     };
-    const intervalId = window.setInterval(refreshOrders, 12_000);
+    const intervalId = window.setInterval(refreshWhenVisible, 12_000);
 
-    window.addEventListener('focus', refreshRestaurantOrders);
-    window.addEventListener('pageshow', refreshOrders);
-    window.addEventListener('online', refreshRestaurantOrders);
-    document.addEventListener('visibilitychange', refreshOnVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('pageshow', refreshWhenVisible);
+    window.addEventListener('online', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener('focus', refreshRestaurantOrders);
-      window.removeEventListener('pageshow', refreshOrders);
-      window.removeEventListener('online', refreshRestaurantOrders);
-      document.removeEventListener('visibilitychange', refreshOnVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('pageshow', refreshWhenVisible);
+      window.removeEventListener('online', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [isAdmin, refreshRestaurantOrders]);
 

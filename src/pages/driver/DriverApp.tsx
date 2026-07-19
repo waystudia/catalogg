@@ -374,24 +374,24 @@ export function DriverApp() {
     const refreshDriverDashboard = () => {
       void loadDashboard();
     };
-    const refreshOnVisible = () => {
+    const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
         refreshDriverDashboard();
       }
     };
-    const intervalId = window.setInterval(refreshDriverDashboard, 12_000);
+    const intervalId = window.setInterval(refreshWhenVisible, 12_000);
 
-    window.addEventListener('focus', refreshDriverDashboard);
-    window.addEventListener('pageshow', refreshDriverDashboard);
-    window.addEventListener('online', refreshDriverDashboard);
-    document.addEventListener('visibilitychange', refreshOnVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('pageshow', refreshWhenVisible);
+    window.addEventListener('online', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
 
     return () => {
       window.clearInterval(intervalId);
-      window.removeEventListener('focus', refreshDriverDashboard);
-      window.removeEventListener('pageshow', refreshDriverDashboard);
-      window.removeEventListener('online', refreshDriverDashboard);
-      document.removeEventListener('visibilitychange', refreshOnVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('pageshow', refreshWhenVisible);
+      window.removeEventListener('online', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, [authChecked, hasDriverAccess, loadDashboard]);
 
