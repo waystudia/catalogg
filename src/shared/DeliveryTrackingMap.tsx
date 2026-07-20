@@ -1,4 +1,4 @@
-import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, RotateCcw, Search } from 'lucide-react';
+import { Home, Layers3, LocateFixed, MapPin, Minus, Plus, RotateCcw, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import {
@@ -38,6 +38,7 @@ type DeliveryTrackingMapProps = {
 
 const mapSize = 640;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
+const minimumDriverHeadingMoveM = 10;
 const minimumAutoFollowMoveM = 12;
 const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
   minimumFractionDigits: 1,
@@ -73,6 +74,7 @@ export function DeliveryTrackingMap({
   const routeRequestIdRef = useRef(0);
   const userAdjustedViewRef = useRef(false);
   const lastAutoFollowCenterRef = useRef<DeliveryMapCoordinates | null>(null);
+  const lastDriverHeadingPointRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
   const [scale, setScale] = useState(1);
@@ -84,6 +86,7 @@ export function DeliveryTrackingMap({
   const [searchResults, setSearchResults] = useState<ReadonlyArray<DeliveryLocationSearchResult>>([]);
   const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [movementHeading, setMovementHeading] = useState<number | null>(null);
   const baseRoutePoints = useMemo(
     () => [restaurant, client].filter((point): point is TrackingPoint => Boolean(point)),
     [client, restaurant]
@@ -144,7 +147,7 @@ export function DeliveryTrackingMap({
     () => driver ? { ...driver, ...coordinatesToMapPoint(driver, center, mapZoom, mapSize, { clampToViewport: false }) } : null,
     [center, mapZoom, driver]
   );
-  const driverHeading = useMemo(() => {
+  const routeHeading = useMemo(() => {
     if (!driver) return 0;
     const routeTarget = effectiveRoutePoints.find((point) =>
       Math.abs(point.lat - driver.lat) > 0.000001 || Math.abs(point.lng - driver.lng) > 0.000001
@@ -152,6 +155,7 @@ export function DeliveryTrackingMap({
     if (routeTarget) return calculateBearing(driver, routeTarget);
     return client ? calculateBearing(driver, client) : 0;
   }, [client, driver, effectiveRoutePoints]);
+  const driverHeading = movementHeading ?? routeHeading;
   const mapRotation = (followDriverHeading && driver ? -driverHeading : 0) + manualRotation;
   const selectedPoint =
     selectedPointKind === 'restaurant'
@@ -217,6 +221,25 @@ export function DeliveryTrackingMap({
     setCenter({ lat: driver.lat, lng: driver.lng });
     setMapZoom((zoom) => Math.max(16, zoom));
   }, [driver, followDriverHeading]);
+
+  useEffect(() => {
+    if (!driver) {
+      lastDriverHeadingPointRef.current = null;
+      setMovementHeading(null);
+      return;
+    }
+
+    const nextPoint = { lat: driver.lat, lng: driver.lng };
+    const previousPoint = lastDriverHeadingPointRef.current;
+    if (!previousPoint) {
+      lastDriverHeadingPointRef.current = nextPoint;
+      return;
+    }
+
+    if (getApproximateDistanceM(previousPoint, nextPoint) < minimumDriverHeadingMoveM) return;
+    setMovementHeading(calculateBearing(previousPoint, nextPoint));
+    lastDriverHeadingPointRef.current = nextPoint;
+  }, [driver]);
 
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
@@ -437,7 +460,7 @@ export function DeliveryTrackingMap({
                 point={driverPoint}
                 kind="driver"
                 heading={driverHeading}
-                icon={<Navigation />}
+                icon={<DriverArrowIcon />}
                 onSelect={() => focusPoint('driver', driver)}
               />
             )}
@@ -494,6 +517,25 @@ export function DeliveryTrackingMap({
           : '© OpenStreetMap contributors'}
       </small>
     </section>
+  );
+}
+
+function DriverArrowIcon() {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <path
+        className="delivery-tracking-map__driver-arrow-shadow"
+        d="M32 5 53 57 32 46 11 57 32 5Z"
+      />
+      <path
+        className="delivery-tracking-map__driver-arrow"
+        d="M32 5 53 57 32 46 11 57 32 5Z"
+      />
+      <path
+        className="delivery-tracking-map__driver-arrow-highlight"
+        d="M32 13 43 45 32 39 21 45 32 13Z"
+      />
+    </svg>
   );
 }
 

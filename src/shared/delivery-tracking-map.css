@@ -215,11 +215,13 @@
 
 .delivery-tracking-map__marker--restaurant { background: #5b3df4; }
 .delivery-tracking-map__marker--driver {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #0ea5e9;
-  color: #ffffff;
+  width: 54px;
+  height: 54px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #facc15;
+  filter: drop-shadow(0 8px 10px rgb(79 70 229 / 34%));
   transform: translate(-50%, -50%) rotate(var(--driver-heading, 0deg));
 }
 
@@ -228,11 +230,30 @@
 }
 
 .delivery-tracking-map__marker--driver svg {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
-  stroke-width: 2.6;
-  transform: rotate(-45deg);
+  width: 54px;
+  height: 54px;
+  fill: none;
+  stroke: none;
+  transform: none;
+  overflow: visible;
+}
+
+.delivery-tracking-map__driver-arrow-shadow {
+  fill: #4f46e5;
+  opacity: 0.86;
+  transform: translateY(4px);
+}
+
+.delivery-tracking-map__driver-arrow {
+  fill: #f8c13a;
+  stroke: #7c3aed;
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+
+.delivery-tracking-map__driver-arrow-highlight {
+  fill: #ffe08a;
+  opacity: 0.9;
 }
 
 .delivery-tracking-map__marker--client { background: #ef4444; }
