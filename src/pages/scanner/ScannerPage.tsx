@@ -1,4 +1,4 @@
-import { Camera, Flashlight, QrCode, RotateCcw } from 'lucide-react';
+import { CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -69,12 +69,10 @@ export function ScannerPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const handledQrRef = useRef(false);
-  const [rawValue, setRawValue] = useState('');
-  const [message, setMessage] = useState('Наведите камеру на QR-код');
-  const [cameraMode, setCameraMode] = useState<'environment' | 'user'>('environment');
-  const [torchEnabled, setTorchEnabled] = useState(false);
+  const [scannerKey, setScannerKey] = useState(0);
+  const [message, setMessage] = useState('Наведите камеру на QR-код выдачи');
+  const [scanState, setScanState] = useState<'idle' | 'searching' | 'success' | 'error'>('idle');
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isDetectorAvailable, setIsDetectorAvailable] = useState(false);
 
   const scannerTitle = useMemo(() => (slug ? `Сканер ${slug}` : 'Сканер QR'), [slug]);
 
@@ -95,16 +93,24 @@ export function ScannerPage() {
     }
     if (parsed.kind === 'delivery') {
       if (parsed.deliveryId && parsed.token) {
+        setScanState('searching');
+        setMessage('Проверяю QR');
         try {
           const confirmed = await confirmDeliveryPickupQr(parsed.deliveryId, parsed.token);
-          setMessage(confirmed ? 'Выдача подтверждена. Заказ передан водителю.' : 'QR недействителен, устарел или уже отменён.');
+          setScanState(confirmed ? 'success' : 'error');
+          setMessage(confirmed ? 'Передан водителю' : 'QR не подходит');
+          if (confirmed) {
+            window.localStorage.setItem('waycatalog-driver-delivery-confirmed', `${parsed.deliveryId}:${Date.now()}`);
+          }
         } catch (error) {
+          setScanState('error');
           setMessage(error instanceof Error ? error.message : 'Не удалось подтвердить выдачу.');
         }
         return;
       }
       if (!parsed.orderId) {
-        setMessage('В QR доставки нет номера заказа или токена выдачи.');
+        setScanState('error');
+        setMessage('Неправильный QR-код выдачи');
         return;
       }
       navigate(`/${slug || 'mangal'}/dashboard?delivery=${encodeURIComponent(parsed.orderId)}`);
@@ -114,11 +120,15 @@ export function ScannerPage() {
       navigate(`/${slug || 'mangal'}/payments`);
       return;
     }
-    setMessage('QR не распознан. Проверьте формат или вставьте ссылку каталога.');
+    setScanState('error');
+    setMessage('Неправильный QR-код');
   }, [navigate, slug]);
 
-  const scanManual = () => {
-    void handleParsed(parseQr(rawValue));
+  const retryScan = () => {
+    handledQrRef.current = false;
+    setScanState('idle');
+    setMessage('Наведите камеру на QR-код выдачи');
+    setScannerKey((current) => current + 1);
   };
 
   useEffect(() => {
@@ -128,10 +138,9 @@ export function ScannerPage() {
 
     const start = async () => {
       const detectorConstructor = (window as unknown as { BarcodeDetector?: new (options: { formats: string[] }) => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
-      setIsDetectorAvailable(Boolean(detectorConstructor));
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: cameraMode },
+          video: { facingMode: 'environment' },
           audio: false
         });
         if (disposed) {
@@ -140,11 +149,12 @@ export function ScannerPage() {
         }
         streamRef.current = stream;
         setIsCameraActive(true);
+        setScanState('searching');
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setMessage(detectorConstructor ? 'Камера работает, ищу QR-код.' : 'Камера работает, ищу QR-код через резервный сканер.');
+        setMessage('Ищу QR-код выдачи');
 
         const detector = detectorConstructor ? new detectorConstructor({ formats: ['qr_code'] }) : null;
         const tick = async () => {
@@ -169,14 +179,16 @@ export function ScannerPage() {
               return;
             }
             if (error instanceof Error && error.name === 'NotAllowedError') {
-              setMessage('Браузер не дал доступ к камере. Разрешите доступ или вставьте QR-текст вручную.');
+              setScanState('error');
+              setMessage('Камера недоступна. Разрешите доступ и повторите.');
             }
           }
           raf = window.setTimeout(tick, 220);
         };
         void tick();
       } catch {
-        setMessage('Не удалось открыть камеру. Разрешите доступ или вставьте QR-текст вручную.');
+        setScanState('error');
+        setMessage('Не удалось открыть камеру');
       }
     };
 
@@ -187,22 +199,11 @@ export function ScannerPage() {
       window.clearTimeout(raf);
       stopCamera();
     };
-  }, [cameraMode, handleParsed]);
-
-  const toggleTorch = async () => {
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      await track.applyConstraints({ advanced: [{ torch: !torchEnabled } as MediaTrackConstraintSet] });
-      setTorchEnabled((current) => !current);
-    } catch {
-      setMessage('Фонарик недоступен на этом устройстве.');
-    }
-  };
+  }, [handleParsed, scannerKey]);
 
   return (
     <main className="scanner-page">
-      <section className="scanner-camera">
+      <section className={`scanner-camera scanner-camera--${scanState}`}>
         <video ref={videoRef} playsInline muted />
         <canvas ref={canvasRef} aria-hidden="true" />
         <div className="scanner-frame">
@@ -212,27 +213,23 @@ export function ScannerPage() {
       </section>
 
       <section className="scanner-controls">
-        <p>{message}</p>
-        {!isDetectorAvailable && <small>Автораспознавание QR может быть недоступно в этом браузере.</small>}
-        <div>
-          <button type="button" onClick={toggleTorch} disabled={!isCameraActive}>
-            <Flashlight />
-            Фонарик
-          </button>
-          <button type="button" onClick={() => setCameraMode((current) => (current === 'environment' ? 'user' : 'environment'))}>
-            <RotateCcw />
-            Камера
-          </button>
-          <button type="button" onClick={() => navigate(slug ? `/${slug}/dashboard` : '/')}>
-            <Camera />
-            Закрыть
-          </button>
+        <div className={`scanner-result scanner-result--${scanState}`}>
+          {scanState === 'success' ? <CheckCircle2 /> : scanState === 'error' ? <XCircle /> : <QrCode />}
+          <p>{message}</p>
+          <small>
+            {scanState === 'success'
+              ? 'Выдача подтверждена. Заказ передан водителю.'
+              : scanState === 'error'
+                ? 'Проверьте, что это QR именно этого заказа, и попробуйте ещё раз.'
+                : isCameraActive
+                  ? 'Держите QR-код ровно в рамке.'
+                  : 'Подготавливаю камеру.'}
+          </small>
         </div>
-        <label>
-          QR-текст или ссылка
-          <textarea value={rawValue} onChange={(event) => setRawValue(event.target.value)} placeholder='{"type":"order","orderId":"12345"}' />
-        </label>
-        <button className="scanner-submit" type="button" onClick={scanManual}>Обработать QR</button>
+        <button className="scanner-submit" type="button" onClick={retryScan}>
+          <RotateCcw />
+          Повторить сканирование
+        </button>
       </section>
     </main>
   );

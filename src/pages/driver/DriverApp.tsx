@@ -223,6 +223,21 @@ const driverDeliveryStatusTones: Record<DeliveryStatus, 'new' | 'work' | 'ready'
   failed: 'done'
 };
 
+const deliveryStatusProgress: Record<DeliveryStatus, number> = {
+  not_required: 0,
+  waiting_courier: 1,
+  assigned: 2,
+  arrived_to_restaurant: 3,
+  handed_over: 4,
+  on_the_way: 5,
+  arrived_to_client: 6,
+  delivered: 7,
+  failed: 7
+};
+
+const latestDeliveryStatus = (first: DeliveryStatus, second: DeliveryStatus) =>
+  deliveryStatusProgress[second] > deliveryStatusProgress[first] ? second : first;
+
 const emptySnapshot: DriverDashboardSnapshot = {
   profile: {
     id: 'driver-demo',
@@ -351,6 +366,7 @@ export function DriverApp() {
     status: localActiveDelivery ? 'busy' : snapshot.profile.status
   };
   const effectiveDriverId = hasDriverAccess ? selectedDriverId : '';
+  const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess || !effectiveDriverId) return;
@@ -445,12 +461,31 @@ export function DriverApp() {
     };
   }, [authChecked, hasDriverAccess, loadDashboard]);
 
+  useEffect(() => {
+    if (!authChecked || !hasDriverAccess) return undefined;
+
+    const refreshAfterPickupConfirmation = (event: StorageEvent) => {
+      if (event.key === 'waycatalog-driver-delivery-confirmed') {
+        void loadDashboard();
+      }
+    };
+
+    window.addEventListener('storage', refreshAfterPickupConfirmation);
+    return () => window.removeEventListener('storage', refreshAfterPickupConfirmation);
+  }, [authChecked, hasDriverAccess, loadDashboard]);
+
+  useEffect(() => {
+    if (!authChecked || !hasDriverAccess || route !== 'active') return undefined;
+    const intervalId = window.setInterval(() => void loadDashboard(), 5_000);
+    return () => window.clearInterval(intervalId);
+  }, [authChecked, hasDriverAccess, loadDashboard, route]);
+
   const activeDelivery = useMemo(() => {
     if (snapshot.activeDelivery && localActiveDelivery?.deliveryId === snapshot.activeDelivery.deliveryId) {
       return {
         ...localActiveDelivery,
         ...snapshot.activeDelivery,
-        status: localActiveDelivery.status,
+        status: latestDeliveryStatus(localActiveDelivery.status, snapshot.activeDelivery.status),
         pickupQrToken: snapshot.activeDelivery.pickupQrToken ?? localActiveDelivery.pickupQrToken,
         routeToClientUrl: snapshot.activeDelivery.routeToClientUrl ?? localActiveDelivery.routeToClientUrl
       };
@@ -465,7 +500,6 @@ export function DriverApp() {
           !dismissedDeliveryIds.includes(delivery.deliveryId)
       )
     : [];
-  const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
   const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
   const mapCandidates = [activeDelivery, ...snapshot.availableDeliveries]
     .filter((delivery): delivery is DeliveryOffer => Boolean(delivery));
