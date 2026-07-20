@@ -1065,6 +1065,7 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [error, setError] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
   const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
@@ -1079,8 +1080,9 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
     return null;
   }, [delivery]);
   const updateStatus = async (status: DeliveryStatus, to?: string) => {
-    if (!delivery) return;
+    if (!delivery || isUpdatingStatus) return;
     setError('');
+    setIsUpdatingStatus(true);
     try {
       if (status === 'delivered') {
         updateLocalDeliveryStatus(status);
@@ -1095,6 +1097,8 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
       if (to) navigate(to);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : 'Не удалось обновить статус');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -1149,8 +1153,8 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
           <Link to="/driver/qr"><QrCode />QR</Link>
         </div>
         {nextAction && (
-          <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)}>
-            {nextAction.label}
+          <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)} disabled={isUpdatingStatus}>
+            {isUpdatingStatus ? 'Обновляем...' : nextAction.label}
           </button>
         )}
         <DriverYandexNavigationActions delivery={delivery} />
