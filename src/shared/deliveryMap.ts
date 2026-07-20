@@ -70,6 +70,17 @@ export const rotateMapPoint = (
   };
 };
 
+export const rotateMapDelta = (delta: DeliveryMapPoint, angleDeg: number): DeliveryMapPoint => {
+  const angle = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+
+  return {
+    x: delta.x * cos - delta.y * sin,
+    y: delta.x * sin + delta.y * cos
+  };
+};
+
 export const getMapCenter = (points: readonly DeliveryMapCoordinateInput[]): DeliveryMapCoordinates => {
   const validPoints = points.filter(
     (point): point is { lat: number; lng: number } =>

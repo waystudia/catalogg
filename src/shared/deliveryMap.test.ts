@@ -8,6 +8,7 @@ import {
   getMapZoomForPoints,
   mapPointToCoordinates,
   coordinatesToMapPoint,
+  rotateMapDelta,
   rotateMapPoint,
   type DeliveryMapPoint
 } from './deliveryMap';
@@ -55,6 +56,12 @@ describe('delivery map picker geometry', () => {
     const point = rotateMapPoint({ x: 160, y: 60 }, 90, { x: 160, y: 160 });
 
     assert.deepEqual({ x: Math.round(point.x), y: Math.round(point.y) }, { x: 260, y: 160 });
+  });
+
+  it('converts a screen drag into the rotated map coordinate space', () => {
+    const delta = rotateMapDelta({ x: 0, y: 10 }, -90);
+
+    assert.deepEqual({ x: Math.round(delta.x), y: Math.round(delta.y) }, { x: 10, y: 0 });
   });
 
   it('clamps dragged markers inside the map viewport', () => {

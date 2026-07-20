@@ -8,6 +8,7 @@ import {
   getMapCenter,
   getMapZoomForPoints,
   mapPointToCoordinates,
+  rotateMapDelta,
   rotateMapPoint,
   type DeliveryMapCoordinates,
   type DeliveryMapStyle
@@ -65,7 +66,7 @@ export function DeliveryTrackingMap({
   followDriverHeading = false
 }: DeliveryTrackingMapProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const dragStartRef = useRef<{ x: number; y: number; center: DeliveryMapCoordinates; zoom: number } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; center: DeliveryMapCoordinates; zoom: number; rotation: number } | null>(null);
   const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStartRef = useRef<{ distance: number; angle: number; zoom: number; rotation: number } | null>(null);
   const wheelDeltaRef = useRef(0);
@@ -221,7 +222,7 @@ export function DeliveryTrackingMap({
     if ((event.target as HTMLElement).closest('button')) return;
     userAdjustedViewRef.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragStartRef.current = { x: event.clientX, y: event.clientY, center, zoom: mapZoom };
+    dragStartRef.current = { x: event.clientX, y: event.clientY, center, zoom: mapZoom, rotation: mapRotation };
     setIsDragging(true);
   };
 
@@ -230,7 +231,8 @@ export function DeliveryTrackingMap({
     if (!start) return;
     const dx = (event.clientX - start.x) / scale;
     const dy = (event.clientY - start.y) / scale;
-    setCenter(mapPointToCoordinates({ x: mapSize / 2 - dx, y: mapSize / 2 - dy }, start.center, start.zoom, mapSize));
+    const mapDelta = rotateMapDelta({ x: dx, y: dy }, -start.rotation);
+    setCenter(mapPointToCoordinates({ x: mapSize / 2 - mapDelta.x, y: mapSize / 2 - mapDelta.y }, start.center, start.zoom, mapSize));
   };
 
   const endDrag = () => {
@@ -250,7 +252,7 @@ export function DeliveryTrackingMap({
     pinchStartRef.current = null;
     const remaining = Array.from(activePointersRef.current.values())[0];
     dragStartRef.current = remaining
-      ? { x: remaining.x, y: remaining.y, center, zoom: mapZoom }
+      ? { x: remaining.x, y: remaining.y, center, zoom: mapZoom, rotation: mapRotation }
       : null;
   };
 
