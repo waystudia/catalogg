@@ -199,6 +199,55 @@ type RestaurantLocationRow = {
   lng: number | null;
 };
 
+const DRIVER_DELIVERY_SELECT = `
+  id,
+  order_id,
+  driver_id,
+  status,
+  delivery_provider,
+  pickup_qr_token,
+  pickup_qr_expires_at,
+  assigned_at,
+  route_to_restaurant_url,
+  route_to_client_url,
+  estimated_time_min,
+  estimated_time_max,
+  offered_fee,
+  pricing_status,
+  created_at,
+  orders(
+    id,
+    order_type,
+    fulfillment_type,
+    status,
+    payment_status,
+    client_name,
+    client_phone,
+    customer_name,
+    customer_phone,
+    delivery_address,
+    delivery_city,
+    delivery_settlement,
+    delivery_lat,
+    delivery_lng,
+    delivery_comment,
+    delivery_comment_snapshot,
+    client_address_comment,
+    comment,
+    restaurant_address_snapshot,
+    restaurant_lat_snapshot,
+    restaurant_lng_snapshot,
+    catalog_id,
+    restaurant_id,
+    delivery_fee,
+    total,
+    total_amount,
+    created_at,
+    order_items(quantity),
+    restaurants(name, logo_url, cover_url, description, address_line, lat, lng, map_url)
+  )
+`;
+
 const firstRelation = <T,>(value: MaybeArray<T> | null | undefined): T | null =>
   Array.isArray(value) ? value[0] ?? null : value ?? null;
 type DeliveryOrderRow = NonNullable<NonNullable<DeliveryRow['orders']> extends MaybeArray<infer T> ? T : never>;
@@ -504,6 +553,35 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
   };
 };
 
+const fetchDriverDeliveryRowsFallback = async (driverId: string) => {
+  if (!supabase) return [] as DeliveryRow[];
+
+  const result = await runSoftDriverQuery<DeliveryRow[]>(
+    supabase
+      .from('deliveries')
+      .select(DRIVER_DELIVERY_SELECT)
+      .or(`driver_id.eq.${driverId},driver_id.is.null`)
+      .in('status', [
+        'waiting_courier',
+        'waiting_driver',
+        'assigned',
+        'arrived_to_restaurant',
+        'pickup_confirmed',
+        'in_transit',
+        'arrived_to_client'
+      ])
+      .order('created_at', { ascending: false })
+      .limit(80) as PromiseLike<{ data: DeliveryRow[] | null; error: unknown | null }>,
+    'Не удалось загрузить открытые доставки.',
+    5_000
+  );
+
+  return ((result.data ?? []) as unknown as DeliveryRow[]).filter((row) => {
+    if (row.driver_id === driverId) return true;
+    return !row.driver_id && (row.status === 'waiting_courier' || row.status === 'waiting_driver');
+  });
+};
+
 export const getAuthenticatedDriverId = async (): Promise<string | null> => {
   if (!supabase) return demoDriverId;
   copySupabaseSessionToScope('driver');
@@ -629,7 +707,15 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
     )
   ]);
 
-  let offers = ((deliveriesResult.data ?? []) as unknown as DeliveryRow[])
+  let deliveryRows = (deliveriesResult.data ?? []) as unknown as DeliveryRow[];
+  if (deliveryRows.length === 0 || deliveriesResult.error) {
+    const fallbackRows = await fetchDriverDeliveryRowsFallback(resolvedDriverId);
+    if (fallbackRows.length > 0) {
+      deliveryRows = fallbackRows;
+    }
+  }
+
+  let offers = deliveryRows
     .map((row) => rowToOffer(row, profile.id))
     .filter((offer): offer is DeliveryOffer => Boolean(offer));
 
@@ -728,7 +814,7 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
 
   const activeDelivery = offers.find((offer) => offer.isAssignedToViewer) ?? null;
   const availableDeliveries = profile.isOnline
-    ? offers.filter((offer) => !offer.isAssignedToViewer && offer.status === 'waiting_courier')
+    ? offers.filter((offer) => !offer.isAssignedToViewer && normalizeDeliveryStatus(offer.status) === 'waiting_courier')
     : [];
 
   const history = ((earningsResult.data ?? []) as unknown as EarningRow[]).map(rowToEarning);

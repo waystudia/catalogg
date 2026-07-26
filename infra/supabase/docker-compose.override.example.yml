@@ -1,0 +1,28 @@
+# Example override for a future self-hosted Supabase deployment.
+# Copy the official Supabase self-hosted compose files first, then adapt service names
+# to the exact upstream version you run. This file intentionally contains no secrets.
+
+services:
+  db:
+    restart: unless-stopped
+    # In production, do not publish Postgres directly to the internet.
+    # ports: []
+
+  studio:
+    restart: unless-stopped
+    # Put Studio behind VPN, SSO, or an internal admin network.
+
+  auth:
+    restart: unless-stopped
+    environment:
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+
+  storage:
+    restart: unless-stopped
+    environment:
+      FILE_SIZE_LIMIT: ${STORAGE_FILE_SIZE_LIMIT}
+
+  realtime:
+    restart: unless-stopped

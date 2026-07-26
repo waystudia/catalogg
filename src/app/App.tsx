@@ -942,29 +942,12 @@ function ProductTile({
   onAdd?: (product: Product) => void;
 }) {
   const add = useCartStore((state) => state.add);
+  const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const currentStock = getCurrentStock(product);
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
-  const [flyer, setFlyer] = useState<{
-    id: number;
-    imageUrl: string;
-    startX: number;
-    startY: number;
-    midX: number;
-    midY: number;
-    endX: number;
-    endY: number;
-    width: number;
-    height: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!flyer) return undefined;
-    const timeoutId = window.setTimeout(() => setFlyer(null), 1050);
-    return () => window.clearTimeout(timeoutId);
-  }, [flyer]);
 
   const playAddAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
@@ -977,19 +960,36 @@ function ProductTile({
     const startY = imageRect ? imageRect.top + imageRect.height / 2 : buttonRect.top + buttonRect.height / 2;
     const endX = targetRect ? targetRect.left + targetRect.width / 2 : Math.max(50, window.innerWidth * 0.18);
     const endY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 54;
+    const flyer = document.createElement('span');
+    const flyerImageUrl = image?.currentSrc || product.image_url;
+    const width = Math.min(imageRect?.width ?? 64, 180);
+    const height = Math.min(imageRect?.height ?? 64, 150);
 
-    setFlyer({
-      id: Date.now(),
-      imageUrl: image?.currentSrc || product.image_url,
-      startX,
-      startY,
-      midX: (startX + endX) / 2,
-      midY: Math.min(startY, endY) - Math.min(150, Math.max(80, window.innerHeight * 0.18)),
-      endX,
-      endY,
-      width: Math.min(imageRect?.width ?? 64, 180),
-      height: Math.min(imageRect?.height ?? 64, 150)
-    });
+    flyer.className = 'cart-flyer';
+    flyer.setAttribute('aria-hidden', 'true');
+    flyer.style.setProperty('--flyer-start-x', `${startX}px`);
+    flyer.style.setProperty('--flyer-start-y', `${startY}px`);
+    flyer.style.setProperty('--flyer-mid-x', `${Math.max(58, Math.min(window.innerWidth - 58, window.innerWidth * 0.55))}px`);
+    flyer.style.setProperty('--flyer-mid-y', `${Math.min(startY, endY) - Math.min(160, Math.max(86, window.innerHeight * 0.2))}px`);
+    flyer.style.setProperty('--flyer-end-x', `${endX}px`);
+    flyer.style.setProperty('--flyer-end-y', `${endY}px`);
+    flyer.style.setProperty('--flyer-width', `${width}px`);
+    flyer.style.setProperty('--flyer-height', `${height}px`);
+
+    if (flyerImageUrl) {
+      const flyerImage = document.createElement('img');
+      flyerImage.src = flyerImageUrl;
+      flyerImage.alt = '';
+      flyer.append(flyerImage);
+    } else {
+      flyer.classList.add('cart-flyer--empty');
+      flyer.textContent = '+';
+    }
+
+    document.body.append(flyer);
+    const cleanup = () => flyer.remove();
+    flyer.addEventListener('animationend', cleanup, { once: true });
+    window.setTimeout(cleanup, 1200);
   };
 
   return (
@@ -1052,41 +1052,36 @@ function ProductTile({
         </div>
         <div className="product-tile__bottom">
           <strong>{formatPrice(product.price)}</strong>
-          <button
-            className="add-button"
-            type="button"
-            disabled={soldOut}
-            aria-label={`Добавить ${product.title}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              playAddAnimation(event.currentTarget);
-              add(product);
-              onAdd?.(product);
-            }}
-          >
-            <Plus />
-          </button>
+          <div className="product-tile__stepper" onClick={(event) => event.stopPropagation()}>
+            {quantity > 0 && (
+              <>
+                <button
+                  className="product-tile__stepper-button product-tile__stepper-button--minus"
+                  type="button"
+                  aria-label={`Уменьшить ${product.title}`}
+                  onClick={() => decrement(product.id)}
+                >
+                  <Minus />
+                </button>
+                <span className="product-tile__stepper-count">{quantity}</span>
+              </>
+            )}
+            <button
+              className="add-button product-tile__stepper-button"
+              type="button"
+              disabled={soldOut}
+              aria-label={`Добавить ${product.title}`}
+              onClick={(event) => {
+                playAddAnimation(event.currentTarget);
+                add(product);
+                onAdd?.(product);
+              }}
+            >
+              <Plus />
+            </button>
+          </div>
         </div>
       </div>
-      {flyer && (
-        <span
-          className="cart-flyer"
-          style={{
-            '--flyer-start-x': `${flyer.startX}px`,
-            '--flyer-start-y': `${flyer.startY}px`,
-            '--flyer-mid-x': `${flyer.midX}px`,
-            '--flyer-mid-y': `${flyer.midY}px`,
-            '--flyer-end-x': `${flyer.endX}px`,
-            '--flyer-end-y': `${flyer.endY}px`,
-            '--flyer-width': `${flyer.width}px`,
-            '--flyer-height': `${flyer.height}px`
-          } as React.CSSProperties}
-          key={flyer.id}
-          aria-hidden="true"
-        >
-          {flyer.imageUrl ? <img src={flyer.imageUrl} alt="" /> : <Plus />}
-        </span>
-      )}
     </article>
   );
 }

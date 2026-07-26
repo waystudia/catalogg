@@ -2225,6 +2225,40 @@ a {
   height: 18px;
 }
 
+.product-tile__stepper {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.product-tile__stepper-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.product-tile__stepper-button--minus {
+  border-color: color-mix(in srgb, var(--product-card-text) 26%, transparent);
+  background: color-mix(in srgb, var(--product-card-bg) 82%, #ffffff);
+  color: var(--product-card-text);
+}
+
+.product-tile__stepper-count {
+  display: grid;
+  min-width: 24px;
+  height: 28px;
+  place-items: center;
+  color: var(--product-card-text);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .product-tile__quantity-badge {
   position: absolute;
   right: 12px;
@@ -2273,6 +2307,12 @@ a {
 .cart-flyer svg {
   width: 17px;
   height: 17px;
+}
+
+.cart-flyer--empty {
+  border-radius: 999px;
+  font-size: 24px;
+  font-weight: 900;
 }
 
 @keyframes cart-flyer-drop {
@@ -5864,7 +5904,7 @@ a {
 
   .product-tile__bottom {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 36px;
+    grid-template-columns: minmax(0, 1fr) auto;
     min-height: 34px;
     gap: 8px;
   }
@@ -5880,6 +5920,20 @@ a {
   .product-tile .add-button {
     width: 36px;
     height: 36px;
+  }
+
+  .product-tile__stepper {
+    gap: 4px;
+  }
+
+  .product-tile__stepper-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .product-tile__stepper-count {
+    min-width: 18px;
+    font-size: 12px;
   }
 
   .product-tile .add-button svg {
