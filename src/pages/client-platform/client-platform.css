@@ -378,6 +378,12 @@
   overflow: hidden;
 }
 
+.restaurant-grid > .restaurant-card:only-child {
+  grid-template-rows: minmax(168px, 48vw) auto;
+  max-width: 360px;
+  aspect-ratio: auto;
+}
+
 .restaurant-card img {
   width: 100%;
   height: 100%;
@@ -453,9 +459,8 @@
 
 .restaurant-card em {
   width: 100%;
-  margin-top: auto;
   display: -webkit-box;
-  min-height: 30px;
+  min-height: 0;
   align-content: center;
   padding: 4px 7px;
   overflow: hidden;

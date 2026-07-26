@@ -818,7 +818,7 @@ function RestaurantCard({
         <span className="restaurant-card__title">
           <strong>{restaurant.name}</strong>
           <small>
-            <Star /> {restaurant.rating}
+            <Star /> {restaurant.rating.toFixed(1)}
           </small>
         </span>
         <small>{categoryNames}</small>

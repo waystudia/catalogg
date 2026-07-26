@@ -813,7 +813,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       categorySlugs: unique(catalogCategories.map((category) => category.slug)),
       logoUrl: catalog.logo_url,
       coverUrl: catalog.banner_url || legacyRestaurantBannerBySlug.get(catalog.slug) || catalogCategories.find((category) => category.image_url)?.image_url || '',
-      rating: 4.7,
+      rating: 5,
       minOrderAmount: settings?.minimum_order_amount ?? 0,
       freeDeliveryFrom: settings?.free_delivery_from ?? 0,
       deliveryTimeFrom: preparation,

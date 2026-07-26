@@ -127,7 +127,7 @@ import {
   createRestaurantOrderIdempotencyKey,
   type CreateRestaurantOrderFromCartInput
 } from '../shared/api/restaurantOrderPayload';
-import { formatOrderTime, groupOrdersByDate } from '../shared/orderListGroups';
+import { formatOrderTime } from '../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission,
   requestRestaurantOrderNotificationPermission,
@@ -949,37 +949,46 @@ function ProductTile({
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
   const [flyer, setFlyer] = useState<{
     id: number;
+    imageUrl: string;
     startX: number;
     startY: number;
     midX: number;
     midY: number;
     endX: number;
     endY: number;
+    width: number;
+    height: number;
   } | null>(null);
 
   useEffect(() => {
     if (!flyer) return undefined;
-    const timeoutId = window.setTimeout(() => setFlyer(null), 720);
+    const timeoutId = window.setTimeout(() => setFlyer(null), 1050);
     return () => window.clearTimeout(timeoutId);
   }, [flyer]);
 
   const playAddAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
+    const tile = button.closest('.product-tile') as HTMLElement | null;
+    const image = tile?.querySelector('.product-photo-carousel__track img, .product-tile__image img') as HTMLImageElement | null;
+    const imageRect = image?.getBoundingClientRect();
     const target = document.querySelector('.cart-bar__icon, .cart-icon') as HTMLElement | null;
     const targetRect = target?.getBoundingClientRect();
-    const startX = buttonRect.left + buttonRect.width / 2;
-    const startY = buttonRect.top + buttonRect.height / 2;
+    const startX = imageRect ? imageRect.left + imageRect.width / 2 : buttonRect.left + buttonRect.width / 2;
+    const startY = imageRect ? imageRect.top + imageRect.height / 2 : buttonRect.top + buttonRect.height / 2;
     const endX = targetRect ? targetRect.left + targetRect.width / 2 : Math.max(50, window.innerWidth * 0.18);
     const endY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 54;
 
     setFlyer({
       id: Date.now(),
+      imageUrl: image?.currentSrc || product.image_url,
       startX,
       startY,
       midX: (startX + endX) / 2,
-      midY: Math.min(startY, endY) - 90,
+      midY: Math.min(startY, endY) - Math.min(150, Math.max(80, window.innerHeight * 0.18)),
       endX,
-      endY
+      endY,
+      width: Math.min(imageRect?.width ?? 64, 180),
+      height: Math.min(imageRect?.height ?? 64, 150)
     });
   };
 
@@ -1068,12 +1077,14 @@ function ProductTile({
             '--flyer-mid-x': `${flyer.midX}px`,
             '--flyer-mid-y': `${flyer.midY}px`,
             '--flyer-end-x': `${flyer.endX}px`,
-            '--flyer-end-y': `${flyer.endY}px`
+            '--flyer-end-y': `${flyer.endY}px`,
+            '--flyer-width': `${flyer.width}px`,
+            '--flyer-height': `${flyer.height}px`
           } as React.CSSProperties}
           key={flyer.id}
           aria-hidden="true"
         >
-          <Plus />
+          {flyer.imageUrl ? <img src={flyer.imageUrl} alt="" /> : <Plus />}
         </span>
       )}
     </article>
@@ -2856,6 +2867,28 @@ function getAdminOrderRouteHref(order: RestaurantOrder) {
   });
 }
 
+function groupAdminOrdersByMonth(orders: readonly RestaurantOrder[]) {
+  const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
+  const groups = new Map<string, { key: string; label: string; orders: RestaurantOrder[] }>();
+  const sortedOrders = [...orders].sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+  );
+
+  for (const order of sortedOrders) {
+    const date = new Date(order.createdAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const group = groups.get(key) ?? {
+      key,
+      label: formatter.format(date),
+      orders: []
+    };
+    group.orders.push(order);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()];
+}
+
 function playRestaurantAdminOrderSound() {
   try {
     const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
@@ -2905,7 +2938,6 @@ const defaultAdminDeliverySettings: RestaurantDeliverySettings = {
 function RestaurantAdminShell({
   catalogSlug,
   restaurant,
-  categories,
   products,
   orders,
   routeSection,
@@ -2953,15 +2985,25 @@ function RestaurantAdminShell({
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
   const today = new Date().toDateString();
+  const currentMonth = new Date();
   const todayOrders = orders.filter((order) => new Date(order.createdAt).toDateString() === today);
   const todayRevenue = todayOrders
     .filter((order) => !['cancelled'].includes(order.status))
     .reduce((total, order) => total + order.total, 0);
+  const monthOrders = orders.filter((order) => {
+    const created = new Date(order.createdAt);
+    return created.getFullYear() === currentMonth.getFullYear() && created.getMonth() === currentMonth.getMonth();
+  });
+  const monthRevenue = monthOrders
+    .filter((order) => !['cancelled', 'canceled'].includes(order.status))
+    .reduce((total, order) => total + order.total, 0);
+  const restaurantDebt = Math.round(monthRevenue * 0.07);
+  const restaurantReceived = Math.max(0, monthRevenue - restaurantDebt);
   const filteredOrders = filter === 'all' ? orders : orders.filter((order) => order.status === filter);
   const selectedVisibleOrder = selectedOrder
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
-    : null;
-  const orderGroups = useMemo(() => groupOrdersByDate(filteredOrders), [filteredOrders]);
+    : filteredOrders[0] ?? null;
+  const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled'].includes(order.status));
   const openTab = (nextTab: RestaurantAdminTab) => {
     setTab(nextTab);
@@ -3079,18 +3121,34 @@ function RestaurantAdminShell({
 
         {tab === 'home' && (
           <section className="restaurant-admin__content">
-            <div className="admin-kpi-grid">
-              <article><strong>{products.length}</strong><span>Блюд</span></article>
-              <article><strong>{categories.length}</strong><span>Категорий</span></article>
-              <article><strong>{todayOrders.length}</strong><span>Заказов сегодня</span></article>
-              <article><strong>{formatPrice(todayRevenue)}</strong><span>Выручка</span></article>
-              <article><strong>4.8</strong><span>Рейтинг</span></article>
-            </div>
+            <section className="admin-finance-summary">
+              <header>
+                <div>
+                  <span>Финансы</span>
+                  <h2>Этот месяц</h2>
+                </div>
+                <small>{formatPrice(monthRevenue)} за месяц</small>
+              </header>
+              <div>
+                <article>
+                  <strong>{formatPrice(restaurantReceived)}</strong>
+                  <span>Получено рестораном</span>
+                </article>
+                <article>
+                  <strong>{monthOrders.length}</strong>
+                  <span>Заказов за месяц</span>
+                </article>
+                <article data-tone={restaurantDebt > 0 ? 'debt' : 'ok'}>
+                  <strong>{formatPrice(restaurantDebt)}</strong>
+                  <span>Долг платформе</span>
+                </article>
+              </div>
+            </section>
             <section className="admin-today-card">
               <div>
                 <span>Сегодня</span>
                 <strong>{formatPrice(todayRevenue)}</strong>
-                <small>{activeOrders.length} активных заказов</small>
+                <small>{todayOrders.length} заказов сегодня · {activeOrders.length} активных</small>
               </div>
               <button type="button" onClick={() => openTab('orders')}>
                 <ClipboardList />
@@ -3148,48 +3206,6 @@ function RestaurantAdminShell({
               ))}
             </div>
             <div className="admin-orders-layout">
-              <div className="admin-order-list">
-                {filteredOrders.length === 0 && (
-                  <section className="admin-empty-orders">
-                    <ClipboardList />
-                    <strong>Заказов пока нет</strong>
-                    <span>Новые заказы появятся здесь автоматически.</span>
-                  </section>
-                )}
-                {orderGroups.map((group) => (
-                  <section className="admin-order-group" key={group.key}>
-                    <h2>{group.label}</h2>
-                    <div>
-                      {group.orders.map((order) => (
-                        <button
-                          className="admin-order-card"
-                          data-active={selectedVisibleOrder?.id === order.id}
-                          data-highlighted={recentOrderIds.has(order.id)}
-                          type="button"
-                          key={order.id}
-                          onClick={() => openOrderFromList(order)}
-                        >
-                          <span className="admin-order-card__head">
-                            <strong>#{order.orderNumber}</strong>
-                            <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
-                          </span>
-                          <span className="admin-order-card__meta">
-                            {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
-                          </span>
-                          <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
-                          <span className="admin-order-card__foot">
-                            <b>{formatPrice(order.total)}</b>
-                            <i data-tone={adminOrderStatusTones[order.status]}>
-                              {order.status === 'new' && <span aria-hidden="true" />}
-                              {adminOrderStatusLabels[order.status]}
-                            </i>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
               {selectedVisibleOrder && (
                 <OrderDetailsPanel
                   order={selectedVisibleOrder}
@@ -3207,6 +3223,53 @@ function RestaurantAdminShell({
                   }}
                 />
               )}
+              <div className="admin-order-list">
+                {filteredOrders.length === 0 && (
+                  <section className="admin-empty-orders">
+                    <ClipboardList />
+                    <strong>Заказов пока нет</strong>
+                    <span>Новые заказы появятся здесь автоматически.</span>
+                  </section>
+                )}
+                {orderGroups.map((group, index) => (
+                  <section className="admin-order-group" key={group.key}>
+                    <details open={index === 0}>
+                      <summary>
+                        <span>{group.label}</span>
+                        <b>{group.orders.length} заказов</b>
+                      </summary>
+                      <div>
+                        {group.orders.map((order) => (
+                          <button
+                            className="admin-order-card"
+                            data-active={selectedVisibleOrder?.id === order.id}
+                            data-highlighted={recentOrderIds.has(order.id)}
+                            type="button"
+                            key={order.id}
+                            onClick={() => openOrderFromList(order)}
+                          >
+                            <span className="admin-order-card__head">
+                              <strong>#{order.orderNumber}</strong>
+                              <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
+                            </span>
+                            <span className="admin-order-card__meta">
+                              {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
+                            </span>
+                            <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
+                            <span className="admin-order-card__foot">
+                              <b>{formatPrice(order.total)}</b>
+                              <i data-tone={adminOrderStatusTones[order.status]}>
+                                {order.status === 'new' && <span aria-hidden="true" />}
+                                {adminOrderStatusLabels[order.status]}
+                              </i>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  </section>
+                ))}
+              </div>
             </div>
           </section>
         )}
