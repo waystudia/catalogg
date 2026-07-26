@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bell,
   CalendarDays,
   Car,
   ChevronRight,
@@ -58,6 +59,7 @@ import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import {
+  getRestaurantOrderNotificationPermission,
   requestRestaurantOrderNotificationPermission,
   restoreRestaurantOrderNotificationSubscription,
   showRestaurantOrderNotification
@@ -651,6 +653,7 @@ function DriverHomeScreen({
   const [availabilityError, setAvailabilityError] = useState('');
   const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const displayedOnline = optimisticOnline ?? profile.isOnline;
 
   useEffect(() => {
@@ -668,7 +671,7 @@ function DriverHomeScreen({
       await setDriverAvailability(nextOnline);
       void onRefresh();
       if (nextOnline) {
-        void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id });
+        void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id }).then(setNotificationPermission);
       }
     } catch (availabilityUpdateError) {
       const shouldRollback =
@@ -686,6 +689,10 @@ function DriverHomeScreen({
     }
   };
 
+  const enableNotifications = () => {
+    void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id }).then(setNotificationPermission);
+  };
+
   return (
     <>
       <header className="driver-topbar">
@@ -694,7 +701,16 @@ function DriverHomeScreen({
           <small>{profile.name}</small>
         </div>
         <div className="driver-topbar__actions">
-          <button className="driver-online-button" type="button" onClick={() => void onRefresh()} aria-label="Обновить">
+          <button
+            className={`driver-online-button driver-push-button ${notificationPermission === 'granted' ? 'is-active' : ''}`}
+            type="button"
+            onClick={enableNotifications}
+            aria-label={notificationPermission === 'granted' ? 'Push-уведомления включены' : 'Включить push-уведомления'}
+            title={notificationPermission === 'granted' ? 'Push включён' : 'Включить push-уведомления'}
+          >
+            <Bell />
+          </button>
+          <button className="driver-online-button driver-refresh-button" type="button" onClick={() => void onRefresh()} aria-label="Обновить">
             <RefreshCw />
           </button>
           <button className="driver-online-button" type="button" disabled={isUpdatingAvailability} onClick={() => void toggleOnline()} aria-label="Онлайн статус">

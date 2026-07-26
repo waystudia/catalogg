@@ -477,21 +477,35 @@ const relationMissing = (error: unknown) => {
   );
 };
 
+const normalizeDispatchPlace = (value: string) =>
+  value
+    .trim()
+    .toLocaleLowerCase('ru-RU')
+    .replace(/[ё]/g, 'е')
+    .replace(/[‐‑‒–—−]/g, '-')
+    .replace(/[^0-9a-zа-я]+/g, ' ')
+    .trim();
+
+const placeMatches = (servedPlace: string, city: string, settlement: string) => {
+  if (!servedPlace) return false;
+  const target = [city, settlement].filter(Boolean).join(' ');
+  return (
+    (target && target.includes(servedPlace)) ||
+    (city && servedPlace.includes(city)) ||
+    (settlement && servedPlace.includes(settlement))
+  );
+};
+
 const driverServesOrder = (driver: DispatchDriverRow, order: Pick<RestaurantOrder, 'deliveryCity' | 'deliverySettlement'>) => {
-  const city = order.deliveryCity.trim().toLocaleLowerCase('ru-RU');
-  const settlement = order.deliverySettlement.trim().toLocaleLowerCase('ru-RU');
-  const driverCity = (driver.city_name ?? '').trim().toLocaleLowerCase('ru-RU');
+  const city = normalizeDispatchPlace(order.deliveryCity);
+  const settlement = normalizeDispatchPlace(order.deliverySettlement);
+  const driverCity = normalizeDispatchPlace(driver.city_name ?? '');
   const serviceSettlements = Array.isArray(driver.service_settlements)
-    ? driver.service_settlements.map((item) => item.trim().toLocaleLowerCase('ru-RU')).filter(Boolean)
+    ? driver.service_settlements.map((item) => normalizeDispatchPlace(item)).filter(Boolean)
     : [];
 
   if (!driverCity && serviceSettlements.length === 0) return true;
-  return Boolean(
-    (city && driverCity === city) ||
-    (settlement && driverCity === settlement) ||
-    (city && serviceSettlements.includes(city)) ||
-    (settlement && serviceSettlements.includes(settlement))
-  );
+  return placeMatches(driverCity, city, settlement) || serviceSettlements.some((place) => placeMatches(place, city, settlement));
 };
 
 const mapDispatchDriver = (

@@ -29,6 +29,14 @@ describe('background web push contract', () => {
     assert.match(source, /VAPID_PRIVATE_KEY/);
     assert.match(source, /webpush|push service|applicationServerKey/i);
     assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
+    assert.match(source, /event\.table === 'test'/);
+  });
+
+  it('recreates browser subscriptions when the stored VAPID key is stale', async () => {
+    const source = await read('src/shared/webPush.ts');
+    assert.match(source, /subscriptionUsesPublicKey/);
+    assert.match(source, /unsubscribe\(\)/);
+    assert.match(source, /createPushSubscription/);
   });
 
   it('notifies only online drivers who serve the delivery city or settlement', async () => {

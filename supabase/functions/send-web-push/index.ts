@@ -51,7 +51,7 @@ const appBaseUrl = () => {
 };
 
 const orderUrl = (slug: string, orderId: string) =>
-  `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}`;
+  `${appBaseUrl()}#/${encodeURIComponent(slug)}/orders?order=${encodeURIComponent(orderId)}`;
 
 const uniqueSubscriptions = (items: Subscription[]) =>
   Array.from(new Map(items.map((item) => [item.endpoint, item])).values());
@@ -86,6 +86,22 @@ Deno.serve(async (request) => {
     let body = 'Есть новое обновление';
     let url = `${appBaseUrl()}#/`;
     let tag = 'waycatalog-update';
+
+    if (event.table === 'test') {
+      const role = asString(record.role) || 'super_admin';
+      title = asString(record.title) || 'WayCatalog push работает';
+      body = asString(record.body) || 'Тестовое уведомление успешно дошло до сервера.';
+      url = asString(record.url) || `${appBaseUrl()}#/`;
+      tag = `web-push-test-${role}`;
+
+      let query = admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', role);
+      const driverId = asId(record.driver_id);
+      const catalogId = asId(record.catalog_id);
+      if (role === 'driver' && driverId) query = query.eq('driver_id', driverId);
+      if (role === 'restaurant' && catalogId) query = query.eq('catalog_id', catalogId);
+      const { data } = await query;
+      subscriptions = (data ?? []) as Subscription[];
+    }
 
     if (event.table === 'orders') {
       const orderId = asId(record.id);

@@ -456,14 +456,22 @@ create or replace function public.driver_serves_delivery_location(
   target_settlement text
 )
 returns boolean
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
 as $$
-  select exists (
+declare
+  normalized_city text := trim(regexp_replace(lower(translate(coalesce(target_city, ''), 'Ёё‐‑‒–—−', 'Ее------')), '[^0-9a-zа-я]+', ' ', 'g'));
+  normalized_settlement text := trim(regexp_replace(lower(translate(coalesce(target_settlement, ''), 'Ёё‐‑‒–—−', 'Ее------')), '[^0-9a-zа-я]+', ' ', 'g'));
+  normalized_target text := trim(concat_ws(' ', normalized_city, normalized_settlement));
+begin
+  return exists (
     select 1
     from public.drivers d
+    left join lateral (
+      select trim(regexp_replace(lower(translate(coalesce(d.city_name, ''), 'Ёё‐‑‒–—−', 'Ее------')), '[^0-9a-zа-я]+', ' ', 'g')) as place
+    ) driver_city on true
     where d.id = target_driver_id
       and d.is_active
       and d.is_online
@@ -472,18 +480,30 @@ as $$
           trim(coalesce(d.city_name, '')) = ''
           and coalesce(cardinality(d.service_settlements), 0) = 0
         )
-        or lower(trim(coalesce(target_city, ''))) = lower(trim(coalesce(d.city_name, '')))
-        or lower(trim(coalesce(target_settlement, ''))) = lower(trim(coalesce(d.city_name, '')))
-        or exists (
-          select 1
-          from unnest(coalesce(d.service_settlements, '{}'::text[])) served(place)
-          where lower(trim(served.place)) in (
-            lower(trim(coalesce(target_city, ''))),
-            lower(trim(coalesce(target_settlement, '')))
+        or (
+          driver_city.place <> ''
+          and (
+            position(driver_city.place in normalized_target) > 0
+            or (normalized_city <> '' and position(normalized_city in driver_city.place) > 0)
+            or (normalized_settlement <> '' and position(normalized_settlement in driver_city.place) > 0)
           )
         )
+        or exists (
+          select 1
+          from unnest(coalesce(d.service_settlements, '{}'::text[])) served(raw_place)
+          cross join lateral (
+            select trim(regexp_replace(lower(translate(coalesce(served.raw_place, ''), 'Ёё‐‑‒–—−', 'Ее------')), '[^0-9a-zа-я]+', ' ', 'g')) as place
+          ) served_place
+          where served_place.place <> ''
+            and (
+              position(served_place.place in normalized_target) > 0
+              or (normalized_city <> '' and position(normalized_city in served_place.place) > 0)
+              or (normalized_settlement <> '' and position(normalized_settlement in served_place.place) > 0)
+            )
+          )
       )
-  )
+  );
+end;
 $$;
 
 grant execute on function public.driver_serves_delivery_location(uuid, text, text) to authenticated;

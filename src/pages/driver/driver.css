@@ -138,14 +138,20 @@
   gap: 8px;
 }
 
-.driver-topbar__actions .driver-online-button:first-child {
+.driver-topbar__actions .driver-push-button,
+.driver-topbar__actions .driver-refresh-button {
   width: 44px;
   color: #4f46e5;
 }
 
-.driver-topbar__actions .driver-online-button:first-child svg {
+.driver-topbar__actions .driver-push-button svg,
+.driver-topbar__actions .driver-refresh-button svg {
   width: 22px;
   height: 22px;
+}
+
+.driver-topbar__actions .driver-push-button.is-active {
+  color: #16a34a;
 }
 
 .driver-error {

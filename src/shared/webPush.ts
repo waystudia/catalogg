@@ -12,22 +12,47 @@ const base64UrlToUint8Array = (value: string) => {
   return Uint8Array.from(raw, (character) => character.charCodeAt(0));
 };
 
+const uint8ArrayToBase64Url = (value: Uint8Array) => {
+  const raw = String.fromCharCode(...value);
+  return window.btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
+
+const subscriptionUsesPublicKey = (subscription: PushSubscription, nextPublicKey: string) => {
+  const currentKey = subscription.options.applicationServerKey;
+  if (!currentKey) return true;
+  return uint8ArrayToBase64Url(new Uint8Array(currentKey)) === nextPublicKey;
+};
+
 export const isWebPushSupported = () =>
   typeof window !== 'undefined' &&
   'Notification' in window &&
   'serviceWorker' in navigator &&
   'PushManager' in window;
 
+const createPushSubscription = (registration: ServiceWorkerRegistration) =>
+  registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: base64UrlToUint8Array(publicKey())
+  });
+
 export async function registerWebPushSubscription(context: WebPushContext): Promise<boolean> {
   if (!isWebPushSupported() || !supabase || !publicKey() || Notification.permission !== 'granted') return false;
 
   const registration = await navigator.serviceWorker.ready;
   let subscription = await registration.pushManager.getSubscription();
+  if (subscription && !subscriptionUsesPublicKey(subscription, publicKey())) {
+    await subscription.unsubscribe();
+    subscription = null;
+  }
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: base64UrlToUint8Array(publicKey())
-    });
+    try {
+      subscription = await createPushSubscription(registration);
+    } catch (error) {
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (!existingSubscription) throw error;
+      await existingSubscription.unsubscribe();
+      subscription = await createPushSubscription(registration);
+    }
   }
 
   const json = subscription.toJSON();

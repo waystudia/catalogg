@@ -44,7 +44,10 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(eligibilitySql, /is_active/);
     assert.match(eligibilitySql, /is_online/);
     assert.match(eligibilitySql, /service_settlements/);
+    assert.match(eligibilitySql, /translate\(coalesce\(target_city/);
+    assert.match(eligibilitySql, /position\(served_place\.place in normalized_target\)/);
     assert.match(offersSql, /public\.driver_serves_delivery_location/);
+    assert.doesNotMatch(offersSql, /d\.created_at >= now\(\) - interval '2 days'/);
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.customer_name else '' end/);
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.customer_phone else '' end/);
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.delivery_comment else null end/);
