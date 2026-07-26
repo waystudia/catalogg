@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { CartItem, OrderMode, Product, ThemeSettings } from '../entities/models';
 import { themeSettings } from '../data/catalog';
+import { redirectToClientHome } from '../shared/appNavigation';
 
 type CartStore = {
   items: CartItem[];
@@ -144,6 +145,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     const { signOutAdmin } = await import('../shared/supabase');
     await signOutAdmin();
     set({ isAdmin: false });
+    redirectToClientHome();
   }
 }));
 

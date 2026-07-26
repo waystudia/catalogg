@@ -8,6 +8,7 @@ import {
   signOutCatalogAdmin,
   type CatalogAdminAccess
 } from '../../shared/api/catalogAdminApi';
+import { redirectToClientHome } from '../../shared/appNavigation';
 import { privacyPolicyIntro, privacyPolicySections, privacyPolicyTitle } from '../../shared/privacyPolicy';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
 import './catalog-admin.css';
@@ -279,12 +280,14 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
 
   if (!access.isMember) {
     return (
-      <CatalogForbidden
-        email={access.email}
-        onSignOut={() => {
-          void signOutCatalogAdmin().then(refresh);
-        }}
-      />
+        <CatalogForbidden
+          email={access.email}
+          onSignOut={() => {
+            void signOutCatalogAdmin().then(() => {
+              redirectToClientHome();
+            });
+          }}
+        />
     );
   }
 
@@ -293,7 +296,9 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
         access={access}
         onRefresh={() => void refresh()}
         onSignOut={() => {
-          void signOutCatalogAdmin().then(refresh);
+          void signOutCatalogAdmin().then(() => {
+            redirectToClientHome();
+          });
         }}
         onConsentConfirmed={(nextAccess) => setAccess(nextAccess)}
       />

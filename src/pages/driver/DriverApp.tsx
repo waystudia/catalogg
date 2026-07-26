@@ -62,6 +62,7 @@ import {
   restoreRestaurantOrderNotificationSubscription,
   showRestaurantOrderNotification
 } from '../../shared/restaurantOrderNotifications';
+import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import './driver.css';
 
@@ -1384,7 +1385,6 @@ function DriverProfileRow({ icon, label, value, to }: { icon: ReactNode; label: 
 }
 
 function DriverSettingsScreen({ profile, onProfileSaved }: { profile: DriverProfile; onProfileSaved: () => Promise<void> }) {
-  const navigate = useNavigate();
   const clearLocalActiveDelivery = useDriverStore((state) => state.clearLocalActiveDelivery);
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
@@ -1555,7 +1555,7 @@ function DriverSettingsScreen({ profile, onProfileSaved }: { profile: DriverProf
           onClick={async () => {
             clearLocalActiveDelivery();
             await signOutDriver();
-            navigate('/login', { replace: true });
+            redirectToClientHome();
           }}
         >
           <LogOut />

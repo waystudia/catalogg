@@ -955,7 +955,15 @@ export function subscribeToDriverRealtime(driverId: string, onChange: () => void
 
   const channel = supabase
     .channel(`driver-deliveries-${driverId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `driver_id=eq.${driverId}` }, scheduleRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, (payload) => {
+      const rows = [payload.old, payload.new].filter(Boolean) as Array<{ driver_id?: string | null; status?: string | null }>;
+      const touchesOwnDelivery = rows.some((row) => row.driver_id === driverId);
+      const touchesOpenOffer = rows.some((row) => row.status === 'waiting_courier' || row.status === 'waiting_driver');
+      if (touchesOwnDelivery || touchesOpenOffer) {
+        scheduleRefresh();
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers', filter: `id=eq.${driverId}` }, scheduleRefresh)
     .subscribe();
 
   return () => {

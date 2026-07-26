@@ -87,6 +87,7 @@ import {
   requestRestaurantOrderNotificationPermission,
   restoreRestaurantOrderNotificationSubscription
 } from '../../shared/restaurantOrderNotifications';
+import { redirectToClientHome } from '../../shared/appNavigation';
 import {
   createClientSchema,
   createSlug,
@@ -2848,7 +2849,7 @@ function PlatformAdminContent() {
         email={platformAdminQuery.data.email}
         onSignOut={() => {
           void signOutPlatformAdmin().then(() => {
-            void platformAdminQuery.refetch();
+            redirectToClientHome();
           });
         }}
       />
@@ -2863,7 +2864,7 @@ function PlatformAdminContent() {
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
         onSignOut={() => {
           void signOutPlatformAdmin().then(() => {
-            void platformAdminQuery.refetch();
+            redirectToClientHome();
           });
         }}
       />
@@ -2892,7 +2893,7 @@ function PlatformAdminContent() {
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
         onSignOut={() => {
           void signOutPlatformAdmin().then(() => {
-            void platformAdminQuery.refetch();
+            redirectToClientHome();
           });
         }}
       />
