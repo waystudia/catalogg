@@ -629,6 +629,7 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
     )
   ]);
 
+  if (deliveriesResult.error) throw deliveriesResult.error;
   const deliveryRows = (deliveriesResult.data ?? []) as unknown as DeliveryRow[];
 
   let offers = deliveryRows

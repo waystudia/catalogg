@@ -2244,8 +2244,17 @@ a {
   flex: 0 0 auto;
   width: 38px;
   height: 38px;
+  padding: 0;
   place-items: center;
   border-radius: 999px;
+  line-height: 1;
+}
+
+.product-tile__stepper-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0;
 }
 
 .product-tile__stepper-button--minus {

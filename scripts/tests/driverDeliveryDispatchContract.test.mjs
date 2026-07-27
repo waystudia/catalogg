@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sql = readFileSync(resolve(repoRoot, 'supabase/waycatalog_delivery.sql'), 'utf8');
+const driverOfferFixSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260727113000_fix_driver_offer_restaurant_map_url.sql'),
+  'utf8'
+);
 const restaurantApi = readFileSync(resolve(repoRoot, 'src/shared/api/restaurantOrdersApi.ts'), 'utf8');
 const driverApi = readFileSync(resolve(repoRoot, 'src/shared/api/deliveryApi.ts'), 'utf8');
 const driverApp = readFileSync(resolve(repoRoot, 'src/pages/driver/DriverApp.tsx'), 'utf8');
@@ -52,6 +56,10 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.customer_phone else '' end/);
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.delivery_comment else null end/);
     assert.match(driverApi, /rpc\('get_driver_delivery_offers'\)/);
+    assert.doesNotMatch(offersSql, /r\.map_url/);
+    assert.doesNotMatch(driverOfferFixSql, /r\.map_url/);
+    assert.match(driverOfferFixSql, /'map_url', coalesce\(c\.map_url, ''\)/);
+    assert.match(driverApi, /if \(deliveriesResult\.error\) throw deliveriesResult\.error/);
     assert.doesNotMatch(driverApi, /\.from\('deliveries'\)[\s\S]{0,500}\.select\(/);
   });
 
