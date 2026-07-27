@@ -62,12 +62,20 @@ import {
   X
 } from 'lucide-react';
 import JSZip from 'jszip';
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, OrderMode, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
+import {
+  BackgroundSetting,
+  ColorSetting,
+  darkThemePreset,
+  DesignSettingsHome,
+  PhotoQualitySettingsScreen,
+  ThemeSettingsScreen
+} from '../features/design-settings';
 import { ScannerPage } from '../pages/scanner/ScannerPage';
 import {
   CART_TTL_MS,
@@ -91,6 +99,7 @@ import {
   replaceTagsInSupabase,
   saveProductToSupabase,
   saveRestaurantToSupabase,
+  savePhotoQualityToSupabase,
   saveThemeToSupabase,
   supabase,
   hasAdminSession,
@@ -175,6 +184,11 @@ import {
   rememberPwaResumePath,
   type RestaurantAdminTab
 } from '../shared/pwaSession';
+import {
+  DEFAULT_PHOTO_QUALITY_SETTINGS,
+  getPhotoQualityFilter,
+  type PhotoQualitySettings
+} from '../shared/photoQuality';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -210,7 +224,17 @@ const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
   cancelled: 'Отменён',
   canceled: 'Отменён'
 };
-type SettingsScreen = 'settings' | 'settings-profile' | 'settings-categories' | 'settings-design' | 'settings-stock' | 'settings-payments' | 'settings-backup' | 'settings-delete';
+type SettingsScreen =
+  | 'settings'
+  | 'settings-profile'
+  | 'settings-categories'
+  | 'settings-design'
+  | 'settings-theme'
+  | 'settings-photo-quality'
+  | 'settings-stock'
+  | 'settings-payments'
+  | 'settings-backup'
+  | 'settings-delete';
 type RestaurantAdminScreen = 'admin-home';
 type Screen = 'home' | 'catalog' | 'drinks' | 'product' | 'checkout' | RestaurantAdminScreen | SettingsScreen;
 type ProductFlag = 'is_popular' | 'is_hidden';
@@ -544,63 +568,6 @@ const downloadCatalogZip = async (payload: CatalogBackupPayload) => {
   link.download = `catalogg-catalog-${new Date().toISOString().slice(0, 10)}.zip`;
   link.click();
   URL.revokeObjectURL(url);
-};
-
-const darkThemePreset: Partial<ThemeSettings> = {
-  background_type: 'color',
-  background_color: '#070809',
-  background_gradient_from: '#070809',
-  background_gradient_to: '#1f2937',
-  background_image_url: '',
-  card_color: '#121416',
-  product_card_color: '#121416',
-  product_card_text_color: '#f8f5ef',
-  settings_card_color: '#121416',
-  settings_card_text_color: '#f8f5ef',
-  cart_panel_color: '#111111',
-  cart_panel_text_color: '#f8f5ef',
-  text_primary: '#f8f5ef',
-  text_secondary: '#aaa39a',
-  product_title_color: '#f8f5ef',
-  category_title_color: '#f8f5ef',
-  accent_color: '#e8a23a',
-  accent_secondary: '#ffd082',
-  card_shadow: '0 18px 46px rgba(0, 0, 0, 0.28)'
-};
-
-const lightThemePreset: Partial<ThemeSettings> = {
-  background_type: 'color',
-  background_color: '#f7f3ec',
-  background_gradient_from: '#f7f3ec',
-  background_gradient_to: '#ffffff',
-  background_image_url: '',
-  card_color: '#ffffff',
-  product_card_color: '#ffffff',
-  product_card_text_color: '#181510',
-  settings_card_color: '#ffffff',
-  settings_card_text_color: '#181510',
-  cart_panel_color: '#ffffff',
-  cart_panel_text_color: '#181510',
-  text_primary: '#181510',
-  text_secondary: '#766d62',
-  product_title_color: '#111827',
-  category_title_color: '#ffffff',
-  card_shadow: '0 18px 46px rgba(45, 35, 20, 0.12)'
-};
-
-const readableTextFor = (color: string) => {
-  const hex = color.trim().replace('#', '');
-  if (!/^[0-9a-f]{6}$/i.test(hex)) {
-    return '#f8f5ef';
-  }
-  const [r, g, b] = [0, 2, 4].map((start) => Number.parseInt(hex.slice(start, start + 2), 16));
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  return brightness > 160 ? '#181510' : '#f8f5ef';
-};
-
-const normalizeHexColor = (value: string) => {
-  const hex = value.trim().replace(/^#/, '');
-  return /^[0-9a-f]{6}$/i.test(hex) ? `#${hex.toLowerCase()}` : null;
 };
 
 const errorMessageFor = (error: unknown) => {
@@ -4830,224 +4797,6 @@ function CabinEditScreen({
   );
 }
 
-function ColorSetting({
-  label,
-  value,
-  palette,
-  onChange
-}: {
-  label: string;
-  value: string;
-  palette: string[];
-  onChange: (color: string) => void;
-}) {
-  const normalizedValue = normalizeHexColor(value) ?? '#000000';
-  const [draft, setDraft] = useState(normalizedValue);
-
-  useEffect(() => {
-    setDraft(normalizedValue);
-  }, [normalizedValue]);
-
-  const updateColor = (color: string) => {
-    const normalized = normalizeHexColor(color);
-    if (!normalized) return;
-    setDraft(normalized);
-    onChange(normalized);
-  };
-
-  return (
-    <div className="color-setting">
-      <div className="color-setting__head">
-        <h2>{label}</h2>
-        <label>
-          <span style={{ background: normalizedValue }} />
-          <input type="color" value={normalizedValue} onChange={(event) => updateColor(event.target.value)} aria-label={label} />
-        </label>
-      </div>
-      <input
-        className="hex-input"
-        value={draft}
-        inputMode="text"
-        maxLength={7}
-        onBlur={() => setDraft(normalizedValue)}
-        onChange={(event) => {
-          const next = event.target.value.startsWith('#') ? event.target.value : `#${event.target.value}`;
-          setDraft(next);
-          const normalized = normalizeHexColor(next);
-          if (normalized) onChange(normalized);
-        }}
-        aria-label={`${label}: HEX`}
-      />
-      <div className="swatches">
-        {palette.map((color) => (
-          <button
-            className={normalizedValue.toLowerCase() === color.toLowerCase() ? 'swatch is-active' : 'swatch'}
-            style={{ background: color }}
-            type="button"
-            key={color}
-            onClick={() => updateColor(color)}
-            aria-label={color}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BackgroundSetting({
-  theme,
-  palette,
-  onChange
-}: {
-  theme: ThemeSettings;
-  palette: string[];
-  onChange: (patch: Partial<ThemeSettings>) => void;
-}) {
-  const gradientFrom = theme.background_gradient_from ?? theme.background_color;
-  const gradientTo = theme.background_gradient_to ?? theme.accent_secondary ?? theme.background_color;
-  const setMode = (backgroundType: ThemeSettings['background_type']) => {
-    if (backgroundType === 'color') {
-      onChange({ background_type: 'color', background_color: gradientFrom, background_image_url: '' });
-      return;
-    }
-    if (backgroundType === 'gradient') {
-      onChange({
-        background_type: 'gradient',
-        background_color: gradientFrom,
-        background_gradient_from: gradientFrom,
-        background_gradient_to: gradientTo,
-        background_image_url: ''
-      });
-      return;
-    }
-    onChange({ background_type: 'image' });
-  };
-
-  return (
-    <section className="background-setting">
-      <div className="background-mode">
-        <button className={theme.background_type === 'color' ? 'is-active' : ''} type="button" onClick={() => setMode('color')}>
-          Заливка
-        </button>
-        <button className={theme.background_type === 'gradient' ? 'is-active' : ''} type="button" onClick={() => setMode('gradient')}>
-          Градиент
-        </button>
-        <button className={theme.background_type === 'image' ? 'is-active' : ''} type="button" onClick={() => setMode('image')}>
-          Изображение
-        </button>
-      </div>
-
-      {theme.background_type === 'gradient' ? (
-        <>
-          <ColorSetting
-            label="Начальный цвет фона"
-            value={gradientFrom}
-            palette={palette}
-            onChange={(color) => onChange({ background_type: 'gradient', background_color: color, background_gradient_from: color })}
-          />
-          <ColorSetting
-            label="Конечный цвет фона"
-            value={gradientTo}
-            palette={palette}
-            onChange={(color) => onChange({ background_type: 'gradient', background_gradient_to: color })}
-          />
-        </>
-      ) : (
-        <ColorSetting
-          label="Фон приложения"
-          value={theme.background_color}
-          palette={palette}
-          onChange={(color) => onChange({ background_type: 'color', background_color: color, background_image_url: '' })}
-        />
-      )}
-    </section>
-  );
-}
-
-function DesignSettings({ theme, onChange }: { theme: ThemeSettings; onChange: (patch: Partial<ThemeSettings>) => void }) {
-  const primaryColors = ['#e8a23a', '#3b82f6', '#16a34a', '#ef4444', '#a855f7', '#111827'];
-  const accentColors = ['#ffd082', '#f59e0b', '#f97316', '#ec4899', '#06b6d4', '#84cc16'];
-  const backgroundColors = ['#070809', '#101419', '#f7f3ec', '#f8fafc', '#fff7ed', '#f1f5f9'];
-  const cardColors = ['#121416', '#1f2937', '#ffffff', '#fffaf0', '#f8fafc', '#0f172a'];
-  const textColors = ['#f8f5ef', '#ffffff', '#181510', '#111827', '#292524', '#0f172a'];
-  const mutedColors = ['#aaa39a', '#cbd5e1', '#766d62', '#64748b', '#57534e', '#475569'];
-  const titleColors = ['#f8f5ef', '#ffffff', '#111827', '#181510', '#e8a23a', '#f97316'];
-  const updateBackgroundImage = async (file?: File) => {
-    if (!file) return;
-    const value = await imageFileToDataUrl(file);
-    onChange({ background_image_url: value, background_type: 'image' });
-  };
-
-  return (
-    <main className="settings-screen">
-      <section className="settings-form-card">
-        <h2>Тема</h2>
-        <div className="choice-grid">
-          <button
-            className={theme.background_color === lightThemePreset.background_color ? 'choice-card is-active' : 'choice-card'}
-            type="button"
-            onClick={() => onChange(lightThemePreset)}
-          >
-            Светлая
-          </button>
-          <button
-            className={theme.background_color !== lightThemePreset.background_color ? 'choice-card is-active' : 'choice-card'}
-            type="button"
-            onClick={() => onChange(darkThemePreset)}
-          >
-            Тёмная
-          </button>
-        </div>
-
-        <label className="media-upload media-upload--cover">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(event) => void updateBackgroundImage(event.target.files?.[0])}
-          />
-          {theme.background_image_url ? <img src={theme.background_image_url} alt="" /> : <CloudUpload />}
-          <span>
-            <strong>Фоновое изображение</strong>
-            <small>Выбрать из медиатеки</small>
-          </span>
-        </label>
-        {theme.background_image_url && (
-          <button
-            className="ghost-wide"
-            type="button"
-            onClick={() => onChange({ background_image_url: '', background_type: 'color' })}
-          >
-            Убрать фоновое изображение
-          </button>
-        )}
-
-        <BackgroundSetting theme={theme} palette={backgroundColors} onChange={onChange} />
-        <ColorSetting label="Основной цвет" value={theme.accent_color} palette={primaryColors} onChange={(color) => onChange({ accent_color: color })} />
-        <ColorSetting label="Цвет акцента" value={theme.accent_secondary} palette={accentColors} onChange={(color) => onChange({ accent_secondary: color })} />
-        <ColorSetting label="Цвет карточек" value={theme.card_color} palette={cardColors} onChange={(color) => onChange({ card_color: color })} />
-        <ColorSetting label="Цвет текста" value={theme.text_primary} palette={textColors} onChange={(color) => onChange({ text_primary: color })} />
-        <ColorSetting label="Вторичный текст" value={theme.text_secondary} palette={mutedColors} onChange={(color) => onChange({ text_secondary: color })} />
-        <ColorSetting label="Карточки блюд" value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color, product_card_text_color: readableTextFor(color) })} />
-        <ColorSetting label="Текст карточек блюд" value={theme.product_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ product_card_text_color: color })} />
-        <ColorSetting label="Карточки настроек" value={theme.settings_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ settings_card_color: color, settings_card_text_color: readableTextFor(color) })} />
-        <ColorSetting label="Текст карточек настроек" value={theme.settings_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ settings_card_text_color: color })} />
-        <ColorSetting label="Панель корзины" value={theme.cart_panel_color ?? '#111111'} palette={cardColors} onChange={(color) => onChange({ cart_panel_color: color, cart_panel_text_color: readableTextFor(color) })} />
-        <ColorSetting label="Текст панели корзины" value={theme.cart_panel_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ cart_panel_text_color: color })} />
-        <ColorSetting label="Названия категорий" value={theme.category_title_color ?? theme.text_primary} palette={titleColors} onChange={(color) => onChange({ category_title_color: color })} />
-
-        <label className="range-field">
-          <span>Скругление <b>{theme.card_radius}px</b></span>
-          <input type="range" min="0" max="24" value={Math.min(theme.card_radius, 24)} onChange={(event) => onChange({ card_radius: Number(event.target.value), button_radius: Math.max(8, Number(event.target.value) - 2) })} />
-        </label>
-
-        <button className="primary-wide" type="button">
-          Сохранить изменения
-        </button>
-      </section>
-    </main>
-  );
-}
-
 function StockSettings({
   products,
   onApplyOne,
@@ -5427,6 +5176,7 @@ function AppContent({
   const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
   const [localTags, setLocalTags] = useState<CatalogTag[]>(defaultTags);
   const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(() => makeLoadingRestaurant(catalogSlug));
+  const [photoQuality, setPhotoQuality] = useState<PhotoQualitySettings>(DEFAULT_PHOTO_QUALITY_SETTINGS);
   const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings | null>(null);
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
@@ -5609,6 +5359,9 @@ function AppContent({
     if (data?.theme) {
       updateTheme(data.theme);
     }
+    if (data?.photoQuality) {
+      setPhotoQuality(data.photoQuality);
+    }
     if (data?.products) {
       setLocalProducts(
         data.products.map((product) =>
@@ -5638,7 +5391,16 @@ function AppContent({
     if (data?.tags && data.tags.length > 0) {
       setLocalTags(data.tags);
     }
-  }, [data?.cabins, data?.categories, data?.products, data?.restaurant, data?.tags, data?.theme, updateTheme]);
+  }, [
+    data?.cabins,
+    data?.categories,
+    data?.photoQuality,
+    data?.products,
+    data?.restaurant,
+    data?.tags,
+    data?.theme,
+    updateTheme
+  ]);
 
   const catalog = {
     categories: localCategories,
@@ -5671,6 +5433,8 @@ function AppContent({
       return 'Параметры и категории';
     }
     if (screen === 'settings-design') return 'Дизайн приложения';
+    if (screen === 'settings-theme') return 'Тема';
+    if (screen === 'settings-photo-quality') return 'Качество фотографий';
     if (screen === 'settings-stock') return 'Обновить блюда';
     if (screen === 'settings-payments') return 'Платежи';
     if (screen === 'settings-backup') return 'Импорт и экспорт';
@@ -5834,6 +5598,15 @@ function AppContent({
     persist(saveThemeToSupabase(next));
   };
 
+  const savePhotoQuality = async (settings: PhotoQualitySettings) => {
+    await savePhotoQualityToSupabase(catalogSlug, settings);
+    setPhotoQuality(settings);
+    queryClient.setQueryData(catalogQueryKey, (current: typeof data) =>
+      current ? { ...current, photoQuality: settings } : current
+    );
+    toast.success('Качество фотографий сохранено');
+  };
+
   const saveDeliverySettings = (settings: RestaurantDeliverySettings) => {
     setDeliverySettings(settings);
     persist(saveRestaurantDeliverySettings(catalogSlug, settings), () => {
@@ -5974,6 +5747,10 @@ function AppContent({
             setScreen('home');
             return;
           }
+          if (screen === 'settings-theme' || screen === 'settings-photo-quality') {
+            setScreen('settings-design');
+            return;
+          }
           setScreen('settings');
         }}
         onAction={
@@ -6021,7 +5798,20 @@ function AppContent({
           onChangeTags={saveTags}
         />
       )}
-      {screen === 'settings-design' && <DesignSettings theme={themeStore} onChange={saveTheme} />}
+      {screen === 'settings-design' && (
+        <DesignSettingsHome
+          onOpenTheme={() => setScreen('settings-theme')}
+          onOpenPhotoQuality={() => setScreen('settings-photo-quality')}
+        />
+      )}
+      {screen === 'settings-theme' && <ThemeSettingsScreen theme={themeStore} onChange={saveTheme} />}
+      {screen === 'settings-photo-quality' && (
+        <PhotoQualitySettingsScreen
+          products={catalog.products}
+          value={photoQuality}
+          onSave={savePhotoQuality}
+        />
+      )}
       {screen === 'settings-payments' && (
         <PaymentSettingsCard
           slug={catalogSlug}
@@ -6183,8 +5973,9 @@ function AppContent({
       }
       style={{
         ...applyTheme(themeStore),
+        '--dish-photo-filter': getPhotoQualityFilter(photoQuality),
         ...(screen.startsWith('settings') ? settingsAccentStyle : {})
-      }}
+      } as CSSProperties}
     >
       <Toaster richColors position="top-center" />
       {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (

@@ -9,6 +9,310 @@
   text-rendering: optimizeLegibility;
 }
 
+/* Restaurant design settings */
+.design-settings-home,
+.photo-quality-screen {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.design-settings-home__intro,
+.photo-quality-screen__intro {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.design-section-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 112px;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 22%, transparent);
+  border-radius: min(var(--radius), 8px);
+  background: var(--settings-card-color, var(--card));
+  color: var(--settings-card-text-color, var(--text));
+  text-align: left;
+  box-shadow: var(--card-shadow);
+}
+
+.design-section-card__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 13%, var(--settings-card-color, var(--card)));
+  color: var(--accent);
+}
+
+.design-section-card__icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.design-section-card > span:nth-child(2) {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.design-section-card strong {
+  font-size: 18px;
+}
+
+.design-section-card small {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.design-section-card > svg {
+  width: 22px;
+  height: 22px;
+}
+
+.photo-quality-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 22%, transparent);
+  border-radius: min(var(--radius), 8px);
+  background: var(--settings-card-color, var(--card));
+  color: var(--settings-card-text-color, var(--text));
+  box-shadow: var(--card-shadow);
+}
+
+.photo-quality-card h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.photo-quality-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.photo-quality-toggle > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.photo-quality-toggle strong {
+  font-size: 15px;
+}
+
+.photo-quality-toggle small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.settings-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 50px;
+  height: 30px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+}
+
+.settings-switch > span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(17, 24, 39, 0.2);
+  transition: transform 180ms ease;
+}
+
+.settings-switch.is-active {
+  background: var(--accent);
+}
+
+.settings-switch.is-active > span {
+  transform: translateX(20px);
+}
+
+.photo-quality-preview select {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin-bottom: 12px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 25%, transparent);
+  border-radius: 8px;
+  background: var(--settings-card-color, var(--card));
+  color: var(--settings-card-text-color, var(--text));
+  font: inherit;
+}
+
+.photo-quality-preview__image {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-secondary) 9%, transparent);
+}
+
+.photo-quality-preview__image > img,
+.photo-quality-preview__image > span img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-quality-preview__image > span {
+  position: absolute;
+  inset: 0 0 0 50%;
+  overflow: hidden;
+}
+
+.photo-quality-preview__image > span img {
+  width: 200%;
+  max-width: none;
+  transform: translateX(-50%);
+}
+
+.photo-quality-preview__image > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(17, 24, 39, 0.18);
+}
+
+.photo-quality-preview__image > b {
+  position: absolute;
+  top: 9px;
+  z-index: 2;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #111827;
+  font-size: 11px;
+}
+
+.photo-quality-preview__image > b:first-of-type {
+  left: 9px;
+}
+
+.photo-quality-preview__image > b:last-of-type {
+  right: 9px;
+}
+
+.photo-quality-preview .ghost-wide {
+  margin-top: 10px;
+}
+
+.photo-quality-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.photo-quality-controls {
+  display: grid;
+  gap: 20px;
+}
+
+.photo-quality-controls.is-disabled {
+  opacity: 0.58;
+}
+
+.photo-quality-range {
+  display: grid;
+  gap: 9px;
+}
+
+.photo-quality-range > span,
+.photo-quality-range > small {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.photo-quality-range > span strong {
+  font-size: 14px;
+}
+
+.photo-quality-range > span b {
+  min-width: 48px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 22%, transparent);
+  border-radius: 7px;
+  text-align: center;
+}
+
+.photo-quality-range input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.photo-quality-range > small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.photo-quality-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.photo-quality-reset svg {
+  width: 19px;
+  height: 19px;
+}
+
+.photo-quality-save {
+  position: sticky;
+  bottom: 92px;
+  z-index: 4;
+  margin-top: 0;
+}
+
+@media (max-width: 380px) {
+  .design-section-card {
+    grid-template-columns: 44px minmax(0, 1fr) 20px;
+    gap: 11px;
+    min-height: 104px;
+    padding: 14px;
+  }
+
+  .design-section-card__icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .design-section-card strong {
+    font-size: 16px;
+  }
+
+  .design-section-card small {
+    font-size: 12px;
+  }
+
+  .photo-quality-card {
+    padding: 14px;
+  }
+}
+
 @media (max-width: 340px) {
   .screen {
     gap: 14px;
@@ -2125,6 +2429,11 @@ a {
   scroll-snap-stop: always;
   -webkit-user-drag: none;
   user-select: none;
+}
+
+.product-photo-carousel__track > img {
+  filter: var(--dish-photo-filter, none);
+  transition: filter 180ms ease;
 }
 
 .product-photo-carousel--hero {

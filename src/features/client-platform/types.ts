@@ -1,3 +1,5 @@
+import type { PhotoQualitySettings } from '../../shared/photoQuality';
+
 export type ClientOrderType = 'dine_in' | 'pickup' | 'delivery';
 
 export type ClientDeliveryProvider = 'restaurant' | 'platform' | 'pickup' | 'dine_in';
@@ -92,6 +94,7 @@ export type ClientDish = {
   isPopular: boolean;
   stockCount: number;
   weight?: string;
+  photoQuality?: PhotoQualitySettings;
 };
 
 export type ClientCartLine = {

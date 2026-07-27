@@ -64,6 +64,7 @@ import type {
   ClientRestaurant,
   PlatformBanner
 } from '../../features/client-platform/types';
+import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
@@ -1028,7 +1029,7 @@ function RestaurantCatalogPage({
                 >
                   <Heart />
                 </button>
-                <img src={dish.imageUrl} alt="" />
+                <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
                 <div>
                   <strong>{dish.name}</strong>
                   <small>{dish.tags.join(' · ')}</small>
@@ -1115,7 +1116,7 @@ function CartLineList({
 
         return (
           <article className="cart-line" key={line.dishId}>
-            <img src={dish.imageUrl} alt="" />
+            <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
             <span>
               <strong>{dish.name}</strong>
               <small>{line.quantity} x {formatPrice(dish.price)}</small>
@@ -2392,7 +2393,7 @@ function FavoritesPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <div className="favorite-dish-list">
           {dishes.map((dish) => (
             <Link to={`/${dish.restaurantSlug}`} key={dish.id}>
-              <img src={dish.imageUrl} alt="" />
+              <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
               <span>
                 <strong>{dish.name}</strong>
                 <small>{formatPrice(dish.price)}</small>

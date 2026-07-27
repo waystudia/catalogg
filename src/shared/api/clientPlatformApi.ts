@@ -22,6 +22,7 @@ import type {
   PlatformBanner,
   RestaurantTheme
 } from '../../features/client-platform/types';
+import { normalizePhotoQualitySettings } from '../photoQuality';
 import { supabase } from '../supabase';
 
 type CatalogRow = {
@@ -110,6 +111,12 @@ type ThemeRow = {
     accent_color: string;
     button_style: string;
   }> | null;
+};
+
+type PhotoQualityRow = {
+  catalog_id: string;
+  enabled: boolean;
+  settings: Record<string, unknown> | null;
 };
 
 type DeliverySettingsRow = {
@@ -587,6 +594,7 @@ export function subscribeClientPlatformSnapshotRealtime(onChange: () => void) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalog_sections' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_delivery_settings' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant' }, onChange)
@@ -619,6 +627,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     productsResult,
     productImagesResult,
     themeResult,
+    photoQualityResult,
     deliveryResult,
     paymentsResult,
     restaurantProfilesResult,
@@ -645,6 +654,11 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .in('catalog_id', catalogIds)
         .order('sort_order'),
       supabase.from('catalog_theme_settings').select('catalog_id, settings').in('catalog_id', catalogIds),
+      supabase
+        .from('catalog_sections')
+        .select('catalog_id, enabled, settings')
+        .in('catalog_id', catalogIds)
+        .eq('key', 'photo-quality'),
       supabase
         .from('restaurant_delivery_settings')
         .select('catalog_id, enable_delivery, enable_pickup, enable_hall_orders, use_own_courier, use_platform_drivers, minimum_order_amount, free_delivery_from, default_preparation_minutes, primary_city, service_settlements')
@@ -676,6 +690,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   let products = (productsResult.data ?? []) as ProductRow[];
   const productImages = (productImagesResult.data ?? []) as ProductImageRow[];
   const themes = (themeResult.data ?? []) as ThemeRow[];
+  const photoQualityRows = (photoQualityResult.data ?? []) as PhotoQualityRow[];
   const deliverySettings = (deliveryResult.data ?? []) as DeliverySettingsRow[];
   const paymentRows = (paymentsResult.data ?? []) as PaymentRow[];
   const restaurantProfiles = (restaurantProfilesResult.data ?? []) as RestaurantProfileRow[];
@@ -751,6 +766,12 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   });
 
   const themeByCatalog = new Map(themes.map((theme) => [theme.catalog_id, theme.settings]));
+  const photoQualityByCatalog = new Map(
+    photoQualityRows.map((row) => [
+      row.catalog_id,
+      normalizePhotoQualitySettings({ ...row.settings, enabled: row.enabled })
+    ])
+  );
   const deliveryByCatalog = new Map(deliverySettings.map((settings) => [settings.catalog_id, settings]));
   const paymentByCatalog = new Map(paymentRows.map((payment) => [payment.restaurant_id, payment]));
   const restaurantProfileByCatalog = new Map(
@@ -860,7 +881,8 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       tags: product.status === 'sold_out' ? ['Нет в наличии'] : product.is_popular ? ['Популярное'] : [],
       isPopular: product.is_popular,
       stockCount: product.stock_count,
-      weight: product.weight
+      weight: product.weight,
+      photoQuality: photoQualityByCatalog.get(product.catalog_id)
     }];
   });
 

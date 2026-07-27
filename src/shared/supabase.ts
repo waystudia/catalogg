@@ -5,6 +5,11 @@ import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
 import { makeRestaurantCoordinates, parseRestaurantCoordinatesFromMapLink } from './restaurantLocation';
 import {
+  DEFAULT_PHOTO_QUALITY_SETTINGS,
+  normalizePhotoQualitySettings,
+  type PhotoQualitySettings
+} from './photoQuality';
+import {
   copySupabaseSessionToScope,
   getSupabaseAuthScope,
   getSupabaseAuthFallbackStorageKeys,
@@ -417,7 +422,16 @@ export async function loadCatalog(catalogSlug?: string) {
   activePlatformCatalogId = null;
 
   if (!supabase) {
-    return { restaurant, categories, products, cabins, tags: [], theme: themeSettings, source: 'demo' as const };
+    return {
+      restaurant,
+      categories,
+      products,
+      cabins,
+      tags: [],
+      theme: themeSettings,
+      photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
+      source: 'demo' as const
+    };
   }
 
   if (!isLegacyCatalog(normalizedSlug)) {
@@ -435,6 +449,7 @@ export async function loadCatalog(catalogSlug?: string) {
         cabins: [],
         tags: [],
         theme: themeSettings,
+        photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
         source: 'supabase' as const
       };
     }
@@ -442,7 +457,16 @@ export async function loadCatalog(catalogSlug?: string) {
     const catalog = catalogResult.data as PlatformCatalogRow;
     activePlatformCatalogId = catalog.id;
 
-    const [categoriesResult, productsResult, productImagesResult, tagsResult, cabinsResult, themeResult, restaurantLocation] = await Promise.all([
+    const [
+      categoriesResult,
+      productsResult,
+      productImagesResult,
+      tagsResult,
+      cabinsResult,
+      themeResult,
+      photoQualityResult,
+      restaurantLocation
+    ] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
@@ -461,6 +485,12 @@ export async function loadCatalog(catalogSlug?: string) {
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),
+      supabase
+        .from('catalog_sections')
+        .select('settings, enabled')
+        .eq('catalog_id', catalog.id)
+        .eq('key', 'photo-quality')
+        .maybeSingle(),
       getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string[]>();
@@ -477,18 +507,40 @@ export async function loadCatalog(catalogSlug?: string) {
       cabins: ((cabinsResult.data ?? []) as PlatformCabinRow[]).map(mapPlatformCabin),
       tags: (tagsResult.data ?? []) as CatalogTag[],
       theme: hydrateTheme(themeResult.data?.settings as Partial<ThemeSettings> | undefined),
+      photoQuality: normalizePhotoQualitySettings({
+        ...((photoQualityResult.data?.settings as Partial<PhotoQualitySettings> | null) ?? {}),
+        enabled: photoQualityResult.data?.enabled ?? false
+      }),
       source: 'supabase' as const
     };
   }
 
   const platformCatalogId = await getPlatformCatalogId(normalizedSlug);
-  const [restaurantResult, categoriesResult, productsResult, cabinsResult, tagsResult, themeResult, restaurantLocation] = await Promise.all([
+  activePlatformCatalogId = platformCatalogId;
+  const [
+    restaurantResult,
+    categoriesResult,
+    productsResult,
+    cabinsResult,
+    tagsResult,
+    themeResult,
+    photoQualityResult,
+    restaurantLocation
+  ] = await Promise.all([
     supabase.from('restaurant').select('*').limit(1).single(),
     supabase.from('category').select('*').order('sort_order', { ascending: true }).order('name'),
     supabase.from('product').select('*').order('sort_order', { ascending: true }).order('title'),
     supabase.from('cabin').select('*').order('sort_order', { ascending: true }).order('title'),
     supabase.from('catalog_tag').select('*').order('sort_order', { ascending: true }).order('name'),
     supabase.from('theme_settings').select('*').limit(1).single(),
+    platformCatalogId
+      ? supabase
+          .from('catalog_sections')
+          .select('settings, enabled')
+          .eq('catalog_id', platformCatalogId)
+          .eq('key', 'photo-quality')
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     platformCatalogId ? getPlatformRestaurantLocation(platformCatalogId) : Promise.resolve(null)
   ]);
 
@@ -503,6 +555,10 @@ export async function loadCatalog(catalogSlug?: string) {
     cabins: cabinsResult.data ?? cabins,
     tags: tagsResult.data ?? [],
     theme: hydrateTheme(themeResult.data),
+    photoQuality: normalizePhotoQualitySettings({
+      ...((photoQualityResult.data?.settings as Partial<PhotoQualitySettings> | null) ?? {}),
+      enabled: photoQualityResult.data?.enabled ?? false
+    }),
     source: 'supabase' as const
   };
 }
@@ -708,6 +764,28 @@ export async function saveThemeToSupabase(value: ThemeSettings) {
     return;
   }
   await throwOnError(supabase.from('theme_settings').upsert(themeToLegacyRow(value), { onConflict: 'id' }));
+}
+
+export async function savePhotoQualityToSupabase(catalogSlug: string, value: PhotoQualitySettings) {
+  if (!supabase) return;
+  const catalogId = activePlatformCatalogId ?? await getPlatformCatalogId(normalizeCatalogSlug(catalogSlug));
+  if (!catalogId) throw new Error('Каталог не найден');
+
+  const normalized = normalizePhotoQualitySettings(value);
+  const { enabled, ...settings } = normalized;
+  await throwOnError(
+    supabase.from('catalog_sections').upsert(
+      {
+        catalog_id: catalogId,
+        key: 'photo-quality',
+        title: 'Качество фотографий',
+        enabled,
+        sort_order: 100,
+        settings
+      },
+      { onConflict: 'catalog_id,key' }
+    )
+  );
 }
 
 export async function replaceCategoriesInSupabase(values: Category[], options: { removeMissing?: boolean } = {}) {
