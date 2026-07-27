@@ -949,12 +949,39 @@ function ProductTile({
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
 
+  const playAddSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext ??
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(520, now);
+      oscillator.frequency.exponentialRampToValueAtTime(780, now + 0.1);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.09, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.14);
+      oscillator.addEventListener('ended', () => void audioContext.close(), { once: true });
+    } catch {
+      // Sound is an enhancement; cart changes must still work when audio is blocked.
+    }
+  };
+
   const playAddAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
     const tile = button.closest('.product-tile') as HTMLElement | null;
     const image = tile?.querySelector('.product-photo-carousel__track img, .product-tile__image img') as HTMLImageElement | null;
     const imageRect = image?.getBoundingClientRect();
-    const target = document.querySelector('.cart-bar__icon, .cart-icon') as HTMLElement | null;
+    const target = document.querySelector('[data-cart-animation-target] .cart-bar__icon') as HTMLElement | null;
     const targetRect = target?.getBoundingClientRect();
     const startX = imageRect ? imageRect.left + imageRect.width / 2 : buttonRect.left + buttonRect.width / 2;
     const startY = imageRect ? imageRect.top + imageRect.height / 2 : buttonRect.top + buttonRect.height / 2;
@@ -969,8 +996,8 @@ function ProductTile({
     flyer.setAttribute('aria-hidden', 'true');
     flyer.style.setProperty('--flyer-start-x', `${startX}px`);
     flyer.style.setProperty('--flyer-start-y', `${startY}px`);
-    flyer.style.setProperty('--flyer-mid-x', `${Math.max(58, Math.min(window.innerWidth - 58, window.innerWidth * 0.55))}px`);
-    flyer.style.setProperty('--flyer-mid-y', `${Math.min(startY, endY) - Math.min(160, Math.max(86, window.innerHeight * 0.2))}px`);
+    flyer.style.setProperty('--flyer-mid-x', `${Math.max(58, Math.min(window.innerWidth - 58, window.innerWidth * 0.5))}px`);
+    flyer.style.setProperty('--flyer-mid-y', `${Math.max(86, Math.min(startY - 72, window.innerHeight * 0.32))}px`);
     flyer.style.setProperty('--flyer-end-x', `${endX}px`);
     flyer.style.setProperty('--flyer-end-y', `${endY}px`);
     flyer.style.setProperty('--flyer-width', `${width}px`);
@@ -1052,7 +1079,10 @@ function ProductTile({
         </div>
         <div className="product-tile__bottom">
           <strong>{formatPrice(product.price)}</strong>
-          <div className="product-tile__stepper" onClick={(event) => event.stopPropagation()}>
+          <div
+            className={quantity > 0 ? 'product-tile__stepper has-quantity' : 'product-tile__stepper'}
+            onClick={(event) => event.stopPropagation()}
+          >
             {quantity > 0 && (
               <>
                 <button
@@ -1072,9 +1102,11 @@ function ProductTile({
               disabled={soldOut}
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
-                playAddAnimation(event.currentTarget);
+                const button = event.currentTarget;
                 add(product);
                 onAdd?.(product);
+                playAddSound();
+                window.requestAnimationFrame(() => playAddAnimation(button));
               }}
             >
               <Plus />
@@ -1096,7 +1128,7 @@ function CartBar({ onCheckout, onContinue }: { onCheckout: () => void; onContinu
   }
 
   return (
-    <div className="cart-bar">
+    <div className="cart-bar" data-cart-animation-target>
       <span className="cart-bar__icon">
         <ShoppingCart />
         <b>{count}</b>
@@ -1746,6 +1778,7 @@ function CheckoutScreen({
   const [isDeliveryMapOpen, setIsDeliveryMapOpen] = useState(false);
   const [usesCustomSettlement, setUsesCustomSettlement] = useState(false);
   const [customSettlement, setCustomSettlement] = useState('');
+  const [deliveryValidationErrors, setDeliveryValidationErrors] = useState<string[]>([]);
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
   );
@@ -1763,6 +1796,33 @@ function CheckoutScreen({
   const submitLockRef = useRef(false);
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const selectedClientPlaceRef = useRef('');
+  const deliveryDetailsRef = useRef<HTMLElement | null>(null);
+  const clientNameRef = useRef<HTMLInputElement | null>(null);
+  const locationButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const validateDeliveryDetails = () => {
+    const errors: string[] = [];
+    if (deliveryLat === null || deliveryLng === null) errors.push('Определите местоположение или выберите точку на карте.');
+    if (!clientName.trim()) errors.push('Введите имя.');
+    if (clientPhone.replace(/\D/g, '').length < 10) errors.push('Введите корректный номер телефона.');
+    if (!effectiveDeliverySettlement) errors.push('Выберите село или город.');
+    if (!deliveryAddress.trim()) errors.push('Введите улицу и номер дома.');
+
+    setDeliveryValidationErrors(errors);
+    if (errors.length > 0) {
+      deliveryDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => {
+        if (deliveryLat === null || deliveryLng === null) {
+          locationButtonRef.current?.focus({ preventScroll: true });
+        } else if (!clientName.trim()) {
+          clientNameRef.current?.focus({ preventScroll: true });
+        }
+      }, 450);
+      toast.error('Заполните обязательные данные доставки');
+      return false;
+    }
+    return true;
+  };
 
   const clearLocationSession = useCallback(() => {
     const { watchId, timeoutId } = locationSessionRef.current;
@@ -2063,12 +2123,18 @@ function CheckoutScreen({
       )}
 
       {mode === 'delivery' && (
-        <section className="takeaway-note">
+        <section className="takeaway-note" ref={deliveryDetailsRef} id="checkout-delivery-details">
           <div className="takeaway-note__message">
             <MapPin />
             <strong>Укажите населенный пункт и адрес доставки</strong>
           </div>
-          <button className="map-link-button checkout-location-button" type="button" onClick={locateDeliveryAddress} disabled={isLocating}>
+          <button
+            className="map-link-button checkout-location-button"
+            type="button"
+            onClick={locateDeliveryAddress}
+            disabled={isLocating}
+            ref={locationButtonRef}
+          >
             <LocateFixed />
             <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
           </button>
@@ -2086,22 +2152,39 @@ function CheckoutScreen({
             <p className="checkout-location-warning">Точность слабая. Проверьте адрес перед отправкой заказа.</p>
           )}
           {geoError && <p className="checkout-location-warning">{geoError}</p>}
+          {deliveryValidationErrors.length > 0 && (
+            <div className="checkout-validation-errors" role="alert">
+              <strong>Заполните данные для доставки:</strong>
+              <ul>
+                {deliveryValidationErrors.map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
           <div className="checkout-delivery-fields">
             <label className="checkout-field">
               <span>Имя</span>
               <input
+                ref={clientNameRef}
                 value={clientName}
-                onChange={(event) => setOrder({ clientName: event.target.value })}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  setOrder({ clientName: event.target.value });
+                }}
                 placeholder="Ваше имя"
+                required
               />
             </label>
             <label className="checkout-field">
               <span>Телефон</span>
               <input
                 value={clientPhone}
-                onChange={(event) => setOrder({ clientPhone: event.target.value.replace(/[^\d+()\-\s]/g, '') })}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  setOrder({ clientPhone: event.target.value.replace(/[^\d+()\-\s]/g, '') });
+                }}
                 placeholder="+7"
                 inputMode="tel"
+                required
               />
             </label>
             <label className="checkout-field">
@@ -2109,6 +2192,7 @@ function CheckoutScreen({
               {settlementOptions.length > 0 ? (
                 <>
                   <select
+                    required
                     value={usesCustomSettlement ? '__other__' : deliverySettlement}
                     onChange={(event) => {
                       if (event.target.value === '__other__') {
@@ -2118,6 +2202,7 @@ function CheckoutScreen({
                       }
                       setUsesCustomSettlement(false);
                       setCustomSettlement('');
+                      setDeliveryValidationErrors([]);
                       setOrder({ deliverySettlement: event.target.value });
                     }}
                   >
@@ -2134,18 +2219,24 @@ function CheckoutScreen({
                       value={customSettlement}
                       onChange={(event) => {
                         const value = event.target.value;
+                        setDeliveryValidationErrors([]);
                         setCustomSettlement(value);
                         setOrder({ deliverySettlement: value });
                       }}
                       placeholder="Введите село или город"
+                      required
                     />
                   )}
                 </>
               ) : (
                 <input
                   value={deliverySettlement}
-                  onChange={(event) => setOrder({ deliverySettlement: event.target.value })}
+                  onChange={(event) => {
+                    setDeliveryValidationErrors([]);
+                    setOrder({ deliverySettlement: event.target.value });
+                  }}
                   placeholder="Например: Цоци-Юрт"
+                  required
                 />
               )}
             </label>
@@ -2153,9 +2244,13 @@ function CheckoutScreen({
               <span>Адрес</span>
               <textarea
                 value={deliveryAddress}
-                onChange={(event) => setOrder({ deliveryAddress: event.target.value })}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  setOrder({ deliveryAddress: event.target.value });
+                }}
                 rows={3}
                 placeholder="Улица, дом, ориентир"
+                required
               />
             </label>
           </div>
@@ -2188,7 +2283,7 @@ function CheckoutScreen({
         </section>
       )}
 
-      <section className="checkout-summary">
+      <section className="checkout-summary" id="checkout-review" tabIndex={-1}>
         <div>
           <span>Финальный шаг</span>
           <h2>Проверьте заказ</h2>
@@ -2258,14 +2353,7 @@ function CheckoutScreen({
               return;
             }
             if (mode === 'delivery') {
-              if (!clientName.trim() || !clientPhone.trim()) {
-                toast.error('Введите имя и номер телефона для доставки');
-                return;
-              }
-              if (!effectiveDeliverySettlement || !deliveryAddress.trim()) {
-                toast.error('Укажите село или город и адрес доставки');
-                return;
-              }
+              if (!validateDeliveryDetails()) return;
               savePublicClientProfile(catalogSlug, {
                 name: clientName,
                 phone: clientPhone,
@@ -5798,6 +5886,12 @@ function AppContent({
 
   const continueFromCartBar = () => {
     setIsCartOpen(false);
+    if (screen === 'checkout') {
+      const review = document.getElementById('checkout-review');
+      review?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => review?.focus({ preventScroll: true }), 450);
+      return;
+    }
     if (orderFlow.step !== 'done') {
       continueOrderFlow();
       return;

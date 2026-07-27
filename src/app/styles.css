@@ -2233,6 +2233,12 @@ a {
   gap: 6px;
 }
 
+.product-tile__stepper.has-quantity {
+  min-width: 112px;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .product-tile__stepper-button {
   display: inline-grid;
   flex: 0 0 auto;
@@ -2322,7 +2328,7 @@ a {
   }
   48% {
     opacity: 1;
-    transform: translate(calc(var(--flyer-mid-x) - var(--flyer-width) / 2), calc(var(--flyer-mid-y) - var(--flyer-height) / 2)) scale(0.82);
+    transform: translate(calc(var(--flyer-mid-x) - var(--flyer-width) / 2), calc(var(--flyer-mid-y) - var(--flyer-height) / 2)) scale(0.72);
   }
   100% {
     opacity: 0;
@@ -3329,6 +3335,25 @@ a {
   line-height: 1.45;
 }
 
+.checkout-validation-errors {
+  border: 1px solid color-mix(in srgb, #dc2626 38%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+  color: var(--settings-card-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.checkout-validation-errors ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.checkout-validation-errors li + li {
+  margin-top: 3px;
+}
+
 .checkout-location-hint {
   background: color-mix(in srgb, var(--settings-card-text) 8%, transparent);
   color: color-mix(in srgb, var(--settings-card-text) 72%, transparent);
@@ -3413,6 +3438,11 @@ a {
   border-radius: 20px;
   padding: 18px;
   background: rgba(0, 0, 0, 0.32);
+}
+
+.checkout-summary:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
+  outline-offset: 4px;
 }
 
 .checkout-summary span {
@@ -5924,6 +5954,11 @@ a {
 
   .product-tile__stepper {
     gap: 4px;
+  }
+
+  .product-tile__stepper.has-quantity {
+    min-width: 102px;
+    gap: 6px;
   }
 
   .product-tile__stepper-button {
