@@ -59,6 +59,8 @@ import {
   CreditCard,
   QrCode,
   RefreshCcw,
+  ZoomIn,
+  ZoomOut,
   X
 } from 'lucide-react';
 import JSZip from 'jszip';
@@ -735,6 +737,8 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
       ? [product.image_url]
       : [];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerScale, setViewerScale] = useState(1);
   const touchStartX = useRef<number | null>(null);
   const didSwipe = useRef(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -744,50 +748,97 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
     trackRef.current?.scrollTo({ left: 0 });
   }, [product.id]);
 
+  useEffect(() => {
+    if (!isViewerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isViewerOpen]);
+
   return (
-    <div
-      className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
-      onClick={(event) => {
-        if (!didSwipe.current) return;
-        event.stopPropagation();
-        didSwipe.current = false;
-      }}
-      onTouchStart={(event) => {
-        touchStartX.current = event.touches[0]?.clientX ?? null;
-        didSwipe.current = false;
-      }}
-      onTouchEnd={(event) => {
-        if (touchStartX.current === null) return;
-        const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-        touchStartX.current = null;
-        didSwipe.current = Math.abs(delta) >= 12;
-      }}
-    >
+    <>
       <div
-        className="product-photo-carousel__track"
-        ref={trackRef}
-        onScroll={(event) => {
-          const width = event.currentTarget.clientWidth;
-          if (width > 0) setActiveIndex(Math.round(event.currentTarget.scrollLeft / width));
+        className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
+        role={hero ? 'button' : undefined}
+        tabIndex={hero ? 0 : undefined}
+        aria-label={hero ? `Увеличить фото: ${product.title}` : undefined}
+        onKeyDown={(event) => {
+          if (hero && (event.key === 'Enter' || event.key === ' ')) setIsViewerOpen(true);
+        }}
+        onClick={(event) => {
+          if (didSwipe.current) {
+            event.stopPropagation();
+            didSwipe.current = false;
+            return;
+          }
+          if (hero) {
+            setViewerScale(1);
+            setIsViewerOpen(true);
+          }
+        }}
+        onTouchStart={(event) => {
+          touchStartX.current = event.touches[0]?.clientX ?? null;
+          didSwipe.current = false;
+        }}
+        onTouchEnd={(event) => {
+          if (touchStartX.current === null) return;
+          const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+          touchStartX.current = null;
+          didSwipe.current = Math.abs(delta) >= 12;
         }}
       >
-        {(images.length ? images : ['']).map((image, index) => (
-          <SafeImage
-            className={hero ? 'product-hero' : undefined}
-            src={image}
-            alt={index === 0 ? product.title : `${product.title}, фото ${index + 1}`}
-            loading={hero ? undefined : 'lazy'}
-            draggable={false}
-            key={`${image}-${index}`}
-          />
-        ))}
+        <div
+          className="product-photo-carousel__track"
+          ref={trackRef}
+          onScroll={(event) => {
+            const width = event.currentTarget.clientWidth;
+            if (width > 0) setActiveIndex(Math.round(event.currentTarget.scrollLeft / width));
+          }}
+        >
+          {(images.length ? images : ['']).map((image, index) => (
+            <SafeImage
+              className={hero ? 'product-hero' : undefined}
+              src={image}
+              alt={index === 0 ? product.title : `${product.title}, фото ${index + 1}`}
+              loading={hero ? undefined : 'lazy'}
+              draggable={false}
+              key={`${image}-${index}`}
+            />
+          ))}
+        </div>
+        {images.length > 1 && (
+          <span className="product-photo-carousel__dots" aria-label={`Фото ${activeIndex + 1} из ${images.length}`}>
+            {images.map((image, index) => <i className={index === activeIndex ? 'is-active' : ''} key={`${image}-dot-${index}`} />)}
+          </span>
+        )}
       </div>
-      {images.length > 1 && (
-        <span className="product-photo-carousel__dots" aria-label={`Фото ${activeIndex + 1} из ${images.length}`}>
-          {images.map((image, index) => <i className={index === activeIndex ? 'is-active' : ''} key={`${image}-dot-${index}`} />)}
-        </span>
+      {hero && isViewerOpen && (
+        <div className="product-photo-viewer" role="dialog" aria-modal="true" aria-label={`Фото блюда ${product.title}`}>
+          <button className="product-photo-viewer__close" type="button" onClick={() => setIsViewerOpen(false)} aria-label="Закрыть">
+            <X />
+          </button>
+          <div className="product-photo-viewer__viewport">
+            <SafeImage
+              src={images[activeIndex] ?? product.image_url}
+              alt={product.title}
+              style={{ transform: `scale(${viewerScale})` }}
+              draggable={false}
+            />
+          </div>
+          <div className="product-photo-viewer__controls">
+            <button type="button" onClick={() => setViewerScale((value) => Math.max(1, value - 0.5))} aria-label="Уменьшить">
+              <ZoomOut />
+            </button>
+            <button type="button" onClick={() => setViewerScale(1)}>100%</button>
+            <button type="button" onClick={() => setViewerScale((value) => Math.min(4, value + 0.5))} aria-label="Увеличить">
+              <ZoomIn />
+            </button>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -3343,7 +3394,7 @@ function RestaurantAdminShell({
 
         {tab === 'scanner' && (
           <section className="restaurant-admin__content">
-            <ScannerPage embedded />
+            <ScannerPage embedded onBack={() => openTab('home')} />
           </section>
         )}
       </div>

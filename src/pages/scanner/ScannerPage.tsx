@@ -1,4 +1,4 @@
-import { CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -62,7 +62,7 @@ function scanVideoFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement | nul
   return jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' })?.data ?? '';
 }
 
-export function ScannerPage({ embedded = false }: { embedded?: boolean }) {
+export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void }) {
   const navigate = useNavigate();
   const { slug = '' } = useParams();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -205,6 +205,14 @@ export function ScannerPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <ScannerRoot className={`scanner-page${embedded ? ' scanner-page--embedded' : ''}`}>
+      <button
+        className="scanner-back-button"
+        type="button"
+        onClick={onBack ?? (() => navigate(-1))}
+        aria-label="Назад"
+      >
+        <ArrowLeft />
+      </button>
       <section className={`scanner-camera scanner-camera--${scanState}`}>
         <video ref={videoRef} playsInline muted />
         <canvas ref={canvasRef} aria-hidden="true" />

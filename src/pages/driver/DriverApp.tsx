@@ -722,6 +722,22 @@ function DriverHomeScreen({
       {error && <p className="driver-error">{error}</p>}
       {availabilityError && <p className="driver-error">{availabilityError}</p>}
 
+      {availableDeliveries.length > 0 && (
+        <>
+          <DriverSectionTitle title="Ближайшие заказы" to="/driver/orders" />
+          <div className="driver-incoming-list">
+            {availableDeliveries.slice(0, 3).map((offer) => (
+              <DriverIncomingOrderPanel
+                driverId={profile.id}
+                offer={offer}
+                onRefresh={onRefresh}
+                key={offer.deliveryId}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
       <section className="driver-earnings-card">
         <span>Сегодня</span>
         <strong>{formatPrice(snapshot.stats.earningsToday)}</strong>
@@ -745,13 +761,67 @@ function DriverHomeScreen({
         </section>
       )}
 
-      <DriverSectionTitle title="Ближайшие заказы" to="/driver/orders" />
-      <div className="driver-list">
-        {availableDeliveries.slice(0, 3).map((offer) => (
-          <DriverDeliveryCard offer={offer} key={offer.deliveryId} />
-        ))}
-      </div>
     </>
+  );
+}
+
+function DriverIncomingOrderPanel({
+  driverId,
+  offer,
+  onRefresh
+}: {
+  driverId: string;
+  offer: DeliveryOffer;
+  onRefresh: () => Promise<void>;
+}) {
+  const navigate = useNavigate();
+  const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
+  const dismissDeliveryOffer = useDriverStore((state) => state.dismissDeliveryOffer);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [error, setError] = useState('');
+
+  const accept = async () => {
+    if (isAccepting) return;
+    setIsAccepting(true);
+    setError('');
+    try {
+      await acceptDeliveryOffer(offer.deliveryId);
+      acceptLocalOffer(offer, driverId);
+      await onRefresh();
+      navigate('/driver/active');
+    } catch (acceptError) {
+      setError(acceptError instanceof Error ? acceptError.message : 'Не удалось принять заказ');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  const reject = () => {
+    dismissDeliveryOffer(offer.deliveryId);
+    void onRefresh();
+  };
+
+  return (
+    <details className="driver-incoming-order" open>
+      <summary>
+        <span>
+          <small>Новый заказ</small>
+          <strong>{offer.orderNumber}</strong>
+        </span>
+        <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
+      </summary>
+      <div className="driver-incoming-order__body">
+        <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || 'Ресторан'} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
+        <p><MapPin /><span><small>Точка Б</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
+        {error && <small className="driver-incoming-order__error">{error}</small>}
+        <div className="driver-incoming-order__actions">
+          <button type="button" className="driver-secondary" onClick={reject}>Отклонить</button>
+          <button type="button" className="driver-primary" disabled={isAccepting} onClick={() => void accept()}>
+            {isAccepting ? 'Принимаем...' : 'Принять'}
+          </button>
+        </div>
+      </div>
+    </details>
   );
 }
 

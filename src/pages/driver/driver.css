@@ -247,6 +247,102 @@
   gap: 10px;
 }
 
+.driver-incoming-list {
+  display: grid;
+  gap: 10px;
+}
+
+.driver-incoming-order {
+  overflow: hidden;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.driver-incoming-order summary {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.driver-incoming-order summary::-webkit-details-marker {
+  display: none;
+}
+
+.driver-incoming-order summary > span {
+  display: grid;
+  gap: 3px;
+}
+
+.driver-incoming-order summary small {
+  color: #5b3df4;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.driver-incoming-order summary strong,
+.driver-incoming-order summary b {
+  font-size: 16px;
+}
+
+.driver-incoming-order__body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+  border-top: 1px solid #eaecf0;
+}
+
+.driver-incoming-order__body > p {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 9px;
+  margin: 0;
+  padding-top: 10px;
+}
+
+.driver-incoming-order__body > p > svg {
+  width: 21px;
+  color: #5b3df4;
+}
+
+.driver-incoming-order__body > p > span {
+  display: grid;
+  gap: 2px;
+}
+
+.driver-incoming-order__body > p small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.driver-incoming-order__body > p strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.driver-incoming-order__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.driver-incoming-order__actions button {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.driver-incoming-order__error {
+  color: #b42318;
+  font-weight: 800;
+}
+
 .driver-delivery-card,
 .driver-history-row {
   display: grid;

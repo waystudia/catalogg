@@ -1,9 +1,31 @@
 .scanner-page {
+  position: relative;
   min-height: 100vh;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   background: #05070d;
   color: #ffffff;
+}
+
+.scanner-back-button {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 8;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(5, 7, 13, 0.76);
+  color: #ffffff;
+  backdrop-filter: blur(10px);
+}
+
+.scanner-back-button svg {
+  width: 24px;
+  height: 24px;
 }
 
 .scanner-page--embedded {
