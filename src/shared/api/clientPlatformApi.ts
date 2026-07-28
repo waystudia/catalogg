@@ -3,7 +3,7 @@ import {
   buildClientReviewPayload,
   resolveCheckoutSettlement
 } from '../../features/client-platform/clientPlatformLogic';
-import { clientPlatformSnapshot, fallbackPaymentSettings } from '../../features/client-platform/mockData';
+import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import type {
   ClientCity,
   ClientCartLine,
@@ -156,6 +156,7 @@ type PlatformBannerRow = {
   image_url: string;
   background_color: string;
   link_url: string;
+  action_label: string;
   is_active: boolean;
   sort_order: number;
 };
@@ -608,7 +609,18 @@ export function subscribeClientPlatformSnapshotRealtime(onChange: () => void) {
 }
 
 export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapshot> {
-  if (!supabase) return clientPlatformSnapshot;
+  if (!supabase) {
+    return {
+      cities: [],
+      categories: [],
+      restaurants: [],
+      restaurantCategories: [],
+      dishes: [],
+      paymentSettings: [],
+      banners: [],
+      supportWhatsapp: ''
+    };
+  }
 
   const catalogsResult = await supabase
     .from('catalogs')
@@ -617,7 +629,18 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     .order('name');
 
   if (catalogsResult.error) throw catalogsResult.error;
-  if (!catalogsResult.data?.length) return clientPlatformSnapshot;
+  if (!catalogsResult.data?.length) {
+    return {
+      cities: [],
+      categories: [],
+      restaurants: [],
+      restaurantCategories: [],
+      dishes: [],
+      paymentSettings: [],
+      banners: [],
+      supportWhatsapp: ''
+    };
+  }
 
   const catalogs = catalogsResult.data as CatalogRow[];
   const catalogIds = catalogs.map((catalog) => catalog.id);
@@ -673,7 +696,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .in('catalog_id', catalogIds),
       supabase
         .from('platform_banners')
-        .select('id, title, subtitle, kind, image_url, background_color, link_url, is_active, sort_order')
+        .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, is_active, sort_order')
         .eq('is_active', true)
         .order('sort_order'),
       supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle(),
@@ -888,7 +911,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
 
   return {
     cities,
-    categories: platformCategories.length > 0 ? platformCategories : clientPlatformSnapshot.categories,
+    categories: platformCategories,
     restaurants,
     restaurantCategories,
     dishes,
@@ -904,9 +927,10 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
           imageUrl: banner.image_url,
           backgroundColor: banner.background_color || '#5b3df4',
           linkUrl: banner.link_url,
+          actionLabel: banner.action_label || 'Заказать',
           isActive: banner.is_active
         }))
-      : clientPlatformSnapshot.banners,
-    supportWhatsapp: settingsRow?.support_whatsapp || clientPlatformSnapshot.supportWhatsapp
+      : [],
+    supportWhatsapp: settingsRow?.support_whatsapp || ''
   };
 }

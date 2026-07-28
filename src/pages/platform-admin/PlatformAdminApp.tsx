@@ -2516,6 +2516,7 @@ function PlatformSettingsPage() {
   const [bannerSubtitle, setBannerSubtitle] = useState('');
   const [bannerKind, setBannerKind] = useState<PlatformBannerAdmin['kind']>('promo');
   const [bannerLink, setBannerLink] = useState('/restaurants');
+  const [bannerActionLabel, setBannerActionLabel] = useState('Подробнее');
   const [bannerImage, setBannerImage] = useState('');
   const [bannerBackgroundColor, setBannerBackgroundColor] = useState('#5b3df4');
 
@@ -2546,6 +2547,7 @@ function PlatformSettingsPage() {
         imageUrl: bannerImage,
         backgroundColor: bannerBackgroundColor,
         linkUrl: bannerLink,
+        actionLabel: bannerActionLabel.trim() || 'Подробнее',
         sortOrder: bannersQuery.data?.length ?? 0,
         isActive: true
       });
@@ -2553,6 +2555,7 @@ function PlatformSettingsPage() {
       setBannerSubtitle('');
       setBannerImage('');
       setBannerLink('/restaurants');
+      setBannerActionLabel('Подробнее');
       toast.success('Баннер сохранён');
       void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
     } catch (error) {
@@ -2599,6 +2602,10 @@ function PlatformSettingsPage() {
           <input value={bannerLink} onChange={(event) => setBannerLink(event.target.value)} placeholder="/restaurants или https://..." />
         </label>
         <label>
+          Текст кнопки
+          <input value={bannerActionLabel} onChange={(event) => setBannerActionLabel(event.target.value)} placeholder="Подробнее или Заказать" />
+        </label>
+        <label>
           Фото или видео для фона
           <input value={bannerImage} onChange={(event) => setBannerImage(event.target.value)} placeholder="https://...jpg или https://...mp4" />
         </label>
@@ -2614,24 +2621,65 @@ function PlatformSettingsPage() {
 
       <section className="platform-banner-list">
         {(bannersQuery.data ?? []).map((banner) => (
-          <article className="platform-banner-card" key={banner.id}>
-            <span>{banner.kind}</span>
-            <strong>{banner.title}</strong>
-            <small>{banner.subtitle}</small>
-            <button
-              type="button"
-              onClick={() => {
-                void deletePlatformBanner(banner.id).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
-                });
-              }}
-            >
-              <Trash2 />
-            </button>
-          </article>
+          <PlatformBannerSettingsCard
+            banner={banner}
+            key={banner.id}
+            onChanged={() => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] })}
+          />
         ))}
       </section>
     </main>
+  );
+}
+
+function PlatformBannerSettingsCard({
+  banner,
+  onChanged
+}: {
+  banner: PlatformBannerAdmin;
+  onChanged: () => void;
+}) {
+  const [actionLabel, setActionLabel] = useState(banner.actionLabel);
+  const [linkUrl, setLinkUrl] = useState(banner.linkUrl);
+
+  return (
+    <article className="platform-banner-card">
+      <span>{banner.kind}</span>
+      <strong>{banner.title}</strong>
+      <small>{banner.subtitle}</small>
+      <label>
+        Текст кнопки
+        <input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} />
+      </label>
+      <label>
+        Ссылка
+        <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} />
+      </label>
+      <button
+        type="button"
+        onClick={() => {
+          void savePlatformBanner({
+            ...banner,
+            actionLabel: actionLabel.trim() || 'Подробнее',
+            linkUrl: linkUrl.trim() || '/restaurants'
+          }).then(() => {
+            toast.success('Кнопка баннера обновлена');
+            onChanged();
+          });
+        }}
+      >
+        Сохранить
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void deletePlatformBanner(banner.id).then(onChanged);
+        }}
+        aria-label={`Удалить баннер ${banner.title}`}
+      >
+        <Trash2 />
+      </button>
+    </article>
   );
 }
 

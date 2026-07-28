@@ -16,6 +16,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       imageUrl: '',
       backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
+      actionLabel: 'Подробнее',
       isActive: true
     }
   ],

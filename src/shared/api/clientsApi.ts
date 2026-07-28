@@ -156,6 +156,7 @@ type PlatformBannerRow = {
   image_url: string;
   background_color: string;
   link_url: string;
+  action_label: string;
   sort_order: number;
   is_active: boolean;
 };
@@ -245,6 +246,7 @@ const mapPlatformBanner = (row: PlatformBannerRow): PlatformBannerAdmin => ({
   imageUrl: row.image_url,
   backgroundColor: row.background_color || '#5b3df4',
   linkUrl: row.link_url,
+  actionLabel: row.action_label || 'Заказать',
   sortOrder: row.sort_order,
   isActive: row.is_active
 });
@@ -322,16 +324,55 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     return summarizePlatformStats(clients.data, []);
   }
 
-  const ordersResult = await supabase
-    .from('orders')
-    .select('catalog_id, total, total_amount, delivery_provider, status')
-    .limit(1000);
+  const [ordersResult, catalogsResult] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('catalog_id, total, total_amount, delivery_provider, status')
+      .limit(1000),
+    supabase
+      .from('catalogs')
+      .select('id, name, slug, status, logo_url, created_at')
+      .order('created_at', { ascending: false })
+  ]);
   const fallbackOrdersResult = ordersResult.error
     ? await supabase.from('orders').select('catalog_id, total, status').limit(1000)
     : null;
   const orderRows = ((ordersResult.data ?? fallbackOrdersResult?.data ?? []) as PlatformOrderStatsRow[]);
+  const knownCatalogIds = new Set(clients.data.map((client) => client.catalogId).filter(Boolean));
+  const orphanCatalogs: PlatformClient[] = ((catalogsResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+    slug: string;
+    status: PlatformClient['catalogStatus'];
+    logo_url: string | null;
+    created_at: string;
+  }>)
+    .filter((catalog) => !knownCatalogIds.has(catalog.id))
+    .map((catalog) => ({
+      id: '',
+      companyName: catalog.name,
+      ownerName: '',
+      email: '',
+      phone: '',
+      primaryCity: '',
+      serviceSettlements: [],
+      status: 'pending',
+      planCode: 'unlinked',
+      subscriptionStatus: 'trial',
+      subscriptionEndsAt: null,
+      catalogId: catalog.id,
+      catalogName: catalog.name,
+      catalogSlug: catalog.slug,
+      catalogStatus: catalog.status,
+      templateName: 'Не привязан к клиенту',
+      templateKey: 'unlinked',
+      templateVersion: 1,
+      businessType: 'restaurant',
+      logoUrl: catalog.logo_url ?? '',
+      createdAt: catalog.created_at
+    }));
 
-  return summarizePlatformStats(clients.data, orderRows);
+  return summarizePlatformStats([...clients.data, ...orphanCatalogs], orderRows);
 }
 
 export async function getClientSignups(): Promise<ClientSignup[]> {
@@ -405,6 +446,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
       imageUrl: '',
       backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
+      actionLabel: 'Подробнее',
       sortOrder: 0,
       isActive: true
     }];
@@ -412,7 +454,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
 
   const { data, error } = await supabase
     .from('platform_banners')
-    .select('id, title, subtitle, kind, image_url, background_color, link_url, sort_order, is_active')
+    .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, sort_order, is_active')
     .order('sort_order');
   if (error) throw error;
   return ((data ?? []) as PlatformBannerRow[]).map(mapPlatformBanner);
@@ -427,6 +469,7 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
     image_url: banner.imageUrl,
     background_color: banner.backgroundColor,
     link_url: banner.linkUrl,
+    action_label: banner.actionLabel,
     sort_order: banner.sortOrder,
     is_active: banner.isActive
   };

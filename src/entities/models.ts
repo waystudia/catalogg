@@ -37,6 +37,7 @@ export type Restaurant = {
   subtitle: string;
   logo_url: string;
   banner_url: string;
+  banner_urls?: string[];
   whatsapp: string;
   instagram_url: string;
   address: string;

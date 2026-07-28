@@ -77,6 +77,7 @@ export type PlatformBannerAdmin = {
   imageUrl: string;
   backgroundColor: string;
   linkUrl: string;
+  actionLabel: string;
   sortOrder: number;
   isActive: boolean;
 };

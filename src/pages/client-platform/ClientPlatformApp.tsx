@@ -7,6 +7,7 @@ import {
   Building2,
   Car,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleUserRound,
   Clock,
@@ -42,7 +43,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
-import { clientPlatformSnapshot, fallbackPaymentSettings } from '../../features/client-platform/mockData';
+import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   selectAllCartCount,
   selectCheckoutDraft,
@@ -105,15 +106,17 @@ const clientPlatformQueryClient = new QueryClient({
     }
   }
 });
-const clientPlatformLoadingSnapshot: ClientPlatformSnapshot = {
-  ...clientPlatformSnapshot,
+
+const emptyClientPlatformSnapshot: ClientPlatformSnapshot = {
   cities: [],
+  categories: [],
   restaurants: [],
   restaurantCategories: [],
   dishes: [],
-  banners: []
+  paymentSettings: [],
+  banners: [],
+  supportWhatsapp: ''
 };
-
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
 const orderTypeLabels: Record<ClientOrderType, string> = {
@@ -252,7 +255,7 @@ export function ClientPlatformApp() {
 
 function ClientPlatformContent() {
   const { data } = usePlatformData();
-  const snapshot = data ?? clientPlatformLoadingSnapshot;
+  const snapshot = data ?? emptyClientPlatformSnapshot;
   const queryClient = useQueryClient();
   const location = useLocation();
   const { slug } = useParams();
@@ -390,19 +393,13 @@ function BottomNav({
 }
 
 function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
-  const navigate = useNavigate();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
-  const city = snapshot.cities.find((item) => item.id === selectedCityId);
-  const restaurants = filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId: selectedCityId })
+  const city = snapshot.cities.find((item) => item.id === selectedCityId) ?? snapshot.cities[0];
+  const effectiveCityId = city?.id ?? selectedCityId;
+  const restaurants = filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId: effectiveCityId })
     .slice()
     .sort((left, right) => right.rating - left.rating);
   const banners = snapshot.banners.filter((item) => item.isActive);
-  const [query, setQuery] = useState('');
-
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    navigate(`/restaurants?query=${encodeURIComponent(query)}`);
-  };
 
   return (
     <>
@@ -410,29 +407,24 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <Link className="city-pill" to="/city">
           <MapPin />
           <span>{city?.name ?? 'Выбрать город'}</span>
+          <ChevronDown />
         </Link>
-        <button className="icon-button" type="button" aria-label="Уведомления">
+        <button className="icon-button notification-button has-unread" type="button" aria-label="Уведомления">
           <Bell />
         </button>
       </header>
 
-      <form className="platform-search" onSubmit={submitSearch}>
+      <Link className="platform-search platform-search--home" to="/restaurants">
         <Search />
-        <input
-          aria-label="Поиск блюд и ресторанов"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск блюд и ресторанов"
-          type="search"
-        />
-      </form>
+        <span>Блюдо или ресторан</span>
+      </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
 
-      <SectionHeader title="Популярные рестораны" to={getCityRestaurantsPath(city?.id)} />
+      <SectionHeader title="Популярное" to={getCityRestaurantsPath(city?.id)} />
       {restaurants.length > 0 ? (
-        <div className="restaurant-grid">
-          {restaurants.slice(0, 4).map((restaurant) => (
+        <div className="restaurant-carousel">
+          {restaurants.slice(0, 8).map((restaurant) => (
             <RestaurantCard restaurant={restaurant} categories={snapshot.categories} key={restaurant.id} />
           ))}
         </div>
@@ -445,7 +437,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       )}
 
       <SectionHeader title="Категории" to="/categories" />
-      <div className="category-quick-grid">
+      <div className="category-quick-row">
         {snapshot.categories.slice(0, 6).map((category) => (
           <Link className="category-quick-card" to={`/restaurants?category=${category.slug}`} key={category.id}>
             <img src={category.imageUrl} alt="" />
@@ -460,26 +452,32 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const scrollEndRef = useRef<number | null>(null);
   const bannerIds = banners.map((banner) => banner.id).join('|');
+  const displayedBanners = banners.length > 1
+    ? [banners[banners.length - 1], ...banners, banners[0]]
+    : banners;
 
   useEffect(() => {
     setActiveIndex(0);
-    trackRef.current?.scrollTo({ left: 0 });
-  }, [bannerIds]);
+    window.requestAnimationFrame(() => {
+      const track = trackRef.current;
+      if (track) track.scrollTo({ left: banners.length > 1 ? track.clientWidth : 0 });
+    });
+  }, [bannerIds, banners.length]);
 
   useEffect(() => {
     if (banners.length < 2) return undefined;
 
     const timer = window.setInterval(() => {
-      setActiveIndex((index) => {
-        const nextIndex = (index + 1) % banners.length;
-        const track = trackRef.current;
-        if (track) track.scrollTo({ left: nextIndex * track.clientWidth, behavior: 'smooth' });
-        return nextIndex;
-      });
+      const track = trackRef.current;
+      if (track) track.scrollTo({ left: track.scrollLeft + track.clientWidth, behavior: 'smooth' });
     }, 5000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
+    };
   }, [banners.length]);
 
   if (banners.length === 0) return null;
@@ -490,15 +488,28 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
         className="promo-carousel__track"
         ref={trackRef}
         onScroll={(event) => {
-          const width = event.currentTarget.clientWidth;
-          if (width > 0) setActiveIndex(Math.round(event.currentTarget.scrollLeft / width));
+          const track = event.currentTarget;
+          const width = track.clientWidth;
+          if (width <= 0) return;
+          const rawIndex = Math.round(track.scrollLeft / width);
+          setActiveIndex(banners.length > 1 ? (rawIndex - 1 + banners.length) % banners.length : 0);
+          if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
+          scrollEndRef.current = window.setTimeout(() => {
+            if (rawIndex === 0) track.scrollTo({ left: banners.length * width });
+            if (rawIndex === banners.length + 1) track.scrollTo({ left: width });
+          }, 140);
         }}
       >
-        {banners.map((banner) => (
+        {displayedBanners.map((banner, displayedIndex) => {
+          const hasActionLink = banner.linkUrl.trim().length > 0;
+          const actionUrl = hasActionLink ? banner.linkUrl : getPromoDetailPath(banner);
+          const actionIsExternal = /^https?:\/\//i.test(actionUrl);
+
+          return (
           <article
             className={banner.imageUrl ? 'promo-band promo-band--media' : 'promo-band'}
             style={{ backgroundColor: banner.backgroundColor }}
-            key={banner.id}
+            key={`${banner.id}-${displayedIndex}`}
           >
             {banner.imageUrl && (
               <span className="promo-band__media">
@@ -511,9 +522,14 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
               <strong>{banner.title}</strong>
               <span>{banner.subtitle}</span>
             </div>
-            <Link to={getPromoDetailPath(banner)}>Подробнее</Link>
+            {actionIsExternal ? (
+              <a href={actionUrl} target="_blank" rel="noreferrer">{banner.actionLabel}</a>
+            ) : (
+              <Link to={actionUrl}>{banner.actionLabel}</Link>
+            )}
           </article>
-        ))}
+          );
+        })}
       </div>
       <div className="promo-carousel__dots" aria-label={`Баннер ${activeIndex + 1} из ${banners.length}`}>
         {banners.map((banner, index) => (
@@ -523,7 +539,10 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
             onClick={() => {
               setActiveIndex(index);
               const track = trackRef.current;
-              if (track) track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' });
+              if (track) track.scrollTo({
+                left: (banners.length > 1 ? index + 1 : index) * track.clientWidth,
+                behavior: 'smooth'
+              });
             }}
             aria-label={`Показать баннер ${index + 1}`}
             aria-current={index === activeIndex ? 'true' : undefined}
@@ -594,7 +613,7 @@ function SectionHeader({ title, to }: { title: string; to: string }) {
   return (
     <div className="section-header">
       <h2>{title}</h2>
-      <Link to={to}>Смотреть все</Link>
+      <Link to={to}>Смотреть все <ChevronRight /></Link>
     </div>
   );
 }
@@ -814,7 +833,10 @@ function RestaurantCard({
 
   return (
     <Link className="restaurant-card" to={buildRestaurantPublicPath(restaurant)}>
-      <img src={restaurant.coverUrl} alt="" />
+      <span className="restaurant-card__media">
+        <img src={restaurant.coverUrl} alt="" />
+        <span className="restaurant-card__favorite" aria-hidden="true"><Heart /></span>
+      </span>
       <span className="restaurant-card__body">
         <span className="restaurant-card__title">
           <strong>{restaurant.name}</strong>
@@ -822,8 +844,8 @@ function RestaurantCard({
             <Star /> {restaurant.rating.toFixed(1)}
           </small>
         </span>
-        <small>{categoryNames}</small>
-        <b>от {formatPrice(restaurant.minOrderAmount)} · {restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин</b>
+        {categoryNames && <small>{categoryNames}</small>}
+        <b>{restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин · от {formatPrice(restaurant.minOrderAmount)}</b>
         {hasDelivery && restaurant.freeDeliveryFrom > 0 && (
           <em>Бесплатная доставка от {formatPrice(restaurant.freeDeliveryFrom)}</em>
         )}

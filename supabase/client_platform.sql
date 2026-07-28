@@ -165,7 +165,8 @@ create table if not exists public.platform_banners (
 );
 
 alter table public.platform_banners
-  add column if not exists background_color text not null default '#5b3df4';
+  add column if not exists background_color text not null default '#5b3df4',
+  add column if not exists action_label text not null default 'Заказать';
 
 create or replace function public.has_catalog_admin_access(target_slug text)
 returns boolean

@@ -204,6 +204,7 @@ export type PlatformBanner = {
   imageUrl: string;
   backgroundColor: string;
   linkUrl: string;
+  actionLabel: string;
   isActive: boolean;
 };
 

@@ -8,6 +8,7 @@ import {
   Check,
   ChefHat,
   ClipboardList,
+  Clock,
   CloudUpload,
   Coffee,
   Cookie,
@@ -47,7 +48,9 @@ import {
   Store,
   Soup,
   Tags,
+  Timer,
   Trash2,
+  Truck,
   Utensils,
   UtensilsCrossed,
   User,
@@ -67,7 +70,13 @@ import JSZip from 'jszip';
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
-import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant } from '../data/catalog';
+import {
+  cabins as demoCabins,
+  categories as demoCategories,
+  products as demoProducts,
+  restaurant as demoRestaurant,
+  themeSettings as demoThemeSettings
+} from '../data/catalog';
 import type { Cabin, CatalogTag, Category, OrderMode, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { DishEditorPage } from '../features/dish-editor/DishEditorPage';
 import {
@@ -202,6 +211,88 @@ const queryClient = new QueryClient({
     }
   }
 });
+
+type CatalogSnapshot = Awaited<ReturnType<typeof loadCatalog>>;
+type CatalogCacheEntry = { savedAt: number; data: CatalogSnapshot };
+const CATALOG_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CATALOG_CACHE_MAX_BYTES = 1_800_000;
+const catalogCacheKey = (slug: string) => `waycatalog:catalog-cache:v2:${slug}`;
+const deliverySettingsCacheKey = (slug: string) => `waycatalog:delivery-settings-cache:${slug}`;
+
+const readCatalogCache = (slug: string): CatalogCacheEntry | undefined => {
+  try {
+    const raw = window.localStorage.getItem(catalogCacheKey(slug));
+    if (!raw) return undefined;
+    const cached = JSON.parse(raw) as CatalogCacheEntry;
+    if (
+      !cached?.data?.restaurant ||
+      !Array.isArray(cached.data.categories) ||
+      !Array.isArray(cached.data.products) ||
+      Date.now() - cached.savedAt > CATALOG_CACHE_TTL_MS
+    ) {
+      window.localStorage.removeItem(catalogCacheKey(slug));
+      return undefined;
+    }
+    return cached;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeCatalogCache = (slug: string, data: CatalogSnapshot) => {
+  try {
+    const serialized = JSON.stringify({ savedAt: Date.now(), data } satisfies CatalogCacheEntry);
+    if (serialized.length > CATALOG_CACHE_MAX_BYTES) return;
+    window.localStorage.setItem(catalogCacheKey(slug), serialized);
+  } catch {
+    // The live catalog remains usable when storage is full or unavailable.
+  }
+};
+
+const readDeliverySettingsCache = (slug: string): RestaurantDeliverySettings | null => {
+  try {
+    const raw = window.localStorage.getItem(deliverySettingsCacheKey(slug));
+    if (!raw) return null;
+    const cached = JSON.parse(raw) as { savedAt: number; data: RestaurantDeliverySettings };
+    if (!cached?.data || Date.now() - cached.savedAt > CATALOG_CACHE_TTL_MS) {
+      window.localStorage.removeItem(deliverySettingsCacheKey(slug));
+      return null;
+    }
+    return cached.data;
+  } catch {
+    return null;
+  }
+};
+
+const writeDeliverySettingsCache = (slug: string, data: RestaurantDeliverySettings) => {
+  try {
+    window.localStorage.setItem(
+      deliverySettingsCacheKey(slug),
+      JSON.stringify({ savedAt: Date.now(), data })
+    );
+  } catch {
+    // Delivery settings still remain available for the current session.
+  }
+};
+
+const CATALOG_REQUEST_TIMEOUT_MS = 8_000;
+const loadCatalogWithTimeout = (slug: string) =>
+  new Promise<Awaited<ReturnType<typeof loadCatalog>>>((resolve, reject) => {
+    const timeoutId = window.setTimeout(
+      () => reject(new Error('Каталог загружается слишком долго')),
+      CATALOG_REQUEST_TIMEOUT_MS
+    );
+    void loadCatalog(slug).then(
+      (catalog) => {
+        window.clearTimeout(timeoutId);
+        resolve(catalog);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
@@ -413,7 +504,8 @@ const makeLoadingRestaurant = (catalogSlug: string): Restaurant => ({
   name: catalogSlug === 'mangal' ? demoRestaurant.name : '',
   subtitle: catalogSlug === 'mangal' ? demoRestaurant.subtitle : '',
   logo_url: '',
-  banner_url: ''
+  banner_url: catalogSlug === 'mangal' ? demoRestaurant.banner_url : '',
+  banner_urls: catalogSlug === 'mangal' ? [demoRestaurant.banner_url] : []
 });
 
 const loadStockTargets = (): StockTargets => {
@@ -882,7 +974,9 @@ function TopBar({
   onAdmin,
   logoUrl,
   restaurantName,
-  restaurantSubtitle
+  restaurantSubtitle,
+  showBrand = true,
+  showCart = true
 }: {
   title?: string;
   canBack?: boolean;
@@ -894,13 +988,15 @@ function TopBar({
   logoUrl?: string;
   restaurantName?: string;
   restaurantSubtitle?: string;
+  showBrand?: boolean;
+  showCart?: boolean;
 }) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
   const hasBackAction = Boolean(canBack || onPlatformBack);
 
   return (
-    <header className="top-bar">
+    <header className={!title && !showBrand ? 'top-bar top-bar--minimal' : 'top-bar'}>
       <button
         className="icon-button top-bar__button"
         type="button"
@@ -911,8 +1007,10 @@ function TopBar({
       </button>
       {title ? (
         <h1 className="screen-title">{title}</h1>
-      ) : (
+      ) : showBrand ? (
         <Logo logoUrl={logoUrl} name={restaurantName} subtitle={restaurantSubtitle} />
+      ) : (
+        <span className="top-bar__spacer" aria-hidden="true" />
       )}
       <div className="top-bar__actions">
         {onSearch && (
@@ -920,10 +1018,12 @@ function TopBar({
             <Search />
           </button>
         )}
-        <button className="icon-button top-bar__button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
-          <ShoppingCart />
-          {count > 0 && <span>{count}</span>}
-        </button>
+        {showCart && (
+          <button className="icon-button top-bar__button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
+            <ShoppingCart />
+            {count > 0 && <span>{count}</span>}
+          </button>
+        )}
       </div>
     </header>
   );
@@ -1142,29 +1242,56 @@ function ProductTile({
   );
 }
 
-function CartBar({ onCheckout, onContinue }: { onCheckout: () => void; onContinue: () => void }) {
+function CartBar({
+  deliverySettings,
+  onCheckout,
+  onContinue
+}: {
+  deliverySettings?: RestaurantDeliverySettings | null;
+  onCheckout: () => void;
+  onContinue: () => void;
+}) {
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
   const total = selectCartTotal(items);
+  const freeDeliveryFrom = Math.max(0, deliverySettings?.free_delivery_from ?? 0);
+  const remainingForFreeDelivery = Math.max(0, freeDeliveryFrom - total);
+  const deliveryProgress = freeDeliveryFrom > 0 ? Math.min(100, (total / freeDeliveryFrom) * 100) : 0;
+  const itemWord = count % 10 === 1 && count % 100 !== 11 ? 'товар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'товара' : 'товаров';
 
   if (count === 0) {
     return null;
   }
 
   return (
-    <div className="cart-bar" data-cart-animation-target>
-      <span className="cart-bar__icon">
-        <ShoppingCart />
-        <b>{count}</b>
-      </span>
-      <button className="cart-bar__details" type="button" onClick={onCheckout}>
-        <strong>В корзине {count} товара</strong>
-        <small>{items.map((item) => item.product.title).join(', ')}</small>
-      </button>
-      <b>{formatPrice(total)}</b>
-      <button className="cart-bar__go" type="button" onClick={onContinue} aria-label="Продолжить">
-        <ArrowRight />
-      </button>
+    <div className="cart-dock">
+      {freeDeliveryFrom > 0 && (
+        <div className="free-delivery-progress">
+          <Truck />
+          <div>
+            <strong>
+              {remainingForFreeDelivery > 0
+                ? `До бесплатной доставки осталось ${formatPrice(remainingForFreeDelivery)}`
+                : 'Бесплатная доставка доступна'}
+            </strong>
+            <span><i style={{ width: `${deliveryProgress}%` }} /></span>
+          </div>
+        </div>
+      )}
+      <div className="cart-bar" data-cart-animation-target>
+        <span className="cart-bar__icon">
+          <ShoppingCart />
+          <b>{count}</b>
+        </span>
+        <button className="cart-bar__details" type="button" onClick={onCheckout}>
+          <strong><span>В корзине</span><span>{count} {itemWord}</span></strong>
+          <small>{items.map((item) => item.product.title).join(', ')}</small>
+        </button>
+        <b>{formatPrice(total)}</b>
+        <button className="cart-bar__go" type="button" onClick={onContinue} aria-label="Продолжить">
+          <ArrowRight />
+        </button>
+      </div>
     </div>
   );
 }
@@ -1482,10 +1609,94 @@ function HomeScreen({
   );
 }
 
+function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
+  const images = Array.from(
+    new Set([...(restaurant.banner_urls ?? []), restaurant.banner_url].map((value) => value?.trim()).filter(Boolean))
+  ).slice(0, 3) as string[];
+  const imagesKey = images.join('|');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [restaurant.id, imagesKey]);
+
+  useEffect(() => {
+    if (images.length < 2) return undefined;
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % images.length);
+    }, 4_500);
+    return () => window.clearInterval(intervalId);
+  }, [images.length]);
+
+  const finishSwipe = (clientX: number) => {
+    const startX = touchStartX.current;
+    touchStartX.current = null;
+    if (startX === null || Math.abs(clientX - startX) < 36 || images.length < 2) return;
+    setActiveIndex((current) =>
+      clientX < startX ? (current + 1) % images.length : (current - 1 + images.length) % images.length
+    );
+  };
+
+  return (
+    <section
+      className="restaurant-menu-hero"
+      aria-label={`Обложки ресторана ${restaurant.name}`}
+      onTouchStart={(event) => {
+        touchStartX.current = event.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(event) => finishSwipe(event.changedTouches[0]?.clientX ?? 0)}
+    >
+      {images.length > 0 ? (
+        <div
+          className="restaurant-menu-hero__track"
+        >
+          {images.map((image, index) => {
+            const previousIndex = (activeIndex - 1 + images.length) % images.length;
+            const nextIndex = (activeIndex + 1) % images.length;
+            const positionClass = index === activeIndex
+              ? 'is-active'
+              : index === nextIndex
+                ? 'is-next'
+                : index === previousIndex
+                  ? 'is-previous'
+                  : '';
+            return (
+              <SafeImage
+                className={positionClass}
+                src={image}
+                alt={`Обложка ${index + 1}`}
+                key={`${image}-${index}`}
+                draggable={false}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <SafeImage src="" alt="Обложка ресторана" />
+      )}
+      {images.length > 1 && (
+        <div className="restaurant-menu-hero__dots" aria-label={`Обложка ${activeIndex + 1} из ${images.length}`}>
+          {images.map((image, index) => (
+            <button
+              className={index === activeIndex ? 'is-active' : ''}
+              type="button"
+              key={`${image}-dot`}
+              onClick={() => setActiveIndex(index)}
+              aria-label={`Показать обложку ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function CatalogScreen({
   restaurant,
   categories,
   products,
+  deliverySettings,
   initialCategory,
   onCart,
   onOpenProduct,
@@ -1498,6 +1709,7 @@ function CatalogScreen({
   restaurant?: Restaurant;
   categories: Category[];
   products: Product[];
+  deliverySettings?: RestaurantDeliverySettings | null;
   initialCategory: string;
   onCart: () => void;
   onOpenProduct: (product: Product) => void;
@@ -1535,6 +1747,7 @@ function CatalogScreen({
     .map((category) => ({
       id: category.id,
       title: category.name,
+      image: category.image,
       products: visibleProducts.filter(
         (product) => getProductCategoryIds(product).includes(category.id) && queryMatches(product)
       )
@@ -1546,6 +1759,15 @@ function CatalogScreen({
     ...realSections
   ];
   const isFlowCategory = Boolean(flowAction?.categoryId && realSections.some((section) => section.id === flowAction.categoryId));
+  const scheduleLabel = deliverySettings?.delivery_hours_start && deliverySettings.delivery_hours_end
+    ? `${deliverySettings.delivery_hours_start} - ${deliverySettings.delivery_hours_end}`
+    : '';
+  const preparationLabel = deliverySettings?.default_preparation_minutes
+    ? `${deliverySettings.default_preparation_minutes} мин`
+    : '';
+  const freeDeliveryLabel = deliverySettings?.free_delivery_from
+    ? `Бесплатная доставка от ${formatPrice(deliverySettings.free_delivery_from)}`
+    : '';
 
   useEffect(() => {
     setActive(initialCategory);
@@ -1599,20 +1821,24 @@ function CatalogScreen({
   return (
     <main className="screen catalog-screen">
       {restaurant && (
-        <section className="restaurant-menu-hero">
-          {restaurant.banner_url && <SafeImage src={restaurant.banner_url} alt="" />}
-          <div className="restaurant-menu-hero__shade" />
-          <div className="restaurant-menu-hero__content">
-            <h1>{restaurant.name}</h1>
-            <p>{restaurant.subtitle || 'ресторан'}</p>
+        <>
+          <RestaurantCoverCarousel restaurant={restaurant} />
+          <div className="restaurant-menu-overview">
+            <section className="restaurant-menu-identity">
+              {restaurant.logo_url && <SafeImage src={restaurant.logo_url} alt="" />}
+              <h1>{restaurant.name}</h1>
+              {restaurant.subtitle && <p>{restaurant.subtitle}</p>}
+            </section>
+            {(scheduleLabel || preparationLabel || restaurant.address || freeDeliveryLabel) && (
+              <section className="restaurant-menu-info">
+                {scheduleLabel && <div><Clock /><span><strong>График работы</strong><small>{scheduleLabel}</small></span></div>}
+                {preparationLabel && <div><Timer /><span><strong>Время приготовления</strong><small>{preparationLabel}</small></span></div>}
+                {restaurant.address && <div><MapPin /><span><strong>Адрес</strong><small>{restaurant.address}</small></span></div>}
+                {freeDeliveryLabel && <div><Truck /><span><strong>Доставка</strong><small>{freeDeliveryLabel}</small></span></div>}
+              </section>
+            )}
           </div>
-        </section>
-      )}
-      {restaurant && (
-        <section className="restaurant-menu-info">
-          <div><Store /><span><strong>{restaurant.name}</strong><small>ресторан</small></span></div>
-          {restaurant.address && <div><MapPin /><span><strong>Адрес</strong><small>{restaurant.address}</small></span></div>}
-        </section>
+        </>
       )}
       <div className="catalog-nav">
         <div className="catalog-nav__rail pills" ref={categoryRailRef}>
@@ -1661,15 +1887,32 @@ function CatalogScreen({
           {query && <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск"><X /></button>}
         </label>
       )}
+      <span
+        className="catalog-start-marker"
+        data-catalog-section="all"
+        ref={(node) => {
+          if (node) sectionRefs.current.set('all', node);
+          else sectionRefs.current.delete('all');
+        }}
+      />
+      {!normalizedQuery && realSections.length > 0 && (
+        <section className="catalog-category-showcase" aria-label="Категории меню">
+          {realSections.map((section) => (
+            <button
+              className="catalog-category-showcase__card"
+              type="button"
+              key={`showcase-${section.id}`}
+              onClick={() => scrollToSection(section.id)}
+            >
+              <SafeImage src={section.image} alt={section.title} />
+              <span className="catalog-category-showcase__shade" />
+              <strong>{section.title}</strong>
+              <ArrowRight />
+            </button>
+          ))}
+        </section>
+      )}
       <div className="catalog-sections">
-        <span
-          className="catalog-start-marker"
-          data-catalog-section="all"
-          ref={(node) => {
-            if (node) sectionRefs.current.set('all', node);
-            else sectionRefs.current.delete('all');
-          }}
-        />
         {sections.map((section) => (
           <section
             className="catalog-section"
@@ -1881,6 +2124,7 @@ function CheckoutScreen({
   cabins,
   deliverySettings,
   paymentSettings,
+  onEditCart,
   onSubmitOrder
 }: {
   catalogSlug: string;
@@ -1888,6 +2132,7 @@ function CheckoutScreen({
   cabins: Cabin[];
   deliverySettings: RestaurantDeliverySettings;
   paymentSettings: RestaurantPaymentSettings;
+  onEditCart: () => void;
   onSubmitOrder: () => void;
 }) {
   const {
@@ -1908,7 +2153,17 @@ function CheckoutScreen({
   const addClientAddress = useClientPlatformStore((state) => state.addAddress);
   const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
   const items = useCartStore((state) => state.items);
+  const addCartItem = useCartStore((state) => state.add);
+  const decrementCartItem = useCartStore((state) => state.decrement);
+  const removeCartItem = useCartStore((state) => state.remove);
   const total = selectCartTotal(items);
+  const cartCount = selectCartCount(items);
+  const [orderComment, setOrderComment] = useState('');
+  const freeDeliveryFrom = Math.max(0, deliverySettings.free_delivery_from);
+  const remainingForFreeDelivery = Math.max(0, freeDeliveryFrom - total);
+  const freeDeliveryProgress = freeDeliveryFrom > 0
+    ? Math.min(100, (total / freeDeliveryFrom) * 100)
+    : 100;
   const activeCabins = useMemo(
     () => cabins.filter((cabin) => parseCabinMeta(cabin.feature).status === 'active'),
     [cabins]
@@ -2299,20 +2554,22 @@ function CheckoutScreen({
             <MapPin />
             <strong>Укажите населенный пункт и адрес доставки</strong>
           </div>
-          <button
-            className="map-link-button checkout-location-button"
-            type="button"
-            onClick={locateDeliveryAddress}
-            disabled={isLocating}
-            ref={locationButtonRef}
-          >
-            <LocateFixed />
-            <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
-          </button>
-          <button className="map-link-button checkout-location-button" type="button" onClick={() => setIsDeliveryMapOpen(true)}>
-            <MapPin />
-            <span>Уточнить точку на карте</span>
-          </button>
+          <div className="checkout-location-actions">
+            <button
+              className="map-link-button checkout-location-button"
+              type="button"
+              onClick={locateDeliveryAddress}
+              disabled={isLocating}
+              ref={locationButtonRef}
+            >
+              <LocateFixed />
+              <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
+            </button>
+            <button className="map-link-button checkout-location-button" type="button" onClick={() => setIsDeliveryMapOpen(true)}>
+              <MapPin />
+              <span>Уточнить точку на карте</span>
+            </button>
+          </div>
           {(deliveryLat !== null && deliveryLng !== null) && (
             <p className="checkout-location-hint">
               Координаты: {deliveryLat.toFixed(7)}, {deliveryLng.toFixed(7)}
@@ -2351,9 +2608,19 @@ function CheckoutScreen({
                 value={clientPhone}
                 onChange={(event) => {
                   setDeliveryValidationErrors([]);
-                  setOrder({ clientPhone: event.target.value.replace(/[^\d+()\-\s]/g, '') });
+                  const digits = event.target.value.replace(/\D/g, '').replace(/^8/, '7').slice(0, 11);
+                  const local = digits.startsWith('7') ? digits.slice(1) : digits;
+                  const formatted = [
+                    '+7',
+                    local.length ? ` (${local.slice(0, 3)}` : '',
+                    local.length >= 3 ? ')' : '',
+                    local.length > 3 ? ` ${local.slice(3, 6)}` : '',
+                    local.length > 6 ? `-${local.slice(6, 8)}` : '',
+                    local.length > 8 ? `-${local.slice(8, 10)}` : ''
+                  ].join('');
+                  setOrder({ clientPhone: formatted });
                 }}
-                placeholder="+7"
+                placeholder="+7 (___) ___-__-__"
                 inputMode="tel"
                 required
               />
@@ -2454,39 +2721,90 @@ function CheckoutScreen({
         </section>
       )}
 
+      {freeDeliveryFrom > 0 && (
+        <section className="checkout-free-delivery" aria-live="polite">
+          <Truck />
+          <div>
+            <strong>
+              {remainingForFreeDelivery > 0
+                ? `До бесплатной доставки осталось ${formatPrice(remainingForFreeDelivery)}`
+                : 'Бесплатная доставка доступна'}
+            </strong>
+            <span><i style={{ width: `${freeDeliveryProgress}%` }} /></span>
+          </div>
+        </section>
+      )}
+
       <section className="checkout-summary" id="checkout-review" tabIndex={-1}>
-        <div>
-          <span>Финальный шаг</span>
-          <h2>Проверьте заказ</h2>
-          <p>
-            {mode === 'hall'
-              ? `Заказ будет подготовлен для зала${selectedCabin ? `, кабинка: ${selectedCabin.title} (${selectedCabin.capacity}).` : '.'}`
-              : mode === 'delivery'
-                ? `Заказ будет отправлен на адрес: ${finalDeliveryAddress || 'адрес пока не указан'}.`
-                : 'Заказ будет подготовлен на самовывоз.'}
-          </p>
+        <div className="checkout-summary__head">
+          <ShoppingCart />
+          <div>
+            <h2>Ваш заказ</h2>
+            <span>{cartCount} товара</span>
+          </div>
+          <button type="button" onClick={onEditCart}>Изменить <ArrowRight /></button>
         </div>
         <div className="checkout-summary__list">
           {items.map((item) => (
             <article className="checkout-order-card" key={item.product.id}>
               <SafeImage src={item.product.image_url} alt={item.product.title} />
               <div className="checkout-order-card__body">
-                <div>
+                <div className="checkout-order-card__copy">
                   <h3>{item.product.title}</h3>
                   <p>{item.product.description}</p>
                 </div>
+                <button
+                  className="checkout-order-card__remove"
+                  type="button"
+                  onClick={() => removeCartItem(item.product.id)}
+                  aria-label={`Удалить ${item.product.title}`}
+                >
+                  <Trash2 />
+                </button>
                 <div className="checkout-order-card__bottom">
-                  <strong>{formatPrice(item.product.price)}</strong>
-                  <span>{item.quantity} x {formatPrice(item.product.price * item.quantity)}</span>
+                  <div>
+                    <strong>{formatPrice(item.product.price)}</strong>
+                    <span>{item.quantity} × {formatPrice(item.product.price)}</span>
+                  </div>
+                  <div className="checkout-order-card__stepper">
+                    <button type="button" onClick={() => decrementCartItem(item.product.id)} aria-label="Уменьшить"><Minus /></button>
+                    <b>{item.quantity}</b>
+                    <button type="button" onClick={() => addCartItem(item.product)} aria-label="Увеличить"><Plus /></button>
+                  </div>
                 </div>
               </div>
             </article>
           ))}
         </div>
         <div className="checkout-summary__total">
-          <span>Итого</span>
+          <span><ShoppingCart /> Итого</span>
           <strong>{formatPrice(total)}</strong>
         </div>
+      </section>
+
+      <section className="checkout-delivery-facts">
+        <div><Truck /><span>Стоимость доставки</span><strong>{freeDeliveryFrom > 0 ? '0 ₽' : 'По тарифу'}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
+        <div><Clock /><span>Время доставки</span><strong>≈ {deliverySettings.default_preparation_minutes}–{deliverySettings.default_preparation_minutes + 20} мин</strong></div>
+        <div><CreditCard /><span>Оплата</span><strong>{paymentSettings.transferEnabled ? 'Переводом' : 'Наличными'}</strong><small>{paymentSettings.transferEnabled ? 'по реквизитам' : 'при получении'}</small></div>
+      </section>
+
+      <section className="checkout-comment-card">
+        <label htmlFor="checkout-comment"><Edit3 /> Комментарий к заказу <span>(необязательно)</span></label>
+        <textarea
+          id="checkout-comment"
+          value={orderComment}
+          onChange={(event) => setOrderComment(event.target.value)}
+          rows={2}
+          placeholder="Например: не класть лук, позвонить заранее..."
+        />
+      </section>
+
+      <section className="checkout-privacy-card">
+        <ShieldCheck />
+        <div><strong>Ваши данные защищены</strong><span>Используются только для обработки заказа</span></div>
+      </section>
+
+      <section className="checkout-submit-card">
         {paymentSettings.transferEnabled && (
           <section className="checkout-payment-card">
             <h3><CreditCard /> Оплата переводом</h3>
@@ -2551,7 +2869,10 @@ function CheckoutScreen({
               deliveryLat,
               deliveryLng,
               deliveryAccuracyM,
-              comment: mode === 'hall' && selectedCabin ? `Кабинка: ${selectedCabin.title}` : '',
+              comment: [
+                mode === 'hall' && selectedCabin ? `Кабинка: ${selectedCabin.title}` : '',
+                orderComment.trim()
+              ].filter(Boolean).join('. '),
               customerName: mode === 'delivery' ? clientName.trim() : 'Гость',
               customerPhone: mode === 'delivery' ? clientPhone.trim() : ''
             };
@@ -2670,6 +2991,7 @@ function CheckoutScreen({
           }}
           aria-disabled={isSubmittingOrder || !restaurant.whatsapp}
         >
+          <ArrowRight />
           {isSubmittingOrder ? 'Отправляем заказ...' : 'Отправить заказ'}
         </a>
       </section>
@@ -4054,6 +4376,9 @@ function ProfileSettings({
   const [error, setError] = useState('');
   const [isLocating, setIsLocating] = useState(false);
   const [isRestaurantMapOpen, setIsRestaurantMapOpen] = useState(false);
+  const coverImages = Array.from(
+    new Set([...(draft.banner_urls ?? []), draft.banner_url].map((value) => value?.trim()).filter(Boolean))
+  ).slice(0, 3) as string[];
 
   useEffect(() => {
     setDraft(restaurant);
@@ -4070,15 +4395,27 @@ function ProfileSettings({
     setError('');
   };
 
-  const updateBanner = async (file?: File) => {
+  const updateBanner = async (index: number, file?: File) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setError('Обложка должна быть изображением.');
       return;
     }
     const value = await imageFileToDataUrl(file);
-    setDraft((current) => ({ ...current, banner_url: value }));
+    setDraft((current) => {
+      const images = Array.from(
+        new Set([...(current.banner_urls ?? []), current.banner_url].map((url) => url?.trim()).filter(Boolean))
+      ).slice(0, 3) as string[];
+      images[index] = value;
+      const normalized = images.filter(Boolean).slice(0, 3);
+      return { ...current, banner_url: normalized[0] ?? '', banner_urls: normalized };
+    });
     setError('');
+  };
+
+  const removeBanner = (index: number) => {
+    const images = coverImages.filter((_, imageIndex) => imageIndex !== index);
+    setDraft((current) => ({ ...current, banner_url: images[0] ?? '', banner_urls: images }));
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -4201,23 +4538,29 @@ function ProfileSettings({
           <small>{draft.subtitle.length}/200</small>
         </label>
         <div className="profile-field">
-          <span>Фото карточки ресторана</span>
-          <label className="profile-cover-picker">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => void updateBanner(event.target.files?.[0])}
-            />
-            {draft.banner_url ? <img src={draft.banner_url} alt="" /> : <span>Добавить фото</span>}
-          </label>
-          <div className="profile-logo-actions">
-            <small>Это фото увидят клиенты на главной и в списке ресторанов.</small>
-            {draft.banner_url && (
-              <button type="button" onClick={() => setDraft({ ...draft, banner_url: '' })}>
-                Удалить фото
-              </button>
-            )}
+          <span>Обложки ресторана</span>
+          <div className="profile-cover-grid">
+            {[0, 1, 2].map((index) => (
+              <div className="profile-cover-slot" key={index}>
+                <label className="profile-cover-picker">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => void updateBanner(index, event.target.files?.[0])}
+                  />
+                  {coverImages[index]
+                    ? <img src={coverImages[index]} alt={`Обложка ${index + 1}`} />
+                    : <span><Plus />Добавить</span>}
+                </label>
+                {coverImages[index] && (
+                  <button type="button" onClick={() => removeBanner(index)}>
+                    Удалить
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
+          <small>До 3 изображений. На странице они листаются свайпом и меняются автоматически.</small>
         </div>
         <label>
           WhatsApp
@@ -5357,11 +5700,25 @@ function AppContent({
 }) {
   const navigate = useNavigate();
   const catalogQueryKey = useMemo(() => ['catalog', catalogSlug] as const, [catalogSlug]);
-  const { data, isLoading } = useQuery({
+  const cachedCatalog = useMemo(() => readCatalogCache(catalogSlug), [catalogSlug]);
+  const { data, isLoading, isPlaceholderData } = useQuery({
     queryKey: catalogQueryKey,
-    queryFn: () => loadCatalog(catalogSlug),
-    staleTime: 30_000,
-    refetchOnMount: false,
+    queryFn: () => loadCatalogWithTimeout(catalogSlug),
+    initialData: cachedCatalog?.data,
+    initialDataUpdatedAt: cachedCatalog?.savedAt,
+    placeholderData: () => ({
+      restaurant: makeLoadingRestaurant(catalogSlug),
+      categories: demoCategories,
+      products: demoProducts,
+      cabins: demoCabins,
+      tags: defaultTags,
+      theme: demoThemeSettings,
+      photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
+      source: 'demo' as const
+    } as CatalogSnapshot),
+    staleTime: 2 * 60_000,
+    retry: 1,
+    refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });
@@ -5389,7 +5746,10 @@ function AppContent({
   const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(() => makeLoadingRestaurant(catalogSlug));
   const [photoQuality, setPhotoQuality] = useState<PhotoQualitySettings>(DEFAULT_PHOTO_QUALITY_SETTINGS);
   const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
-  const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings | null>(null);
+  const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings | null>(
+    () => readDeliverySettingsCache(catalogSlug)
+  );
+  const [loadingGraceExpired, setLoadingGraceExpired] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
@@ -5474,13 +5834,19 @@ function AppContent({
   }, [isAdmin, refreshRestaurantOrders]);
 
   const refreshDeliverySettings = useCallback(() => {
-    if (!isAdmin) return;
     void getRestaurantDeliverySettings(catalogSlug)
-      .then(setDeliverySettings)
+      .then((settings) => {
+        setDeliverySettings(settings);
+        writeDeliverySettingsCache(catalogSlug, settings);
+      })
       .catch((error) => {
         console.error('Delivery settings load failed', error);
       });
-  }, [catalogSlug, isAdmin]);
+  }, [catalogSlug]);
+
+  useEffect(() => {
+    setDeliverySettings(readDeliverySettingsCache(catalogSlug));
+  }, [catalogSlug]);
 
   useEffect(() => {
     void hasAdminSession(catalogSlug).then(setAdmin);
@@ -5565,6 +5931,16 @@ function AppContent({
       setScreen('settings-payments');
     }
   }, [isAdmin, routeSection]);
+
+  useEffect(() => {
+    setLoadingGraceExpired(false);
+    const timeoutId = window.setTimeout(() => setLoadingGraceExpired(true), 7_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [catalogSlug]);
+
+  useEffect(() => {
+    if (data && !isPlaceholderData) writeCatalogCache(catalogSlug, data);
+  }, [catalogSlug, data, isPlaceholderData]);
 
   useEffect(() => {
     if (data?.theme) {
@@ -5653,7 +6029,7 @@ function AppContent({
     return 'Настройки';
   }, [cabinEditor.mode, categoryEditor.mode, screen, settingsCatalogTab]);
 
-  if (isLoading && !data) {
+  if (isLoading && !data && !loadingGraceExpired) {
     return <CatalogLoadingScreen />;
   }
 
@@ -6208,12 +6584,13 @@ function AppContent({
               setScreen('home');
             }}
             onPlatformBack={() => navigate('/')}
-            onSearch={screen === 'home' ? () => setScreen('catalog') : undefined}
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
             logoUrl={catalog.restaurant.logo_url}
             restaurantName={catalog.restaurant.name}
             restaurantSubtitle={catalog.restaurant.subtitle}
+            showBrand={screen !== 'home'}
+            showCart={screen !== 'home'}
           />
 
           {screen === 'home' && (
@@ -6221,6 +6598,7 @@ function AppContent({
               restaurant={catalog.restaurant}
               categories={catalog.categories}
               products={catalog.products}
+              deliverySettings={deliverySettings}
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onOpenProduct={openProduct}
@@ -6235,6 +6613,7 @@ function AppContent({
             <CatalogScreen
               categories={catalog.categories}
               products={catalog.products}
+              deliverySettings={deliverySettings}
               initialCategory={catalogCategory}
               onCart={() => setIsCartOpen(true)}
               onOpenProduct={openProduct}
@@ -6273,6 +6652,7 @@ function AppContent({
               cabins={catalog.cabins}
               deliverySettings={deliverySettings ?? defaultAdminDeliverySettings}
               paymentSettings={paymentSettings}
+              onEditCart={() => setIsCartOpen(true)}
               onSubmitOrder={() => {
                 setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
@@ -6287,7 +6667,11 @@ function AppContent({
             />
           )}
           <SiteCredit />
-          <CartBar onCheckout={() => setIsCartOpen(true)} onContinue={continueFromCartBar} />
+          <CartBar
+            deliverySettings={deliverySettings}
+            onCheckout={() => setIsCartOpen(true)}
+            onContinue={continueFromCartBar}
+          />
         </>
       )}
 

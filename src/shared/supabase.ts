@@ -81,6 +81,21 @@ const normalizeRestaurant = (value?: Restaurant | null): Restaurant => ({
   mapLink: value?.mapLink ?? ''
 });
 
+const normalizeRestaurantGallery = (settings: unknown, fallbackUrl?: string | null) => {
+  const images =
+    settings && typeof settings === 'object' && Array.isArray((settings as { images?: unknown }).images)
+      ? (settings as { images: unknown[] }).images
+      : [];
+  return Array.from(
+    new Set(
+      [...images, fallbackUrl]
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  ).slice(0, 3);
+};
+
 const gradientMarkerPrefix = 'gradient:';
 
 const hydrateTheme = (value?: Partial<ThemeSettings> | null): ThemeSettings => {
@@ -465,6 +480,7 @@ export async function loadCatalog(catalogSlug?: string) {
       cabinsResult,
       themeResult,
       photoQualityResult,
+      restaurantGalleryResult,
       restaurantLocation
     ] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
@@ -491,6 +507,12 @@ export async function loadCatalog(catalogSlug?: string) {
         .eq('catalog_id', catalog.id)
         .eq('key', 'photo-quality')
         .maybeSingle(),
+      supabase
+        .from('catalog_sections')
+        .select('settings')
+        .eq('catalog_id', catalog.id)
+        .eq('key', 'restaurant-gallery')
+        .maybeSingle(),
       getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string[]>();
@@ -499,7 +521,13 @@ export async function loadCatalog(catalogSlug?: string) {
     });
 
     return {
-      restaurant: withRestaurantLocation(mapPlatformRestaurant(catalog), restaurantLocation),
+      restaurant: {
+        ...withRestaurantLocation(mapPlatformRestaurant(catalog), restaurantLocation),
+        banner_urls: normalizeRestaurantGallery(
+          restaurantGalleryResult.data?.settings,
+          catalog.banner_url
+        )
+      },
       categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
       products: ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
         mapPlatformProduct(product, productImages.get(product.id) ?? [])
@@ -525,6 +553,7 @@ export async function loadCatalog(catalogSlug?: string) {
     tagsResult,
     themeResult,
     photoQualityResult,
+    restaurantGalleryResult,
     restaurantLocation
   ] = await Promise.all([
     supabase.from('restaurant').select('*').limit(1).single(),
@@ -541,11 +570,25 @@ export async function loadCatalog(catalogSlug?: string) {
           .eq('key', 'photo-quality')
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    platformCatalogId
+      ? supabase
+          .from('catalog_sections')
+          .select('settings')
+          .eq('catalog_id', platformCatalogId)
+          .eq('key', 'restaurant-gallery')
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     platformCatalogId ? getPlatformRestaurantLocation(platformCatalogId) : Promise.resolve(null)
   ]);
 
   return {
-    restaurant: withRestaurantLocation(normalizeRestaurant(restaurantResult.data), restaurantLocation),
+    restaurant: {
+      ...withRestaurantLocation(normalizeRestaurant(restaurantResult.data), restaurantLocation),
+      banner_urls: normalizeRestaurantGallery(
+        restaurantGalleryResult.data?.settings,
+        restaurantResult.data?.banner_url
+      )
+    },
     categories: ((categoriesResult.data ?? categories) as Category[]).map((category) => ({
       ...category,
       showOnHome: category.showOnHome ?? true,
@@ -710,6 +753,15 @@ export async function deleteCategoryFromSupabase(categoryId: string) {
 
 export async function saveRestaurantToSupabase(value: Restaurant) {
   if (!supabase) return;
+  const bannerUrls = Array.from(
+    new Set([...(value.banner_urls ?? []), value.banner_url].map((url) => url?.trim()).filter(Boolean))
+  ).slice(0, 3) as string[];
+  const primaryBannerUrl = bannerUrls[0] ?? '';
+  const normalizedGalleryRestaurant = {
+    ...value,
+    banner_url: primaryBannerUrl,
+    banner_urls: bannerUrls
+  };
   const savePlatformCatalogFields = async (catalogId: string) => {
     await throwOnError(
       supabase
@@ -718,7 +770,7 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
           name: value.name,
           description: value.subtitle,
           logo_url: value.logo_url,
-          banner_url: value.banner_url,
+          banner_url: primaryBannerUrl,
           whatsapp: value.whatsapp,
           instagram_url: value.instagram_url,
           address: value.address,
@@ -726,14 +778,27 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
         })
         .eq('id', catalogId)
     );
+    await throwOnError(
+      supabase.from('catalog_sections').upsert(
+        {
+          catalog_id: catalogId,
+          key: 'restaurant-gallery',
+          title: 'Обложки ресторана',
+          enabled: bannerUrls.length > 0,
+          sort_order: 5,
+          settings: { images: bannerUrls }
+        },
+        { onConflict: 'catalog_id,key' }
+      )
+    );
   };
 
   if (activePlatformCatalogId) {
     await savePlatformCatalogFields(activePlatformCatalogId);
-    await savePlatformRestaurantLocation(activePlatformCatalogId, value);
+    await savePlatformRestaurantLocation(activePlatformCatalogId, normalizedGalleryRestaurant);
     return;
   }
-  const normalizedRestaurant = normalizeRestaurant(value);
+  const normalizedRestaurant = normalizeRestaurant(normalizedGalleryRestaurant);
   const legacyRestaurant: Omit<Restaurant, 'lat' | 'lng'> = {
     id: normalizedRestaurant.id,
     name: normalizedRestaurant.name,
@@ -749,7 +814,7 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
   const platformCatalogId = await getPlatformCatalogId(value.id);
   if (platformCatalogId) {
     await savePlatformCatalogFields(platformCatalogId);
-    await savePlatformRestaurantLocation(platformCatalogId, value);
+    await savePlatformRestaurantLocation(platformCatalogId, normalizedGalleryRestaurant);
   }
 }
 
