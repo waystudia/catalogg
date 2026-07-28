@@ -1358,6 +1358,8 @@ function CartSheet({
   );
 }
 
+// Kept as the legacy home composition for existing template previews and admin design work.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function HomeScreen({
   restaurant,
   categories,
@@ -1481,9 +1483,11 @@ function HomeScreen({
 }
 
 function CatalogScreen({
+  restaurant,
   categories,
   products,
   initialCategory,
+  onCart,
   onOpenProduct,
   onEditProduct,
   onDeleteProduct,
@@ -1491,9 +1495,11 @@ function CatalogScreen({
   onStockChange,
   flowAction
 }: {
+  restaurant?: Restaurant;
   categories: Category[];
   products: Product[];
   initialCategory: string;
+  onCart: () => void;
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
@@ -1503,70 +1509,198 @@ function CatalogScreen({
 }) {
   const [active, setActive] = useState(initialCategory);
   const [query, setQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const foodCategories = categories.filter((category) => category.kind !== 'space');
+  const cartItems = useCartStore((state) => state.items);
+  const cartCount = selectCartCount(cartItems);
+  const sectionRefs = useRef(new Map<string, HTMLElement>());
+  const pillRefs = useRef(new Map<string, HTMLButtonElement>());
+  const categoryRailRef = useRef<HTMLDivElement | null>(null);
+  const initialScrollDoneRef = useRef(false);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
-  const hasSauces = visibleProducts.some(isSauceProduct);
-  const isFlowCategory = flowAction?.categoryId === active;
+  const normalizedQuery = query.trim().toLocaleLowerCase('ru');
+  const queryMatches = useCallback(
+    (product: Product) =>
+      !normalizedQuery ||
+      [product.title, product.description, product.ingredients]
+        .join(' ')
+        .toLocaleLowerCase('ru')
+        .includes(normalizedQuery),
+    [normalizedQuery]
+  );
+  const hits = visibleProducts.filter((product) => (product.is_hit || product.is_popular) && queryMatches(product));
+  const sauces = visibleProducts.filter((product) => isSauceProduct(product) && queryMatches(product));
+  const realSections = categories
+    .filter((category) => category.kind !== 'space')
+    .map((category) => ({
+      id: category.id,
+      title: category.name,
+      products: visibleProducts.filter(
+        (product) => getProductCategoryIds(product).includes(category.id) && queryMatches(product)
+      )
+    }))
+    .filter((section) => section.products.length > 0);
+  const sections = [
+    ...(hits.length > 0 ? [{ id: 'hits', title: 'Хиты 🔥', products: hits }] : []),
+    ...(sauces.length > 0 ? [{ id: 'sauces', title: 'Соусы', products: sauces }] : []),
+    ...realSections
+  ];
+  const isFlowCategory = Boolean(flowAction?.categoryId && realSections.some((section) => section.id === flowAction.categoryId));
 
   useEffect(() => {
     setActive(initialCategory);
   }, [initialCategory]);
 
-  const filtered = visibleProducts.filter((product) => {
-    const categoryMatch =
-      active === 'all' ||
-      getProductCategoryIds(product).includes(active) ||
-      (active === 'hits' && product.is_hit) ||
-      (active === 'sauces' && isSauceProduct(product));
-    const queryMatch = [product.title, product.description, product.ingredients].join(' ').toLowerCase().includes(query.toLowerCase());
-    return categoryMatch && queryMatch;
-  });
+  useEffect(() => {
+    if (initialScrollDoneRef.current || initialCategory === 'all') return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      sectionRefs.current.get(initialCategory)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      initialScrollDoneRef.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialCategory, sections.length]);
+
+  useEffect(() => {
+    const elements = Array.from(sectionRefs.current.values());
+    if (elements.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top);
+        const next = visible[0]?.target.getAttribute('data-catalog-section');
+        if (next) setActive(next);
+      },
+      { rootMargin: '-84px 0px -62% 0px', threshold: [0, 0.01] }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [normalizedQuery, sections.length]);
+
+  useEffect(() => {
+    const pill = pillRefs.current.get(active);
+    const rail = categoryRailRef.current;
+    if (!pill || !rail) return;
+    const railRect = rail.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    if (pillRect.left < railRect.left || pillRect.right > railRect.right) {
+      pill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [active]);
+
+  const scrollToSection = (id: string) => {
+    setActive(id);
+    const target = sectionRefs.current.get(id);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
-    <main className="screen">
-      <label className="search-field">
-        <Search />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти блюдо" />
-      </label>
-      <div className="pills">
-        <button className={active === 'all' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('all')}>
-          Все
-        </button>
-        <button className={active === 'hits' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('hits')}>
-          Хиты <Flame />
-        </button>
-        {hasSauces && (
-          <button className={active === 'sauces' ? 'pill is-active' : 'pill'} type="button" onClick={() => setActive('sauces')}>
-            Соусы
-          </button>
-        )}
-        {foodCategories.map((category) => (
+    <main className="screen catalog-screen">
+      {restaurant && (
+        <section className="restaurant-menu-hero">
+          {restaurant.banner_url && <SafeImage src={restaurant.banner_url} alt="" />}
+          <div className="restaurant-menu-hero__shade" />
+          <div className="restaurant-menu-hero__content">
+            <h1>{restaurant.name}</h1>
+            <p>{restaurant.subtitle || 'ресторан'}</p>
+          </div>
+        </section>
+      )}
+      {restaurant && (
+        <section className="restaurant-menu-info">
+          <div><Store /><span><strong>{restaurant.name}</strong><small>ресторан</small></span></div>
+          {restaurant.address && <div><MapPin /><span><strong>Адрес</strong><small>{restaurant.address}</small></span></div>}
+        </section>
+      )}
+      <div className="catalog-nav">
+        <div className="catalog-nav__rail pills" ref={categoryRailRef}>
+          {[
+            { id: 'all', title: 'Все' },
+            ...sections.map((section) => ({ id: section.id, title: section.id === 'hits' ? 'Хиты 🔥' : section.title }))
+          ].map((item) => (
+            <button
+              ref={(node) => {
+                if (node) pillRefs.current.set(item.id, node);
+                else pillRefs.current.delete(item.id);
+              }}
+              key={item.id}
+              className={active === item.id ? 'pill is-active' : 'pill'}
+              type="button"
+              onClick={() => scrollToSection(item.id)}
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+        <div className="catalog-nav__actions">
           <button
-            key={category.id}
-            className={active === category.id ? 'pill is-active' : 'pill'}
+            className={isSearchOpen ? 'icon-button is-active' : 'icon-button'}
             type="button"
-            onClick={() => setActive(category.id)}
+            onClick={() => setIsSearchOpen((value) => !value)}
+            aria-label={isSearchOpen ? 'Закрыть поиск' : 'Поиск'}
           >
-            {category.name}
+            {isSearchOpen ? <X /> : <Search />}
           </button>
-        ))}
+          <button className="icon-button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
+            <ShoppingCart />
+            {cartCount > 0 && <span>{cartCount}</span>}
+          </button>
+        </div>
       </div>
-      <section className="catalog-grid">
-        {filtered.map((product) => (
-          <ProductTile
-            key={product.id}
-            product={product}
-            variant="large"
-            onOpen={onOpenProduct}
-            onEdit={onEditProduct}
-            onDelete={onDeleteProduct}
-            onToggle={onToggleProduct}
-            onStockChange={onStockChange}
-            onAdd={isFlowCategory ? flowAction?.onProductAdd : undefined}
+      {isSearchOpen && (
+        <label className="search-field catalog-search">
+          <Search />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Найти блюдо во всём меню"
           />
+          {query && <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск"><X /></button>}
+        </label>
+      )}
+      <div className="catalog-sections">
+        <span
+          className="catalog-start-marker"
+          data-catalog-section="all"
+          ref={(node) => {
+            if (node) sectionRefs.current.set('all', node);
+            else sectionRefs.current.delete('all');
+          }}
+        />
+        {sections.map((section) => (
+          <section
+            className="catalog-section"
+            data-catalog-section={section.id}
+            id={`catalog-section-${section.id}`}
+            key={section.id}
+            ref={(node) => {
+              if (node) sectionRefs.current.set(section.id, node);
+              else sectionRefs.current.delete(section.id);
+            }}
+          >
+            <h2>{section.title}</h2>
+            <div className="catalog-grid">
+              {section.products.map((product) => (
+                <ProductTile
+                  key={`${section.id}-${product.id}`}
+                  product={product}
+                  variant="large"
+                  onOpen={onOpenProduct}
+                  onEdit={onEditProduct}
+                  onDelete={onDeleteProduct}
+                  onToggle={onToggleProduct}
+                  onStockChange={onStockChange}
+                  onAdd={flowAction?.categoryId === section.id ? flowAction.onProductAdd : undefined}
+                />
+              ))}
+            </div>
+          </section>
         ))}
-      </section>
+        {sections.length === 0 && <p className="catalog-empty">По вашему запросу ничего не найдено.</p>}
+      </div>
       {isFlowCategory && flowAction?.selectedId && (
         <button className="flow-continue-bar" type="button" onClick={flowAction.onContinue}>
           Продолжить <ArrowRight />
@@ -6083,23 +6217,18 @@ function AppContent({
           />
 
           {screen === 'home' && (
-            <HomeScreen
+            <CatalogScreen
               restaurant={catalog.restaurant}
               categories={catalog.categories}
               products={catalog.products}
-              onOpenCatalog={(categoryId = 'all') => {
-                setCatalogCategory(categoryId);
-                setScreen('catalog');
-              }}
-              onOpenDrinks={(categoryId = 'all') => {
-                setDrinkCategory(categoryId);
-                setScreen('drinks');
-              }}
+              initialCategory="all"
+              onCart={() => setIsCartOpen(true)}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
               onToggleProduct={toggleProduct}
               onStockChange={updateProductStock}
+              flowAction={activeFlowCategory ? makeFlowAction(activeFlowCategory) : undefined}
             />
           )}
           {screen === 'catalog' && (
@@ -6107,6 +6236,7 @@ function AppContent({
               categories={catalog.categories}
               products={catalog.products}
               initialCategory={catalogCategory}
+              onCart={() => setIsCartOpen(true)}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
