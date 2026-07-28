@@ -49,15 +49,10 @@ type OrderStore = {
   setOrder: (patch: Partial<Omit<OrderStore, 'setOrder'>>) => void;
 };
 
-export const CART_TTL_MS = 5 * 60 * 1000;
-
 const touchCart = () => Date.now();
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const persistedCartIsFresh = (updatedAt: unknown) =>
-  typeof updatedAt === 'number' && Number.isFinite(updatedAt) && Date.now() - updatedAt < CART_TTL_MS;
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -115,9 +110,7 @@ export const useCartStore = create<CartStore>()(
       partialize: (state) => ({ items: state.items, updatedAt: state.updatedAt }),
       merge: (persisted, current) => {
         if (!isRecord(persisted)) return current;
-        const items = Array.isArray(persisted.items) && persistedCartIsFresh(persisted.updatedAt)
-          ? (persisted.items as CartItem[])
-          : [];
+        const items = Array.isArray(persisted.items) ? (persisted.items as CartItem[]) : [];
         return {
           ...current,
           items,

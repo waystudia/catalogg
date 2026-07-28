@@ -449,6 +449,22 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   );
 }
 
+const promoBannerGap = 12;
+
+const getPromoBannerLeft = (track: HTMLDivElement, index: number) => {
+  const banner = track.querySelector<HTMLElement>('.promo-band');
+  if (!banner) return index * track.clientWidth;
+  const centeredInset = (track.clientWidth - banner.offsetWidth) / 2;
+  return index * (banner.offsetWidth + promoBannerGap) - centeredInset;
+};
+
+const getPromoBannerIndex = (track: HTMLDivElement) => {
+  const banner = track.querySelector<HTMLElement>('.promo-band');
+  if (!banner) return Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+  const centeredInset = (track.clientWidth - banner.offsetWidth) / 2;
+  return Math.round((track.scrollLeft + centeredInset) / (banner.offsetWidth + promoBannerGap));
+};
+
 function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -462,7 +478,7 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
     setActiveIndex(0);
     window.requestAnimationFrame(() => {
       const track = trackRef.current;
-      if (track) track.scrollTo({ left: banners.length > 1 ? track.clientWidth : 0 });
+      if (track) track.scrollTo({ left: banners.length > 1 ? getPromoBannerLeft(track, 1) : 0 });
     });
   }, [bannerIds, banners.length]);
 
@@ -471,7 +487,10 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
 
     const timer = window.setInterval(() => {
       const track = trackRef.current;
-      if (track) track.scrollTo({ left: track.scrollLeft + track.clientWidth, behavior: 'smooth' });
+      if (track) {
+        const nextIndex = getPromoBannerIndex(track) + 1;
+        track.scrollTo({ left: getPromoBannerLeft(track, nextIndex), behavior: 'smooth' });
+      }
     }, 5000);
 
     return () => {
@@ -489,14 +508,12 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
         ref={trackRef}
         onScroll={(event) => {
           const track = event.currentTarget;
-          const width = track.clientWidth;
-          if (width <= 0) return;
-          const rawIndex = Math.round(track.scrollLeft / width);
+          const rawIndex = getPromoBannerIndex(track);
           setActiveIndex(banners.length > 1 ? (rawIndex - 1 + banners.length) % banners.length : 0);
           if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
           scrollEndRef.current = window.setTimeout(() => {
-            if (rawIndex === 0) track.scrollTo({ left: banners.length * width });
-            if (rawIndex === banners.length + 1) track.scrollTo({ left: width });
+            if (rawIndex === 0) track.scrollTo({ left: getPromoBannerLeft(track, banners.length) });
+            if (rawIndex === banners.length + 1) track.scrollTo({ left: getPromoBannerLeft(track, 1) });
           }, 140);
         }}
       >
@@ -540,7 +557,7 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
               setActiveIndex(index);
               const track = trackRef.current;
               if (track) track.scrollTo({
-                left: (banners.length > 1 ? index + 1 : index) * track.clientWidth,
+                left: getPromoBannerLeft(track, banners.length > 1 ? index + 1 : index),
                 behavior: 'smooth'
               });
             }}
@@ -847,7 +864,7 @@ function RestaurantCard({
         {categoryNames && <small>{categoryNames}</small>}
         <b>{restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин · от {formatPrice(restaurant.minOrderAmount)}</b>
         {hasDelivery && restaurant.freeDeliveryFrom > 0 && (
-          <em>Бесплатная доставка от {formatPrice(restaurant.freeDeliveryFrom)}</em>
+          <em>Бесплатно от {Math.round(restaurant.freeDeliveryFrom).toLocaleString('ru-RU').replace(/\s/g, '')}р</em>
         )}
       </span>
     </Link>

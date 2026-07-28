@@ -91,7 +91,6 @@ import {
 import { ScannerPage } from '../pages/scanner/ScannerPage';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import {
-  CART_TTL_MS,
   isSauceProduct,
   selectCartCount,
   selectCartTotal,
@@ -1781,10 +1780,10 @@ function CatalogScreen({
   ];
   const isFlowCategory = Boolean(flowAction?.categoryId && realSections.some((section) => section.id === flowAction.categoryId));
   const preparationLabel = deliverySettings?.default_preparation_minutes
-    ? `${Math.max(10, deliverySettings.default_preparation_minutes)}–${Math.min(60, Math.max(10, deliverySettings.default_preparation_minutes) + 20)} мин`
+    ? `${Math.max(10, deliverySettings.default_preparation_minutes)}-${Math.min(60, Math.max(10, deliverySettings.default_preparation_minutes) + 20)} мин`
     : '';
   const freeDeliveryLabel = deliverySettings?.free_delivery_from
-    ? `Бесплатно от ${formatPrice(deliverySettings.free_delivery_from)}`
+    ? `Бесплатно от ${Math.round(deliverySettings.free_delivery_from).toLocaleString('ru-RU').replace(/\s/g, '')}₽`
     : '';
 
   useEffect(() => {
@@ -3468,6 +3467,12 @@ function getAdminOrderLocationLabel(order: RestaurantOrder) {
   );
 }
 
+function getVisibleAdminOrderComment(comment: string) {
+  return comment
+    .replace(/(?:^|\n)\s*Координаты клиента:\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*\(точность\s+\d+(?:\.\d+)?\s*м\))?\s*(?=\n|$)/giu, '\n')
+    .trim();
+}
+
 function getAdminOrderPhoneHref(phone: string) {
   const normalizedPhone = phone.replace(/[^\d+]/g, '');
   return normalizedPhone ? `tel:${normalizedPhone}` : '';
@@ -4014,6 +4019,7 @@ function OrderDetailsPanel({
   const whatsappHref = getAdminOrderWhatsAppHref(order.clientPhone);
   const routeHref = getAdminOrderRouteHref(order);
   const orderAddress = getAdminOrderLocationLabel(order);
+  const visibleComment = getVisibleAdminOrderComment(order.comment);
 
   return (
     <aside className="admin-order-details-panel">
@@ -4030,7 +4036,7 @@ function OrderDetailsPanel({
           <strong>{order.fulfillmentType === 'delivery' ? orderAddress : order.cabinLabel || 'Без адреса'}</strong>
           <small>{new Date(order.createdAt).toLocaleString('ru-RU')}</small>
         </div>
-        {order.comment && <p className="admin-order-comment">{order.comment}</p>}
+        {visibleComment && <p className="admin-order-comment">{visibleComment}</p>}
       </section>
       <section className="admin-section-card admin-customer-card">
         <h2>Данные клиента</h2>
@@ -4046,10 +4052,6 @@ function OrderDetailsPanel({
       <section className="admin-section-card admin-route-card">
         <h2>Адрес доставки</h2>
         <p>{orderAddress}</p>
-        {order.deliveryLat !== null && order.deliveryLng !== null && (
-          <small>{order.deliveryLat.toFixed(7)}, {order.deliveryLng.toFixed(7)}</small>
-        )}
-        {order.clientAccuracyM !== null && <small>Точность геолокации: {order.clientAccuracyM} м</small>}
         {order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null ? (
           <DeliveryTrackingMap
             restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
@@ -4058,9 +4060,7 @@ function OrderDetailsPanel({
               ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
               : null}
           />
-        ) : (
-          <p className="admin-order-route-note">Точная точка доставки или точка ресторана ещё не сохранена.</p>
-        )}
+        ) : null}
         {routeHref ? (
           <a href={routeHref} target="_blank" rel="noreferrer"><MapPin />Построить маршрут</a>
         ) : (
@@ -5825,7 +5825,6 @@ function AppContent({
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
-  const cartUpdatedAt = useCartStore((state) => state.updatedAt);
   const clearCart = useCartStore((state) => state.clear);
   const cartCount = selectCartCount(items);
   const persist = <T,>(action: Promise<T>, onSuccess?: (value: T) => void) => {
@@ -5971,24 +5970,6 @@ function AppContent({
       setShowAfterOrderPanel(false);
     }
   }, [cartCount]);
-
-  useEffect(() => {
-    if (cartCount === 0 || !cartUpdatedAt) return undefined;
-
-    const remainingMs = cartUpdatedAt + CART_TTL_MS - Date.now();
-    if (remainingMs <= 0) {
-      clearCart();
-      toast.info('Корзина очищена: прошло 5 минут.');
-      return undefined;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      clearCart();
-      toast.info('Корзина очищена: прошло 5 минут.');
-    }, remainingMs);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [cartCount, cartUpdatedAt, clearCart]);
 
   useEffect(() => {
     if (routeSection === 'dishes' && isAdmin) {

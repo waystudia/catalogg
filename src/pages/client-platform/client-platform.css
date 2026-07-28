@@ -203,16 +203,19 @@
 
 .promo-carousel {
   display: grid;
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 10px;
+  margin-bottom: 24px;
   overflow: hidden;
 }
 
 .promo-carousel__track {
   display: flex;
   width: 100%;
+  gap: 12px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  padding-inline: 16px;
+  scroll-padding-inline: 16px;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -225,18 +228,18 @@
 .promo-band {
   position: relative;
   display: grid;
-  width: 100%;
-  min-width: 100%;
+  width: calc(100% - 56px);
+  min-width: calc(100% - 56px);
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
-  gap: 16px;
-  min-height: 160px;
+  gap: 8px;
+  min-height: 112px;
   border-radius: 20px;
-  padding: 24px 18px;
+  padding: 16px 18px;
   background: #5b3df4;
   color: #ffffff;
   overflow: hidden;
-  scroll-snap-align: start;
+  scroll-snap-align: center;
   scroll-snap-stop: always;
 }
 
@@ -278,28 +281,29 @@
 
 .promo-band strong {
   max-width: 230px;
-  font-size: 24px;
-  line-height: 1.1;
+  font-size: 21px;
+  line-height: 1.02;
 }
 
 .promo-band span {
-  margin-top: 8px;
+  margin-top: 5px;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .promo-band a {
   display: inline-flex;
   width: fit-content;
-  min-height: 44px;
+  min-height: 34px;
   max-width: 180px;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  padding: 0 22px;
+  padding: 0 18px;
   background: #5b3fff;
   color: #ffffff;
+  font-size: 14px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -437,9 +441,8 @@
 .restaurant-card {
   display: grid;
   flex: 0 0 clamp(142px, 43vw, 190px);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   min-width: 0;
-  min-height: 232px;
   overflow: hidden;
   scroll-snap-align: start;
 }
@@ -448,7 +451,7 @@
   position: relative;
   display: block;
   overflow: hidden;
-  aspect-ratio: 16 / 10;
+  height: clamp(132px, 43vw, 156px);
   background: #f1f5f9;
 }
 
@@ -480,9 +483,9 @@
   display: grid;
   grid-template-rows: repeat(4, auto);
   align-content: start;
-  gap: 5px;
+  gap: 4px;
   min-height: 0;
-  padding: 10px 10px 12px;
+  padding: 8px 10px 9px;
   overflow: hidden;
 }
 
