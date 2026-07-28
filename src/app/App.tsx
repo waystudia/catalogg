@@ -41,6 +41,7 @@ import {
   Sandwich,
   Search,
   Settings,
+  Share2,
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
@@ -945,7 +946,7 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
             <SafeImage
               src={images[activeIndex] ?? product.image_url}
               alt={product.title}
-              style={{ transform: `scale(${viewerScale})` }}
+              style={{ filter: 'var(--dish-photo-filter, none)', transform: `scale(${viewerScale})` }}
               draggable={false}
             />
           </div>
@@ -970,6 +971,7 @@ function TopBar({
   onBack,
   onPlatformBack,
   onSearch,
+  onShare,
   onCart,
   onAdmin,
   logoUrl,
@@ -983,6 +985,7 @@ function TopBar({
   onBack: () => void;
   onPlatformBack?: () => void;
   onSearch?: () => void;
+  onShare?: () => void;
   onCart: () => void;
   onAdmin?: () => void;
   logoUrl?: string;
@@ -1022,6 +1025,11 @@ function TopBar({
           <button className="icon-button top-bar__button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
             <ShoppingCart />
             {count > 0 && <span>{count}</span>}
+          </button>
+        )}
+        {onShare && (
+          <button className="icon-button top-bar__button" type="button" onClick={onShare} aria-label="Поделиться">
+            <Share2 />
           </button>
         )}
       </div>
@@ -1615,62 +1623,66 @@ function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
   ).slice(0, 3) as string[];
   const imagesKey = images.join('|');
   const [activeIndex, setActiveIndex] = useState(0);
-  const touchStartX = useRef<number | null>(null);
+  const [interactionVersion, setInteractionVersion] = useState(0);
+  const pointerStartX = useRef<number | null>(null);
+  const autoDirection = useRef<1 | -1>(1);
 
   useEffect(() => {
     setActiveIndex(0);
+    autoDirection.current = 1;
   }, [restaurant.id, imagesKey]);
 
   useEffect(() => {
     if (images.length < 2) return undefined;
-    const intervalId = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % images.length);
+    const timeoutId = window.setTimeout(() => {
+      setActiveIndex((current) => {
+        if (current >= images.length - 1) autoDirection.current = -1;
+        if (current <= 0) autoDirection.current = 1;
+        return current + autoDirection.current;
+      });
     }, 4_500);
-    return () => window.clearInterval(intervalId);
-  }, [images.length]);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeIndex, images.length, interactionVersion]);
 
+  const restartAutoPlay = () => setInteractionVersion((value) => value + 1);
   const finishSwipe = (clientX: number) => {
-    const startX = touchStartX.current;
-    touchStartX.current = null;
-    if (startX === null || Math.abs(clientX - startX) < 36 || images.length < 2) return;
-    setActiveIndex((current) =>
-      clientX < startX ? (current + 1) % images.length : (current - 1 + images.length) % images.length
-    );
+    const startX = pointerStartX.current;
+    pointerStartX.current = null;
+    restartAutoPlay();
+    if (startX === null || Math.abs(clientX - startX) < 28 || images.length < 2) return;
+    const direction = clientX < startX ? 1 : -1;
+    autoDirection.current = direction;
+    setActiveIndex((current) => Math.max(0, Math.min(images.length - 1, current + direction)));
   };
 
   return (
     <section
       className="restaurant-menu-hero"
       aria-label={`Обложки ресторана ${restaurant.name}`}
-      onTouchStart={(event) => {
-        touchStartX.current = event.touches[0]?.clientX ?? null;
+      onPointerDown={(event) => {
+        pointerStartX.current = event.clientX;
+        restartAutoPlay();
       }}
-      onTouchEnd={(event) => finishSwipe(event.changedTouches[0]?.clientX ?? 0)}
+      onPointerUp={(event) => finishSwipe(event.clientX)}
+      onPointerCancel={() => {
+        pointerStartX.current = null;
+        restartAutoPlay();
+      }}
     >
       {images.length > 0 ? (
         <div
           className="restaurant-menu-hero__track"
+          style={{ '--cover-index': activeIndex } as CSSProperties}
         >
-          {images.map((image, index) => {
-            const previousIndex = (activeIndex - 1 + images.length) % images.length;
-            const nextIndex = (activeIndex + 1) % images.length;
-            const positionClass = index === activeIndex
-              ? 'is-active'
-              : index === nextIndex
-                ? 'is-next'
-                : index === previousIndex
-                  ? 'is-previous'
-                  : '';
-            return (
+          {images.map((image, index) => (
               <SafeImage
-                className={positionClass}
+                className={index === activeIndex ? 'is-active' : ''}
                 src={image}
                 alt={`Обложка ${index + 1}`}
                 key={`${image}-${index}`}
                 draggable={false}
               />
-            );
-          })}
+          ))}
         </div>
       ) : (
         <SafeImage src="" alt="Обложка ресторана" />
@@ -1682,7 +1694,10 @@ function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
               className={index === activeIndex ? 'is-active' : ''}
               type="button"
               key={`${image}-dot`}
-              onClick={() => setActiveIndex(index)}
+              onClick={() => {
+                setActiveIndex(index);
+                restartAutoPlay();
+              }}
               aria-label={`Показать обложку ${index + 1}`}
             />
           ))}
@@ -1699,6 +1714,8 @@ function CatalogScreen({
   deliverySettings,
   initialCategory,
   onCart,
+  onShare,
+  onBack,
   onOpenProduct,
   onEditProduct,
   onDeleteProduct,
@@ -1712,6 +1729,8 @@ function CatalogScreen({
   deliverySettings?: RestaurantDeliverySettings | null;
   initialCategory: string;
   onCart: () => void;
+  onShare: () => void;
+  onBack: () => void;
   onOpenProduct: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
@@ -1722,12 +1741,14 @@ function CatalogScreen({
   const [active, setActive] = useState(initialCategory);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isNavStuck, setIsNavStuck] = useState(false);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const cartItems = useCartStore((state) => state.items);
   const cartCount = selectCartCount(cartItems);
   const sectionRefs = useRef(new Map<string, HTMLElement>());
   const pillRefs = useRef(new Map<string, HTMLButtonElement>());
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
+  const navSentinelRef = useRef<HTMLSpanElement | null>(null);
   const initialScrollDoneRef = useRef(false);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
   const normalizedQuery = query.trim().toLocaleLowerCase('ru');
@@ -1759,14 +1780,11 @@ function CatalogScreen({
     ...realSections
   ];
   const isFlowCategory = Boolean(flowAction?.categoryId && realSections.some((section) => section.id === flowAction.categoryId));
-  const scheduleLabel = deliverySettings?.delivery_hours_start && deliverySettings.delivery_hours_end
-    ? `${deliverySettings.delivery_hours_start} - ${deliverySettings.delivery_hours_end}`
-    : '';
   const preparationLabel = deliverySettings?.default_preparation_minutes
-    ? `${deliverySettings.default_preparation_minutes} мин`
+    ? `${Math.max(10, deliverySettings.default_preparation_minutes)}–${Math.min(60, Math.max(10, deliverySettings.default_preparation_minutes) + 20)} мин`
     : '';
   const freeDeliveryLabel = deliverySettings?.free_delivery_from
-    ? `Бесплатная доставка от ${formatPrice(deliverySettings.free_delivery_from)}`
+    ? `Бесплатно от ${formatPrice(deliverySettings.free_delivery_from)}`
     : '';
 
   useEffect(() => {
@@ -1812,6 +1830,17 @@ function CatalogScreen({
     }
   }, [active]);
 
+  useEffect(() => {
+    const sentinel = navSentinelRef.current;
+    if (!sentinel) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNavStuck(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
   const scrollToSection = (id: string) => {
     setActive(id);
     const target = sectionRefs.current.get(id);
@@ -1825,22 +1854,48 @@ function CatalogScreen({
           <RestaurantCoverCarousel restaurant={restaurant} />
           <div className="restaurant-menu-overview">
             <section className="restaurant-menu-identity">
-              {restaurant.logo_url && <SafeImage src={restaurant.logo_url} alt="" />}
-              <h1>{restaurant.name}</h1>
-              {restaurant.subtitle && <p>{restaurant.subtitle}</p>}
+              {restaurant.logo_url
+                ? <SafeImage src={restaurant.logo_url} alt={`Логотип ${restaurant.name}`} />
+                : <span className="restaurant-menu-identity__logo" aria-hidden="true"><Store /></span>}
+              <div>
+                <h1>{restaurant.name}</h1>
+                {restaurant.subtitle && <p>{restaurant.subtitle}</p>}
+              </div>
             </section>
-            {(scheduleLabel || preparationLabel || restaurant.address || freeDeliveryLabel) && (
-              <section className="restaurant-menu-info">
-                {scheduleLabel && <div><Clock /><span><strong>График работы</strong><small>{scheduleLabel}</small></span></div>}
-                {preparationLabel && <div><Timer /><span><strong>Время приготовления</strong><small>{preparationLabel}</small></span></div>}
-                {restaurant.address && <div><MapPin /><span><strong>Адрес</strong><small>{restaurant.address}</small></span></div>}
-                {freeDeliveryLabel && <div><Truck /><span><strong>Доставка</strong><small>{freeDeliveryLabel}</small></span></div>}
+            {(preparationLabel || freeDeliveryLabel) && (
+              <section className="restaurant-menu-highlights" aria-label="Информация о ресторане">
+                <span><Star /> <strong>5.0</strong></span>
+                {preparationLabel && <span title={`Готовка ${preparationLabel}`}><Timer /> <strong>{preparationLabel}</strong></span>}
+                {freeDeliveryLabel && <span title={`Бесплатная доставка ${freeDeliveryLabel}`}><Truck /> <strong>{freeDeliveryLabel}</strong></span>}
               </section>
             )}
           </div>
         </>
       )}
-      <div className="catalog-nav">
+      <span className="catalog-nav-sentinel" ref={navSentinelRef} aria-hidden="true" />
+      <div className={isNavStuck ? 'catalog-nav is-stuck' : 'catalog-nav'}>
+        <div className="catalog-nav__toolbar">
+          <button className="icon-button" type="button" onClick={onBack} aria-label="Назад">
+            <ArrowLeft />
+          </button>
+          <div className="catalog-nav__actions">
+            <button
+              className={isSearchOpen ? 'icon-button is-active' : 'icon-button'}
+              type="button"
+              onClick={() => setIsSearchOpen((value) => !value)}
+              aria-label={isSearchOpen ? 'Закрыть поиск' : 'Поиск'}
+            >
+              {isSearchOpen ? <X /> : <Search />}
+            </button>
+            <button className="icon-button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
+              <ShoppingCart />
+              {cartCount > 0 && <span>{cartCount}</span>}
+            </button>
+            <button className="icon-button" type="button" onClick={onShare} aria-label="Поделиться">
+              <Share2 />
+            </button>
+          </div>
+        </div>
         <div className="catalog-nav__rail pills" ref={categoryRailRef}>
           {[
             { id: 'all', title: 'Все' },
@@ -1859,20 +1914,6 @@ function CatalogScreen({
               {item.title}
             </button>
           ))}
-        </div>
-        <div className="catalog-nav__actions">
-          <button
-            className={isSearchOpen ? 'icon-button is-active' : 'icon-button'}
-            type="button"
-            onClick={() => setIsSearchOpen((value) => !value)}
-            aria-label={isSearchOpen ? 'Закрыть поиск' : 'Поиск'}
-          >
-            {isSearchOpen ? <X /> : <Search />}
-          </button>
-          <button className="icon-button cart-icon" type="button" onClick={onCart} aria-label="Корзина">
-            <ShoppingCart />
-            {cartCount > 0 && <span>{cartCount}</span>}
-          </button>
         </div>
       </div>
       {isSearchOpen && (
@@ -2043,6 +2084,13 @@ function ProductScreen({
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
+  const hasFactValue = (value: string) => {
+    const normalized = value.trim().toLocaleLowerCase('ru');
+    return Boolean(normalized) && !/^0(?:[.,]0+)?(?:\s*[а-яa-z.]+)?$/i.test(normalized);
+  };
+  const hasIngredients = hasFactValue(product.ingredients);
+  const hasWeight = hasFactValue(product.weight);
+  const hasServing = hasFactValue(product.serving);
 
   const addProduct = () => {
     add(product);
@@ -2067,20 +2115,20 @@ function ProductScreen({
       </div>
       <p className="product-description">{product.description}</p>
 
-      <dl className="facts">
-        <div>
+      {(hasIngredients || hasWeight || hasServing) && <dl className="facts">
+        {hasIngredients && <div>
           <dt>Состав</dt>
           <dd>{product.ingredients}</dd>
-        </div>
-        <div>
+        </div>}
+        {hasWeight && <div>
           <dt>Вес</dt>
           <dd>{product.weight}</dd>
-        </div>
-        <div>
+        </div>}
+        {hasServing && <div>
           <dt>Подаётся</dt>
           <dd>{product.serving}</dd>
-        </div>
-      </dl>
+        </div>}
+      </dl>}
 
       <div className="quantity">
         <button
@@ -5699,6 +5747,29 @@ function AppContent({
   routeOrderId?: string;
 }) {
   const navigate = useNavigate();
+  const shareCurrentPage = useCallback(async () => {
+    const url = window.location.href;
+    const title = document.title || 'WayCatalog';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success('Ссылка скопирована');
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') {
+        toast.error('Не удалось поделиться ссылкой');
+      }
+    }
+  }, []);
+  const openCatalogSearch = useCallback(() => {
+    const searchButton = document.querySelector<HTMLButtonElement>(
+      '.catalog-nav__actions button[aria-label="Поиск"], .catalog-nav__actions button[aria-label="Закрыть поиск"]'
+    );
+    searchButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (searchButton?.getAttribute('aria-label') === 'Поиск') searchButton.click();
+  }, []);
   const catalogQueryKey = useMemo(() => ['catalog', catalogSlug] as const, [catalogSlug]);
   const cachedCatalog = useMemo(() => readCatalogCache(catalogSlug), [catalogSlug]);
   const { data, isLoading, isPlaceholderData } = useQuery({
@@ -5728,6 +5799,7 @@ function AppContent({
   const setAdmin = useAuthStore((state) => state.setAdmin);
   const setAdminEditor = useAdminStore((state) => state.setEditor);
   const [screen, setScreen] = useState<Screen>('home');
+  const catalogScrollPositionRef = useRef(0);
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [drinkCategory, setDrinkCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -6034,8 +6106,19 @@ function AppContent({
   }
 
   const openProduct = (product: Product) => {
+    catalogScrollPositionRef.current = window.scrollY;
     setSelectedProduct(product);
     setScreen('product');
+  };
+
+  const returnFromProduct = () => {
+    setSelectedProduct(null);
+    setScreen('home');
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: catalogScrollPositionRef.current, behavior: 'auto' });
+      });
+    });
   };
 
   const editProduct = (product: Product) => {
@@ -6581,16 +6664,22 @@ function AppContent({
                 openRestaurantAdminPath('admin-home');
                 return;
               }
+              if (screen === 'product') {
+                returnFromProduct();
+                return;
+              }
               setScreen('home');
             }}
             onPlatformBack={() => navigate('/')}
+            onSearch={screen === 'home' ? openCatalogSearch : undefined}
+            onShare={screen === 'home' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
             logoUrl={catalog.restaurant.logo_url}
             restaurantName={catalog.restaurant.name}
             restaurantSubtitle={catalog.restaurant.subtitle}
             showBrand={screen !== 'home'}
-            showCart={screen !== 'home'}
+            showCart
           />
 
           {screen === 'home' && (
@@ -6601,6 +6690,8 @@ function AppContent({
               deliverySettings={deliverySettings}
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
+              onShare={shareCurrentPage}
+              onBack={() => navigate('/')}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -6616,6 +6707,8 @@ function AppContent({
               deliverySettings={deliverySettings}
               initialCategory={catalogCategory}
               onCart={() => setIsCartOpen(true)}
+              onShare={shareCurrentPage}
+              onBack={() => setScreen('home')}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
