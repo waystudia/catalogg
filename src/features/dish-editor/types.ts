@@ -10,6 +10,7 @@ export type Dish = {
   ingredients: string;
   weight: number;
   dailyQuantity: number;
+  unlimitedQuantity: boolean;
   serveWith: string;
   images: string[];
   pairIds: string[];
@@ -31,8 +32,9 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     description: product?.description ?? '',
     ingredients: product?.ingredients ?? '',
     weight: Number.parseInt(product?.weight ?? '0', 10) || 0,
-    dailyQuantity: product?.stock_count ?? 10,
-    serveWith: product?.serving ?? 'с луком',
+    dailyQuantity: product?.daily_stock ?? product?.stock_count ?? 0,
+    unlimitedQuantity: product?.is_unlimited ?? product === null,
+    serveWith: product?.serving ?? '',
     images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
     pairIds: product?.pair_ids ?? []
   };
@@ -40,6 +42,7 @@ export function productToDish(product: Product | null, fallbackCategory: string)
 
 export function dishToProduct(dish: Dish, current: Product | null): Product {
   return {
+    ...current,
     id: dish.id,
     title: dish.name,
     price: dish.price,
@@ -54,6 +57,9 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     is_new: dish.tags.includes('Новинка'),
     is_hit: dish.tags.includes('Хит'),
     stock_count: dish.dailyQuantity,
+    daily_stock: dish.dailyQuantity,
+    current_stock: dish.dailyQuantity,
+    is_unlimited: dish.unlimitedQuantity,
     category_id: dish.categories[0],
     category_ids: dish.categories,
     drink_type: current?.drink_type,

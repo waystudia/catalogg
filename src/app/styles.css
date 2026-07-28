@@ -3939,6 +3939,104 @@ a {
   }
 }
 
+.catalog-loading-screen {
+  position: fixed;
+  z-index: 99999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: #f7f8fc;
+  color: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.catalog-loading-screen__content {
+  display: grid;
+  justify-items: center;
+  width: min(100%, 320px);
+  text-align: center;
+}
+
+.catalog-loading-screen__content img {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 16px;
+}
+
+.catalog-loading-screen__content strong {
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.catalog-loading-screen__content > span {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 15px;
+}
+
+.catalog-loading-screen__track {
+  width: 100%;
+  height: 8px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e4e7ec;
+}
+
+.catalog-loading-screen__track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #5b3df5;
+  transition: width 120ms ease-out;
+}
+
+.catalog-loading-screen__content b {
+  margin-top: 10px;
+  color: #5b3df5;
+  font-size: 14px;
+}
+
+@media (max-width: 340px) {
+  .product-tile__body {
+    padding: 8px;
+  }
+
+  .product-tile__bottom {
+    gap: 2px;
+  }
+
+  .product-tile__bottom > strong {
+    font-size: 13px;
+  }
+
+  .product-tile__stepper.has-quantity {
+    min-width: 68px;
+    gap: 2px;
+  }
+
+  .product-tile__stepper-button,
+  .product-tile .add-button {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+  }
+
+  .product-tile__stepper-button svg,
+  .product-tile .add-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .product-tile__stepper-count {
+    min-width: 12px;
+    height: 24px;
+    font-size: 11px;
+  }
+}
+
 .mode-grid,
 .cabin-grid,
 .booking-fields {

@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { HashRouter, Route, Routes } from 'react-router-dom';
+import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import {
   CatalogAdminRoute,
   PwaHomeRoute,
@@ -88,7 +89,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <HashRouter>
       <PwaResumeTracker />
-      <Suspense fallback={<main className="platform-state platform-state--full">Загрузка...</main>}>
+      <Suspense fallback={<CatalogLoadingScreen />}>
         <Routes>
           <Route path="/" element={<PwaHomeRoute />} />
           <Route path="/city" element={<ClientPlatformApp />} />

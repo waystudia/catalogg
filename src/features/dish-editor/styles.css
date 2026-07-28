@@ -420,6 +420,32 @@
   animation: dish-pulse 1.15s infinite ease-in-out;
 }
 
+.dish-unlimited-toggle {
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dish-unlimited-toggle > input {
+  width: 20px !important;
+  height: 20px;
+  min-height: 20px !important;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.dish-unlimited-toggle > span {
+  display: grid !important;
+  gap: 2px !important;
+}
+
+.dish-unlimited-toggle small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 @keyframes dish-pulse {
   0% {
     opacity: 0.5;

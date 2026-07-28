@@ -722,22 +722,6 @@ function DriverHomeScreen({
       {error && <p className="driver-error">{error}</p>}
       {availabilityError && <p className="driver-error">{availabilityError}</p>}
 
-      {availableDeliveries.length > 0 && (
-        <>
-          <DriverSectionTitle title="Ближайшие заказы" to="/driver/orders" />
-          <div className="driver-incoming-list">
-            {availableDeliveries.slice(0, 3).map((offer) => (
-              <DriverIncomingOrderPanel
-                driverId={profile.id}
-                offer={offer}
-                onRefresh={onRefresh}
-                key={offer.deliveryId}
-              />
-            ))}
-          </div>
-        </>
-      )}
-
       <section className="driver-earnings-card">
         <span>Сегодня</span>
         <strong>{formatPrice(snapshot.stats.earningsToday)}</strong>
@@ -750,6 +734,20 @@ function DriverHomeScreen({
         <DriverStat label="Отменено" value={String(snapshot.stats.canceledToday)} />
         <DriverStat label="Рейтинг" value={profile.rating.toFixed(1)} />
       </div>
+
+      <DriverSectionTitle title="Ближайшие заказы" to="/driver/orders" />
+      {availableDeliveries.length > 0 && (
+        <div className="driver-incoming-list">
+          {availableDeliveries.slice(0, 3).map((offer) => (
+            <DriverIncomingOrderPanel
+              driverId={profile.id}
+              offer={offer}
+              onRefresh={onRefresh}
+              key={offer.deliveryId}
+            />
+          ))}
+        </div>
+      )}
 
       <DriverSectionTitle title="Текущий заказ" to="/driver/active" />
       {activeDelivery ? (

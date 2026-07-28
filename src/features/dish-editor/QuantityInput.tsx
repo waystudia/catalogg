@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 function NumericInput({
   value,
   step,
+  disabled = false,
   onChange
 }: {
   value: number;
   step?: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   const [text, setText] = useState(String(value));
@@ -21,6 +23,7 @@ function NumericInput({
   return (
     <input
       inputMode="numeric"
+      disabled={disabled}
       min={0}
       step={step}
       type="number"
@@ -44,13 +47,17 @@ function NumericInput({
 export function QuantityInput({
   weight,
   dailyQuantity,
+  unlimitedQuantity,
   onWeightChange,
-  onQuantityChange
+  onQuantityChange,
+  onUnlimitedChange
 }: {
   weight: number;
   dailyQuantity: number;
+  unlimitedQuantity: boolean;
   onWeightChange: (weight: number) => void;
   onQuantityChange: (quantity: number) => void;
+  onUnlimitedChange: (unlimited: boolean) => void;
 }) {
   return (
     <section className="dish-section">
@@ -66,12 +73,28 @@ export function QuantityInput({
         <label>
           Остаток на сегодня
           <span>
-            <NumericInput value={dailyQuantity} step={1} onChange={onQuantityChange} />
+            <NumericInput
+              value={dailyQuantity}
+              step={1}
+              disabled={unlimitedQuantity}
+              onChange={onQuantityChange}
+            />
             шт
           </span>
         </label>
       </div>
-      {dailyQuantity === 0 && <p className="dish-stock-warning">Закончилось</p>}
+      <label className="dish-unlimited-toggle">
+        <input
+          type="checkbox"
+          checked={unlimitedQuantity}
+          onChange={(event) => onUnlimitedChange(event.target.checked)}
+        />
+        <span>
+          <strong>Без ограничений</strong>
+          <small>Блюдо всегда доступно для заказа</small>
+        </span>
+      </label>
+      {!unlimitedQuantity && dailyQuantity === 0 && <p className="dish-stock-warning">Закончилось</p>}
     </section>
   );
 }

@@ -36,4 +36,23 @@ describe('dish photo conversion', () => {
     assert.equal(next.image_url, 'cover.jpg');
     assert.deepEqual(next.image_urls, ['cover.jpg', 'side.jpg']);
   });
+
+  it('keeps daily stock separate and makes new dishes unlimited by default', () => {
+    const existing = {
+      ...product,
+      daily_stock: 12,
+      current_stock: 7,
+      is_unlimited: false
+    };
+    const dish = productToDish(existing, 'food');
+
+    assert.equal(dish.dailyQuantity, 12);
+    assert.equal(dish.unlimitedQuantity, false);
+    assert.equal(productToDish(null, 'food').unlimitedQuantity, true);
+
+    const next = dishToProduct({ ...dish, dailyQuantity: 9 }, existing);
+    assert.equal(next.daily_stock, 9);
+    assert.equal(next.current_stock, 9);
+    assert.equal(next.is_unlimited, false);
+  });
 });

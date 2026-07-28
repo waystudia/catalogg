@@ -79,6 +79,7 @@ import {
   ThemeSettingsScreen
 } from '../features/design-settings';
 import { ScannerPage } from '../pages/scanner/ScannerPage';
+import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import {
   CART_TTL_MS,
   isSauceProduct,
@@ -312,6 +313,35 @@ const applyStockValues = (product: Product, dailyStock: number, currentStock = d
   stock_count: currentStock,
   is_unlimited: product.is_unlimited ?? false
 });
+
+const playCartSound = (direction: 'add' | 'remove') => {
+  try {
+    const AudioContextClass = window.AudioContext ??
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const audioContext = new AudioContextClass();
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const now = audioContext.currentTime;
+
+    oscillator.type = direction === 'add' ? 'sine' : 'triangle';
+    oscillator.frequency.setValueAtTime(direction === 'add' ? 520 : 360, now);
+    oscillator.frequency.exponentialRampToValueAtTime(direction === 'add' ? 780 : 190, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(direction === 'add' ? 0.09 : 0.07, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.16);
+    oscillator.addEventListener('ended', () => void audioContext.close(), { once: true });
+  } catch {
+    // Cart updates must remain usable when browser audio is unavailable.
+  }
+};
+
+const playAddSound = () => playCartSound('add');
 
 const getProductCategoryIds = (product: Product) =>
   product.category_ids?.length ? product.category_ids : [product.category_id];
@@ -967,33 +997,6 @@ function ProductTile({
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
 
-  const playAddSound = () => {
-    try {
-      const AudioContextClass = window.AudioContext ??
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-
-      const audioContext = new AudioContextClass();
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      const now = audioContext.currentTime;
-
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(520, now);
-      oscillator.frequency.exponentialRampToValueAtTime(780, now + 0.1);
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.09, now + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
-      oscillator.connect(gain);
-      gain.connect(audioContext.destination);
-      oscillator.start(now);
-      oscillator.stop(now + 0.14);
-      oscillator.addEventListener('ended', () => void audioContext.close(), { once: true });
-    } catch {
-      // Sound is an enhancement; cart changes must still work when audio is blocked.
-    }
-  };
-
   const playAddAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
     const tile = button.closest('.product-tile') as HTMLElement | null;
@@ -1107,7 +1110,10 @@ function ProductTile({
                   className="product-tile__stepper-button product-tile__stepper-button--minus"
                   type="button"
                   aria-label={`Уменьшить ${product.title}`}
-                  onClick={() => decrement(product.id)}
+                  onClick={() => {
+                    decrement(product.id);
+                    playCartSound('remove');
+                  }}
                 >
                   <Minus />
                 </button>
@@ -1303,7 +1309,14 @@ function CartSheet({
                     <div className="cart-item-card__bottom">
                       <strong>{formatPrice(item.product.price)}</strong>
                       <div className="cart-quantity" aria-label={`Количество ${item.product.title}`}>
-                        <button type="button" onClick={() => decrement(item.product.id)} aria-label="Уменьшить">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            decrement(item.product.id);
+                            playCartSound('remove');
+                          }}
+                          aria-label="Уменьшить"
+                        >
                           <Minus />
                         </button>
                         <span>{item.quantity}</span>
@@ -1368,7 +1381,7 @@ function HomeScreen({
   onToggleProduct: (productId: string, key: ProductFlag) => void;
   onStockChange: (productId: string, stockCount: number) => void;
 }) {
-  const [active, setActive] = useState('chechen');
+  const [active, setActive] = useState('all');
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
   const featuredCategories = categories.filter((category) => category.showOnHome !== false);
@@ -1396,7 +1409,6 @@ function HomeScreen({
           }
           onOpenCatalog(id);
         }}
-        includeAll={false}
       />
 
       <section className="category-grid">
@@ -1694,7 +1706,14 @@ function ProductScreen({
       </dl>
 
       <div className="quantity">
-        <button type="button" onClick={() => decrement(product.id)} aria-label="Уменьшить">
+        <button
+          type="button"
+          onClick={() => {
+            decrement(product.id);
+            playCartSound('remove');
+          }}
+          aria-label="Уменьшить"
+        >
           <Minus />
         </button>
         <strong>{quantity}</strong>
@@ -2695,7 +2714,14 @@ function UpsellReminder({
               <div className="flow-product-card__stepper">
                 {selectedId === product.id && (
                   <>
-                    <button type="button" onClick={() => decrement(product.id)} aria-label={`Уменьшить ${product.title}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        decrement(product.id);
+                        playCartSound('remove');
+                      }}
+                      aria-label={`Уменьшить ${product.title}`}
+                    >
                       <Minus />
                     </button>
                     <span>1</span>
@@ -5493,12 +5519,8 @@ function AppContent({
     return 'Настройки';
   }, [cabinEditor.mode, categoryEditor.mode, screen, settingsCatalogTab]);
 
-  if (catalogSlug !== 'mangal' && isLoading && !data) {
-    return (
-      <div className="app-shell app-shell--loading" style={applyTheme(themeStore)}>
-        <Toaster richColors position="top-center" />
-      </div>
-    );
+  if (isLoading && !data) {
+    return <CatalogLoadingScreen />;
   }
 
   const openProduct = (product: Product) => {

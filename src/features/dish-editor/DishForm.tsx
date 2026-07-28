@@ -127,8 +127,10 @@ export function DishForm({
       <QuantityInput
         weight={dish.weight}
         dailyQuantity={dish.dailyQuantity}
+        unlimitedQuantity={dish.unlimitedQuantity}
         onWeightChange={(weight) => onChange({ weight })}
         onQuantityChange={(dailyQuantity) => onChange({ dailyQuantity })}
+        onUnlimitedChange={(unlimitedQuantity) => onChange({ unlimitedQuantity })}
       />
 
       <section className="dish-section">
