@@ -154,13 +154,18 @@ type ProfileSignupRow = {
 
 type PlatformBannerRow = {
   id: string;
+  name?: string | null;
   title: string;
   subtitle: string;
   kind: PlatformBannerAdmin['kind'];
   image_url: string;
   background_color: string;
   link_url: string;
+  page_id?: string | null;
+  platform_content_pages?: { slug?: string | null } | Array<{ slug?: string | null }> | null;
   action_label: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
   sort_order: number;
   is_active: boolean;
 };
@@ -247,13 +252,19 @@ const mapProfileSignup = (row: ProfileSignupRow): ClientSignup => ({
 
 const mapPlatformBanner = (row: PlatformBannerRow): PlatformBannerAdmin => ({
   id: row.id,
+  name: row.name?.trim() || row.title,
   title: row.title,
   subtitle: row.subtitle,
   kind: row.kind,
   imageUrl: row.image_url,
   backgroundColor: row.background_color || '#5b3df4',
-  linkUrl: row.link_url,
+  linkUrl: firstRelation(row.platform_content_pages)?.slug
+    ? `/pages/${firstRelation(row.platform_content_pages)?.slug}`
+    : row.link_url,
+  pageId: row.page_id ?? null,
   actionLabel: row.action_label || 'Заказать',
+  startsAt: row.starts_at ?? null,
+  endsAt: row.ends_at ?? null,
   sortOrder: row.sort_order,
   isActive: row.is_active
 });
@@ -680,57 +691,126 @@ export async function deleteClientSignup(id: string) {
 }
 
 export async function getPlatformGlobalSettings(): Promise<PlatformGlobalSettings> {
-  if (!supabase) return { supportWhatsapp: '79990000000' };
+  const defaults: PlatformGlobalSettings = {
+    supportWhatsapp: '79990000000',
+    supportPhone: '',
+    supportEmail: '',
+    supportTelegram: '',
+    supportHours: '',
+    supportHint: ''
+  };
+  if (!supabase) return defaults;
 
-  const { data, error } = await supabase
+  const modernResult = await supabase
     .from('platform_settings')
-    .select('support_whatsapp')
+    .select('support_whatsapp, support_phone, support_email, support_telegram, support_hours, support_hint')
     .eq('id', 'global')
     .maybeSingle();
-  if (error) throw error;
-  return { supportWhatsapp: (data as { support_whatsapp?: string } | null)?.support_whatsapp ?? '' };
+  const legacyResult = modernResult.error
+    ? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()
+    : null;
+  if (modernResult.error && legacyResult?.error) throw legacyResult.error;
+  const data = (modernResult.data ?? legacyResult?.data) as {
+    support_whatsapp?: string;
+    support_phone?: string;
+    support_email?: string;
+    support_telegram?: string;
+    support_hours?: string;
+    support_hint?: string;
+  } | null;
+  return {
+    supportWhatsapp: data?.support_whatsapp ?? '',
+    supportPhone: data?.support_phone ?? '',
+    supportEmail: data?.support_email ?? '',
+    supportTelegram: data?.support_telegram ?? '',
+    supportHours: data?.support_hours ?? '',
+    supportHint: data?.support_hint ?? ''
+  };
 }
 
 export async function savePlatformGlobalSettings(settings: PlatformGlobalSettings) {
   if (!supabase) return;
-  const { error } = await supabase.from('platform_settings').upsert({
+  const payload = {
+    id: 'global',
+    support_whatsapp: settings.supportWhatsapp,
+    support_phone: settings.supportPhone,
+    support_email: settings.supportEmail,
+    support_telegram: settings.supportTelegram,
+    support_hours: settings.supportHours,
+    support_hint: settings.supportHint,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await supabase.from('platform_settings').upsert(payload);
+  if (!error) return;
+  const { error: legacyError } = await supabase.from('platform_settings').upsert({
     id: 'global',
     support_whatsapp: settings.supportWhatsapp,
     updated_at: new Date().toISOString()
   });
-  if (error) throw error;
+  if (legacyError) throw legacyError;
 }
 
 export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
   if (!supabase) {
     return [{
       id: 'demo-banner',
+      name: 'Конкурс от WayCatalog',
       title: 'Конкурс от WayCatalog',
       subtitle: 'Закажи на 1000₽ и выиграй приз',
       kind: 'contest',
       imageUrl: '',
       backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
+      pageId: null,
       actionLabel: 'Подробнее',
+      startsAt: null,
+      endsAt: null,
       sortOrder: 0,
       isActive: true
     }];
   }
 
-  const { data, error } = await supabase
+  const modernResult = await supabase
     .from('platform_banners')
-    .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, sort_order, is_active')
+    .select('id, name, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, starts_at, ends_at, sort_order, is_active, platform_content_pages(slug)')
     .order('sort_order');
-  if (error) throw error;
-  return ((data ?? []) as PlatformBannerRow[]).map(mapPlatformBanner);
+  const legacyResult = modernResult.error
+    ? await supabase
+      .from('platform_banners')
+      .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, sort_order, is_active')
+      .order('sort_order')
+    : null;
+  if (modernResult.error && legacyResult?.error) throw legacyResult.error;
+  return ((modernResult.data ?? legacyResult?.data ?? []) as PlatformBannerRow[]).map(mapPlatformBanner);
 }
 
 export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'> & { id?: string }) {
   if (!supabase) return;
   const payload = {
+    name: banner.name,
     title: banner.title,
     subtitle: banner.subtitle,
     kind: banner.kind,
+    image_url: banner.imageUrl,
+    background_color: banner.backgroundColor,
+    link_url: banner.linkUrl,
+    page_id: banner.pageId,
+    action_label: banner.actionLabel,
+    starts_at: banner.startsAt,
+    ends_at: banner.endsAt,
+    sort_order: banner.sortOrder,
+    is_active: banner.isActive
+  };
+  const modernQuery = banner.id
+    ? supabase.from('platform_banners').update(payload).eq('id', banner.id)
+    : supabase.from('platform_banners').insert(payload);
+  const { error } = await modernQuery;
+  if (!error) return;
+
+  const legacyPayload = {
+    title: banner.title,
+    subtitle: banner.subtitle,
+    kind: banner.kind === 'banner' ? 'promo' : banner.kind,
     image_url: banner.imageUrl,
     background_color: banner.backgroundColor,
     link_url: banner.linkUrl,
@@ -738,11 +818,11 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
     sort_order: banner.sortOrder,
     is_active: banner.isActive
   };
-  const query = banner.id
-    ? supabase.from('platform_banners').update(payload).eq('id', banner.id)
-    : supabase.from('platform_banners').insert(payload);
-  const { error } = await query;
-  if (error) throw error;
+  const legacyQuery = banner.id
+    ? supabase.from('platform_banners').update(legacyPayload).eq('id', banner.id)
+    : supabase.from('platform_banners').insert(legacyPayload);
+  const { error: legacyError } = await legacyQuery;
+  if (legacyError) throw legacyError;
 }
 
 export async function uploadPlatformBannerMedia(file: File): Promise<string> {

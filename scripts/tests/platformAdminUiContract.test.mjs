@@ -26,9 +26,9 @@ test('superadmin dashboard uses the compact six-card dashboard composition', () 
   assert.match(platformAdminSource, /<RestaurantRevenueSummary stats=\{statsQuery\.data\} \/>/);
 });
 
-test('banner media storage is public-read and platform-admin-write only', () => {
+test('banner media storage uses public URLs without public listing and keeps platform-admin writes', () => {
   assert.match(bannerStorageMigration, /'platform-banner-media'/);
-  assert.match(bannerStorageMigration, /for select\s+to public/);
+  assert.doesNotMatch(bannerStorageMigration, /for select\s+to public/);
   assert.match(bannerStorageMigration, /for insert\s+to authenticated/);
   assert.match(bannerStorageMigration, /public\.is_platform_admin\(\)/);
   assert.match(platformAdminSource, /accept="image\/\*,video\/mp4,video\/webm,video\/quicktime"/);

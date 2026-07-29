@@ -2,6 +2,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  ArrowDown,
+  ArrowUp,
   BarChart3,
   BadgePercent,
   BookOpen,
@@ -13,17 +15,25 @@ import {
   CreditCard,
   Database,
   Eye,
+  FileText,
   Filter,
+  GripVertical,
+  Headphones,
   Home,
+  Image as ImageIcon,
   KeyRound,
   LockKeyhole,
   LayoutTemplate,
   LogOut,
   MapPin,
+  Mail,
+  MessageCircle,
   MoreHorizontal,
+  Phone,
   Plus,
   RefreshCcw,
   Search,
+  Save,
   Settings,
   ShieldAlert,
   Store,
@@ -34,9 +44,10 @@ import {
   Upload,
   UserRound,
   Users,
+  WalletCards,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { Toaster, toast } from 'sonner';
 import {
@@ -69,6 +80,12 @@ import {
   savePlatformBillingSettings,
   savePlatformCustomTariff
 } from '../../shared/api/subscriptionsApi';
+import {
+  deletePlatformContentPage,
+  getContentPageClientPath,
+  getPlatformContentPages,
+  savePlatformContentPage
+} from '../../shared/api/platformContentApi';
 import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type {
   PlatformDriver,
@@ -78,8 +95,14 @@ import type {
   PlatformContestTicket,
   PlatformAnalytics,
   PlatformStats,
-  PlatformTemplateOption
+  PlatformTemplateOption,
+  PlatformContentBlock,
+  PlatformContentBlockType,
+  PlatformContentPage,
+  PlatformGlobalSettings,
+  SubscriptionRow
 } from '../../shared/api/platformTypes';
+import { getPlatformContentPath, normalizeContentSlug } from '../../shared/platformContent';
 import { PlatformGeographyPage } from '../../features/platform-admin-geography/PlatformGeographyPage';
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
@@ -174,6 +197,18 @@ const businessTypeLabels: Record<string, string> = {
 };
 
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const formatCount = (value: number, forms: [string, string, string]) => {
+  const lastTwoDigits = value % 100;
+  const lastDigit = value % 10;
+  const form = lastTwoDigits >= 11 && lastTwoDigits <= 14
+    ? forms[2]
+    : lastDigit === 1
+      ? forms[0]
+      : lastDigit >= 2 && lastDigit <= 4
+        ? forms[1]
+        : forms[2];
+  return `${value} ${form}`;
+};
 const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(url.trim());
 
 const parseSettlementsInput = (value: string) =>
@@ -2035,6 +2070,47 @@ const readBillingDraft = (): BillingDraft => {
   }
 };
 
+type SubscriptionView =
+  | 'overview'
+  | 'commissions'
+  | 'limits'
+  | 'custom-tariff'
+  | 'routes'
+  | 'subscriptions'
+  | 'price-requests'
+  | 'payments';
+
+const subscriptionStatusLabel: Record<SubscriptionRow['status'], string> = {
+  trial: 'Пробный',
+  active: 'Успешно',
+  past_due: 'На удержании',
+  expired: 'Истёк',
+  cancelled: 'Отменён'
+};
+
+function PlatformInnerHeader({
+  title,
+  description,
+  onBack,
+  action
+}: {
+  title: string;
+  description: string;
+  onBack: () => void;
+  action?: ReactNode;
+}) {
+  return (
+    <header className="platform-inner-head">
+      <button type="button" onClick={onBack} aria-label="Назад"><ChevronLeft /></button>
+      <span>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </span>
+      {action}
+    </header>
+  );
+}
+
 function SubscriptionsPage() {
   const subscriptionsQuery = useQuery({ queryKey: ['platform-subscriptions'], queryFn: getSubscriptions });
   const billingSettingsQuery = useQuery({ queryKey: ['platform-billing-settings'], queryFn: getPlatformBillingSettings });
@@ -2048,6 +2124,7 @@ function SubscriptionsPage() {
   const [fromSettlement, setFromSettlement] = useState('');
   const [toSettlement, setToSettlement] = useState('');
   const [amount, setAmount] = useState(200);
+  const [view, setView] = useState<SubscriptionView>('overview');
 
   useEffect(() => {
     if (!billingSettingsQuery.data) return;
@@ -2116,8 +2193,156 @@ function SubscriptionsPage() {
     }
   };
 
+  const subscriptions = subscriptionsQuery.data ?? [];
+  const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === 'active');
+  const heldPayments = subscriptions.filter((subscription) => subscription.status === 'past_due');
+  const priceRequests = priceRequestsQuery.data ?? [];
+  const pricingRules = pricingRulesQuery.data ?? [];
+  const activePricingRules = pricingRules.filter((rule) => rule.isActive);
+  const minimumRoutePrice = activePricingRules.length > 0
+    ? Math.min(...activePricingRules.map((rule) => rule.amount))
+    : 0;
+  const monthlyFees = activeSubscriptions.reduce((sum, subscription) => sum + subscription.amount, 0);
+  const warningsCount = heldPayments.length + (driversQuery.data ?? []).filter((driver) =>
+    driver.debt >= billing.driverLimit * (billing.warningPercent / 100)
+  ).length;
+
+  const renderSubscriptions = (items: SubscriptionRow[]) => (
+    <section className="platform-payment-list">
+      {items.map((subscription) => (
+        <article key={subscription.id}>
+          <span className="platform-payment-list__icon"><CreditCard /></span>
+          <span>
+            <strong>Оплата подписки</strong>
+            <small>{subscription.clientName} · {subscription.planCode}</small>
+          </span>
+          <span className="platform-payment-list__amount">
+            <b>{formatMoney(subscription.amount)}</b>
+            <small>{new Date(subscription.paidAt ?? subscription.createdAt).toLocaleDateString('ru-RU')}</small>
+          </span>
+          <em className={`is-${subscription.status}`}>{subscriptionStatusLabel[subscription.status]}</em>
+        </article>
+      ))}
+      {!subscriptionsQuery.isLoading && items.length === 0 && <p className="platform-empty-copy">Операций пока нет</p>}
+    </section>
+  );
+
+  if (view !== 'overview') {
+    const onBack = () => setView('overview');
+    if (view === 'commissions') {
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Комиссии" description="Настройка комиссий для платформы" onBack={onBack} />
+          <form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveBilling(); }}>
+            <label>Комиссия с клиента, ₽<input type="number" min="0" value={billing.clientFee} onChange={(event) => setBilling({ ...billing, clientFee: Number(event.target.value) })} /></label>
+            <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>
+            <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>
+            <button type="submit"><Save />Сохранить</button>
+          </form>
+        </main>
+      );
+    }
+    if (view === 'limits') {
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Лимиты" description="Лимиты задолженности и порог предупреждений" onBack={onBack} />
+          <form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveBilling(); }}>
+            <label>Лимит ресторана, ₽<input type="number" min="0" value={billing.restaurantLimit} onChange={(event) => setBilling({ ...billing, restaurantLimit: Number(event.target.value) })} /></label>
+            <label>Лимит водителя, ₽<input type="number" min="0" value={billing.driverLimit} onChange={(event) => setBilling({ ...billing, driverLimit: Number(event.target.value) })} /></label>
+            <label>Предупредить на, %<input type="number" min="1" max="100" value={billing.warningPercent} onChange={(event) => setBilling({ ...billing, warningPercent: Number(event.target.value) })} /></label>
+            <button type="submit"><Save />Сохранить</button>
+          </form>
+        </main>
+      );
+    }
+    if (view === 'custom-tariff') {
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Индивидуальный тариф" description="Персональный процент ресторана или водителя" onBack={onBack} />
+          <form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveCustomTariff(); }}>
+            <label>Ресторан или водитель
+              <select value={billing.customSubject} onChange={(event) => setBilling({ ...billing, customSubject: event.target.value })}>
+                <option value="">Выберите получателя тарифа</option>
+                {(clientsQuery.data?.data ?? []).map((client) => <option value={`restaurant:${client.id}`} key={client.id}>{client.companyName}</option>)}
+                {(driversQuery.data ?? []).map((driver) => <option value={`driver:${driver.id}`} key={driver.id}>{driver.name}</option>)}
+              </select>
+            </label>
+            <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>
+            <button type="submit"><Save />Сохранить тариф</button>
+          </form>
+        </main>
+      );
+    }
+    if (view === 'routes') {
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Маршруты и тарифы" description="Стоимость доставки между населёнными пунктами" onBack={onBack} />
+          <form className="platform-detail-form platform-detail-form--route" onSubmit={saveRoutePrice}>
+            <label>Откуда<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Цоци-Юрт" /></label>
+            <label>Куда<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Курчалой" /></label>
+            <label>Цена, ₽<input type="number" min="0" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label>
+            <button type="submit"><Plus />Добавить маршрут</button>
+          </form>
+          <section className="platform-simple-list">
+            {pricingRules.map((rule) => (
+              <article key={rule.id}><strong>{rule.fromSettlement} → {rule.toSettlement}</strong><b>{formatMoney(rule.amount)}</b><small>{rule.isActive ? 'Активен' : 'Выключен'}</small></article>
+            ))}
+            {!pricingRulesQuery.isLoading && pricingRules.length === 0 && <p className="platform-empty-copy">Маршрутных тарифов пока нет</p>}
+          </section>
+        </main>
+      );
+    }
+    if (view === 'price-requests') {
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Согласование цен водителей" description="Запросы на изменение стоимости доставки" onBack={onBack} />
+          <section className="platform-request-list">
+            {priceRequests.map((request) => (
+              <article key={request.id}>
+                <span><strong>{request.driverName}</strong><small>{request.comment || 'Без комментария'}</small></span>
+                <b>{formatMoney(request.currentAmount)} → {formatMoney(request.requestedAmount)}</b>
+                <div>
+                  <button type="button" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: true, amount: request.requestedAmount }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Одобрить</button>
+                  <button type="button" className="is-danger" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: false }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Отклонить</button>
+                </div>
+              </article>
+            ))}
+            {!priceRequestsQuery.isLoading && priceRequests.length === 0 && <p className="platform-empty-copy">Новых запросов нет</p>}
+          </section>
+        </main>
+      );
+    }
+
+    return (
+      <main className="platform-page platform-compact-detail">
+        <PlatformInnerHeader
+          title={view === 'payments' ? 'Все платежи' : 'Текущие подписки'}
+          description={view === 'payments' ? 'История операций по подпискам' : 'Список активных подписок'}
+          onBack={onBack}
+        />
+        {renderSubscriptions(view === 'payments' ? subscriptions : activeSubscriptions)}
+      </main>
+    );
+  }
+
+  const menuItems: Array<{
+    view: SubscriptionView;
+    title: string;
+    description: string;
+    summary: ReactNode;
+    Icon: typeof BadgePercent;
+    tone: string;
+  }> = [
+    { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {billing.restaurantCommission}% · Водитель {billing.driverTariff}%</>, Icon: BadgePercent, tone: 'purple' },
+    { view: 'limits', title: 'Лимиты', description: 'Лимиты и предупреждения', summary: <>Ресторан {formatMoney(billing.restaurantLimit)} · Водитель {formatMoney(billing.driverLimit)} · {billing.warningPercent}%</>, Icon: ShieldAlert, tone: 'violet' },
+    { view: 'custom-tariff', title: 'Индивидуальный тариф', description: 'Установить тариф для ресторана или водителя', summary: <>{customTariffsQuery.data?.length ?? 0} настроено</>, Icon: UserRound, tone: 'purple' },
+    { view: 'routes', title: 'Маршруты и тарифы', description: 'Управление маршрутами и стоимостью доставки', summary: <>{formatCount(activePricingRules.length, ['активный маршрут', 'активных маршрута', 'активных маршрутов'])} · от {formatMoney(minimumRoutePrice)}</>, Icon: MapPin, tone: 'purple' },
+    { view: 'subscriptions', title: 'Текущие подписки', description: 'Список активных подписок', summary: <>{formatCount(activeSubscriptions.length, ['активная', 'активные', 'активных'])}</>, Icon: WalletCards, tone: 'blue' },
+    { view: 'price-requests', title: 'Согласование цен водителей', description: 'Запросы на согласование и изменения', summary: <span className={priceRequests.length > 0 ? 'is-warning' : ''}>{formatCount(priceRequests.length, ['запрос', 'запроса', 'запросов'])}</span>, Icon: Users, tone: 'purple' }
+  ];
+
   return (
-    <main className="platform-page">
+    <main className="platform-page platform-subscriptions-overview">
       <header className="platform-page-head">
         <div>
           <h1>Подписки и платежи</h1>
@@ -2125,82 +2350,27 @@ function SubscriptionsPage() {
         </div>
       </header>
 
-      <section className="platform-billing-grid">
-        <article className="platform-billing-card">
-          <BadgePercent />
-          <h2>Комиссии</h2>
-          <label>Комиссия с клиента, ₽<input type="number" min="0" value={billing.clientFee} onChange={(event) => setBilling({ ...billing, clientFee: Number(event.target.value) })} /></label>
-          <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>
-          <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>
-          <button type="button" onClick={() => void saveBilling()}>Сохранить тарифы</button>
-        </article>
-
-        <article className="platform-billing-card">
-          <ShieldAlert />
-          <h2>Лимиты</h2>
-          <label>Лимит ресторана, ₽<input type="number" min="0" value={billing.restaurantLimit} onChange={(event) => setBilling({ ...billing, restaurantLimit: Number(event.target.value) })} /></label>
-          <label>Лимит водителя, ₽<input type="number" min="0" value={billing.driverLimit} onChange={(event) => setBilling({ ...billing, driverLimit: Number(event.target.value) })} /></label>
-          <label>Предупредить на, %<input type="number" min="1" max="100" value={billing.warningPercent} onChange={(event) => setBilling({ ...billing, warningPercent: Number(event.target.value) })} /></label>
-          <small>При превышении лимита используйте блокировку в разделах «Клиенты» или «Водители».</small>
-        </article>
-
-        <article className="platform-billing-card">
-          <Users />
-          <h2>Индивидуальный тариф</h2>
-          <select value={billing.customSubject} onChange={(event) => setBilling({ ...billing, customSubject: event.target.value })}>
-            <option value="">Выберите ресторан или водителя</option>
-            {(clientsQuery.data?.data ?? []).map((client) => <option value={`restaurant:${client.id}`} key={client.id}>{client.companyName}</option>)}
-            {(driversQuery.data ?? []).map((driver) => <option value={`driver:${driver.id}`} key={driver.id}>{driver.name}</option>)}
-          </select>
-          <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>
-          <button type="button" onClick={() => void saveCustomTariff()}>Сохранить отдельно</button>
-        </article>
+      <section className="platform-overview-metrics">
+        <article><span className="is-purple"><BadgePercent /></span><strong>{formatMoney(monthlyFees)}</strong><small>Комиссии за месяц</small></article>
+        <article><span className="is-green"><WalletCards /></span><strong>{activeSubscriptions.length}</strong><small>Активные подписки</small></article>
+        <article><span className="is-orange"><ShieldAlert /></span><strong>{warningsCount}</strong><small>Предупреждения</small></article>
+        <article><span className="is-blue"><CreditCard /></span><strong>{heldPayments.length}</strong><small>Платежи на удержании</small></article>
       </section>
 
-      <form className="platform-settings-form platform-settings-form--pricing" onSubmit={saveRoutePrice}>
-        <label>Откуда<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Цоци-Юрт" /></label>
-        <label>Куда<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Курчалой" /></label>
-        <label>Цена, ₽<input type="number" min="0" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label>
-        <button type="submit"><Plus />Добавить маршрут</button>
-      </form>
-
-      <section className="platform-billing-list">
-        <h2>Текущие подписки</h2>
-        {(subscriptionsQuery.data ?? []).map((subscription) => (
-          <article key={subscription.id}>
-            <strong>{subscription.clientName}</strong>
-            <span>{subscription.planCode}</span>
-            <b>{formatMoney(subscription.amount)}</b>
-            <small>{subscription.status}</small>
-          </article>
+      <section className="platform-hub-list">
+        {menuItems.map(({ view: nextView, title, description, summary, Icon, tone }) => (
+          <button type="button" onClick={() => setView(nextView)} key={nextView}>
+            <span className={`platform-hub-list__icon is-${tone}`}><Icon /></span>
+            <span><strong>{title}</strong><small>{description}</small></span>
+            <b>{summary}</b>
+            <ChevronRight />
+          </button>
         ))}
-        {!subscriptionsQuery.isLoading && (subscriptionsQuery.data ?? []).length === 0 && <small>Подписок пока нет</small>}
       </section>
 
-      <section className="platform-billing-list">
-        <h2>Тарифы маршрутов</h2>
-        {(pricingRulesQuery.data ?? []).map((rule) => (
-          <article key={rule.id}>
-            <strong>{rule.fromSettlement} → {rule.toSettlement}</strong>
-            <b>{formatMoney(rule.amount)}</b>
-            <small>{rule.isActive ? 'Активен' : 'Выключен'}</small>
-          </article>
-        ))}
-        {!pricingRulesQuery.isLoading && (pricingRulesQuery.data ?? []).length === 0 && <small>Маршрутных тарифов пока нет</small>}
-      </section>
-
-      <section className="platform-billing-list">
-        <h2>Согласование цен водителей</h2>
-        {(priceRequestsQuery.data ?? []).map((request) => (
-          <article key={request.id}>
-            <strong>{request.driverName}</strong>
-            <span>{formatMoney(request.currentAmount)} → {formatMoney(request.requestedAmount)}</span>
-            <small>{request.comment || 'Без комментария'}</small>
-            <button type="button" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: true, amount: request.requestedAmount }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Одобрить</button>
-            <button type="button" onClick={() => void reviewDeliveryPriceRequest({ requestId: request.id, approved: false }).then(() => queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] }))}>Отклонить</button>
-          </article>
-        ))}
-        {!priceRequestsQuery.isLoading && (priceRequestsQuery.data ?? []).length === 0 && <small>Новых запросов нет</small>}
+      <section className="platform-recent-payments">
+        <header><h2>Последние платежи</h2><button type="button" onClick={() => setView('payments')}>Все платежи <ChevronRight /></button></header>
+        {renderSubscriptions(subscriptions.slice(0, 3))}
       </section>
     </main>
   );
@@ -2389,233 +2559,529 @@ export function LegacyContestsPage() {
   );
 }
 
+type SettingsView = 'overview' | 'banners' | 'pages' | 'support';
+
+const bannerKindLabel: Record<PlatformBannerAdmin['kind'], string> = {
+  banner: 'Баннер',
+  promo: 'Акция',
+  contest: 'Конкурс',
+  news: 'Новость'
+};
+
+const contentBlockLabel: Record<PlatformContentBlockType, string> = {
+  heading: 'Заголовок',
+  subheading: 'Подзаголовок',
+  text: 'Текст',
+  image: 'Фото',
+  gallery: 'Несколько фото',
+  video: 'Видео',
+  divider: 'Разделитель',
+  button: 'Кнопка',
+  link: 'Ссылка'
+};
+
+const createContentBlock = (type: PlatformContentBlockType): PlatformContentBlock => ({
+  id: crypto.randomUUID(),
+  type,
+  content: '',
+  url: '',
+  label: ''
+});
+
 function PlatformSettingsPage() {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
-  const [supportWhatsapp, setSupportWhatsapp] = useState('');
-  const [bannerTitle, setBannerTitle] = useState('');
-  const [bannerSubtitle, setBannerSubtitle] = useState('');
-  const [bannerKind, setBannerKind] = useState<PlatformBannerAdmin['kind']>('promo');
-  const [bannerLink, setBannerLink] = useState('/restaurants');
-  const [bannerActionLabel, setBannerActionLabel] = useState('Подробнее');
-  const [bannerImage, setBannerImage] = useState('');
-  const [bannerBackgroundColor, setBannerBackgroundColor] = useState('#5b3df4');
-  const [isBannerMediaUploading, setIsBannerMediaUploading] = useState(false);
+  const pagesQuery = useQuery({ queryKey: ['platform-content-pages'], queryFn: () => getPlatformContentPages() });
+  const [view, setView] = useState<SettingsView>('overview');
+  const [editingBanner, setEditingBanner] = useState<PlatformBannerAdmin | 'new' | null>(null);
+  const [editingPage, setEditingPage] = useState<PlatformContentPage | 'new' | null>(null);
 
-  useEffect(() => {
-    if (settingsQuery.data) {
-      setSupportWhatsapp(settingsQuery.data.supportWhatsapp);
-    }
-  }, [settingsQuery.data]);
+  const refreshBanners = () => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
+  const refreshPages = () => void queryClient.invalidateQueries({ queryKey: ['platform-content-pages'] });
 
-  const saveSupport = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      await savePlatformGlobalSettings({ supportWhatsapp });
-      toast.success('Номер поддержки сохранён');
-      void queryClient.invalidateQueries({ queryKey: ['platform-global-settings'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки');
+  if (view === 'banners') {
+    if (editingBanner) {
+      return (
+        <PlatformBannerEditor
+          banner={editingBanner === 'new' ? undefined : editingBanner}
+          pages={pagesQuery.data ?? []}
+          defaultSortOrder={bannersQuery.data?.length ?? 0}
+          onBack={() => setEditingBanner(null)}
+          onSaved={() => {
+            refreshBanners();
+            setEditingBanner(null);
+          }}
+        />
+      );
     }
-  };
+    return (
+      <main className="platform-page platform-compact-detail">
+        <PlatformInnerHeader
+          title="Баннеры"
+          description="Баннеры, новости, акции и конкурсы"
+          onBack={() => setView('overview')}
+          action={<button className="platform-inner-head__action" type="button" onClick={() => setEditingBanner('new')}><Plus />Создать</button>}
+        />
+        <section className="platform-content-list">
+          {(bannersQuery.data ?? []).map((banner) => (
+            <article key={banner.id}>
+              <span className="platform-content-list__thumb">
+                {banner.imageUrl
+                  ? isVideoMediaUrl(banner.imageUrl)
+                    ? <video src={banner.imageUrl} muted playsInline />
+                    : <img src={banner.imageUrl} alt="" />
+                  : <ImageIcon />}
+              </span>
+              <span><strong>{banner.name || banner.title}</strong><small>{bannerKindLabel[banner.kind]} · {banner.isActive ? 'Активен' : 'Неактивен'}</small></span>
+              <b>{banner.pageId ? 'Страница выбрана' : 'Без страницы'}</b>
+              <button type="button" onClick={() => setEditingBanner(banner)}>Редактировать</button>
+              <button
+                type="button"
+                className="is-danger"
+                aria-label={`Удалить материал ${banner.title}`}
+                onClick={() => {
+                  if (!window.confirm(`Удалить материал «${banner.name || banner.title}»?`)) return;
+                  void deletePlatformBanner(banner.id).then(() => {
+                    toast.success('Материал удалён');
+                    refreshBanners();
+                  });
+                }}
+              ><Trash2 /></button>
+            </article>
+          ))}
+          {!bannersQuery.isLoading && (bannersQuery.data ?? []).length === 0 && <p className="platform-empty-copy">Материалов пока нет. Создайте первый баннер.</p>}
+        </section>
+      </main>
+    );
+  }
 
-  const createBanner = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    try {
-      await savePlatformBanner({
-        title: bannerTitle,
-        subtitle: bannerSubtitle,
-        kind: bannerKind,
-        imageUrl: bannerImage,
-        backgroundColor: bannerBackgroundColor,
-        linkUrl: bannerLink,
-        actionLabel: bannerActionLabel.trim() || 'Подробнее',
-        sortOrder: bannersQuery.data?.length ?? 0,
-        isActive: true
-      });
-      setBannerTitle('');
-      setBannerSubtitle('');
-      setBannerImage('');
-      setBannerLink('/restaurants');
-      setBannerActionLabel('Подробнее');
-      toast.success('Баннер сохранён');
-      void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить баннер');
+  if (view === 'pages') {
+    if (editingPage) {
+      return (
+        <PlatformContentPageEditor
+          page={editingPage === 'new' ? undefined : editingPage}
+          onBack={() => setEditingPage(null)}
+          onSaved={() => {
+            refreshPages();
+            refreshBanners();
+            setEditingPage(null);
+          }}
+        />
+      );
     }
-  };
+    return (
+      <main className="platform-page platform-compact-detail">
+        <PlatformInnerHeader
+          title="Вспомогательные страницы"
+          description="Страницы, открываемые из баннеров"
+          onBack={() => setView('overview')}
+          action={<button className="platform-inner-head__action" type="button" onClick={() => setEditingPage('new')}><Plus />Создать страницу</button>}
+        />
+        <section className="platform-content-list platform-content-list--pages">
+          {(pagesQuery.data ?? []).map((page) => (
+            <article key={page.id}>
+              <span className="platform-content-list__thumb"><FileText /></span>
+              <span><strong>{page.name}</strong><small>{getContentPageClientPath(page)}</small></span>
+              <b>{page.status === 'published' ? 'Опубликована' : page.status === 'draft' ? 'Черновик' : 'Неактивна'}</b>
+              <em>{page.bannerUsageCount} материалов</em>
+              <button type="button" onClick={() => setEditingPage(page)}>Редактировать</button>
+              <button
+                type="button"
+                className="is-danger"
+                aria-label={`Удалить страницу ${page.name}`}
+                onClick={() => {
+                  const warning = page.bannerUsageCount > 0
+                    ? `Эта страница используется в ${page.bannerUsageCount} материалах. Сначала измените привязку или подтвердите удаление.`
+                    : `Удалить страницу «${page.name}»?`;
+                  if (!window.confirm(warning)) return;
+                  void deletePlatformContentPage(page).then(() => {
+                    toast.success('Страница удалена');
+                    refreshPages();
+                    refreshBanners();
+                  }).catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось удалить страницу'));
+                }}
+              ><Trash2 /></button>
+            </article>
+          ))}
+          {!pagesQuery.isLoading && (pagesQuery.data ?? []).length === 0 && <p className="platform-empty-copy">Страниц пока нет. Создайте первую вспомогательную страницу.</p>}
+        </section>
+      </main>
+    );
+  }
 
-  const uploadBannerMedia = async (file?: File) => {
-    if (!file) return;
-    setIsBannerMediaUploading(true);
-    try {
-      setBannerImage(await uploadPlatformBannerMedia(file));
-      toast.success(file.type.startsWith('video/') ? 'Видео загружено' : 'Фото загружено');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить медиа');
-    } finally {
-      setIsBannerMediaUploading(false);
+  if (view === 'support') {
+    return (
+      <PlatformSupportEditor
+        settings={settingsQuery.data}
+        onBack={() => setView('overview')}
+        onSaved={() => void queryClient.invalidateQueries({ queryKey: ['platform-global-settings'] })}
+      />
+    );
+  }
+
+  const supportConfigured = Boolean(
+    settingsQuery.data?.supportWhatsapp
+    || settingsQuery.data?.supportPhone
+    || settingsQuery.data?.supportEmail
+  );
+  const overviewItems = [
+    {
+      view: 'banners' as const,
+      title: 'Баннеры',
+      description: 'Баннеры, новости, акции и конкурсы',
+      summary: formatCount(bannersQuery.data?.length ?? 0, ['элемент', 'элемента', 'элементов']),
+      Icon: ImageIcon,
+      tone: 'purple'
+    },
+    {
+      view: 'pages' as const,
+      title: 'Вспомогательные страницы',
+      description: 'Страницы, открываемые из баннеров',
+      summary: formatCount(pagesQuery.data?.length ?? 0, ['страница', 'страницы', 'страниц']),
+      Icon: FileText,
+      tone: 'green'
+    },
+    {
+      view: 'support' as const,
+      title: 'Поддержка клиентов',
+      description: 'Контактные данные службы поддержки',
+      summary: supportConfigured ? 'Настроено' : 'Не настроено',
+      Icon: Headphones,
+      tone: 'blue',
+      configured: supportConfigured
     }
-  };
+  ];
 
   return (
-    <main className="platform-page">
+    <main className="platform-page platform-settings-overview">
       <header className="platform-page-head">
         <div>
           <h1>Настройки</h1>
-          <p>Баннеры главной, новости, акции и поддержка клиентов</p>
+          <p>Контент, страницы и поддержка клиентского приложения</p>
         </div>
       </header>
-
-      <section className="platform-settings-section">
-        <header>
-          <h2>Поддержка клиентов</h2>
-          <p>Номер WhatsApp, который видят пользователи сервиса.</p>
-        </header>
-        <form className="platform-settings-form" onSubmit={saveSupport}>
-          <label>
-            WhatsApp поддержки
-            <input value={supportWhatsapp} onChange={(event) => setSupportWhatsapp(event.target.value)} placeholder="79990000000" />
-          </label>
-          <button type="submit">Сохранить поддержку</button>
-        </form>
-      </section>
-
-      <section className="platform-settings-section">
-        <header>
-          <h2>Новый баннер</h2>
-          <p>Акция, конкурс или новость для главного экрана.</p>
-        </header>
-        <form className="platform-settings-form platform-settings-form--banner" onSubmit={createBanner}>
-          <label>
-            Заголовок
-            <input value={bannerTitle} onChange={(event) => setBannerTitle(event.target.value)} required />
-          </label>
-          <label>
-            Текст
-            <input value={bannerSubtitle} onChange={(event) => setBannerSubtitle(event.target.value)} required />
-          </label>
-          <label>
-            Тип
-            <select value={bannerKind} onChange={(event) => setBannerKind(event.target.value as PlatformBannerAdmin['kind'])}>
-              <option value="promo">Акция</option>
-              <option value="contest">Конкурс</option>
-              <option value="news">Новость</option>
-            </select>
-          </label>
-          <label>
-            Ссылка действия
-            <input value={bannerLink} onChange={(event) => setBannerLink(event.target.value)} placeholder="/restaurants или https://..." />
-          </label>
-          <label>
-            Текст кнопки
-            <input value={bannerActionLabel} onChange={(event) => setBannerActionLabel(event.target.value)} placeholder="Подробнее или Заказать" />
-          </label>
-          <label className="platform-banner-media-picker">
-            Фото или видео
-            <input
-              type="file"
-              accept="image/*,video/mp4,video/webm,video/quicktime"
-              onChange={(event) => void uploadBannerMedia(event.target.files?.[0])}
-              disabled={isBannerMediaUploading}
-            />
-            <span><Upload />{isBannerMediaUploading ? 'Загружаем…' : 'Выбрать из медиатеки'}</span>
-            <small>Фото или видео до 30 МБ</small>
-          </label>
-          {bannerImage && (
-            <div className="platform-banner-media-preview">
-              {isVideoMediaUrl(bannerImage)
-                ? <video src={bannerImage} muted playsInline controls />
-                : <img src={bannerImage} alt="Предпросмотр баннера" />}
-              <button type="button" onClick={() => setBannerImage('')}>Удалить медиа</button>
-            </div>
-          )}
-          <label>
-            Цвет фона
-            <input type="color" value={bannerBackgroundColor} onChange={(event) => setBannerBackgroundColor(event.target.value)} />
-          </label>
-          <button type="submit" disabled={isBannerMediaUploading}>
-            <Plus />
-            Добавить баннер
+      <section className="platform-settings-hub">
+        {overviewItems.map(({ view: nextView, title, description, summary, Icon, tone, configured }) => (
+          <button type="button" onClick={() => setView(nextView)} key={nextView}>
+            <span className={`platform-settings-hub__icon is-${tone}`}><Icon /></span>
+            <span><strong>{title}</strong><small>{description}</small></span>
+            <b className={configured ? 'is-configured' : ''}>{summary}</b>
+            <ChevronRight />
           </button>
-        </form>
-      </section>
-
-      <section className="platform-settings-section">
-        <header>
-          <h2>Сохранённые баннеры</h2>
-          <p>{bannersQuery.data?.length ?? 0} баннеров</p>
-        </header>
-        <div className="platform-banner-list">
-          {(bannersQuery.data ?? []).map((banner) => (
-            <PlatformBannerSettingsCard
-              banner={banner}
-              key={banner.id}
-              onChanged={() => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] })}
-            />
-          ))}
-        </div>
+        ))}
       </section>
     </main>
   );
 }
 
-function PlatformBannerSettingsCard({
+function PlatformBannerEditor({
   banner,
-  onChanged
+  pages,
+  defaultSortOrder,
+  onBack,
+  onSaved
 }: {
-  banner: PlatformBannerAdmin;
-  onChanged: () => void;
+  banner?: PlatformBannerAdmin;
+  pages: PlatformContentPage[];
+  defaultSortOrder: number;
+  onBack: () => void;
+  onSaved: () => void;
 }) {
-  const [actionLabel, setActionLabel] = useState(banner.actionLabel);
-  const [linkUrl, setLinkUrl] = useState(banner.linkUrl);
+  const [name, setName] = useState(banner?.name ?? '');
+  const [title, setTitle] = useState(banner?.title ?? '');
+  const [subtitle, setSubtitle] = useState(banner?.subtitle ?? '');
+  const [kind, setKind] = useState<PlatformBannerAdmin['kind']>(banner?.kind ?? 'banner');
+  const [imageUrl, setImageUrl] = useState(banner?.imageUrl ?? '');
+  const [backgroundColor, setBackgroundColor] = useState(banner?.backgroundColor ?? '#5b3df4');
+  const [pageId, setPageId] = useState(banner?.pageId ?? '');
+  const [actionLabel, setActionLabel] = useState(banner?.actionLabel ?? 'Подробнее');
+  const [startsAt, setStartsAt] = useState(banner?.startsAt?.slice(0, 10) ?? '');
+  const [endsAt, setEndsAt] = useState(banner?.endsAt?.slice(0, 10) ?? '');
+  const [sortOrder, setSortOrder] = useState(banner?.sortOrder ?? defaultSortOrder);
+  const [isActive, setIsActive] = useState(banner?.isActive ?? true);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const uploadMedia = async (file?: File) => {
+    if (!file) return;
+    setIsUploading(true);
+    try {
+      setImageUrl(await uploadPlatformBannerMedia(file));
+      toast.success('Обложка загружена');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить обложку');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const selectedPage = pages.find((page) => page.id === pageId);
+    if (!selectedPage) {
+      toast.error('Выберите страницу при нажатии');
+      return;
+    }
+    try {
+      await savePlatformBanner({
+        id: banner?.id,
+        name: name.trim(),
+        title: title.trim(),
+        subtitle: subtitle.trim(),
+        kind,
+        imageUrl,
+        backgroundColor,
+        linkUrl: getPlatformContentPath(selectedPage.slug),
+        pageId: selectedPage.id,
+        actionLabel: actionLabel.trim() || 'Подробнее',
+        startsAt: startsAt ? new Date(`${startsAt}T00:00:00`).toISOString() : null,
+        endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : null,
+        sortOrder,
+        isActive
+      });
+      toast.success('Материал сохранён');
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить материал');
+    }
+  };
 
   return (
-    <article className="platform-banner-card">
-      {banner.imageUrl && (
-        <span className="platform-banner-card__media">
-          {isVideoMediaUrl(banner.imageUrl)
-            ? <video src={banner.imageUrl} muted playsInline />
-            : <img src={banner.imageUrl} alt="" />}
-        </span>
-      )}
-      <span>{banner.kind}</span>
-      <strong>{banner.title}</strong>
-      <small>{banner.subtitle}</small>
-      <label>
-        Текст кнопки
-        <input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} />
-      </label>
-      <label>
-        Ссылка
-        <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} />
-      </label>
-      <button
-        type="button"
-        onClick={() => {
-          void savePlatformBanner({
-            ...banner,
-            actionLabel: actionLabel.trim() || 'Подробнее',
-            linkUrl: linkUrl.trim() || '/restaurants'
-          }).then(() => {
-            toast.success('Кнопка баннера обновлена');
-            onChanged();
-          });
-        }}
-      >
-        Сохранить
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          void deletePlatformBanner(banner.id).then(onChanged);
-        }}
-        aria-label={`Удалить баннер ${banner.title}`}
-      >
-        <Trash2 />
-      </button>
+    <main className="platform-page platform-compact-detail">
+      <PlatformInnerHeader title={banner ? 'Редактировать материал' : 'Создать материал'} description="Баннер, новость, акция или конкурс" onBack={onBack} />
+      <form className="platform-content-form" onSubmit={save}>
+        <label>Тип
+          <select value={kind} onChange={(event) => setKind(event.target.value as PlatformBannerAdmin['kind'])}>
+            <option value="banner">Баннер</option>
+            <option value="news">Новость</option>
+            <option value="promo">Акция</option>
+            <option value="contest">Конкурс</option>
+          </select>
+        </label>
+        <label>Название<input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Внутреннее название материала" /></label>
+        <label>Заголовок<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
+        <label className="is-wide">Краткий текст<textarea value={subtitle} onChange={(event) => setSubtitle(event.target.value)} required rows={3} /></label>
+        <label className="platform-banner-media-picker is-wide">
+          Изображение / обложка
+          <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" onChange={(event) => void uploadMedia(event.target.files?.[0])} disabled={isUploading} />
+          <span><Upload />{isUploading ? 'Загружаем…' : 'Выбрать медиа'}</span>
+        </label>
+        {imageUrl && (
+          <div className="platform-banner-media-preview is-wide">
+            {isVideoMediaUrl(imageUrl) ? <video src={imageUrl} controls playsInline /> : <img src={imageUrl} alt="Обложка" />}
+            <button type="button" onClick={() => setImageUrl('')}>Удалить медиа</button>
+          </div>
+        )}
+        <label>Текст кнопки<input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} placeholder="Подробнее" /></label>
+        <label>Страница при нажатии
+          <select value={pageId} onChange={(event) => setPageId(event.target.value)} required>
+            <option value="">Выберите вспомогательную страницу</option>
+            {pages.map((page) => <option value={page.id} key={page.id}>{page.name} · /pages/{page.slug}</option>)}
+          </select>
+        </label>
+        <label>Начало показа<input type="date" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} /></label>
+        <label>Окончание показа<input type="date" min={startsAt || undefined} value={endsAt} onChange={(event) => setEndsAt(event.target.value)} /></label>
+        <label>Порядок показа<input type="number" min="0" value={sortOrder} onChange={(event) => setSortOrder(Number(event.target.value))} /></label>
+        <label>Цвет фона<input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} /></label>
+        <label className="platform-toggle-field is-wide"><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /><span>Материал активен</span></label>
+        <button type="submit" disabled={isUploading}><Save />Сохранить</button>
+      </form>
+    </main>
+  );
+}
+
+function PlatformContentPageEditor({
+  page,
+  onBack,
+  onSaved
+}: {
+  page?: PlatformContentPage;
+  onBack: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(page?.name ?? '');
+  const [slug, setSlug] = useState(page?.slug ?? '');
+  const [status, setStatus] = useState<PlatformContentPage['status']>(page?.status ?? 'draft');
+  const [blocks, setBlocks] = useState<PlatformContentBlock[]>(page?.blocks ?? []);
+  const [newBlockType, setNewBlockType] = useState<PlatformContentBlockType>('heading');
+  const [isPreview, setIsPreview] = useState(false);
+
+  const updateBlock = (id: string, patch: Partial<PlatformContentBlock>) => {
+    setBlocks((current) => current.map((block) => block.id === id ? { ...block, ...patch } : block));
+  };
+
+  const moveBlock = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= blocks.length) return;
+    setBlocks((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const uploadBlockMedia = async (block: PlatformContentBlock, files: FileList | null) => {
+    if (!files?.length) return;
+    try {
+      const urls = await Promise.all(Array.from(files).map((file) => uploadPlatformBannerMedia(file)));
+      updateBlock(block.id, { url: block.type === 'gallery' ? urls.join('\n') : urls[0] });
+      toast.success('Медиа загружено');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить медиа');
+    }
+  };
+
+  const save = async () => {
+    try {
+      await savePlatformContentPage({ id: page?.id, name, slug, status, blocks });
+      toast.success('Страница сохранена');
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить страницу');
+    }
+  };
+
+  return (
+    <main className="platform-page platform-compact-detail">
+      <PlatformInnerHeader title={page ? 'Редактировать страницу' : 'Создать страницу'} description="Переиспользуемый контент для баннеров" onBack={onBack} />
+      <section className="platform-page-builder">
+        <div className="platform-page-builder__meta">
+          <label>Название страницы<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Конкурс на iPhone" /></label>
+          <label>Адрес / slug
+            <input value={slug} onChange={(event) => setSlug(normalizeContentSlug(event.target.value))} placeholder="contest-1" />
+            <small>{slug ? getPlatformContentPath(slug) : '/pages/contest-1'}</small>
+          </label>
+          <label>Статус
+            <select value={status} onChange={(event) => setStatus(event.target.value as PlatformContentPage['status'])}>
+              <option value="draft">Черновик</option>
+              <option value="published">Опубликована</option>
+              <option value="inactive">Неактивна</option>
+            </select>
+          </label>
+        </div>
+
+        {isPreview ? (
+          <PlatformContentPreview name={name} blocks={blocks} />
+        ) : (
+          <>
+            <div className="platform-block-add">
+              <select value={newBlockType} onChange={(event) => setNewBlockType(event.target.value as PlatformContentBlockType)}>
+                {Object.entries(contentBlockLabel).map(([type, label]) => <option value={type} key={type}>{label}</option>)}
+              </select>
+              <button type="button" onClick={() => setBlocks((current) => [...current, createContentBlock(newBlockType)])}><Plus />Добавить блок</button>
+            </div>
+            <div className="platform-block-list">
+              {blocks.map((block, index) => (
+                <article key={block.id}>
+                  <header>
+                    <GripVertical />
+                    <strong>{contentBlockLabel[block.type]}</strong>
+                    <button type="button" onClick={() => moveBlock(index, -1)} disabled={index === 0} aria-label="Поднять блок"><ArrowUp /></button>
+                    <button type="button" onClick={() => moveBlock(index, 1)} disabled={index === blocks.length - 1} aria-label="Опустить блок"><ArrowDown /></button>
+                    <button type="button" className="is-danger" onClick={() => setBlocks((current) => current.filter((item) => item.id !== block.id))} aria-label="Удалить блок"><Trash2 /></button>
+                  </header>
+                  {block.type !== 'divider' && block.type !== 'image' && block.type !== 'gallery' && block.type !== 'video' && (
+                    <label>{block.type === 'button' || block.type === 'link' ? 'Текст' : 'Содержимое'}
+                      <textarea value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} rows={block.type === 'text' ? 5 : 2} />
+                    </label>
+                  )}
+                  {(block.type === 'image' || block.type === 'gallery' || block.type === 'video') && (
+                    <>
+                      <label>URL медиа<textarea value={block.url} onChange={(event) => updateBlock(block.id, { url: event.target.value })} rows={block.type === 'gallery' ? 4 : 2} /></label>
+                      <label className="platform-banner-media-picker">Загрузить
+                        <input type="file" accept={block.type === 'video' ? 'video/*' : 'image/*'} multiple={block.type === 'gallery'} onChange={(event) => void uploadBlockMedia(block, event.target.files)} />
+                        <span><Upload />Выбрать {block.type === 'video' ? 'видео' : 'фото'}</span>
+                      </label>
+                      <label>Подпись<input value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} /></label>
+                    </>
+                  )}
+                  {(block.type === 'button' || block.type === 'link') && (
+                    <label>Ссылка<input value={block.url} onChange={(event) => updateBlock(block.id, { url: event.target.value })} placeholder="https://..." /></label>
+                  )}
+                  {(block.type === 'button' || block.type === 'link') && (
+                    <label>Текст действия<input value={block.label} onChange={(event) => updateBlock(block.id, { label: event.target.value })} /></label>
+                  )}
+                </article>
+              ))}
+              {blocks.length === 0 && <p className="platform-empty-copy">Добавьте первый блок страницы.</p>}
+            </div>
+          </>
+        )}
+
+        <footer>
+          <button type="button" className="is-secondary" onClick={() => setIsPreview((value) => !value)}><Eye />{isPreview ? 'Вернуться к редактору' : 'Предпросмотр'}</button>
+          <button type="button" onClick={() => void save()}><Save />Сохранить</button>
+        </footer>
+      </section>
+    </main>
+  );
+}
+
+function PlatformContentPreview({ name, blocks }: { name: string; blocks: PlatformContentBlock[] }) {
+  return (
+    <article className="platform-content-preview">
+      <small>Предпросмотр страницы</small>
+      <h1>{name || 'Без названия'}</h1>
+      {blocks.map((block) => {
+        if (block.type === 'heading') return <h2 key={block.id}>{block.content || 'Заголовок'}</h2>;
+        if (block.type === 'subheading') return <h3 key={block.id}>{block.content || 'Подзаголовок'}</h3>;
+        if (block.type === 'text') return <p key={block.id}>{block.content || 'Текстовый блок'}</p>;
+        if (block.type === 'divider') return <hr key={block.id} />;
+        if (block.type === 'image') return block.url ? <img src={block.url} alt={block.content} key={block.id} /> : <div className="platform-content-preview__placeholder" key={block.id}>Фото</div>;
+        if (block.type === 'gallery') return <div className="platform-content-preview__gallery" key={block.id}>{block.url.split('\n').filter(Boolean).map((url) => <img src={url} alt="" key={url} />)}</div>;
+        if (block.type === 'video') return block.url ? <video src={block.url} controls key={block.id} /> : <div className="platform-content-preview__placeholder" key={block.id}>Видео</div>;
+        return <a href={block.url || '#'} key={block.id}>{block.label || block.content || 'Ссылка'}</a>;
+      })}
     </article>
+  );
+}
+
+function PlatformSupportEditor({
+  settings,
+  onBack,
+  onSaved
+}: {
+  settings?: PlatformGlobalSettings;
+  onBack: () => void;
+  onSaved: () => void;
+}) {
+  const [support, setSupport] = useState<PlatformGlobalSettings>(() => settings ?? {
+    supportWhatsapp: '',
+    supportPhone: '',
+    supportEmail: '',
+    supportTelegram: '',
+    supportHours: '',
+    supportHint: ''
+  });
+
+  useEffect(() => {
+    if (settings) setSupport(settings);
+  }, [settings]);
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      await savePlatformGlobalSettings(support);
+      toast.success('Контакты поддержки сохранены');
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить контакты');
+    }
+  };
+
+  return (
+    <main className="platform-page platform-compact-detail">
+      <PlatformInnerHeader title="Поддержка клиентов" description="Контактные данные службы поддержки" onBack={onBack} />
+      <form className="platform-support-form" onSubmit={save}>
+        <label><MessageCircle />WhatsApp<input value={support.supportWhatsapp} onChange={(event) => setSupport({ ...support, supportWhatsapp: event.target.value })} placeholder="79990000000" /></label>
+        <label><Phone />Телефон<input value={support.supportPhone} onChange={(event) => setSupport({ ...support, supportPhone: event.target.value })} placeholder="+7 999 000-00-00" /></label>
+        <label><Mail />E-mail<input type="email" value={support.supportEmail} onChange={(event) => setSupport({ ...support, supportEmail: event.target.value })} placeholder="support@example.ru" /></label>
+        <label><MessageCircle />Telegram<input value={support.supportTelegram} onChange={(event) => setSupport({ ...support, supportTelegram: event.target.value })} placeholder="@waycatalog" /></label>
+        <label className="is-wide">Время работы<input value={support.supportHours} onChange={(event) => setSupport({ ...support, supportHours: event.target.value })} placeholder="Ежедневно, 09:00–21:00" /></label>
+        <label className="is-wide">Текст обращения / подсказки<textarea value={support.supportHint} onChange={(event) => setSupport({ ...support, supportHint: event.target.value })} rows={4} /></label>
+        <button type="submit"><Save />Сохранить</button>
+      </form>
+    </main>
   );
 }
 
@@ -2860,8 +3326,8 @@ function PlatformAdminContent() {
           <div className="platform-topbar__identity">
             <span className="platform-topbar__avatar">S</span>
             <span>
-              <strong>Суперадмин</strong>
-              <small>{platformAdminQuery.data.email ?? 'admin@catalog.app'}</small>
+              <strong>Администратор</strong>
+              <small>{platformAdminQuery.data?.email ?? 'admin@catalog.app'}</small>
             </span>
           </div>
           <div className="platform-topbar__actions">

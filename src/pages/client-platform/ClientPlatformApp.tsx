@@ -115,7 +115,13 @@ const emptyClientPlatformSnapshot: ClientPlatformSnapshot = {
   dishes: [],
   paymentSettings: [],
   banners: [],
-  supportWhatsapp: ''
+  contentPages: [],
+  supportWhatsapp: '',
+  supportPhone: '',
+  supportEmail: '',
+  supportTelegram: '',
+  supportHours: '',
+  supportHint: ''
 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -272,6 +278,17 @@ function ClientPlatformContent() {
     return (
       <PlatformLayout active="home">
         <PromoDetailPage snapshot={snapshot} bannerId={decodeURIComponent(location.pathname.replace('/promo/', ''))} />
+      </PlatformLayout>
+    );
+  }
+
+  if (location.pathname.startsWith('/pages/')) {
+    return (
+      <PlatformLayout active="home">
+        <ContentPageScreen
+          snapshot={snapshot}
+          pageSlug={decodeURIComponent(location.pathname.replace('/pages/', ''))}
+        />
       </PlatformLayout>
     );
   }
@@ -621,6 +638,58 @@ function PromoDetailPage({
             </Link>
           )
         )}
+      </article>
+    </>
+  );
+}
+
+function ContentPageScreen({
+  snapshot,
+  pageSlug
+}: {
+  snapshot: ClientPlatformSnapshot;
+  pageSlug: string;
+}) {
+  const page = snapshot.contentPages.find((item) => item.slug === pageSlug);
+
+  if (!page) {
+    return (
+      <>
+        <PageHeader title="Страница" />
+        <section className="empty-state">
+          <Bell />
+          <strong>Страница не найдена или ещё не опубликована</strong>
+          <Link to="/">На главную</Link>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader title={page.name} />
+      <article className="client-content-page">
+        {page.blocks.map((block) => {
+          if (block.type === 'heading') return <h1 key={block.id}>{block.content}</h1>;
+          if (block.type === 'subheading') return <h2 key={block.id}>{block.content}</h2>;
+          if (block.type === 'text') return <p key={block.id}>{block.content}</p>;
+          if (block.type === 'divider') return <hr key={block.id} />;
+          if (block.type === 'image') return <img src={block.url} alt={block.content} key={block.id} />;
+          if (block.type === 'gallery') {
+            return (
+              <div className="client-content-page__gallery" key={block.id}>
+                {block.url.split('\n').map((url) => url.trim()).filter(Boolean).map((url) => (
+                  <img src={url} alt={block.content} key={url} />
+                ))}
+              </div>
+            );
+          }
+          if (block.type === 'video') return <video src={block.url} controls playsInline key={block.id} />;
+          if (block.type === 'button') {
+            return <a className="client-content-page__button" href={block.url} key={block.id}>{block.label || block.content}</a>;
+          }
+          return <a href={block.url} key={block.id}>{block.label || block.content || block.url}</a>;
+        })}
       </article>
     </>
   );
@@ -1980,7 +2049,7 @@ function ProfileArea({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   if (location.pathname === '/profile/support') {
     return (
       <PlatformLayout active="profile">
-        <SupportPage supportWhatsapp={snapshot.supportWhatsapp} />
+        <SupportPage snapshot={snapshot} />
       </PlatformLayout>
     );
   }
@@ -1992,16 +2061,25 @@ function ProfileArea({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   );
 }
 
-function SupportPage({ supportWhatsapp }: { supportWhatsapp: string }) {
+function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   return (
     <>
       <PageHeader title="Поддержка" backTo="/profile" />
-      <section className="empty-state">
+      <section className="empty-state client-support-card">
         <MessageCircle />
         <strong>Поддержка WayCatalog</strong>
-        <a href={buildSupportWhatsappUrl(supportWhatsapp)} target="_blank" rel="noreferrer">
+        {snapshot.supportHint && <p>{snapshot.supportHint}</p>}
+        {snapshot.supportHours && <small>Время работы: {snapshot.supportHours}</small>}
+        <a href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)} target="_blank" rel="noreferrer">
           Написать в WhatsApp
         </a>
+        {snapshot.supportPhone && <a href={`tel:${snapshot.supportPhone}`}>Позвонить: {snapshot.supportPhone}</a>}
+        {snapshot.supportEmail && <a href={`mailto:${snapshot.supportEmail}`}>{snapshot.supportEmail}</a>}
+        {snapshot.supportTelegram && (
+          <a href={`https://t.me/${snapshot.supportTelegram.replace(/^@/, '')}`} target="_blank" rel="noreferrer">
+            Telegram: {snapshot.supportTelegram}
+          </a>
+        )}
       </section>
     </>
   );

@@ -13,11 +13,6 @@ set
   allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "public reads platform banner media" on storage.objects;
-create policy "public reads platform banner media"
-on storage.objects
-for select
-to public
-using (bucket_id = 'platform-banner-media');
 
 drop policy if exists "platform admins upload banner media" on storage.objects;
 create policy "platform admins upload banner media"

@@ -107,19 +107,58 @@ export type PlatformDeliverySettlement = {
 
 export type PlatformBannerAdmin = {
   id: string;
+  name: string;
   title: string;
   subtitle: string;
-  kind: 'contest' | 'promo' | 'news';
+  kind: 'banner' | 'contest' | 'promo' | 'news';
   imageUrl: string;
   backgroundColor: string;
   linkUrl: string;
+  pageId: string | null;
   actionLabel: string;
+  startsAt: string | null;
+  endsAt: string | null;
   sortOrder: number;
   isActive: boolean;
 };
 
 export type PlatformGlobalSettings = {
   supportWhatsapp: string;
+  supportPhone: string;
+  supportEmail: string;
+  supportTelegram: string;
+  supportHours: string;
+  supportHint: string;
+};
+
+export type PlatformContentBlockType =
+  | 'heading'
+  | 'subheading'
+  | 'text'
+  | 'image'
+  | 'gallery'
+  | 'video'
+  | 'divider'
+  | 'button'
+  | 'link';
+
+export type PlatformContentBlock = {
+  id: string;
+  type: PlatformContentBlockType;
+  content: string;
+  url: string;
+  label: string;
+};
+
+export type PlatformContentPage = {
+  id: string;
+  name: string;
+  slug: string;
+  status: 'draft' | 'published' | 'inactive';
+  blocks: PlatformContentBlock[];
+  bannerUsageCount: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type PlatformRestaurantStats = {
@@ -311,4 +350,6 @@ export type SubscriptionRow = {
   amount: number;
   status: SubscriptionStatus;
   endsAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
 };

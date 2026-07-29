@@ -20,6 +20,7 @@ import type {
   ClientRestaurantCategory,
   PaymentSettings,
   PlatformBanner,
+  PlatformContentPage,
   RestaurantTheme
 } from '../../features/client-platform/types';
 import { normalizePhotoQualitySettings } from '../photoQuality';
@@ -156,13 +157,29 @@ type PlatformBannerRow = {
   image_url: string;
   background_color: string;
   link_url: string;
+  page_id?: string | null;
+  platform_content_pages?: { slug?: string | null } | Array<{ slug?: string | null }> | null;
   action_label: string;
+  starts_at?: string | null;
+  ends_at?: string | null;
   is_active: boolean;
   sort_order: number;
 };
 
 type PlatformSettingsRow = {
   support_whatsapp: string;
+  support_phone?: string;
+  support_email?: string;
+  support_telegram?: string;
+  support_hours?: string;
+  support_hint?: string;
+};
+
+type PlatformContentPageRow = {
+  id: string;
+  name: string;
+  slug: string;
+  blocks: PlatformContentPage['blocks'];
 };
 
 type DeliverySettlementRow = {
@@ -600,6 +617,8 @@ export function subscribeClientPlatformSnapshotRealtime(onChange: () => void) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_banners' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_content_pages' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_settings' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_settlements' }, onChange)
     .subscribe();
 
@@ -618,7 +637,13 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       dishes: [],
       paymentSettings: [],
       banners: [],
-      supportWhatsapp: ''
+      contentPages: [],
+      supportWhatsapp: '',
+      supportPhone: '',
+      supportEmail: '',
+      supportTelegram: '',
+      supportHours: '',
+      supportHint: ''
     };
   }
 
@@ -638,7 +663,13 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       dishes: [],
       paymentSettings: [],
       banners: [],
-      supportWhatsapp: ''
+      contentPages: [],
+      supportWhatsapp: '',
+      supportPhone: '',
+      supportEmail: '',
+      supportTelegram: '',
+      supportHours: '',
+      supportHint: ''
     };
   }
 
@@ -655,6 +686,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     paymentsResult,
     restaurantProfilesResult,
     bannersResult,
+    contentPagesResult,
     settingsResult,
     deliverySettlementsResult,
     legacyRestaurantsResult
@@ -696,10 +728,19 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .in('catalog_id', catalogIds),
       supabase
         .from('platform_banners')
-        .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, is_active, sort_order')
+        .select('id, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, starts_at, ends_at, is_active, sort_order, platform_content_pages(slug)')
         .eq('is_active', true)
         .order('sort_order'),
-      supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle(),
+      supabase
+        .from('platform_content_pages')
+        .select('id, name, slug, blocks')
+        .eq('status', 'published')
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('platform_settings')
+        .select('support_whatsapp, support_phone, support_email, support_telegram, support_hours, support_hint')
+        .eq('id', 'global')
+        .maybeSingle(),
       supabase
         .from('delivery_settlements')
         .select('city_name, settlement_name, is_active')
@@ -717,8 +758,19 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   const deliverySettings = (deliveryResult.data ?? []) as DeliverySettingsRow[];
   const paymentRows = (paymentsResult.data ?? []) as PaymentRow[];
   const restaurantProfiles = (restaurantProfilesResult.data ?? []) as RestaurantProfileRow[];
-  const bannerRows = (bannersResult.data ?? []) as PlatformBannerRow[];
-  const settingsRow = settingsResult.data as PlatformSettingsRow | null;
+  const legacyBannersResult = bannersResult.error
+    ? await supabase
+      .from('platform_banners')
+      .select('id, title, subtitle, kind, image_url, background_color, link_url, action_label, is_active, sort_order')
+      .eq('is_active', true)
+      .order('sort_order')
+    : null;
+  const legacySettingsResult = settingsResult.error
+    ? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()
+    : null;
+  const bannerRows = (bannersResult.data ?? legacyBannersResult?.data ?? []) as PlatformBannerRow[];
+  const contentPageRows = (contentPagesResult.data ?? []) as PlatformContentPageRow[];
+  const settingsRow = (settingsResult.data ?? legacySettingsResult?.data) as PlatformSettingsRow | null;
   const deliverySettlementRows = deliverySettlementsResult.error
     ? []
     : ((deliverySettlementsResult.data ?? []) as DeliverySettlementRow[]);
@@ -919,18 +971,39 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       mapPaymentSettings(paymentByCatalog.get(restaurant.id), restaurant.slug)
     ),
     banners: bannerRows.length > 0
-      ? bannerRows.map((banner) => ({
+      ? bannerRows.filter((banner) => {
+          const now = Date.now();
+          return (!banner.starts_at || Date.parse(banner.starts_at) <= now)
+            && (!banner.ends_at || Date.parse(banner.ends_at) >= now);
+        }).map((banner) => {
+          const relatedPage = Array.isArray(banner.platform_content_pages)
+            ? banner.platform_content_pages[0]
+            : banner.platform_content_pages;
+          return {
           id: banner.id,
           title: banner.title,
           subtitle: banner.subtitle,
           kind: banner.kind,
           imageUrl: banner.image_url,
           backgroundColor: banner.background_color || '#5b3df4',
-          linkUrl: banner.link_url,
+          linkUrl: relatedPage?.slug ? `/pages/${relatedPage.slug}` : banner.link_url,
+          pageId: banner.page_id ?? null,
           actionLabel: banner.action_label || 'Заказать',
           isActive: banner.is_active
-        }))
+          };
+        })
       : [],
-    supportWhatsapp: settingsRow?.support_whatsapp || ''
+    contentPages: contentPageRows.map((page) => ({
+      id: page.id,
+      name: page.name,
+      slug: page.slug,
+      blocks: Array.isArray(page.blocks) ? page.blocks : []
+    })),
+    supportWhatsapp: settingsRow?.support_whatsapp || '',
+    supportPhone: settingsRow?.support_phone || '',
+    supportEmail: settingsRow?.support_email || '',
+    supportTelegram: settingsRow?.support_telegram || '',
+    supportHours: settingsRow?.support_hours || '',
+    supportHint: settingsRow?.support_hint || ''
   };
 }

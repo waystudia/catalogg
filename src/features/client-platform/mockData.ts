@@ -16,11 +16,18 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       imageUrl: '',
       backgroundColor: '#5b3df4',
       linkUrl: '/restaurants',
+      pageId: null,
       actionLabel: 'Подробнее',
       isActive: true
     }
   ],
+  contentPages: [],
   supportWhatsapp: '79990000000',
+  supportPhone: '',
+  supportEmail: '',
+  supportTelegram: '',
+  supportHours: '',
+  supportHint: '',
   cities: [
     { id: 'grozny', slug: 'grozny', name: 'Грозный', region: 'Чеченская Республика', isActive: true },
     { id: 'argun', slug: 'argun', name: 'Аргун', region: 'Чеченская Республика', isActive: true },

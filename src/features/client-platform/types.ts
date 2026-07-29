@@ -200,12 +200,28 @@ export type PlatformBanner = {
   id: string;
   title: string;
   subtitle: string;
-  kind: 'contest' | 'promo' | 'news';
+  kind: 'banner' | 'contest' | 'promo' | 'news';
   imageUrl: string;
   backgroundColor: string;
   linkUrl: string;
+  pageId: string | null;
   actionLabel: string;
   isActive: boolean;
+};
+
+export type PlatformContentBlock = {
+  id: string;
+  type: 'heading' | 'subheading' | 'text' | 'image' | 'gallery' | 'video' | 'divider' | 'button' | 'link';
+  content: string;
+  url: string;
+  label: string;
+};
+
+export type PlatformContentPage = {
+  id: string;
+  name: string;
+  slug: string;
+  blocks: PlatformContentBlock[];
 };
 
 export type ClientPlatformSnapshot = {
@@ -216,5 +232,11 @@ export type ClientPlatformSnapshot = {
   dishes: ClientDish[];
   paymentSettings: PaymentSettings[];
   banners: PlatformBanner[];
+  contentPages: PlatformContentPage[];
   supportWhatsapp: string;
+  supportPhone: string;
+  supportEmail: string;
+  supportTelegram: string;
+  supportHours: string;
+  supportHint: string;
 };

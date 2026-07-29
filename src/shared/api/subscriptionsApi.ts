@@ -7,6 +7,8 @@ type SubscriptionQueryRow = {
   amount: number | string | null;
   status: SubscriptionRow['status'];
   ends_at: string | null;
+  paid_at: string | null;
+  created_at: string;
   clients?: { company_name?: string } | Array<{ company_name?: string }> | null;
 };
 
@@ -50,7 +52,7 @@ export async function getSubscriptions(): Promise<SubscriptionRow[]> {
 
   const { data, error } = await supabase
     .from('client_subscriptions')
-    .select('id, plan_code, amount, status, ends_at, clients(company_name)')
+    .select('id, plan_code, amount, status, ends_at, paid_at, created_at, clients(company_name)')
     .order('created_at', { ascending: false })
     .limit(25);
 
@@ -62,7 +64,9 @@ export async function getSubscriptions(): Promise<SubscriptionRow[]> {
     planCode: row.plan_code,
     amount: Number(row.amount ?? 0),
     status: row.status,
-    endsAt: row.ends_at
+    endsAt: row.ends_at,
+    paidAt: row.paid_at,
+    createdAt: row.created_at
   }));
 }
 
