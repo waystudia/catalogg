@@ -151,6 +151,46 @@ export function DishForm({
         </label>
       </section>
 
+      <section className="dish-section dish-choice-editor">
+        <div>
+          <h3>Выбор варианта</h3>
+          <small>Покупатель сможет выбрать только один вариант.</small>
+        </div>
+        <div className="dish-choice-editor__list">
+          {dish.choiceOptions.map((option, index) => (
+            <label key={`${index}-${option}`}>
+              <span aria-hidden="true" />
+              <input
+                maxLength={40}
+                value={option}
+                onChange={(event) => {
+                  const next = [...dish.choiceOptions];
+                  next[index] = event.target.value.slice(0, 40);
+                  onChange({ choiceOptions: next });
+                }}
+                placeholder={index === 0 ? 'Оригинальный' : 'Острый'}
+              />
+              <button
+                type="button"
+                aria-label={`Удалить вариант ${option || index + 1}`}
+                onClick={() => onChange({ choiceOptions: dish.choiceOptions.filter((_, itemIndex) => itemIndex !== index) })}
+              >
+                Удалить
+              </button>
+            </label>
+          ))}
+        </div>
+        {dish.choiceOptions.length < 6 && (
+          <button
+            className="dish-choice-editor__add"
+            type="button"
+            onClick={() => onChange({ choiceOptions: [...dish.choiceOptions, ''] })}
+          >
+            + Добавить вариант
+          </button>
+        )}
+      </section>
+
       <section className="dish-section">
         <h3>Часто покупают вместе</h3>
         <div className="dish-pair-picker">

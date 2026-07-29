@@ -14,6 +14,7 @@ export type Dish = {
   serveWith: string;
   images: string[];
   pairIds: string[];
+  choiceOptions: string[];
 };
 
 export function productToDish(product: Product | null, fallbackCategory: string): Dish {
@@ -36,7 +37,8 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     unlimitedQuantity: product?.is_unlimited ?? product === null,
     serveWith: product?.serving ?? '',
     images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
-    pairIds: product?.pair_ids ?? []
+    pairIds: product?.pair_ids ?? [],
+    choiceOptions: product?.choice_options ?? []
   };
 }
 
@@ -63,6 +65,7 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     category_id: dish.categories[0],
     category_ids: dish.categories,
     drink_type: current?.drink_type,
-    pair_ids: dish.pairIds
+    pair_ids: dish.pairIds,
+    choice_options: dish.choiceOptions
   };
 }

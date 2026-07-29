@@ -90,6 +90,7 @@ export type Product = {
   category_ids?: string[];
   drink_type?: string;
   pair_ids: string[];
+  choice_options?: string[];
 };
 
 export type Cabin = {
@@ -103,4 +104,5 @@ export type Cabin = {
 export type CartItem = {
   product: Product;
   quantity: number;
+  selected_choice?: string;
 };

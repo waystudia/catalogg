@@ -7,7 +7,7 @@ import { redirectToClientHome } from '../shared/appNavigation';
 type CartStore = {
   items: CartItem[];
   updatedAt: number | null;
-  add: (product: Product) => void;
+  add: (product: Product, selectedChoice?: string) => void;
   remove: (productId: string) => void;
   decrement: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -59,7 +59,7 @@ export const useCartStore = create<CartStore>()(
     (set) => ({
       items: [],
       updatedAt: null,
-      add: (product) =>
+      add: (product, selectedChoice) =>
         set((state) => {
           if (product.stock_count <= 0) {
             return state;
@@ -71,12 +71,17 @@ export const useCartStore = create<CartStore>()(
             return {
               updatedAt: touchCart(),
               items: state.items.map((item) =>
-                item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+                item.product.id === product.id
+                  ? { ...item, quantity: item.quantity + 1, selected_choice: selectedChoice ?? item.selected_choice }
+                  : item
               )
             };
           }
 
-          return { items: [...state.items, { product, quantity: 1 }], updatedAt: touchCart() };
+          return {
+            items: [...state.items, { product, quantity: 1, selected_choice: selectedChoice }],
+            updatedAt: touchCart()
+          };
         }),
       remove: (productId) =>
         set((state) => {

@@ -32,6 +32,7 @@ import {
   MessageCircle,
   Milk,
   Minus,
+  MoreHorizontal,
   Package,
   Paintbrush,
   Phone,
@@ -55,6 +56,7 @@ import {
   Utensils,
   UtensilsCrossed,
   User,
+  Users,
   Wheat,
   GripVertical,
   Info,
@@ -1234,6 +1236,10 @@ function ProductTile({
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
                 const button = event.currentTarget;
+                if ((product.choice_options?.length ?? 0) > 0) {
+                  onOpen(product);
+                  return;
+                }
                 add(product);
                 onAdd?.(product);
                 playAddSound();
@@ -1434,6 +1440,7 @@ function CartSheet({
                     <div className="cart-item-card__top">
                       <div>
                         <h3>{item.product.title}</h3>
+                        {item.selected_choice && <small className="cart-item-card__choice">{item.selected_choice}</small>}
                         <p>{item.product.description}</p>
                       </div>
                       <button className="cart-item-card__remove" type="button" onClick={() => remove(item.product.id)} aria-label={`Удалить ${item.product.title}`}>
@@ -2081,6 +2088,9 @@ function ProductScreen({
   const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
+  const choiceOptions = (product.choice_options ?? []).filter(Boolean);
+  const cartChoice = items.find((item) => item.product.id === product.id)?.selected_choice;
+  const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0] ?? '');
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
   const hasFactValue = (value: string) => {
@@ -2092,7 +2102,7 @@ function ProductScreen({
   const hasServing = hasFactValue(product.serving);
 
   const addProduct = () => {
-    add(product);
+    add(product, selectedChoice || undefined);
     if (isFlowProduct) {
       flowAction?.onProductAdd(product);
     }
@@ -2128,6 +2138,25 @@ function ProductScreen({
           <dd>{product.serving}</dd>
         </div>}
       </dl>}
+
+      {choiceOptions.length > 0 && (
+        <fieldset className="product-choice-group">
+          <legend>Выберите вариант</legend>
+          {choiceOptions.map((option) => (
+            <label key={option}>
+              <input
+                type="radio"
+                name={`product-choice-${product.id}`}
+                value={option}
+                checked={selectedChoice === option}
+                onChange={() => setSelectedChoice(option)}
+              />
+              <span aria-hidden="true" />
+              <strong>{option}</strong>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <div className="quantity">
         <button
@@ -3411,7 +3440,7 @@ const adminOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
   canceled: 'Отменен'
 };
 
-const adminOrderStatusTones: Record<RestaurantOrderStatus, 'new' | 'work' | 'ready' | 'delivery' | 'done'> = {
+const adminOrderStatusTones: Record<RestaurantOrderStatus, 'new' | 'work' | 'ready' | 'delivery' | 'done' | 'danger'> = {
   new: 'new',
   waiting_payment_confirmation: 'work',
   payment_confirmed: 'work',
@@ -3427,17 +3456,23 @@ const adminOrderStatusTones: Record<RestaurantOrderStatus, 'new' | 'work' | 'rea
   on_the_way: 'delivery',
   delivered: 'done',
   completed: 'done',
-  cancelled: 'done',
-  canceled: 'done'
+  cancelled: 'danger',
+  canceled: 'danger'
 };
 
-const adminOrderStatusFilters: Array<{ status: 'all' | RestaurantOrderStatus; label: string }> = [
-  { status: 'all', label: 'Все' },
-  { status: 'new', label: 'Новые' },
-  { status: 'preparing', label: 'Готовятся' },
-  { status: 'on_the_way', label: 'В пути' },
-  { status: 'completed', label: 'Выполненные' },
-  { status: 'cancelled', label: 'Отмененные' }
+type AdminOrderFilter = 'all' | 'new' | 'preparing' | 'on_the_way' | 'delivered' | 'cancelled';
+
+const adminOrderStatusFilters: Array<{
+  status: AdminOrderFilter;
+  label: string;
+  orderStatuses: RestaurantOrderStatus[];
+}> = [
+  { status: 'all', label: 'Все', orderStatuses: [] },
+  { status: 'new', label: 'Новые', orderStatuses: ['new', 'waiting_payment_confirmation', 'payment_confirmed'] },
+  { status: 'preparing', label: 'Готовятся', orderStatuses: ['accepted', 'confirmed', 'preparing', 'cooking', 'ready'] },
+  { status: 'on_the_way', label: 'В пути', orderStatuses: ['waiting_driver', 'driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'] },
+  { status: 'delivered', label: 'Доставлены', orderStatuses: ['delivered', 'completed'] },
+  { status: 'cancelled', label: 'Отменены', orderStatuses: ['cancelled', 'canceled'] }
 ];
 
 const fulfillmentLabels: Record<string, string> = {
@@ -3613,11 +3648,12 @@ function RestaurantAdminShell({
         ? routeSection
       : 'home'
   );
-  const [filter, setFilter] = useState<'all' | RestaurantOrderStatus>('all');
+  const [filter, setFilter] = useState<AdminOrderFilter>('all');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
+  const orderListScrollPositionRef = useRef(0);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
   const today = new Date().toDateString();
@@ -3635,10 +3671,14 @@ function RestaurantAdminShell({
     .reduce((total, order) => total + order.total, 0);
   const restaurantDebt = Math.round(monthRevenue * 0.07);
   const restaurantReceived = Math.max(0, monthRevenue - restaurantDebt);
-  const filteredOrders = filter === 'all' ? orders : orders.filter((order) => order.status === filter);
+  const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
+  const filteredOrders =
+    filter === 'all'
+      ? orders
+      : orders.filter((order) => activeFilter?.orderStatuses.includes(order.status));
   const selectedVisibleOrder = selectedOrder
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
-    : filteredOrders[0] ?? null;
+    : null;
   const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled'].includes(order.status));
   const openTab = (nextTab: RestaurantAdminTab) => {
@@ -3646,11 +3686,18 @@ function RestaurantAdminShell({
     navigate(buildRestaurantAdminTabPath(catalogSlug, nextTab));
   };
   const openOrderFromList = (order: RestaurantOrder) => {
+    orderListScrollPositionRef.current = window.scrollY;
     setSelectedOrder(order);
     window.requestAnimationFrame(() => {
       document
         .querySelector('.admin-order-details-panel')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+  const closeOrderDetails = () => {
+    setSelectedOrder(null);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
     });
   };
   const enableOrderNotifications = () => {
@@ -3739,19 +3786,24 @@ function RestaurantAdminShell({
             <p>{restaurant.subtitle || 'Управляйте меню, заказами и доставкой'}</p>
           </div>
           <div className="restaurant-admin__hero-actions">
+            <div className="restaurant-admin__logo">
+              {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" /> : <Store />}
+            </div>
             <button className="restaurant-admin__notification-button" type="button" onClick={onRefreshOrders}>
               <RefreshCcw />
               Обновить
             </button>
             {notificationPermission === 'default' && (
-              <button className="restaurant-admin__notification-button" type="button" onClick={enableOrderNotifications}>
+              <button
+                className="restaurant-admin__notification-button restaurant-admin__notification-button--icon"
+                type="button"
+                onClick={enableOrderNotifications}
+                aria-label="Включить уведомления"
+                title="Включить уведомления"
+              >
                 <Bell />
-                Уведомления
               </button>
             )}
-            <div className="restaurant-admin__logo">
-              {restaurant.logo_url ? <img src={restaurant.logo_url} alt="" /> : <Store />}
-            </div>
           </div>
         </section>
 
@@ -3759,24 +3811,24 @@ function RestaurantAdminShell({
           <section className="restaurant-admin__content">
             <section className="admin-finance-summary">
               <header>
-                <div>
-                  <span>Финансы</span>
-                  <h2>Этот месяц</h2>
-                </div>
-                <small>{formatPrice(monthRevenue)} за месяц</small>
+                <h2>Финансы</h2>
+                <small>{formatPrice(monthRevenue)} за месяц <Info /></small>
               </header>
               <div>
                 <article>
-                  <strong>{formatPrice(restaurantReceived)}</strong>
                   <span>Получено рестораном</span>
+                  <strong>{formatPrice(restaurantReceived)}</strong>
+                  <ArrowRight />
                 </article>
                 <article>
-                  <strong>{monthOrders.length}</strong>
                   <span>Заказов за месяц</span>
+                  <strong>{monthOrders.length}</strong>
+                  <ClipboardList />
                 </article>
                 <article data-tone={restaurantDebt > 0 ? 'debt' : 'ok'}>
-                  <strong>{formatPrice(restaurantDebt)}</strong>
                   <span>Долг платформе</span>
+                  <strong>{formatPrice(restaurantDebt)}</strong>
+                  <CreditCard />
                 </article>
               </div>
             </section>
@@ -3784,11 +3836,13 @@ function RestaurantAdminShell({
               <div>
                 <span>Сегодня</span>
                 <strong>{formatPrice(todayRevenue)}</strong>
-                <small>{todayOrders.length} заказов сегодня · {activeOrders.length} активных</small>
+                <small>• {todayOrders.length} заказов сегодня</small>
+                <small>• {activeOrders.length} активных</small>
               </div>
               <button type="button" onClick={() => openTab('orders')}>
                 <ClipboardList />
                 Заказы
+                <ArrowRight />
               </button>
             </section>
             <section className="admin-quick-actions">
@@ -3847,7 +3901,7 @@ function RestaurantAdminShell({
                   order={selectedVisibleOrder}
                   catalogSlug={catalogSlug}
                   paymentSettings={paymentSettings}
-                  onClose={() => setSelectedOrder(null)}
+                  onClose={closeOrderDetails}
                   onStatus={(status, reason) => {
                     onOrderStatus(selectedVisibleOrder, status, reason);
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
@@ -3912,18 +3966,22 @@ function RestaurantAdminShell({
 
         {tab === 'settings' && (
           <section className="restaurant-admin__content">
-            <section className="admin-section-card">
+            <section className="admin-section-card restaurant-settings-hub">
               <h2>Настройки ресторана</h2>
-              <div className="admin-quick-actions">
-                <button type="button" onClick={() => onOpenScreen('settings-profile')}><Store />Профиль</button>
-                <button type="button" onClick={() => onOpenScreen('settings-design')}><Paintbrush />Дизайн</button>
-                <button type="button" onClick={() => onOpenScreen('settings-categories')}><Tags />Категории</button>
-                <button type="button" onClick={() => onOpenScreen('settings-payments')}><CreditCard />Платежи</button>
-                <button type="button" onClick={() => onOpenScreen('settings-backup')}><CloudUpload />Импорт</button>
-                <button className="admin-quick-actions__exit" type="button" onClick={logout}><LogOut />Выход</button>
+              <div className="restaurant-settings-tiles">
+                <button type="button" onClick={() => onOpenScreen('settings-profile')}><User /><span>Профиль</span></button>
+                <button type="button" onClick={() => onOpenScreen('settings-design')}><Paintbrush /><span>Дизайн</span></button>
+                <button type="button" onClick={() => onOpenScreen('settings-categories')}><Tags /><span>Категории</span></button>
+                <button type="button" onClick={() => onOpenScreen('settings-payments')}><CreditCard /><span>Платежи</span></button>
+                <button type="button" onClick={() => onOpenScreen('settings-backup')}><CloudUpload /><span>Импорт</span></button>
+                <button className="is-danger" type="button" onClick={logout}><LogOut /><span>Выход</span></button>
               </div>
             </section>
-            <DeliverySettingsCard settings={deliverySettings ?? defaultAdminDeliverySettings} onSave={onSaveDeliverySettings} />
+            <DeliverySettingsCard
+              settings={deliverySettings ?? defaultAdminDeliverySettings}
+              onSave={onSaveDeliverySettings}
+              onOpenBackup={() => onOpenScreen('settings-backup')}
+            />
           </section>
         )}
 
@@ -3967,7 +4025,7 @@ function OrderDetailsPanel({
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
-    (order.status === 'waiting_driver' || order.status === 'assigned_driver' || Boolean(order.deliveryId));
+    ['waiting_driver', 'assigned_driver', 'driver_assigned'].includes(order.status);
   const dispatchDriversQuery = useQuery({
     queryKey: ['restaurant-dispatch-drivers', order.id, order.catalogId, order.deliveryCity, order.deliverySettlement, order.driverName],
     queryFn: () => getRestaurantDispatchDrivers(order),
@@ -3982,6 +4040,10 @@ function OrderDetailsPanel({
     savePaymentStatus(catalogSlug, order.id, status);
     setPaymentStatus(status);
   };
+
+  useEffect(() => {
+    setPaymentStatus(loadPaymentStatus(catalogSlug, order.id));
+  }, [catalogSlug, order.id]);
   const refreshDriverDispatch = () => {
     onRefreshOrders();
     void dispatchDriversQuery.refetch();
@@ -4020,59 +4082,122 @@ function OrderDetailsPanel({
   const routeHref = getAdminOrderRouteHref(order);
   const orderAddress = getAdminOrderLocationLabel(order);
   const visibleComment = getVisibleAdminOrderComment(order.comment);
+  const orderDate = new Date(order.createdAt);
+  const orderItemsCount = getAdminOrderItemsCount(order);
+  const orderIsFinished = ['cancelled', 'canceled', 'completed', 'delivered'].includes(order.status);
+  const waitingForPayment = ['waiting_confirmation', 'rejected'].includes(order.paymentStatus);
+  const nextStatusAction:
+    | { label: string; status: RestaurantOrderStatus; disabled?: boolean }
+    | null =
+    order.status === 'new'
+      ? { label: 'Принять заказ', status: 'accepted' }
+      : ['accepted', 'confirmed'].includes(order.status)
+        ? { label: 'Начать готовить', status: 'preparing' }
+        : order.status === 'preparing'
+          ? { label: 'Заказ готов', status: 'ready' }
+          : order.status === 'ready' && order.fulfillmentType === 'delivery'
+            ? { label: 'Вызвать доставку', status: 'waiting_driver', disabled: waitingForPayment }
+            : order.status === 'ready'
+              ? { label: 'Завершить заказ', status: 'completed' }
+              : order.status === 'assigned_driver' || order.status === 'driver_assigned'
+                ? { label: 'Передать курьеру', status: 'on_the_way' }
+                : order.status === 'on_the_way'
+                  ? { label: 'Заказ доставлен', status: 'delivered' }
+                  : null;
 
   return (
     <aside className="admin-order-details-panel">
-      <header className="admin-detail-header">
-        <button type="button" onClick={onClose} aria-label="Закрыть детали"><ArrowLeft /></button>
-        <div>
-          <span>Заказ #{order.orderNumber}</span>
-          <h1>{adminOrderStatusLabels[order.status]}</h1>
-        </div>
-      </header>
-      <section className="admin-section-card">
-        <div className="admin-order-meta">
-          <span>{fulfillmentLabels[order.fulfillmentType]}</span>
-          <strong>{order.fulfillmentType === 'delivery' ? orderAddress : order.cabinLabel || 'Без адреса'}</strong>
-          <small>{new Date(order.createdAt).toLocaleString('ru-RU')}</small>
-        </div>
+      <section className="admin-order-work-card">
+        <header className="admin-order-work-card__header">
+          <button type="button" onClick={onClose} aria-label="Назад к списку заказов"><ArrowLeft /></button>
+          <div>
+            <span>Заказ #{order.orderNumber}</span>
+            <strong>{adminOrderStatusLabels[order.status]}</strong>
+            <i data-tone={adminOrderStatusTones[order.status]}>
+              <span aria-hidden="true" />
+              {adminOrderStatusLabels[order.status]}
+            </i>
+          </div>
+          <div className="admin-order-work-card__total">
+            <strong>{formatPrice(order.total)}</strong>
+            <small>{orderItemsCount} позиций</small>
+          </div>
+          <details className="admin-order-more">
+            <summary aria-label="Дополнительные действия"><MoreHorizontal /></summary>
+            <div>
+              <span>Оплата</span>
+              <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает подтверждения</button>
+              <button type="button" onClick={() => updatePaymentStatus('confirmed')}>Подтвердить оплату</button>
+              <button type="button" onClick={() => updatePaymentStatus('declined')}>Отклонить оплату</button>
+              {!orderIsFinished && order.status !== 'new' && (
+                <button type="button" data-danger="true" onClick={() => onStatus('cancelled', 'restaurant_rejected')}>
+                  Отменить заказ
+                </button>
+              )}
+              {!orderIsFinished && (
+                <button
+                  type="button"
+                  data-danger="true"
+                  onClick={() => {
+                    if (window.confirm('Удалить заказ? Это действие нельзя отменить.')) {
+                      onDelete();
+                    }
+                  }}
+                >
+                  Удалить заказ
+                </button>
+              )}
+            </div>
+          </details>
+        </header>
+
+        <section className="admin-order-facts">
+          <article>
+            <Truck />
+            <span>{fulfillmentLabels[order.fulfillmentType]}</span>
+            <strong>{order.fulfillmentType === 'delivery' ? order.deliverySettlement || order.deliveryCity || 'Доставка' : order.cabinLabel || fulfillmentLabels[order.fulfillmentType]}</strong>
+            <small>{orderDate.toLocaleDateString('ru-RU')} · {orderDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
+          </article>
+          <article>
+            <User />
+            <span>Клиент</span>
+            <strong>{order.clientName || 'Клиент'}</strong>
+            <small>{order.clientPhone || 'Телефон не указан'}</small>
+          </article>
+          <article>
+            <MapPin />
+            <span>Адрес</span>
+            <strong>{orderAddress}</strong>
+            {routeHref ? (
+              <a href={routeHref} target="_blank" rel="noreferrer">Маршрут <ArrowRight /></a>
+            ) : (
+              <small>Маршрут недоступен</small>
+            )}
+          </article>
+        </section>
+
         {visibleComment && <p className="admin-order-comment">{visibleComment}</p>}
-      </section>
-      <section className="admin-section-card admin-customer-card">
-        <h2>Данные клиента</h2>
-        <div className="admin-customer-card__identity">
-          <span><User />{order.clientName || 'Клиент'}</span>
-          <span><Phone />{order.clientPhone || 'Телефон не указан'}</span>
-        </div>
-        <div className="admin-customer-card__actions">
-          {phoneHref && <a href={phoneHref}><Phone />Позвонить</a>}
-          {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
-        </div>
-      </section>
-      <section className="admin-section-card admin-route-card">
-        <h2>Адрес доставки</h2>
-        <p>{orderAddress}</p>
-        {order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null ? (
-          <DeliveryTrackingMap
-            restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
-            client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: orderAddress }}
-            driver={order.driverLat !== null && order.driverLng !== null
-              ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
-              : null}
-          />
-        ) : null}
-        {routeHref ? (
-          <a href={routeHref} target="_blank" rel="noreferrer"><MapPin />Построить маршрут</a>
-        ) : (
-          <button type="button" disabled><MapPin />Маршрут недоступен без координат</button>
+
+        {order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null && (
+          <details className="admin-order-map-details">
+            <summary>Карта доставки</summary>
+            <DeliveryTrackingMap
+              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
+              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: orderAddress }}
+              driver={order.driverLat !== null && order.driverLng !== null
+                ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
+                : null}
+            />
+          </details>
         )}
-      </section>
-      <section className="admin-section-card">
+
+        <section className="admin-order-composition">
         <h2>Состав заказа</h2>
         <div className="admin-order-items">
           {order.items.map((item) => (
             <div key={item.id}>
-              <span>{item.title} x {item.quantity}</span>
+              <span>{item.title}</span>
+              <small>×{item.quantity}</small>
               <strong>{formatPrice(item.lineTotal)}</strong>
             </div>
           ))}
@@ -4081,62 +4206,47 @@ function OrderDetailsPanel({
           <span>Итого</span>
           <strong>{formatPrice(order.total)}</strong>
         </div>
-      </section>
-      {(order.verificationCode || order.qrToken) && (
-        <section className="admin-section-card">
-          <h2>Подтверждение доставки</h2>
-          <p>Код клиента: <strong>{order.verificationCode ?? 'QR включен'}</strong></p>
         </section>
-      )}
-      <section className="admin-section-card admin-payment-status">
-        <h2>Оплата</h2>
-        <p>Статус оплаты: <strong>{paymentStatusLabels[paymentStatus]}</strong></p>
-        <p>Статус в заказе: <strong>{order.paymentStatus}</strong></p>
-        {paymentSettings.transferEnabled && (
-          <div className="admin-payment-requisites">
-            <span>Способ: перевод ресторану</span>
-            <span>Получатель: {paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ') || 'Не указан'}</span>
-            <span>Номер: {paymentSettings.transferNumber || 'Не указан'}</span>
-          </div>
-        )}
-        <div className="admin-order-actions">
-          <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает</button>
-          <button className="admin-order-actions__success" type="button" onClick={() => updatePaymentStatus('confirmed')}>Подтвердить</button>
-          <button className="admin-order-actions__danger admin-order-actions__wide" type="button" onClick={() => updatePaymentStatus('declined')}>Отклонить</button>
+
+        <section className="admin-order-status-grid">
+          <article>
+            <span>Оплата</span>
+            <strong>{paymentStatusLabels[paymentStatus]}</strong>
+            {paymentSettings.transferEnabled && (
+              <small>{paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ') || 'Перевод ресторану'}</small>
+            )}
+          </article>
+          <article>
+            <span>{order.verificationCode ? 'Код подтверждения' : 'Подтверждение доставки'}</span>
+            <strong>{order.verificationCode ?? (order.qrToken ? 'QR включен' : 'Не требуется')}</strong>
+          </article>
+        </section>
+
+        <div className="admin-order-contact-actions">
+          {phoneHref && <a href={phoneHref}><Phone />Позвонить</a>}
+          {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
         </div>
-      </section>
-      <footer className="admin-order-actions">
+
+        <footer className="admin-order-primary-actions">
         {order.status === 'new' && (
-          <>
-            <button className="admin-order-actions__danger" type="button" onClick={() => onStatus('cancelled', 'restaurant_rejected')}>Отклонить</button>
-            <button className="admin-order-actions__success" type="button" onClick={() => onStatus('accepted')}>Принять заказ</button>
-          </>
-        )}
-        {['accepted', 'confirmed'].includes(order.status) && (
-          <button type="button" onClick={() => onStatus('preparing')}>Готовится</button>
-        )}
-        {order.status === 'preparing' && (
-          <button
-            type="button"
-            onClick={() => onStatus('ready')}
-          >
-            Готово
+          <button className="admin-order-primary-actions__reject" type="button" onClick={() => onStatus('cancelled', 'restaurant_rejected')}>
+            Отклонить
           </button>
         )}
-        {order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+        {nextStatusAction && (
           <button
+            className="admin-order-primary-actions__main"
             type="button"
-            disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
-            onClick={() => onStatus('waiting_driver')}
+            disabled={nextStatusAction.disabled}
+            onClick={() => onStatus(nextStatusAction.status)}
           >
-            Вызвать доставку
+            {nextStatusAction.label}
           </button>
         )}
-        {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
-          <button type="button" onClick={() => onStatus('completed')}>Завершить</button>
-        )}
-        {(order.status === 'assigned_driver' || order.status === 'driver_assigned') && (
-          <button type="button" onClick={() => onStatus('on_the_way')}>Передано водителю</button>
+        {orderIsFinished && (
+          <p className="admin-order-primary-actions__complete">
+            <Check /> {adminOrderStatusLabels[order.status]}
+          </p>
         )}
         {showDriverDispatch && (
           <section className="admin-driver-dispatch">
@@ -4192,36 +4302,25 @@ function OrderDetailsPanel({
             )}
           </section>
         )}
-        {order.status === 'on_the_way' && (
-          <button type="button" onClick={() => onStatus('delivered')}>Доставлен</button>
-        )}
-        {!['cancelled', 'canceled', 'completed', 'delivered'].includes(order.status) && (
-          <button
-            className="admin-order-actions__danger admin-order-actions__wide"
-            type="button"
-            onClick={() => {
-              if (window.confirm('Удалить заказ из работы ресторана?')) {
-                onDelete();
-              }
-            }}
-          >
-            <Trash2 />
-            Удалить заказ
-          </button>
-        )}
-      </footer>
+        </footer>
+      </section>
     </aside>
   );
 }
 
 function DeliverySettingsCard({
   settings,
-  onSave
+  onSave,
+  onOpenBackup
 }: {
   settings: RestaurantDeliverySettings;
   onSave: (settings: RestaurantDeliverySettings) => void;
+  onOpenBackup: () => void;
 }) {
   const [draft, setDraft] = useState(settings);
+  const [section, setSection] = useState<
+    null | 'orders' | 'hall' | 'pickup' | 'delivery' | 'couriers' | 'parameters' | 'zones' | 'qr'
+  >(null);
   const { data: directorySettlements = [] } = useQuery({
     queryKey: ['delivery-settlements-public'],
     queryFn: getDeliverySettlements,
@@ -4266,61 +4365,135 @@ function DeliverySettingsCard({
         : [...current.service_settlements, value]
     }));
   };
+  const saveAndClose = () => {
+    onSave(draft);
+    setSection(null);
+  };
+  const sectionTitles = {
+    orders: 'Принимать заказы',
+    hall: 'Заказы в зале',
+    pickup: 'Самовывоз',
+    delivery: 'Доставка',
+    couriers: 'Курьеры и платформа',
+    parameters: 'Параметры доставки',
+    zones: 'Зоны и города',
+    qr: 'QR-подтверждение'
+  } as const;
+
+  if (section) {
+    return (
+      <section className="admin-section-card delivery-settings-card delivery-settings-detail">
+        <header>
+          <button type="button" onClick={() => setSection(null)} aria-label="Назад к настройкам"><ArrowLeft /></button>
+          <div>
+            <small>Доставка и заказы</small>
+            <h2>{sectionTitles[section]}</h2>
+          </div>
+        </header>
+
+        {section === 'orders' && (
+          <label className="settings-toggle-row">
+            <input type="checkbox" checked={draft.enable_orders} onChange={(event) => setBoolean('enable_orders', event.target.checked)} />
+            <span><strong>Принимать заказы</strong><small>Разрешить клиентам оформлять новые заказы.</small></span>
+          </label>
+        )}
+        {section === 'hall' && (
+          <label className="settings-toggle-row">
+            <input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} />
+            <span><strong>Заказы в зале</strong><small>Принимать заказы для столиков и кабинок.</small></span>
+          </label>
+        )}
+        {section === 'pickup' && (
+          <label className="settings-toggle-row">
+            <input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} />
+            <span><strong>Самовывоз</strong><small>Клиент забирает готовый заказ самостоятельно.</small></span>
+          </label>
+        )}
+        {section === 'delivery' && (
+          <label className="settings-toggle-row">
+            <input type="checkbox" checked={draft.enable_delivery} onChange={(event) => setBoolean('enable_delivery', event.target.checked)} />
+            <span><strong>Доставка</strong><small>Разрешить оформление заказов с доставкой.</small></span>
+          </label>
+        )}
+        {section === 'couriers' && (
+          <div className="delivery-settings-switches">
+            <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} /><span><strong>Свой курьер</strong><small>Назначать водителей ресторана.</small></span></label>
+            <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_platform_drivers} onChange={(event) => setBoolean('use_platform_drivers', event.target.checked)} /><span><strong>Водители платформы</strong><small>Передавать доставку курьерам WayCatalog.</small></span></label>
+            <label className="settings-toggle-row"><input type="checkbox" checked={draft.fallback_to_platform_drivers} onChange={(event) => setBoolean('fallback_to_platform_drivers', event.target.checked)} /><span><strong>Передавать после таймера</strong><small>Искать водителя платформы, если свой курьер не найден.</small></span></label>
+            <label>Ожидание своего курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
+          </div>
+        )}
+        {section === 'parameters' && (
+          <div className="delivery-settings-grid">
+            <label>Минимальный заказ, ₽<input value={draft.minimum_order_amount} inputMode="numeric" onChange={(event) => setNumber('minimum_order_amount', event.target.value)} /></label>
+            <label>Бесплатная доставка от, ₽<input value={draft.free_delivery_from} inputMode="numeric" onChange={(event) => setNumber('free_delivery_from', event.target.value)} /></label>
+            <label>Время приготовления, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>
+            <label>Радиус доставки, км<input value={draft.delivery_radius_km} inputMode="decimal" onChange={(event) => setNumber('delivery_radius_km', event.target.value)} /></label>
+            <label>Ожидание курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
+          </div>
+        )}
+        {section === 'zones' && (
+          <div className="delivery-settings-grid">
+            <label>
+              Зона доставки
+              <select value={draft.delivery_area_mode} onChange={(event) => setText('delivery_area_mode', event.target.value as RestaurantDeliverySettings['delivery_area_mode'])}>
+                <option value="radius">По радиусу</option>
+                <option value="settlements">По городам и селам</option>
+                <option value="hybrid">Смешанный режим</option>
+              </select>
+            </label>
+            <label>
+              Основной город
+              <select value={draft.primary_city} onChange={(event) => setText('primary_city', event.target.value)}>
+                <option value="">Выберите село или город</option>
+                {placeOptions.map((place) => <option value={place} key={place}>{place}</option>)}
+              </select>
+            </label>
+            <label className="delivery-settings-grid__wide">
+              Сёла и районы обслуживания
+              <span className="delivery-directory-picker">
+                {directorySettlementOptions.map((settlement) => (
+                  <button type="button" className={draft.service_settlements.includes(settlement) ? 'is-selected' : ''} onClick={() => toggleDirectorySettlement(settlement)} key={settlement}>
+                    {settlement}
+                  </button>
+                ))}
+                {directorySettlementOptions.length === 0 && <small>Суперадмин ещё не добавил населённые пункты.</small>}
+              </span>
+              {draft.service_settlements.length > 0 && <small>Выбрано: {formatSettlementList(draft.service_settlements)}</small>}
+            </label>
+          </div>
+        )}
+        {section === 'qr' && (
+          <label className="settings-toggle-row">
+            <input type="checkbox" checked={draft.qr_required} onChange={(event) => setBoolean('qr_required', event.target.checked)} />
+            <span><strong>Требовать QR-подтверждение</strong><small>Курьер завершает доставку после подтверждения QR-кодом клиента.</small></span>
+          </label>
+        )}
+        <button className="primary-wide" type="button" onClick={saveAndClose}>Сохранить</button>
+      </section>
+    );
+  }
 
   return (
-    <section className="admin-section-card delivery-settings-card">
+    <section className="admin-section-card delivery-settings-card delivery-settings-hub">
       <h2>Доставка и заказы</h2>
-      <label><input type="checkbox" checked={draft.enable_orders} onChange={(event) => setBoolean('enable_orders', event.target.checked)} />Принимать заказы</label>
-      <label><input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} />Заказы в зале</label>
-      <label><input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} />Самовывоз</label>
-      <label><input type="checkbox" checked={draft.enable_delivery} onChange={(event) => setBoolean('enable_delivery', event.target.checked)} />Доставка</label>
-      <label><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} />Свой курьер</label>
-      <label><input type="checkbox" checked={draft.use_platform_drivers} onChange={(event) => setBoolean('use_platform_drivers', event.target.checked)} />Водители платформы</label>
-      <label><input type="checkbox" checked={draft.fallback_to_platform_drivers} onChange={(event) => setBoolean('fallback_to_platform_drivers', event.target.checked)} />Передавать платформе после таймера</label>
-      <label><input type="checkbox" checked={draft.qr_required} onChange={(event) => setBoolean('qr_required', event.target.checked)} />Требовать QR подтверждение доставки</label>
-      <div className="delivery-settings-grid">
-        <label>Мин. заказ<input value={draft.minimum_order_amount} inputMode="numeric" onChange={(event) => setNumber('minimum_order_amount', event.target.value)} /></label>
-        <label>Бесплатно от<input value={draft.free_delivery_from} inputMode="numeric" onChange={(event) => setNumber('free_delivery_from', event.target.value)} /></label>
-        <label>Готовка, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>
-        <label>Радиус, км<input value={draft.delivery_radius_km} inputMode="decimal" onChange={(event) => setNumber('delivery_radius_km', event.target.value)} /></label>
-        <label>Ожидание курьера<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
-        <label>
-          Зона доставки
-          <select value={draft.delivery_area_mode} onChange={(event) => setText('delivery_area_mode', event.target.value as RestaurantDeliverySettings['delivery_area_mode'])}>
-            <option value="radius">По радиусу</option>
-            <option value="settlements">По городам и селам</option>
-            <option value="hybrid">Смешанный режим</option>
-          </select>
-        </label>
-        <label>
-          Основной город
-          <select
-            value={draft.primary_city}
-            onChange={(event) => setText('primary_city', event.target.value)}
-          >
-            <option value="">Выберите село или город</option>
-            {placeOptions.map((place) => <option value={place} key={place}>{place}</option>)}
-          </select>
-        </label>
-        <label className="delivery-settings-grid__wide">
-          Села и районы обслуживания
-          <span className="delivery-directory-picker">
-            {directorySettlementOptions.map((settlement) => (
-              <button
-                type="button"
-                className={draft.service_settlements.includes(settlement) ? 'is-selected' : ''}
-                onClick={() => toggleDirectorySettlement(settlement)}
-                key={settlement}
-              >
-                {settlement}
-              </button>
-            ))}
-            {directorySettlementOptions.length === 0 && <small>Суперадмин ещё не добавил населённые пункты.</small>}
-          </span>
-          {draft.service_settlements.length > 0 && <small>Выбрано: {formatSettlementList(draft.service_settlements)}</small>}
-        </label>
+      <div className="delivery-settings-tiles">
+        <button type="button" onClick={() => setSection('orders')}><Check /><span>Принимать заказы</span></button>
+        <button type="button" onClick={() => setSection('hall')}><Utensils /><span>Заказы в зале</span></button>
+        <button type="button" onClick={() => setSection('pickup')}><ShoppingBag /><span>Самовывоз</span></button>
+        <button type="button" onClick={() => setSection('delivery')}><Truck /><span>Доставка</span></button>
+        <button type="button" onClick={() => setSection('couriers')}><Users /><span>Курьеры и платформа</span></button>
+        <button type="button" onClick={() => setSection('parameters')}><Settings /><span>Параметры доставки</span></button>
+        <button type="button" onClick={() => setSection('zones')}><MapPin /><span>Зоны и города</span></button>
+        <button type="button" onClick={() => setSection('qr')}><QrCode /><span>QR-подтверждение</span></button>
       </div>
-      <button type="button" onClick={() => onSave(draft)}>Сохранить доставку</button>
+      <div className="delivery-settings-backup">
+        <h3>Сохранение и резерв</h3>
+        <div>
+          <button type="button" onClick={() => onSave(draft)}><Download />Сохранить доставку</button>
+          <button type="button" onClick={onOpenBackup}><CloudUpload />Резервное копирование</button>
+        </div>
+      </div>
     </section>
   );
 }

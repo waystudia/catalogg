@@ -44,6 +44,13 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
     options: []
   }));
 
+const formatSelectedChoices = (items: CartItem[]) => {
+  const lines = items
+    .filter((item) => item.selected_choice)
+    .map((item) => `${item.product.title}: ${item.selected_choice}`);
+  return lines.length > 0 ? `Варианты блюд:\n${lines.join('\n')}` : '';
+};
+
 export const resolvePublicOrderRpcName = (items: CartItem[]) =>
   items.every((item) => uuidPattern.test(item.product.id))
     ? 'create_public_restaurant_order'
@@ -188,7 +195,7 @@ export async function createRestaurantOrderWithClient(
     delivery_city: deliveryCity,
     delivery_settlement: deliverySettlement,
     client_address_comment: joinCommentParts(deliverySettlement, locationNote),
-    comment: joinCommentParts(comment, locationNote),
+    comment: joinCommentParts(comment, formatSelectedChoices(items), locationNote),
     idempotency_key: idempotencyKey?.trim() || null,
     items: buildPublicRestaurantOrderItems(items)
   };

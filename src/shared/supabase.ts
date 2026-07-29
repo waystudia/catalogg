@@ -96,6 +96,25 @@ const normalizeRestaurantGallery = (settings: unknown, fallbackUrl?: string | nu
   ).slice(0, 3);
 };
 
+const normalizeProductChoices = (settings: unknown): Record<string, string[]> => {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
+  return Object.fromEntries(
+    Object.entries(settings as Record<string, unknown>)
+      .map(([productId, value]) => [
+        productId,
+        Array.isArray(value)
+          ? value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 6)
+          : []
+      ])
+      .filter(([, value]) => (value as string[]).length > 0)
+  );
+};
+
+const applyProductChoices = (values: Product[], settings: unknown) => {
+  const choices = normalizeProductChoices(settings);
+  return values.map((product) => ({ ...product, choice_options: choices[product.id] ?? [] }));
+};
+
 const gradientMarkerPrefix = 'gradient:';
 
 const hydrateTheme = (value?: Partial<ThemeSettings> | null): ThemeSettings => {
@@ -481,6 +500,7 @@ export async function loadCatalog(catalogSlug?: string) {
       themeResult,
       photoQualityResult,
       restaurantGalleryResult,
+      productChoicesResult,
       restaurantLocation
     ] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
@@ -513,6 +533,12 @@ export async function loadCatalog(catalogSlug?: string) {
         .eq('catalog_id', catalog.id)
         .eq('key', 'restaurant-gallery')
         .maybeSingle(),
+      supabase
+        .from('catalog_sections')
+        .select('settings')
+        .eq('catalog_id', catalog.id)
+        .eq('key', 'product-choices')
+        .maybeSingle(),
       getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string[]>();
@@ -529,8 +555,11 @@ export async function loadCatalog(catalogSlug?: string) {
         )
       },
       categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
-      products: ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
-        mapPlatformProduct(product, productImages.get(product.id) ?? [])
+      products: applyProductChoices(
+        ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
+          mapPlatformProduct(product, productImages.get(product.id) ?? [])
+        ),
+        productChoicesResult.data?.settings
       ),
       cabins: ((cabinsResult.data ?? []) as PlatformCabinRow[]).map(mapPlatformCabin),
       tags: (tagsResult.data ?? []) as CatalogTag[],
@@ -554,6 +583,7 @@ export async function loadCatalog(catalogSlug?: string) {
     themeResult,
     photoQualityResult,
     restaurantGalleryResult,
+    productChoicesResult,
     restaurantLocation
   ] = await Promise.all([
     supabase.from('restaurant').select('*').limit(1).single(),
@@ -578,6 +608,14 @@ export async function loadCatalog(catalogSlug?: string) {
           .eq('key', 'restaurant-gallery')
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    platformCatalogId
+      ? supabase
+          .from('catalog_sections')
+          .select('settings')
+          .eq('catalog_id', platformCatalogId)
+          .eq('key', 'product-choices')
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     platformCatalogId ? getPlatformRestaurantLocation(platformCatalogId) : Promise.resolve(null)
   ]);
 
@@ -594,7 +632,7 @@ export async function loadCatalog(catalogSlug?: string) {
       showOnHome: category.showOnHome ?? true,
       showInOrderFlow: category.showInOrderFlow ?? false
     })),
-    products: productsResult.data ?? products,
+    products: applyProductChoices(productsResult.data ?? products, productChoicesResult.data?.settings),
     cabins: cabinsResult.data ?? cabins,
     tags: tagsResult.data ?? [],
     theme: hydrateTheme(themeResult.data),
@@ -641,6 +679,35 @@ const productToPlatformRow = (product: Product) => ({
   is_new: product.is_new,
   is_promo: product.is_hit
 });
+
+async function saveProductChoices(product: Product) {
+  if (!supabase || !activePlatformCatalogId) return;
+  const current = await throwOnError(
+    supabase
+      .from('catalog_sections')
+      .select('settings')
+      .eq('catalog_id', activePlatformCatalogId)
+      .eq('key', 'product-choices')
+      .maybeSingle()
+  ) as { settings?: unknown } | null;
+  const settings = normalizeProductChoices(current?.settings);
+  const choices = (product.choice_options ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 6);
+  if (choices.length > 0) settings[product.id] = choices;
+  else delete settings[product.id];
+  await throwOnError(
+    supabase.from('catalog_sections').upsert(
+      {
+        catalog_id: activePlatformCatalogId,
+        key: 'product-choices',
+        title: 'Варианты блюд',
+        enabled: Object.keys(settings).length > 0,
+        sort_order: 110,
+        settings
+      },
+      { onConflict: 'catalog_id,key' }
+    )
+  );
+}
 
 const categoryMeta = (value: Category) =>
   JSON.stringify({
@@ -703,6 +770,7 @@ export async function saveProductToSupabase(product: Product) {
     if (uuidPattern.test(product.id)) {
       await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));
       await syncPlatformProductImages(product.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
+      await saveProductChoices(product);
       return;
     }
     const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
@@ -711,10 +779,13 @@ export async function saveProductToSupabase(product: Product) {
     if (created?.id) {
       await syncPlatformProductImages(String(created.id), product.image_urls?.length ? product.image_urls : [product.image_url]);
     }
+    await saveProductChoices(product);
     return;
   }
-  const legacyProduct = { ...product };
+  const legacyProduct: Record<string, unknown> = { ...product };
+  delete legacyProduct.choice_options;
   await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
+  await saveProductChoices(product);
 }
 
 export async function updateProductInSupabase(productId: string, patch: Partial<Product>) {

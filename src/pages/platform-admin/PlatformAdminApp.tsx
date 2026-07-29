@@ -409,7 +409,8 @@ function RestaurantStatsTable({ stats }: { stats?: PlatformStats }) {
               <strong>{restaurant.name}</strong>
               {restaurant.slug && <small>/{restaurant.slug}</small>}
             </span>
-            <b>{formatMoney(restaurant.revenue)}</b>
+            <b>Выручка: {formatMoney(restaurant.revenue)}</b>
+            <small>Получено рестораном: {formatMoney(Math.max(0, restaurant.revenue - restaurant.debt))}</small>
             <small>Долг: {formatMoney(restaurant.debt)}</small>
             <small>Заказы: {restaurant.ordersCount}</small>
             <small>Водители: {restaurant.driverDeliveries}</small>

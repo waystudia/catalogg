@@ -37,6 +37,14 @@ describe('dish photo conversion', () => {
     assert.deepEqual(next.image_urls, ['cover.jpg', 'side.jpg']);
   });
 
+  it('keeps single-choice variants when a dish is edited', () => {
+    const choices = ['Оригинальный', 'Острый'];
+    const dish = productToDish({ ...product, choice_options: choices }, 'food');
+
+    assert.deepEqual(dish.choiceOptions, choices);
+    assert.deepEqual(dishToProduct(dish, product).choice_options, choices);
+  });
+
   it('keeps daily stock separate and makes new dishes unlimited by default', () => {
     const existing = {
       ...product,

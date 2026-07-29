@@ -99,6 +99,34 @@ describe('public restaurant order payload', () => {
     assert.equal(rpcArgs.idempotency_key, 'checkout-attempt-1');
   });
 
+  it('keeps the selected dish variant in the restaurant-visible order comment', async () => {
+    let rpcArgs: Record<string, unknown> = {};
+    const client: PublicRestaurantOrderClient = {
+      async rpc(_name, args) {
+        rpcArgs = args;
+        return { data: 'order-choice', error: null };
+      },
+      from() {
+        return {
+          update() {
+            return {
+              async eq() {
+                return { error: null };
+              }
+            };
+          }
+        };
+      }
+    };
+
+    await createRestaurantOrderWithClient(client, 'catalog-1', {
+      ...orderInput(),
+      items: [{ product: product(), quantity: 1, selected_choice: 'Острый' }]
+    });
+
+    assert.match(String(rpcArgs.comment), /Жижиг-галнаш: Острый/);
+  });
+
   it('retries without idempotency key when the deployed SQL overload is ambiguous', async () => {
     const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
     const client: PublicRestaurantOrderClient = {

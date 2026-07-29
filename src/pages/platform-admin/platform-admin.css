@@ -330,7 +330,7 @@
 
 .restaurant-stats-table article {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 130px repeat(3, minmax(88px, auto)) 142px;
+  grid-template-columns: minmax(0, 1.2fr) repeat(5, minmax(110px, auto)) 142px;
   align-items: center;
   gap: 12px;
   min-height: 56px;
