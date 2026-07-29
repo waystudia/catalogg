@@ -17,7 +17,10 @@ const defaultRestaurantCommissionRate = 0.07;
 const getOrderRestaurantId = (order: PlatformOrderStatsRow) =>
   order.catalog_id || order.restaurant_id || 'unknown-restaurant';
 
-const getOrderAmount = (order: PlatformOrderStatsRow) => Number(order.total_amount ?? order.total ?? 0);
+const getOrderAmount = (order: PlatformOrderStatsRow) => {
+  const totalAmount = Number(order.total_amount ?? 0);
+  return totalAmount > 0 ? totalAmount : Number(order.total ?? 0);
+};
 
 export const summarizePlatformStats = (
   clients: PlatformClient[],
@@ -74,6 +77,15 @@ export const summarizePlatformStats = (
   return {
     totalClients: clients.length,
     activeCatalogs: clients.filter((client) => client.catalogStatus === 'published').length,
+    daysActive: clients.length > 0
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() - Math.min(...clients.map((client) => Date.parse(client.createdAt)).filter(Number.isFinite))) /
+              86_400_000
+          )
+        )
+      : 0,
     monthlyRevenue: completedOrders.reduce((sum, order) => sum + getOrderAmount(order), 0),
     monthlyViews: 0,
     totalDebt: restaurantStats.reduce((sum, restaurant) => sum + restaurant.debt, 0),

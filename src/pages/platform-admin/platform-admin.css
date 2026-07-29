@@ -1338,7 +1338,7 @@
 
 .platform-banner-card {
   display: grid;
-  grid-template-columns: 86px minmax(120px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto 42px;
+  grid-template-columns: 64px 86px minmax(120px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto 42px;
   align-items: center;
   gap: 12px;
   border: 1px solid var(--platform-border);
@@ -2538,5 +2538,962 @@
 
   .client-success dt {
     grid-column: 1 / -1;
+  }
+}
+
+/* Compact superadmin clients, analytics and contest workspaces */
+.clients-page {
+  gap: 14px;
+}
+
+.clients-page .platform-page-head {
+  margin-bottom: 2px;
+}
+
+.clients-page .platform-page-head button {
+  min-width: 46px;
+}
+
+.clients-page .platform-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.clients-page .platform-stat {
+  min-width: 0;
+  min-height: 104px;
+  gap: 7px;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.clients-page .platform-stat > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+.clients-page .platform-stat svg {
+  width: 18px;
+  height: 18px;
+}
+
+.clients-page .platform-stat div {
+  min-width: 0;
+}
+
+.clients-page .platform-stat small {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clients-page .platform-stat strong {
+  margin-top: 3px;
+  font-size: clamp(18px, 4vw, 24px);
+  white-space: nowrap;
+}
+
+.restaurant-revenue-summary {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--platform-border);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: var(--platform-shadow);
+}
+
+.restaurant-revenue-summary header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.restaurant-revenue-summary h2,
+.restaurant-revenue-summary strong {
+  margin: 0;
+  font-size: 17px;
+}
+
+.restaurant-revenue-summary > div {
+  display: flex;
+  gap: 8px 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.restaurant-revenue-summary > div > span {
+  display: inline-grid;
+  grid-template-columns: 8px auto;
+  align-items: center;
+  gap: 2px 7px;
+  flex: 0 0 auto;
+  color: #344054;
+  font-size: 13px;
+}
+
+.restaurant-revenue-summary i {
+  width: 8px;
+  height: 8px;
+  grid-row: 1 / span 2;
+  border-radius: 999px;
+  background: hsl(calc(252deg - var(--legend-index) * 37deg) 79% 58%);
+}
+
+.restaurant-revenue-summary small {
+  grid-column: 2;
+  color: #667085;
+  font-size: 11px;
+}
+
+.clients-page .client-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.clients-page .search-field {
+  min-width: 0;
+}
+
+.clients-page .client-filters > select {
+  display: none;
+}
+
+.clients-page .client-filters.is-open > select {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.clients-page .client-filters > button {
+  width: 48px;
+  min-height: 46px;
+  padding: 0;
+}
+
+.clients-page .client-filters > button span {
+  display: none;
+}
+
+.clients-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.clients-list-head strong {
+  font-size: 17px;
+}
+
+.clients-list-head strong span {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eeeaff;
+  color: #5b3df4;
+  font-size: 12px;
+}
+
+.clients-list-head small {
+  color: #667085;
+}
+
+.clients-page .clients-table-wrap {
+  display: none;
+}
+
+.clients-page .client-card-list {
+  display: grid;
+  gap: 8px;
+}
+
+.clients-page .client-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) auto 96px;
+  grid-template-areas:
+    "head numbers open"
+    "meta numbers open";
+  align-items: center;
+  gap: 5px 16px;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.clients-page .client-card__head {
+  grid-area: head;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.clients-page .client-card__head > button {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+}
+
+.clients-page .client-avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.clients-page .client-card__head strong {
+  font-size: 16px;
+}
+
+.clients-page .client-card__head small {
+  overflow: hidden;
+  max-width: 260px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clients-page .client-card__meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0 0 0 54px;
+}
+
+.client-card__numbers {
+  grid-area: numbers;
+  display: flex;
+  gap: 16px;
+  padding-right: 18px;
+}
+
+.client-card__numbers span {
+  display: grid;
+  gap: 2px;
+  min-width: 56px;
+  text-align: center;
+}
+
+.client-card__numbers strong {
+  color: #101828;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.client-card__numbers small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.clients-page .client-card__open {
+  grid-area: open;
+  min-height: 40px;
+  margin: 0;
+}
+
+.platform-analytics-page {
+  gap: 14px;
+}
+
+.platform-analytics-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-analytics-metrics article,
+.platform-analytics-card {
+  border: 1px solid var(--platform-border);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-analytics-metrics article {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+}
+
+.platform-analytics-metrics small,
+.platform-analytics-metrics span,
+.platform-analytics-card header small {
+  color: #667085;
+}
+
+.platform-analytics-metrics strong {
+  font-size: 28px;
+}
+
+.platform-analytics-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.platform-analytics-card header h2,
+.platform-analytics-card header small {
+  margin: 0;
+}
+
+.platform-analytics-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.platform-analytics-bars > span {
+  display: grid;
+  gap: 6px;
+}
+
+.platform-analytics-bars label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #344054;
+}
+
+.platform-analytics-bars i {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eef0f5;
+}
+
+.platform-analytics-bars b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #5b3df4;
+}
+
+.platform-contest-toolbar {
+  grid-template-columns: 30px minmax(0, 1fr);
+  border-radius: 18px;
+}
+
+.platform-contest-toolbar label {
+  position: relative;
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.platform-contest-toolbar label svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 18px;
+  color: #667085;
+  transform: translateY(-50%);
+}
+
+.platform-contest-toolbar input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0 12px 0 40px;
+  font: inherit;
+}
+
+.platform-ticket-list__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.platform-ticket-list__head span {
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #eeeaff;
+  color: #5b3df4;
+  font-size: 12px;
+}
+
+.platform-ticket-list__head small {
+  color: #667085;
+}
+
+.platform-ticket-card {
+  display: block;
+  border-radius: 14px;
+  padding: 0;
+}
+
+.platform-ticket-card summary {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto 18px;
+  align-items: center;
+  gap: 9px;
+  min-height: 64px;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.platform-ticket-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.platform-ticket-card summary > svg:first-child {
+  color: #5b3df4;
+}
+
+.platform-ticket-card summary > span {
+  display: grid;
+  min-width: 0;
+}
+
+.platform-ticket-card summary strong,
+.platform-ticket-card summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-ticket-card summary small {
+  color: #667085;
+}
+
+.platform-ticket-card summary b {
+  white-space: nowrap;
+}
+
+.platform-ticket-card summary em {
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: #f0edff;
+  color: #5b3df4;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.platform-ticket-card summary > svg:last-child {
+  transition: transform 160ms ease;
+}
+
+.platform-ticket-card[open] summary > svg:last-child {
+  transform: rotate(90deg);
+}
+
+.platform-ticket-card > div {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #eef0f5;
+  padding: 10px 12px 12px 49px;
+}
+
+.platform-ticket-card > div p {
+  margin: 0;
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.platform-ticket-card > div span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.platform-ticket-card > div span svg {
+  width: 16px;
+}
+
+.platform-ticket-card > div button {
+  display: inline-flex;
+  width: max-content;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+
+@media (max-width: 767px) {
+  .clients-page .platform-page-head p {
+    font-size: 12px;
+  }
+
+  .clients-page .platform-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .clients-page .platform-stat {
+    min-height: 88px;
+    padding: 10px;
+  }
+
+  .clients-page .platform-stat > span {
+    width: 30px;
+    height: 30px;
+  }
+
+  .clients-page .platform-stat strong {
+    font-size: 18px;
+  }
+
+  .clients-page .client-card {
+    grid-template-columns: minmax(0, 1fr) 74px;
+    grid-template-areas:
+      "head numbers"
+      "meta open";
+    gap: 7px 10px;
+    padding: 10px;
+  }
+
+  .clients-page .client-card__numbers {
+    gap: 7px;
+    padding: 0;
+  }
+
+  .clients-page .client-card__numbers span:first-child {
+    display: none;
+  }
+
+  .clients-page .client-card__meta {
+    margin-left: 50px;
+  }
+
+  .clients-page .client-card__open {
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  .platform-analytics-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .platform-analytics-metrics article {
+    min-width: 0;
+    padding: 12px 9px;
+  }
+
+  .platform-analytics-metrics strong {
+    font-size: 22px;
+  }
+
+  .platform-analytics-metrics small,
+  .platform-analytics-metrics span {
+    font-size: 11px;
+  }
+
+  .platform-ticket-card {
+    grid-template-columns: none;
+  }
+
+  .platform-ticket-card summary {
+    grid-template-columns: 24px minmax(0, 1fr) auto 18px;
+    gap: 7px;
+  }
+
+  .platform-ticket-card summary em {
+    display: none;
+  }
+}
+
+@media (max-width: 340px) {
+  .clients-page .platform-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.platform-topbar__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  text-align: left !important;
+}
+
+.platform-topbar__identity > span:last-child {
+  min-width: 0;
+}
+
+.platform-topbar__identity strong,
+.platform-topbar__identity small {
+  display: block;
+}
+
+.platform-topbar__identity small {
+  overflow: hidden;
+  max-width: min(50vw, 360px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-topbar__avatar {
+  display: grid !important;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: #f0edff;
+  color: #5b3df4;
+  font-weight: 900;
+}
+
+.platform-topbar__actions {
+  display: flex;
+  gap: 4px;
+}
+
+@media (max-width: 767px) {
+  .platform-topbar {
+    padding: 0 14px;
+  }
+
+  .platform-topbar__identity strong {
+    font-size: 14px;
+  }
+
+  .platform-topbar__identity small {
+    max-width: 48vw;
+    font-size: 10px;
+  }
+
+  .platform-topbar__actions button {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.platform-dashboard-page {
+  gap: 12px;
+}
+
+.platform-dashboard-page .platform-page-head button:disabled {
+  opacity: 0.6;
+}
+
+.platform-stats--dashboard {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-stats--dashboard .platform-stat {
+  min-height: 132px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+}
+
+.platform-stats--dashboard .platform-stat > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.platform-stats--dashboard .platform-stat > span svg {
+  width: 21px;
+  height: 21px;
+}
+
+.platform-stats--dashboard .platform-stat div {
+  min-width: 0;
+}
+
+.platform-stats--dashboard .platform-stat small {
+  min-height: 32px;
+  line-height: 1.15;
+}
+
+.platform-stats--dashboard .platform-stat strong {
+  margin-top: 5px;
+  font-size: 23px;
+  white-space: nowrap;
+}
+
+.platform-dashboard-page .platform-debt-panel,
+.platform-dashboard-page .restaurant-revenue-summary {
+  border-radius: 18px;
+}
+
+.platform-settings-section {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--platform-border);
+  border-radius: 18px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-settings-section > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-settings-section > header h2,
+.platform-settings-section > header p {
+  margin: 0;
+}
+
+.platform-settings-section > header h2 {
+  color: #111827;
+  font-size: 18px;
+}
+
+.platform-settings-section > header p {
+  color: #667085;
+  font-size: 13px;
+}
+
+.platform-settings-section .platform-settings-form {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.platform-banner-media-picker {
+  align-content: start;
+}
+
+.platform-banner-media-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.platform-banner-media-picker > span {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed #a99cf9;
+  border-radius: 10px;
+  background: #f6f4ff;
+  color: #5b3df4;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.platform-banner-media-picker > span svg {
+  width: 19px;
+  height: 19px;
+}
+
+.platform-banner-media-picker small {
+  color: #667085;
+  font-weight: 600;
+}
+
+.platform-banner-media-preview {
+  position: relative;
+  min-height: 96px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.platform-banner-media-preview img,
+.platform-banner-media-preview video {
+  width: 100%;
+  height: 120px;
+  display: block;
+  object-fit: cover;
+}
+
+.platform-banner-media-preview button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-height: 34px;
+  background: rgba(15, 23, 42, 0.88);
+}
+
+.platform-banner-card__media {
+  overflow: hidden;
+  width: 64px;
+  height: 48px;
+  border-radius: 9px !important;
+  padding: 0 !important;
+  background: #f1f5f9 !important;
+}
+
+.platform-banner-card__media img,
+.platform-banner-card__media video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .platform-admin-shell--dashboard {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
+  .platform-admin-shell--dashboard .platform-workspace {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .platform-dashboard-page {
+    height: calc(100dvh - 58px);
+    box-sizing: border-box;
+    overflow: hidden;
+    gap: 8px;
+    padding: 10px 14px 84px;
+  }
+
+  .platform-dashboard-page .platform-page-head {
+    min-height: 54px;
+  }
+
+  .platform-dashboard-page .platform-page-head h1 {
+    font-size: 26px;
+  }
+
+  .platform-dashboard-page .platform-page-head p {
+    max-width: 230px;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .platform-dashboard-page .platform-page-head button {
+    width: 42px;
+    min-height: 42px;
+  }
+
+  .platform-stats--dashboard {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .platform-stats--dashboard .platform-stat {
+    min-height: 86px;
+    gap: 5px;
+    border-radius: 14px;
+    padding: 8px;
+  }
+
+  .platform-stats--dashboard .platform-stat > span {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .platform-stats--dashboard .platform-stat > span svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .platform-stats--dashboard .platform-stat small {
+    min-height: 25px;
+    font-size: 10px;
+    line-height: 1.12;
+  }
+
+  .platform-stats--dashboard .platform-stat strong {
+    margin-top: 2px;
+    font-size: 18px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel {
+    gap: 7px;
+    padding: 10px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel header {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel header > span {
+    width: 34px;
+    height: 34px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel h2 {
+    font-size: 14px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel p {
+    overflow: hidden;
+    max-width: 100%;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .platform-dashboard-page .platform-debt-panel header > strong {
+    font-size: 18px;
+  }
+
+  .platform-dashboard-page .platform-debt-panel > small {
+    font-size: 10px;
+  }
+
+  .platform-dashboard-page .restaurant-revenue-summary {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .platform-dashboard-page .restaurant-revenue-summary h2,
+  .platform-dashboard-page .restaurant-revenue-summary strong {
+    font-size: 14px;
+  }
+
+  .platform-dashboard-page .restaurant-revenue-summary > div {
+    gap: 5px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .platform-dashboard-page .restaurant-revenue-summary > div > span {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  .platform-settings-section {
+    gap: 12px;
+    border-radius: 16px;
+    padding: 14px;
+  }
+
+  .platform-settings-section > header {
+    display: grid;
+    gap: 3px;
+  }
+
+  .platform-settings-section .platform-settings-form,
+  .platform-settings-section .platform-settings-form--banner {
+    padding: 0;
+  }
+
+  .platform-banner-card__media {
+    grid-column: 1 / -1 !important;
+    width: 100%;
+    height: 112px;
+  }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  .platform-dashboard-page .restaurant-revenue-summary {
+    display: none;
   }
 }

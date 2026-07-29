@@ -217,7 +217,7 @@ const getCityIdFromSearch = (snapshot: ClientPlatformSnapshot, citySlug: string 
 
 const getPromoDetailPath = (banner: PlatformBanner) => `/promo/${encodeURIComponent(banner.id)}`;
 
-const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg)(?:[?#].*)?$/i.test(url.trim());
+const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(url.trim());
 
 const countRestaurantsForCity = (snapshot: ClientPlatformSnapshot, cityId: string) =>
   filterRestaurants(snapshot.restaurants, { cityId, categorySlug: 'all', query: '' }).length;

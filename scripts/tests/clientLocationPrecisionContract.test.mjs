@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const clientApp = readFileSync(resolve(repoRoot, 'src/pages/client-platform/ClientPlatformApp.tsx'), 'utf8');
-const restaurantApp = readFileSync(resolve(repoRoot, 'src/app/App.tsx'), 'utf8');
+const restaurantCheckout = readFileSync(
+  resolve(repoRoot, 'src/features/checkout/CheckoutScreen.tsx'),
+  'utf8'
+);
 const deliveryLocation = readFileSync(resolve(repoRoot, 'src/shared/deliveryLocation.ts'), 'utf8');
 const deliveryMapPicker = readFileSync(resolve(repoRoot, 'src/shared/DeliveryMapPicker.tsx'), 'utf8');
 const deliveryGeocoder = readFileSync(resolve(repoRoot, 'src/shared/deliveryGeocoder.ts'), 'utf8');
@@ -16,8 +19,8 @@ describe('client delivery location precision contract', () => {
     assert.match(deliveryLocation, /export const DELIVERY_TARGET_ACCURACY_M = 10/);
     assert.match(deliveryLocation, /export const DELIVERY_LOCATION_TIMEOUT_MS = 20_000/);
     assert.match(deliveryLocation, /maximumAge: 0/);
-    assert.doesNotMatch(restaurantApp, /const DELIVERY_TARGET_ACCURACY_M/);
-    assert.match(restaurantApp, /DELIVERY_GEOLOCATION_OPTIONS/);
+    assert.doesNotMatch(restaurantCheckout, /const DELIVERY_TARGET_ACCURACY_M/);
+    assert.match(restaurantCheckout, /DELIVERY_GEOLOCATION_OPTIONS/);
     assert.match(clientApp, /DELIVERY_GEOLOCATION_OPTIONS/);
   });
 
@@ -34,7 +37,7 @@ describe('client delivery location precision contract', () => {
     assert.match(deliveryGeocoder, /minimumSearchIntervalMs = 1_000/);
     assert.match(deliveryGeocoder, /'ISO3166-2-lvl4'\] !== 'RU-CE'/);
     assert.match(deliveryGeocoder, /bounded', '1'/);
-    assert.match(restaurantApp, /onSearchSelect=\{applySearchedDeliveryPlace\}/);
+    assert.match(restaurantCheckout, /onSearchSelect=\{applySearchedDeliveryPlace\}/);
     assert.match(clientApp, /onSearchSelect=\{selectSearchedMapPoint\}/);
   });
 });

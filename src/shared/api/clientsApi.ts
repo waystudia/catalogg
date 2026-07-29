@@ -7,8 +7,12 @@ import type {
   PlatformBannerAdmin,
   PlatformContestTicket,
   PlatformGlobalSettings,
+  PlatformAnalytics,
   PlatformClient,
   PlatformStats,
+  PlatformUserDirectory,
+  PlatformUserDirectoryItem,
+  PlatformUserOrder,
   UpdateClientPayload,
   UpdateClientResult
 } from './platformTypes';
@@ -167,6 +171,8 @@ type ContestOrderRow = {
   client_phone?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
+  delivery_city?: string | null;
+  delivery_settlement?: string | null;
   total?: number | string | null;
   total_amount?: number | string | null;
   created_at: string;
@@ -233,7 +239,8 @@ const mapClientSignup = (row: ClientSignupRow): ClientSignup => ({
 const mapProfileSignup = (row: ProfileSignupRow): ClientSignup => ({
   id: `profile-${row.id}`,
   name: row.full_name || row.email || 'Пользователь',
-  phone: row.email ?? '',
+  phone: '',
+  email: row.email ?? '',
   source: 'auth_user',
   createdAt: row.created_at
 });
@@ -327,7 +334,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   const [ordersResult, catalogsResult] = await Promise.all([
     supabase
       .from('orders')
-      .select('catalog_id, total, total_amount, delivery_provider, status')
+      .select('catalog_id, restaurant_id, total, total_amount, delivery_provider, status')
       .limit(1000),
     supabase
       .from('catalogs')
@@ -375,6 +382,81 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   return summarizePlatformStats([...clients.data, ...orphanCatalogs], orderRows);
 }
 
+type PlatformAnalyticsOrderRow = {
+  client_name?: string | null;
+  client_phone?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  fulfillment_type?: string | null;
+  order_type?: string | null;
+  delivery_city?: string | null;
+  delivery_settlement?: string | null;
+};
+
+const normalizeCustomerKey = (order: PlatformAnalyticsOrderRow) => {
+  const phone = (order.client_phone || order.customer_phone || '').replace(/\D/g, '');
+  if (phone) return `phone:${phone}`;
+  const name = (order.client_name || order.customer_name || '').trim().toLocaleLowerCase('ru-RU');
+  return name ? `name:${name}` : '';
+};
+
+export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
+  if (!supabase) {
+    return {
+      totalOrders: 0,
+      uniqueCustomers: 0,
+      repeatCustomers: 0,
+      repeatOrderRate: 0,
+      orderTypes: [
+        { key: 'hall', label: 'В зале', count: 0 },
+        { key: 'takeaway', label: 'На вынос', count: 0 },
+        { key: 'delivery', label: 'Доставка', count: 0 }
+      ],
+      locations: []
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('client_name, client_phone, customer_name, customer_phone, fulfillment_type, order_type, delivery_city, delivery_settlement')
+    .order('created_at', { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+
+  const rows = (data ?? []) as PlatformAnalyticsOrderRow[];
+  const customerOrders = new Map<string, number>();
+  const locations = new Map<string, number>();
+  const orderTypeCounts = { hall: 0, takeaway: 0, delivery: 0 };
+
+  rows.forEach((order) => {
+    const customerKey = normalizeCustomerKey(order);
+    if (customerKey) customerOrders.set(customerKey, (customerOrders.get(customerKey) ?? 0) + 1);
+
+    const rawType = order.fulfillment_type || order.order_type || 'hall';
+    const orderType = rawType === 'delivery' ? 'delivery' : rawType === 'takeaway' || rawType === 'pickup' ? 'takeaway' : 'hall';
+    orderTypeCounts[orderType] += 1;
+
+    const location = (order.delivery_settlement || order.delivery_city || '').trim();
+    if (location) locations.set(location, (locations.get(location) ?? 0) + 1);
+  });
+
+  const repeatCustomers = Array.from(customerOrders.values()).filter((count) => count > 1).length;
+  return {
+    totalOrders: rows.length,
+    uniqueCustomers: customerOrders.size,
+    repeatCustomers,
+    repeatOrderRate: customerOrders.size > 0 ? Math.round((repeatCustomers / customerOrders.size) * 100) : 0,
+    orderTypes: [
+      { key: 'hall', label: 'В зале', count: orderTypeCounts.hall },
+      { key: 'takeaway', label: 'На вынос', count: orderTypeCounts.takeaway },
+      { key: 'delivery', label: 'Доставка', count: orderTypeCounts.delivery }
+    ],
+    locations: Array.from(locations, ([name, count]) => ({ name, count }))
+      .sort((left, right) => right.count - left.count)
+      .slice(0, 8)
+  };
+}
+
 export async function getClientSignups(): Promise<ClientSignup[]> {
   if (!supabase) return demoClientSignups;
 
@@ -406,6 +488,189 @@ export async function getClientSignups(): Promise<ClientSignup[]> {
       return true;
     })
   ];
+}
+
+type PlatformUserOrderRow = {
+  id: string;
+  catalog_id?: string | null;
+  restaurant_id?: string | null;
+  client_name?: string | null;
+  client_phone?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  delivery_city?: string | null;
+  delivery_settlement?: string | null;
+  total?: number | string | null;
+  total_amount?: number | string | null;
+  status?: string | null;
+  created_at: string;
+  restaurants?: { name?: string | null } | Array<{ name?: string | null }> | null;
+};
+
+const normalizeDirectoryPhone = (value: string) => value.replace(/\D/g, '');
+const normalizeDirectoryName = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
+const makeDirectoryKey = (phone: string, email: string, name: string) => {
+  const normalizedPhone = normalizeDirectoryPhone(phone);
+  if (normalizedPhone) return `phone:${normalizedPhone}`;
+  const normalizedEmail = email.trim().toLocaleLowerCase('ru-RU');
+  if (normalizedEmail) return `email:${normalizedEmail}`;
+  const normalizedName = normalizeDirectoryName(name);
+  return normalizedName ? `name:${normalizedName}` : '';
+};
+
+const isCanceledDirectoryOrder = (status: string) => status === 'cancelled' || status === 'canceled';
+
+export async function getPlatformUserDirectory(): Promise<PlatformUserDirectory> {
+  const signups = await getClientSignups();
+  if (!supabase) {
+    return {
+      users: signups.map((signup) => ({
+        id: signup.id,
+        name: signup.name || 'Пользователь',
+        phone: signup.phone,
+        email: signup.email ?? '',
+        cityName: signup.cityName ?? '',
+        source: signup.source,
+        createdAt: signup.createdAt,
+        ordersCount: 0,
+        totalSpent: 0,
+        averageCheck: 0,
+        lastOrderAt: null,
+        favoriteRestaurant: '',
+        orders: []
+      })),
+      totalOrders: 0,
+      totalRevenue: 0,
+      settlements: [],
+      restaurants: []
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, catalog_id, restaurant_id, client_name, client_phone, customer_name, customer_phone, delivery_city, delivery_settlement, total, total_amount, status, created_at, restaurants(name)')
+    .order('created_at', { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+
+  const usersByKey = new Map<string, PlatformUserDirectoryItem>();
+  const restaurantNamesById = new Map<string, string>();
+
+  signups.forEach((signup) => {
+    const key = makeDirectoryKey(signup.phone, signup.email ?? '', signup.name);
+    if (!key || usersByKey.has(key)) return;
+    usersByKey.set(key, {
+      id: signup.id,
+      name: signup.name || 'Пользователь',
+      phone: signup.phone,
+      email: signup.email ?? '',
+      cityName: signup.cityName ?? '',
+      source: signup.source,
+      createdAt: signup.createdAt,
+      ordersCount: 0,
+      totalSpent: 0,
+      averageCheck: 0,
+      lastOrderAt: null,
+      favoriteRestaurant: '',
+      orders: []
+    });
+  });
+
+  ((data ?? []) as unknown as PlatformUserOrderRow[]).forEach((row) => {
+    const name = row.client_name || row.customer_name || 'Пользователь';
+    const phone = row.client_phone || row.customer_phone || '';
+    const key = makeDirectoryKey(phone, '', name);
+    if (!key) return;
+    const restaurant = firstRelation(row.restaurants)?.name ?? 'Ресторан';
+    const restaurantId = row.restaurant_id ?? row.catalog_id ?? restaurant;
+    const cityName = row.delivery_settlement || row.delivery_city || '';
+    const amount = Math.max(0, Number(row.total_amount ?? 0) || Number(row.total ?? 0) || 0);
+    const status = row.status ?? '';
+    const current = usersByKey.get(key) ?? {
+      id: `order-user-${key}`,
+      name,
+      phone,
+      email: '',
+      cityName,
+      source: 'order',
+      createdAt: row.created_at,
+      ordersCount: 0,
+      totalSpent: 0,
+      averageCheck: 0,
+      lastOrderAt: null,
+      favoriteRestaurant: '',
+      orders: []
+    };
+    const order: PlatformUserOrder = {
+      id: row.id,
+      restaurantId,
+      restaurantName: restaurant,
+      amount,
+      status,
+      cityName,
+      createdAt: row.created_at
+    };
+    current.orders.push(order);
+    current.ordersCount += 1;
+    if (!isCanceledDirectoryOrder(status)) current.totalSpent += amount;
+    if (!current.cityName && cityName) current.cityName = cityName;
+    if (!current.lastOrderAt || Date.parse(row.created_at) > Date.parse(current.lastOrderAt)) {
+      current.lastOrderAt = row.created_at;
+    }
+    usersByKey.set(key, current);
+    restaurantNamesById.set(restaurantId, restaurant);
+  });
+
+  const users = Array.from(usersByKey.values()).map((user) => {
+    const restaurantCounts = new Map<string, number>();
+    user.orders.forEach((order) => {
+      restaurantCounts.set(order.restaurantName, (restaurantCounts.get(order.restaurantName) ?? 0) + 1);
+    });
+    const favoriteRestaurant = Array.from(restaurantCounts.entries())
+      .sort((left, right) => right[1] - left[1])[0]?.[0] ?? '';
+    return {
+      ...user,
+      averageCheck: user.ordersCount > 0 ? Math.round(user.totalSpent / user.ordersCount) : 0,
+      favoriteRestaurant,
+      orders: user.orders.sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+    };
+  }).sort((left, right) => {
+    const leftDate = left.lastOrderAt ?? left.createdAt;
+    const rightDate = right.lastOrderAt ?? right.createdAt;
+    return Date.parse(rightDate) - Date.parse(leftDate);
+  });
+
+  return {
+    users,
+    totalOrders: users.reduce((sum, user) => sum + user.ordersCount, 0),
+    totalRevenue: users.reduce((sum, user) => sum + user.totalSpent, 0),
+    settlements: Array.from(new Set(users.map((user) => user.cityName).filter(Boolean))).sort((left, right) => left.localeCompare(right, 'ru')),
+    restaurants: Array.from(restaurantNamesById, ([id, name]) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name, 'ru'))
+  };
+}
+
+export async function createClientSignup(input: { name: string; phone: string }): Promise<ClientSignup> {
+  const name = input.name.trim();
+  const phone = input.phone.trim();
+  if (!name || !phone) throw new Error('Укажите имя и телефон пользователя.');
+  if (!supabase) {
+    return {
+      id: `local-signup-${Date.now().toString(36)}`,
+      name,
+      phone,
+      source: 'platform_admin',
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('client_signups')
+    .insert({ name, phone, source: 'platform_admin' })
+    .select('id, name, phone, source, created_at')
+    .single();
+  if (error) throw error;
+  return mapClientSignup(data as ClientSignupRow);
 }
 
 export async function deleteClientSignup(id: string) {
@@ -480,6 +745,31 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
   if (error) throw error;
 }
 
+export async function uploadPlatformBannerMedia(file: File): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase не настроен');
+  }
+  if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    throw new Error('Выберите изображение или видео');
+  }
+  if (file.size > 30 * 1024 * 1024) {
+    throw new Error('Размер файла не должен превышать 30 МБ');
+  }
+
+  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || (
+    file.type.startsWith('video/') ? 'mp4' : 'jpg'
+  );
+  const fileName = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+  const bucket = supabase.storage.from('platform-banner-media');
+  const { error } = await bucket.upload(fileName, file, {
+    cacheControl: '31536000',
+    contentType: file.type,
+    upsert: false
+  });
+  if (error) throw error;
+  return bucket.getPublicUrl(fileName).data.publicUrl;
+}
+
 export async function deletePlatformBanner(id: string) {
   if (!supabase) return;
   const { error } = await supabase.from('platform_banners').delete().eq('id', id);
@@ -496,6 +786,7 @@ export async function getPlatformContestTickets(contestId = 'all'): Promise<Plat
       restaurantName: 'Мангал',
       customerName: 'Адам М.',
       customerPhone: '+7 928 555-12-12',
+      deliveryCity: 'Цоци-Юрт',
       totalAmount: 1470,
       orderedItems: ['Шашлык из баранины x 1', 'Чеченский чай x 1'],
       createdAt: new Date().toISOString()
@@ -504,7 +795,7 @@ export async function getPlatformContestTickets(contestId = 'all'): Promise<Plat
 
   const { data, error } = await supabase
     .from('orders')
-    .select('id, client_name, client_phone, customer_name, customer_phone, total, total_amount, created_at, restaurants(name), order_items(quantity, dish_name_snapshot, title)')
+    .select('id, client_name, client_phone, customer_name, customer_phone, delivery_city, delivery_settlement, total, total_amount, created_at, restaurants(name), order_items(quantity, dish_name_snapshot, title)')
     .order('created_at', { ascending: false })
     .limit(500);
   if (error) return [];
@@ -518,7 +809,10 @@ export async function getPlatformContestTickets(contestId = 'all'): Promise<Plat
         restaurantName: firstRelation(order.restaurants)?.name ?? 'Ресторан',
         customerName: order.client_name || order.customer_name || 'Клиент',
         customerPhone: order.client_phone || order.customer_phone || '',
-        totalAmount: Number(order.total_amount ?? order.total ?? 0),
+        deliveryCity: order.delivery_settlement || order.delivery_city || '',
+        totalAmount: Number(order.total_amount ?? 0) > 0
+          ? Number(order.total_amount)
+          : Number(order.total ?? 0),
         orderedItems: (order.order_items ?? []).map((item) => {
           const quantity = Math.max(1, Number(item.quantity ?? 1));
           return `${item.dish_name_snapshot || item.title || 'Блюдо'} x ${quantity}`;

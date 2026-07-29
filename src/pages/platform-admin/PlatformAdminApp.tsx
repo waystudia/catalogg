@@ -2,9 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
+  BarChart3,
   BadgePercent,
   BookOpen,
-  Ban,
   Bell,
   CheckCircle2,
   ChevronLeft,
@@ -22,6 +22,7 @@ import {
   MapPin,
   MoreHorizontal,
   Plus,
+  RefreshCcw,
   Search,
   Settings,
   ShieldAlert,
@@ -30,30 +31,31 @@ import {
   Trophy,
   Ticket,
   Truck,
+  Upload,
   UserRound,
   Users,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { Toaster, toast } from 'sonner';
 import {
   createClient,
-  deleteClientSignup,
   deletePlatformContestTicket,
   deletePlatformBanner,
-  getClientSignups,
   getClients,
   getPlatformContestTickets,
+  getPlatformAnalytics,
   getPlatformBanners,
   getPlatformGlobalSettings,
   getPlatformStats,
   savePlatformBanner,
   savePlatformGlobalSettings,
+  uploadPlatformBannerMedia,
   updateClient
 } from '../../shared/api/clientsApi';
 import { createDriver, getDrivers, updateDriverProfile, updateDriverServiceSettlements } from '../../shared/api/driversApi';
-import { createDeliverySettlement, getDeliverySettlements, getSettlementRequests } from '../../shared/api/settlementsApi';
+import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import {
   getDeliveryPriceRequests,
   getDeliveryPricingRules,
@@ -69,17 +71,19 @@ import {
 } from '../../shared/api/subscriptionsApi';
 import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type {
-  ClientSignup,
-  PlatformDeliverySettlement,
-  PlatformSettlementRequest,
   PlatformDriver,
   PlatformBannerAdmin,
   PlatformClient,
   PlatformBillingSettings,
   PlatformContestTicket,
+  PlatformAnalytics,
   PlatformStats,
   PlatformTemplateOption
 } from '../../shared/api/platformTypes';
+import { PlatformGeographyPage } from '../../features/platform-admin-geography/PlatformGeographyPage';
+import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
+import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
+import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
 import { createRestaurantTemplate, getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -108,7 +112,8 @@ type PlatformRoute =
   | 'contests'
   | 'subscriptions'
   | 'settings'
-  | 'audit-log';
+  | 'audit-log'
+  | 'analytics';
 
 type CreateClientSuccess = {
   email: string;
@@ -137,6 +142,7 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
   { route: 'dashboard', label: 'Главная', detail: 'Дашборд', Icon: Home },
   { route: 'clients', label: 'Клиенты', detail: 'Список клиентов', Icon: Users },
   { route: 'client-signups', label: 'Пользователи', detail: 'Клиенты приложения', Icon: UserRound },
+  { route: 'analytics', label: 'Статистика', detail: 'Аудитория и заказы', Icon: BarChart3 },
   { route: 'settlements', label: 'География', detail: 'Сёла и заявки', Icon: MapPin },
   { route: 'drivers', label: 'Водители', detail: 'Доступы и статусы', Icon: Truck },
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
@@ -168,6 +174,7 @@ const businessTypeLabels: Record<string, string> = {
 };
 
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(url.trim());
 
 const parseSettlementsInput = (value: string) =>
   Array.from(
@@ -192,6 +199,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   const path = getCurrentPlatformPath();
   if (path.includes('/admin/catalogs')) return 'catalogs';
   if (path.includes('/admin/client-signups')) return 'client-signups';
+  if (path.includes('/admin/analytics')) return 'analytics';
   if (path.includes('/admin/settlements')) return 'settlements';
   if (path.includes('/admin/drivers')) return 'drivers';
   if (path.includes('/admin/templates')) return 'templates';
@@ -292,6 +300,8 @@ function PlatformMobileNav({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreItems = navItems.filter((item) => !mobilePrimaryRoutes.includes(item.route));
+  const activePrimaryRoute = route === 'client-signups' ? 'clients' : route;
+  const isMoreActive = !mobilePrimaryRoutes.includes(route) && route !== 'client-signups';
 
   return (
     <>
@@ -331,7 +341,7 @@ function PlatformMobileNav({
           const Icon = item.Icon;
           return (
             <button
-              className={route === itemRoute ? 'is-active' : ''}
+              className={activePrimaryRoute === itemRoute ? 'is-active' : ''}
               type="button"
               key={itemRoute}
               onClick={() => onNavigate(itemRoute)}
@@ -341,7 +351,7 @@ function PlatformMobileNav({
             </button>
           );
         })}
-        <button type="button" onClick={() => setMoreOpen(true)}>
+        <button className={isMoreActive ? 'is-active' : ''} type="button" onClick={() => setMoreOpen(true)}>
           <MoreHorizontal />
           <span>Ещё</span>
         </button>
@@ -350,18 +360,27 @@ function PlatformMobileNav({
   );
 }
 
-function StatsCards({ stats }: { stats?: PlatformStats }) {
-  const items = [
-    { label: 'Всего клиентов', value: stats?.totalClients ?? 0, Icon: Users },
-    { label: 'Активные каталоги', value: stats?.activeCatalogs ?? 0, Icon: Store },
-    { label: 'Выручка ресторанов', value: formatMoney(stats?.monthlyRevenue ?? 0), Icon: CreditCard },
-    { label: 'Долг клиентов', value: stats?.totalDebt ?? 0, Icon: ShieldAlert },
-    { label: 'Заказов всего', value: stats?.totalOrders ?? 0, Icon: Activity },
-    { label: 'Доставки водителей', value: stats?.driverDeliveries ?? 0, Icon: Store }
-  ];
+function StatsCards({ stats, variant = 'clients' }: { stats?: PlatformStats; variant?: 'clients' | 'dashboard' }) {
+  const items = variant === 'dashboard'
+    ? [
+        { label: 'Всего клиентов', value: stats?.totalClients ?? 0, Icon: Users },
+        { label: 'Активные каталоги', value: stats?.activeCatalogs ?? 0, Icon: Store },
+        { label: 'Выручка ресторанов', value: formatMoney(stats?.monthlyRevenue ?? 0), Icon: CreditCard },
+        { label: 'Долг клиентов', value: formatMoney(stats?.totalDebt ?? 0), Icon: ShieldAlert },
+        { label: 'Заказов всего', value: stats?.totalOrders ?? 0, Icon: Activity },
+        { label: 'Доставки водителей', value: stats?.driverDeliveries ?? 0, Icon: Truck }
+      ]
+    : [
+        { label: 'Клиенты', value: stats?.totalClients ?? 0, Icon: Users },
+        { label: 'Каталоги', value: stats?.activeCatalogs ?? 0, Icon: Store },
+        { label: 'Выручка', value: formatMoney(stats?.monthlyRevenue ?? 0), Icon: CreditCard },
+        { label: 'Дни', value: stats?.daysActive ?? 0, Icon: Activity },
+        { label: 'Заказы', value: stats?.totalOrders ?? 0, Icon: Ticket },
+        { label: 'Доставки', value: stats?.driverDeliveries ?? 0, Icon: Truck }
+      ];
 
   return (
-    <section className="platform-stats">
+    <section className={variant === 'dashboard' ? 'platform-stats platform-stats--dashboard' : 'platform-stats'}>
       {items.map(({ label, value, Icon }) => (
         <article className="platform-stat" key={label}>
           <span>
@@ -377,68 +396,52 @@ function StatsCards({ stats }: { stats?: PlatformStats }) {
   );
 }
 
-function RestaurantStatsTable({ stats }: { stats?: PlatformStats }) {
-  const queryClient = useQueryClient();
+function RestaurantRevenueSummary({ stats }: { stats?: PlatformStats }) {
   const restaurants = stats?.restaurantStats ?? [];
-  const blockRestaurant = async (restaurant: PlatformStats['restaurantStats'][number]) => {
-    if (!restaurant.clientId) return;
-    try {
-      await updateClient({ clientId: restaurant.clientId, status: 'blocked' });
-      toast.success(`${restaurant.name} заблокирован`);
-      void queryClient.invalidateQueries({ queryKey: ['platform-stats'] });
-      void queryClient.invalidateQueries({ queryKey: ['platform-clients'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось заблокировать ресторан');
-    }
-  };
-
-  if (restaurants.length === 0) {
-    return null;
-  }
-
   return (
-    <section className="restaurant-stats-table">
+    <section className="restaurant-revenue-summary">
       <header>
         <h2>Рестораны по выручке</h2>
-        <p>Выручка, долг, заказы и доставки водителями платформы отдельно по каждому ресторану.</p>
+        <strong>{formatMoney(stats?.monthlyRevenue ?? 0)}</strong>
       </header>
       <div>
-        {restaurants.map((restaurant) => (
-          <article key={restaurant.id}>
-            <span>
-              <strong>{restaurant.name}</strong>
-              {restaurant.slug && <small>/{restaurant.slug}</small>}
-            </span>
-            <b>Выручка: {formatMoney(restaurant.revenue)}</b>
-            <small>Получено рестораном: {formatMoney(Math.max(0, restaurant.revenue - restaurant.debt))}</small>
-            <small>Долг: {formatMoney(restaurant.debt)}</small>
-            <small>Заказы: {restaurant.ordersCount}</small>
-            <small>Водители: {restaurant.driverDeliveries}</small>
-            <button type="button" disabled={!restaurant.clientId} onClick={() => void blockRestaurant(restaurant)}>
-              <Ban />
-              Блокировать
-            </button>
-          </article>
+        {restaurants.map((restaurant, index) => (
+          <span key={restaurant.id}>
+            <i style={{ '--legend-index': index } as CSSProperties} />
+            {restaurant.name}
+            <small>{formatMoney(restaurant.revenue)}</small>
+          </span>
         ))}
+        {restaurants.length === 0 && <small>Данные появятся после первого заказа</small>}
       </div>
     </section>
   );
 }
 
 function DashboardPage() {
-  const statsQuery = useQuery({ queryKey: ['platform-stats'], queryFn: getPlatformStats });
+  const statsQuery = useQuery({
+    queryKey: ['platform-stats'],
+    queryFn: getPlatformStats,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 15_000
+  });
 
   return (
-    <main className="platform-page">
+    <main className="platform-page platform-dashboard-page">
       <header className="platform-page-head">
         <div>
           <h1>Главная</h1>
           <p>Общая статистика WayCatalog, ресторанов и доставок</p>
         </div>
+        <button type="button" onClick={() => void statsQuery.refetch()} disabled={statsQuery.isFetching}>
+          <RefreshCcw />
+          Обновить
+        </button>
       </header>
-      <StatsCards stats={statsQuery.data} />
+      <StatsCards stats={statsQuery.data} variant="dashboard" />
       <DebtControlPanel stats={statsQuery.data} />
-      <RestaurantStatsTable stats={statsQuery.data} />
+      <RestaurantRevenueSummary stats={statsQuery.data} />
     </main>
   );
 }
@@ -711,47 +714,46 @@ function ClientEmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function ClientCards({ clients, onEdit }: { clients: PlatformClient[]; onEdit: (client: PlatformClient) => void }) {
+function ClientCards({
+  clients,
+  stats,
+  onEdit
+}: {
+  clients: PlatformClient[];
+  stats?: PlatformStats;
+  onEdit: (client: PlatformClient) => void;
+}) {
   return (
     <section className="client-card-list">
       {clients.map((client) => {
         const publicUrl = getCatalogPublicUrl(client.catalogSlug);
+        const clientStats = stats?.restaurantStats.find((restaurant) => restaurant.id === client.catalogId);
         return (
           <article className="client-card" key={client.id}>
             <div className="client-card__head">
               <ClientAvatar client={client} />
               <div>
                 <strong>{client.companyName}</strong>
-                <small>{client.catalogSlug}</small>
+                <small>{client.email}</small>
               </div>
               <button type="button" aria-label="Действия" onClick={() => onEdit(client)}>
                 <MoreHorizontal />
               </button>
             </div>
             <div className="client-card__meta">
-              <span>{client.email}</span>
-              <span>Шаблон: {businessTypeLabels[client.businessType] ?? client.businessType}</span>
               <StatusBadge status={client.status} />
               <PublicationBadge status={client.catalogStatus} />
             </div>
-            <div className="client-card__link">
-              <span>{publicUrl}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  void copyText(publicUrl).then(() => toast.success('Ссылка скопирована'));
-                }}
-              >
-                <Copy />
-              </button>
+            <div className="client-card__numbers">
+              <span><strong>{formatMoney(clientStats?.revenue ?? 0)}</strong><small>Выручка</small></span>
+              <span><strong>{clientStats?.ordersCount ?? 0}</strong><small>Заказы</small></span>
             </div>
             <button
               className="client-card__open"
               type="button"
               onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')}
             >
-              <Eye />
-              Открыть каталог
+              Открыть
             </button>
           </article>
         );
@@ -781,8 +783,9 @@ function ClientFilters({
   onPayment: (value: string) => void;
   onTemplate: (value: string) => void;
 }) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   return (
-    <section className="client-filters">
+    <section className={`client-filters ${filtersOpen ? 'is-open' : ''}`}>
       <label className="search-field">
         <Search />
         <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Поиск клиентов..." />
@@ -808,9 +811,9 @@ function ClientFilters({
         <option value="trial">Пробный период</option>
         <option value="past_due">Просрочено</option>
       </select>
-      <button type="button">
+      <button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((value) => !value)}>
         <Filter />
-        Фильтры
+        <span>Фильтры</span>
       </button>
     </section>
   );
@@ -1444,7 +1447,13 @@ function ClientsPage({
     queryKey: ['platform-templates'],
     queryFn: getTemplateOptions
   });
-  const statsQuery = useQuery({ queryKey: ['platform-stats'], queryFn: getPlatformStats });
+  const statsQuery = useQuery({
+    queryKey: ['platform-stats'],
+    queryFn: getPlatformStats,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 15_000
+  });
   const clientsQuery = useQuery({
     queryKey: ['platform-clients', debouncedSearch, status, payment, templateId, page, pageSize],
     queryFn: () =>
@@ -1458,7 +1467,9 @@ function ClientsPage({
       })
   });
 
-  const clients = clientsQuery.data?.data ?? [];
+  const clients = [...(clientsQuery.data?.data ?? [])].sort(
+    (left, right) => Number(right.status === 'active') - Number(left.status === 'active')
+  );
   const total = clientsQuery.data?.count ?? 0;
 
   return (
@@ -1466,15 +1477,15 @@ function ClientsPage({
       <header className="platform-page-head">
         <div>
           <h1>Клиенты</h1>
-          <p>Управляйте клиентами и их каталогами</p>
+          <p>Управляйте клиентами и их статусами</p>
         </div>
         <button type="button" onClick={onCreate}>
           <Plus />
-          Добавить клиента
+          <span>Добавить клиента</span>
         </button>
       </header>
       <StatsCards stats={statsQuery.data} />
-      <RestaurantStatsTable stats={statsQuery.data} />
+      <RestaurantRevenueSummary stats={statsQuery.data} />
       <ClientFilters
         search={search}
         status={status}
@@ -1510,8 +1521,12 @@ function ClientsPage({
       {!clientsQuery.isLoading && clients.length === 0 && <ClientEmptyState onCreate={onCreate} />}
       {clients.length > 0 && (
         <>
+          <header className="clients-list-head">
+            <strong>Клиенты <span>{total}</span></strong>
+            <small>Сначала активные</small>
+          </header>
           <ClientTable clients={clients} onEdit={onEdit} />
-          <ClientCards clients={clients} onEdit={onEdit} />
+          <ClientCards clients={clients} stats={statsQuery.data} onEdit={onEdit} />
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -1632,259 +1647,7 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
   );
 }
 
-function ClientSignupsPage() {
-  const queryClient = useQueryClient();
-  const signupsQuery = useQuery({ queryKey: ['client-signups'], queryFn: getClientSignups });
-  const signups = signupsQuery.data ?? [];
-
-  const renderSignup = (signup: ClientSignup) => (
-    <article className="client-signup-card" key={signup.id}>
-      <span className="client-signup-card__avatar">
-        <UserRound />
-      </span>
-      <div>
-        <strong>{signup.name || 'Без имени'}</strong>
-        <small>{signup.phone || 'Телефон не указан'}</small>
-      </div>
-      <span className="client-signup-card__meta">
-        <small>{signup.source}</small>
-        <b>{new Date(signup.createdAt).toLocaleDateString('ru-RU')}</b>
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          void deleteClientSignup(signup.id).then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['client-signups'] });
-          });
-        }}
-      >
-        <Trash2 />
-      </button>
-    </article>
-  );
-
-  return (
-    <main className="platform-page">
-      <header className="platform-page-head">
-        <div>
-          <h1>Пользователи</h1>
-          <p>Клиенты, которые вошли или оставили телефон в клиентской платформе</p>
-        </div>
-      </header>
-
-      {signupsQuery.isLoading && <div className="platform-state">Загружаем пользователей...</div>}
-      {signupsQuery.isError && (
-        <div className="platform-state">
-          Не удалось загрузить пользователей.
-          <button type="button" onClick={() => void signupsQuery.refetch()}>
-            Повторить
-          </button>
-        </div>
-      )}
-      {!signupsQuery.isLoading && !signupsQuery.isError && signups.length === 0 && (
-        <section className="platform-placeholder">
-          <UserRound />
-          <h2>Пользователей пока нет</h2>
-          <p>Когда клиент сохранит имя и телефон в профиле, запись появится здесь.</p>
-        </section>
-      )}
-      {signups.length > 0 && <section className="client-signup-list">{signups.map(renderSignup)}</section>}
-    </main>
-  );
-}
-
-function SettlementsPage() {
-  const queryClient = useQueryClient();
-  const requestsQuery = useQuery({ queryKey: ['settlement-requests'], queryFn: getSettlementRequests });
-  const settlementsQuery = useQuery({ queryKey: ['delivery-settlements'], queryFn: getDeliverySettlements });
-  const pricingQuery = useQuery({ queryKey: ['delivery-pricing-rules'], queryFn: getDeliveryPricingRules });
-  const priceRequestsQuery = useQuery({ queryKey: ['delivery-price-requests'], queryFn: getDeliveryPriceRequests });
-  const requests = requestsQuery.data ?? [];
-  const settlements = settlementsQuery.data ?? [];
-  const [settlementName, setSettlementName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [fromSettlement, setFromSettlement] = useState('');
-  const [toSettlement, setToSettlement] = useState('');
-  const [priceAmount, setPriceAmount] = useState('');
-
-  const addSettlement = async (inputSettlementName = settlementName, inputCityName = '') => {
-    setIsSaving(true);
-    try {
-      await createDeliverySettlement({ cityName: inputCityName, settlementName: inputSettlementName });
-      setSettlementName('');
-      toast.success('Населённый пункт добавлен');
-      void queryClient.invalidateQueries({ queryKey: ['delivery-settlements'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось добавить населённый пункт');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const savePrice = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSaving(true);
-    try {
-      await saveDeliveryPricingRule({ fromSettlement, toSettlement, amount: Number(priceAmount) });
-      setFromSettlement('');
-      setToSettlement('');
-      setPriceAmount('');
-      toast.success('Тариф сохранён');
-      void queryClient.invalidateQueries({ queryKey: ['delivery-pricing-rules'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить тариф');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const reviewPrice = async (requestId: string, approved: boolean, amount?: number) => {
-    try {
-      await reviewDeliveryPriceRequest({ requestId, approved, amount });
-      toast.success(approved ? 'Цена согласована' : 'Запрос отклонён');
-      void queryClient.invalidateQueries({ queryKey: ['delivery-price-requests'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось обработать запрос');
-    }
-  };
-
-  const renderRequest = (request: PlatformSettlementRequest) => (
-    <article className="settlement-request-card" key={request.id}>
-      <span className="settlement-request-card__badge">Новое</span>
-      <div>
-        <strong>{request.settlementName}</strong>
-        <small>{[request.cityName, request.source].filter(Boolean).join(' · ') || 'Заявка клиента'}</small>
-      </div>
-      <span>
-        <b>{request.count}</b>
-        <small>{new Date(request.lastSeenAt).toLocaleDateString('ru-RU')}</small>
-      </span>
-      <button
-        type="button"
-        onClick={() => void addSettlement(request.settlementName, request.cityName)}
-        disabled={isSaving}
-      >
-        <Plus />
-        Добавить
-      </button>
-    </article>
-  );
-
-  const renderSettlement = (settlement: PlatformDeliverySettlement) => (
-    <article className="settlement-directory-card" key={settlement.id}>
-      <span><MapPin /></span>
-      <div>
-        <strong>{settlement.settlementName}</strong>
-        {settlement.cityName && <small>{settlement.cityName}</small>}
-      </div>
-      <b>{settlement.isActive ? 'Активен' : 'Скрыт'}</b>
-    </article>
-  );
-
-  return (
-    <main className="platform-page">
-      <header className="platform-page-head">
-        <div>
-          <h1>География</h1>
-          <p>Новые сёла от клиентов и будущий справочник зон доставки</p>
-        </div>
-      </header>
-
-      <form
-        className="settlement-directory-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void addSettlement();
-        }}
-      >
-        <label>
-          Село или город
-          <input value={settlementName} onChange={(event) => setSettlementName(event.target.value)} placeholder="Цоци-Юрт" required />
-        </label>
-        <button type="submit" disabled={isSaving}>
-          <Plus />
-          {isSaving ? 'Добавляем...' : 'Добавить'}
-        </button>
-      </form>
-
-      <section className="platform-section-head">
-        <div>
-          <h2>Справочник</h2>
-          <p>Эти города и сёла будут видны клиентам, ресторанам и водителям.</p>
-        </div>
-      </section>
-
-      {settlementsQuery.isLoading && <div className="platform-state">Загружаем справочник...</div>}
-      {!settlementsQuery.isLoading && settlements.length === 0 && (
-        <section className="platform-placeholder">
-          <MapPin />
-          <h2>Справочник пока пуст</h2>
-          <p>Добавьте город или село вручную, даже если клиент ещё не отправлял заявку.</p>
-        </section>
-      )}
-      {settlements.length > 0 && <section className="settlement-directory-list">{settlements.map(renderSettlement)}</section>}
-
-      <section className="platform-section-head">
-        <div>
-          <h2>Тарифы доставки</h2>
-          <p>Цена задаётся для маршрута из одного села в другое. Для доставки внутри села укажите одинаковые пункты.</p>
-        </div>
-      </section>
-      <form className="settlement-directory-form" onSubmit={(event) => void savePrice(event)}>
-        <label>Откуда<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Цоци-Юрт" required /></label>
-        <label>Куда<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Шали" required /></label>
-        <label>Цена<input value={priceAmount} onChange={(event) => setPriceAmount(event.target.value)} type="number" min="0" step="1" placeholder="500" required /></label>
-        <button type="submit" disabled={isSaving}><Plus />Сохранить тариф</button>
-      </form>
-      {pricingQuery.data && pricingQuery.data.length > 0 && (
-        <section className="settlement-directory-list">
-          {pricingQuery.data.map((rule) => (
-            <article className="settlement-directory-card" key={rule.id}>
-              <span><Truck /></span>
-              <div><strong>{rule.fromSettlement} → {rule.toSettlement}</strong><small>{rule.amount.toLocaleString('ru-RU')} ₽</small></div>
-              <b>Активен</b>
-            </article>
-          ))}
-        </section>
-      )}
-
-      <section className="platform-section-head">
-        <div>
-          <h2>Согласование цены</h2>
-          <p>Водитель может предложить другую сумму, а решение принимает супер-админ.</p>
-        </div>
-      </section>
-      {priceRequestsQuery.data?.map((request) => (
-        <article className="settlement-request-card" key={request.id}>
-          <span className="settlement-request-card__badge">Запрос водителя</span>
-          <div><strong>{request.driverName}</strong><small>{request.currentAmount.toLocaleString('ru-RU')} ₽ → {request.requestedAmount.toLocaleString('ru-RU')} ₽{request.comment ? ` · ${request.comment}` : ''}</small></div>
-          <button type="button" onClick={() => void reviewPrice(request.id, true, request.requestedAmount)}><CheckCircle2 />Согласовать</button>
-          <button type="button" onClick={() => void reviewPrice(request.id, false)}><X />Отклонить</button>
-        </article>
-      ))}
-
-      {requestsQuery.isLoading && <div className="platform-state">Загружаем заявки...</div>}
-      {requestsQuery.isError && (
-        <div className="platform-state">
-          Не удалось загрузить заявки.
-          <button type="button" onClick={() => void requestsQuery.refetch()}>
-            Повторить
-          </button>
-        </div>
-      )}
-      {!requestsQuery.isLoading && !requestsQuery.isError && requests.length === 0 && (
-        <section className="platform-placeholder">
-          <MapPin />
-          <h2>Новых сёл пока нет</h2>
-          <p>Когда клиент выберет “Другое село” при заказе, заявка появится здесь.</p>
-        </section>
-      )}
-      {requests.length > 0 && <section className="settlement-request-list">{requests.map(renderRequest)}</section>}
-    </main>
-  );
-}
-
-function DriversPage() {
+export function LegacyDriversPage() {
   const queryClient = useQueryClient();
   const driversQuery = useQuery({ queryKey: ['platform-drivers'], queryFn: getDrivers });
   const settlementsQuery = useQuery({ queryKey: ['delivery-settlements'], queryFn: getDeliverySettlements });
@@ -2443,11 +2206,88 @@ function SubscriptionsPage() {
   );
 }
 
-function ContestsPage() {
+function AnalyticsMetric({
+  label,
+  value,
+  detail
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+}) {
+  return (
+    <article>
+      <small>{label}</small>
+      <strong>{value}</strong>
+      <span>{detail}</span>
+    </article>
+  );
+}
+
+function PlatformAnalyticsPage() {
+  const analyticsQuery = useQuery({
+    queryKey: ['platform-analytics'],
+    queryFn: getPlatformAnalytics,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 15_000
+  });
+  const analytics: PlatformAnalytics | undefined = analyticsQuery.data;
+  const maxOrderType = Math.max(1, ...(analytics?.orderTypes.map((item) => item.count) ?? [0]));
+  const maxLocation = Math.max(1, ...(analytics?.locations.map((item) => item.count) ?? [0]));
+
+  return (
+    <main className="platform-page platform-analytics-page">
+      <header className="platform-page-head">
+        <div>
+          <h1>Статистика</h1>
+          <p>Аудитория, повторные заказы, география и способы получения</p>
+        </div>
+        <button type="button" onClick={() => void analyticsQuery.refetch()} aria-label="Обновить статистику">
+          <Activity />
+        </button>
+      </header>
+
+      <section className="platform-analytics-metrics">
+        <AnalyticsMetric label="Пользуются" value={analytics?.uniqueCustomers ?? 0} detail="уникальных клиентов" />
+        <AnalyticsMetric label="Повторные" value={analytics?.repeatCustomers ?? 0} detail={`${analytics?.repeatOrderRate ?? 0}% клиентов`} />
+        <AnalyticsMetric label="Заказы" value={analytics?.totalOrders ?? 0} detail="всего в системе" />
+      </section>
+
+      <section className="platform-analytics-card">
+        <header><h2>Тип заказа</h2><small>Как клиенты получают заказ</small></header>
+        <div className="platform-analytics-bars">
+          {(analytics?.orderTypes ?? []).map((item) => (
+            <span key={item.key}>
+              <label>{item.label}<strong>{item.count}</strong></label>
+              <i><b style={{ width: `${(item.count / maxOrderType) * 100}%` }} /></i>
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="platform-analytics-card">
+        <header><h2>География</h2><small>Откуда приходит больше заказов</small></header>
+        <div className="platform-analytics-bars">
+          {(analytics?.locations ?? []).map((item) => (
+            <span key={item.name}>
+              <label>{item.name}<strong>{item.count}</strong></label>
+              <i><b style={{ width: `${(item.count / maxLocation) * 100}%` }} /></i>
+            </span>
+          ))}
+          {!analyticsQuery.isLoading && (analytics?.locations.length ?? 0) === 0 && <small>География появится после заказов с указанным городом или селом.</small>}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export function LegacyContestsPage() {
   const queryClient = useQueryClient();
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
   const contests = (bannersQuery.data ?? []).filter((banner) => banner.kind === 'contest');
   const [selectedContestId, setSelectedContestId] = useState('');
+  const [search, setSearch] = useState('');
   const activeContestId = selectedContestId || contests[0]?.id || 'all';
   const ticketsQuery = useQuery({
     queryKey: ['platform-contest-tickets', activeContestId],
@@ -2463,6 +2303,23 @@ function ContestsPage() {
     toast.success('Билет удалён из списка');
     void queryClient.invalidateQueries({ queryKey: ['platform-contest-tickets', activeContestId] });
   };
+  const tickets = ticketsQuery.data ?? [];
+  const ticketCountByCustomer = tickets.reduce((counts, ticket) => {
+    const key = ticket.customerPhone.replace(/\D/g, '') || ticket.customerName.trim().toLocaleLowerCase('ru-RU');
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const normalizedSearch = search.trim().toLocaleLowerCase('ru-RU');
+  const visibleTickets = tickets.filter((ticket) =>
+    !normalizedSearch ||
+    [
+      ticket.customerName,
+      ticket.customerPhone,
+      ticket.restaurantName,
+      ticket.deliveryCity,
+      ...ticket.orderedItems
+    ].some((value) => value.toLocaleLowerCase('ru-RU').includes(normalizedSearch))
+  );
 
   return (
     <main className="platform-page">
@@ -2479,28 +2336,52 @@ function ContestsPage() {
           {contests.length === 0 && <option value="all">Все заказы</option>}
           {contests.map((contest) => <option value={contest.id} key={contest.id}>{contest.title}</option>)}
         </select>
+        <label>
+          <Search />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Имя, телефон, ресторан или город"
+          />
+        </label>
       </section>
 
       <section className="platform-ticket-list">
-        {(ticketsQuery.data ?? []).map((ticket) => (
-          <article className="platform-ticket-card" key={ticket.id}>
-            <Ticket />
-            <div>
-              <strong>{ticket.customerName}</strong>
-              <small>{ticket.customerPhone || 'Телефон не указан'}</small>
-              <span>{ticket.restaurantName} · {formatMoney(ticket.totalAmount)}</span>
-              <em>{ticket.orderedItems.length > 0 ? ticket.orderedItems.join(', ') : 'Состав заказа не найден'}</em>
-            </div>
-            <button type="button" onClick={() => void removeTicket(ticket)} aria-label="Удалить билет">
-              <Trash2 />
-            </button>
-          </article>
-        ))}
-        {!ticketsQuery.isLoading && (ticketsQuery.data ?? []).length === 0 && (
+        <header className="platform-ticket-list__head">
+          <strong>Билеты <span>{visibleTickets.length}</span></strong>
+          <small>{ticketCountByCustomer.size} клиентов</small>
+        </header>
+        {visibleTickets.map((ticket) => {
+          const customerKey = ticket.customerPhone.replace(/\D/g, '') || ticket.customerName.trim().toLocaleLowerCase('ru-RU');
+          return (
+            <details className="platform-ticket-card" key={ticket.id}>
+              <summary>
+                <Ticket />
+                <span>
+                  <strong>{ticket.customerName}</strong>
+                  <small>{ticket.customerPhone || 'Телефон не указан'} · {ticket.restaurantName}</small>
+                </span>
+                <b>{formatMoney(ticket.totalAmount)}</b>
+                <em>{ticketCountByCustomer.get(customerKey) ?? 1} бил.</em>
+                <ChevronRight />
+              </summary>
+              <div>
+                {ticket.deliveryCity && <span><MapPin />{ticket.deliveryCity}</span>}
+                <p>{ticket.orderedItems.length > 0 ? ticket.orderedItems.join(', ') : 'Состав заказа не найден'}</p>
+                <small>{new Date(ticket.createdAt).toLocaleString('ru-RU')}</small>
+                <button type="button" onClick={() => void removeTicket(ticket)} aria-label="Удалить билет">
+                  <Trash2 />
+                  Удалить
+                </button>
+              </div>
+            </details>
+          );
+        })}
+        {!ticketsQuery.isLoading && visibleTickets.length === 0 && (
           <section className="platform-placeholder">
             <Ticket />
-            <h2>Билетов пока нет</h2>
-            <p>Когда клиент оформит заказ, он появится здесь как билет конкурса.</p>
+            <h2>{search ? 'Ничего не найдено' : 'Билетов пока нет'}</h2>
+            <p>{search ? 'Измените запрос или очистите поиск.' : 'Когда клиент оформит заказ, он появится здесь как билет конкурса.'}</p>
           </section>
         )}
       </section>
@@ -2520,6 +2401,7 @@ function PlatformSettingsPage() {
   const [bannerActionLabel, setBannerActionLabel] = useState('Подробнее');
   const [bannerImage, setBannerImage] = useState('');
   const [bannerBackgroundColor, setBannerBackgroundColor] = useState('#5b3df4');
+  const [isBannerMediaUploading, setIsBannerMediaUploading] = useState(false);
 
   useEffect(() => {
     if (settingsQuery.data) {
@@ -2564,6 +2446,19 @@ function PlatformSettingsPage() {
     }
   };
 
+  const uploadBannerMedia = async (file?: File) => {
+    if (!file) return;
+    setIsBannerMediaUploading(true);
+    try {
+      setBannerImage(await uploadPlatformBannerMedia(file));
+      toast.success(file.type.startsWith('video/') ? 'Видео загружено' : 'Фото загружено');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить медиа');
+    } finally {
+      setIsBannerMediaUploading(false);
+    }
+  };
+
   return (
     <main className="platform-page">
       <header className="platform-page-head">
@@ -2573,61 +2468,94 @@ function PlatformSettingsPage() {
         </div>
       </header>
 
-      <form className="platform-settings-form" onSubmit={saveSupport}>
-        <label>
-          WhatsApp поддержки
-          <input value={supportWhatsapp} onChange={(event) => setSupportWhatsapp(event.target.value)} placeholder="79990000000" />
-        </label>
-        <button type="submit">Сохранить поддержку</button>
-      </form>
+      <section className="platform-settings-section">
+        <header>
+          <h2>Поддержка клиентов</h2>
+          <p>Номер WhatsApp, который видят пользователи сервиса.</p>
+        </header>
+        <form className="platform-settings-form" onSubmit={saveSupport}>
+          <label>
+            WhatsApp поддержки
+            <input value={supportWhatsapp} onChange={(event) => setSupportWhatsapp(event.target.value)} placeholder="79990000000" />
+          </label>
+          <button type="submit">Сохранить поддержку</button>
+        </form>
+      </section>
 
-      <form className="platform-settings-form platform-settings-form--banner" onSubmit={createBanner}>
-        <label>
-          Заголовок
-          <input value={bannerTitle} onChange={(event) => setBannerTitle(event.target.value)} required />
-        </label>
-        <label>
-          Текст
-          <input value={bannerSubtitle} onChange={(event) => setBannerSubtitle(event.target.value)} required />
-        </label>
-        <label>
-          Тип
-          <select value={bannerKind} onChange={(event) => setBannerKind(event.target.value as PlatformBannerAdmin['kind'])}>
-            <option value="promo">Акция</option>
-            <option value="contest">Конкурс</option>
-            <option value="news">Новость</option>
-          </select>
-        </label>
-        <label>
-          Ссылка действия
-          <input value={bannerLink} onChange={(event) => setBannerLink(event.target.value)} placeholder="/restaurants или https://..." />
-        </label>
-        <label>
-          Текст кнопки
-          <input value={bannerActionLabel} onChange={(event) => setBannerActionLabel(event.target.value)} placeholder="Подробнее или Заказать" />
-        </label>
-        <label>
-          Фото или видео для фона
-          <input value={bannerImage} onChange={(event) => setBannerImage(event.target.value)} placeholder="https://...jpg или https://...mp4" />
-        </label>
-        <label>
-          Цвет фона
-          <input type="color" value={bannerBackgroundColor} onChange={(event) => setBannerBackgroundColor(event.target.value)} />
-        </label>
-        <button type="submit">
-          <Plus />
-          Добавить баннер
-        </button>
-      </form>
+      <section className="platform-settings-section">
+        <header>
+          <h2>Новый баннер</h2>
+          <p>Акция, конкурс или новость для главного экрана.</p>
+        </header>
+        <form className="platform-settings-form platform-settings-form--banner" onSubmit={createBanner}>
+          <label>
+            Заголовок
+            <input value={bannerTitle} onChange={(event) => setBannerTitle(event.target.value)} required />
+          </label>
+          <label>
+            Текст
+            <input value={bannerSubtitle} onChange={(event) => setBannerSubtitle(event.target.value)} required />
+          </label>
+          <label>
+            Тип
+            <select value={bannerKind} onChange={(event) => setBannerKind(event.target.value as PlatformBannerAdmin['kind'])}>
+              <option value="promo">Акция</option>
+              <option value="contest">Конкурс</option>
+              <option value="news">Новость</option>
+            </select>
+          </label>
+          <label>
+            Ссылка действия
+            <input value={bannerLink} onChange={(event) => setBannerLink(event.target.value)} placeholder="/restaurants или https://..." />
+          </label>
+          <label>
+            Текст кнопки
+            <input value={bannerActionLabel} onChange={(event) => setBannerActionLabel(event.target.value)} placeholder="Подробнее или Заказать" />
+          </label>
+          <label className="platform-banner-media-picker">
+            Фото или видео
+            <input
+              type="file"
+              accept="image/*,video/mp4,video/webm,video/quicktime"
+              onChange={(event) => void uploadBannerMedia(event.target.files?.[0])}
+              disabled={isBannerMediaUploading}
+            />
+            <span><Upload />{isBannerMediaUploading ? 'Загружаем…' : 'Выбрать из медиатеки'}</span>
+            <small>Фото или видео до 30 МБ</small>
+          </label>
+          {bannerImage && (
+            <div className="platform-banner-media-preview">
+              {isVideoMediaUrl(bannerImage)
+                ? <video src={bannerImage} muted playsInline controls />
+                : <img src={bannerImage} alt="Предпросмотр баннера" />}
+              <button type="button" onClick={() => setBannerImage('')}>Удалить медиа</button>
+            </div>
+          )}
+          <label>
+            Цвет фона
+            <input type="color" value={bannerBackgroundColor} onChange={(event) => setBannerBackgroundColor(event.target.value)} />
+          </label>
+          <button type="submit" disabled={isBannerMediaUploading}>
+            <Plus />
+            Добавить баннер
+          </button>
+        </form>
+      </section>
 
-      <section className="platform-banner-list">
-        {(bannersQuery.data ?? []).map((banner) => (
-          <PlatformBannerSettingsCard
-            banner={banner}
-            key={banner.id}
-            onChanged={() => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] })}
-          />
-        ))}
+      <section className="platform-settings-section">
+        <header>
+          <h2>Сохранённые баннеры</h2>
+          <p>{bannersQuery.data?.length ?? 0} баннеров</p>
+        </header>
+        <div className="platform-banner-list">
+          {(bannersQuery.data ?? []).map((banner) => (
+            <PlatformBannerSettingsCard
+              banner={banner}
+              key={banner.id}
+              onChanged={() => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] })}
+            />
+          ))}
+        </div>
       </section>
     </main>
   );
@@ -2645,6 +2573,13 @@ function PlatformBannerSettingsCard({
 
   return (
     <article className="platform-banner-card">
+      {banner.imageUrl && (
+        <span className="platform-banner-card__media">
+          {isVideoMediaUrl(banner.imageUrl)
+            ? <video src={banner.imageUrl} muted playsInline />
+            : <img src={banner.imageUrl} alt="" />}
+        </span>
+      )}
       <span>{banner.kind}</span>
       <strong>{banner.title}</strong>
       <small>{banner.subtitle}</small>
@@ -2864,16 +2799,19 @@ function PlatformAdminContent() {
       return <TemplatesPage templates={templatesQuery.data ?? []} />;
     }
     if (route === 'client-signups') {
-      return <ClientSignupsPage />;
+      return <PlatformUsersPage />;
+    }
+    if (route === 'analytics') {
+      return <PlatformAnalyticsPage />;
     }
     if (route === 'settlements') {
-      return <SettlementsPage />;
+      return <PlatformGeographyPage />;
     }
     if (route === 'drivers') {
-      return <DriversPage />;
+      return <PlatformDriversPage />;
     }
     if (route === 'contests') {
-      return <ContestsPage />;
+      return <PlatformContestsPage />;
     }
     if (route === 'subscriptions') {
       return <SubscriptionsPage />;
@@ -2906,7 +2844,7 @@ function PlatformAdminContent() {
   }
 
   return (
-    <div className="platform-admin-shell">
+    <div className={`platform-admin-shell${route === 'dashboard' ? ' platform-admin-shell--dashboard' : ''}`}>
       <Toaster richColors position="top-center" />
       <PlatformSidebar
         route={route}
@@ -2919,21 +2857,26 @@ function PlatformAdminContent() {
       />
       <section className="platform-workspace">
         <header className="platform-topbar">
-          <button type="button" aria-label="Меню">
-            <MoreHorizontal />
-          </button>
-          <div>
-            <span>Администратор</span>
-            <small>{platformAdminQuery.data.email ?? 'admin@catalog.app'}</small>
+          <div className="platform-topbar__identity">
+            <span className="platform-topbar__avatar">S</span>
+            <span>
+              <strong>Суперадмин</strong>
+              <small>{platformAdminQuery.data.email ?? 'admin@catalog.app'}</small>
+            </span>
           </div>
-          <button
-            type="button"
-            aria-label="Включить push-уведомления"
-            onClick={() => void requestRestaurantOrderNotificationPermission({ role: 'super_admin' }).then(setNotificationPermission)}
-            title={notificationPermission === 'granted' ? 'Push включён' : 'Включить push-уведомления'}
-          >
-            <Bell />
-          </button>
+          <div className="platform-topbar__actions">
+            <button
+              type="button"
+              aria-label="Включить push-уведомления"
+              onClick={() => void requestRestaurantOrderNotificationPermission({ role: 'super_admin' }).then(setNotificationPermission)}
+              title={notificationPermission === 'granted' ? 'Push включён' : 'Включить push-уведомления'}
+            >
+              <Bell />
+            </button>
+            <button type="button" aria-label="Настройки" onClick={() => navigateToRoute('settings', setRoute)}>
+              <Settings />
+            </button>
+          </div>
         </header>
         {content}
       </section>

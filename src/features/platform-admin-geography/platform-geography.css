@@ -1,0 +1,592 @@
+.platform-geography-page {
+  --geo-purple: #5b3df5;
+  display: grid;
+  gap: 14px;
+}
+
+.platform-geography-page .platform-page-head {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.platform-geography-export {
+  display: flex;
+  gap: 6px;
+}
+
+.platform-geography-export button,
+.platform-settlements-card > header button {
+  min-height: 40px;
+  border: 1px solid #dcd5ff;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--geo-purple);
+  font: inherit;
+  font-weight: 750;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.platform-geography-export svg,
+.platform-settlements-card > header svg {
+  width: 17px;
+}
+
+.platform-geography-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.platform-geography-stats article,
+.platform-geography-card {
+  border: 1px solid #e4e8f0;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 5px 18px rgb(16 24 40 / 4%);
+}
+
+.platform-geography-stats article {
+  min-width: 0;
+  min-height: 105px;
+  padding: 13px;
+  display: grid;
+  align-content: space-between;
+}
+
+.platform-geography-stats span,
+.platform-geography-links > button > span:first-child,
+.platform-request-summary article > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: var(--geo-purple);
+  background: #f1eeff;
+}
+
+.platform-geography-stats svg,
+.platform-geography-links > button > span:first-child svg,
+.platform-request-summary article > span svg {
+  width: 19px;
+}
+
+.platform-geography-stats small {
+  min-width: 0;
+  color: #667085;
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+.platform-geography-stats strong {
+  color: #101828;
+  font-size: 24px;
+}
+
+.platform-geography-card {
+  overflow: hidden;
+}
+
+.platform-geography-card > header {
+  min-height: 56px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.platform-geography-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.platform-geography-search {
+  margin: 0 14px 10px;
+  min-height: 42px;
+  border: 1px solid #e0e5ef;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.platform-geography-search svg {
+  width: 18px;
+  color: #667085;
+}
+
+.platform-geography-search input,
+.platform-geography-add input,
+.platform-geography-panel input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: #101828;
+}
+
+.platform-geography-add {
+  margin: 0 14px 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 7px;
+}
+
+.platform-geography-add input,
+.platform-geography-panel form input {
+  min-height: 38px;
+  border: 1px solid #e0e5ef;
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.platform-geography-add button,
+.platform-geography-panel form button {
+  border: 0;
+  border-radius: 10px;
+  background: var(--geo-purple);
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  padding: 0 12px;
+}
+
+.platform-settlement-list__head,
+.platform-settlement-list > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px 50px 62px 18px;
+  align-items: center;
+  gap: 5px;
+}
+
+.platform-settlement-list__head {
+  min-height: 32px;
+  padding: 0 14px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.platform-settlement-list > button {
+  width: 100%;
+  min-height: 58px;
+  padding: 6px 14px;
+  border: 0;
+  border-top: 1px solid #eef1f6;
+  background: #fff;
+  color: #101828;
+  text-align: left;
+  font: inherit;
+}
+
+.platform-settlement-list > button > strong {
+  text-align: center;
+  font-size: 14px;
+}
+
+.platform-settlement-list > button > svg {
+  width: 17px;
+  color: #667085;
+}
+
+.platform-settlement-name {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.platform-settlement-name i {
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #f1eeff;
+  color: var(--geo-purple);
+}
+
+.platform-settlement-name i svg {
+  width: 18px;
+}
+
+.platform-settlement-name > span {
+  min-width: 0;
+  display: grid;
+}
+
+.platform-settlement-name b,
+.platform-settlement-name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-settlement-name b {
+  font-size: 14px;
+}
+
+.platform-settlement-name small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.platform-settlement-list > p,
+.platform-request-summary > div > p {
+  margin: 0;
+  padding: 18px;
+  color: #667085;
+  text-align: center;
+}
+
+.platform-request-summary h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.platform-request-summary h2 em {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff2e8;
+  color: #f26722;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.platform-request-summary > header > button {
+  border: 0;
+  background: none;
+  color: var(--geo-purple);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+}
+
+.platform-request-summary > header > button svg {
+  width: 15px;
+}
+
+.platform-request-summary article {
+  min-height: 52px;
+  padding: 6px 14px;
+  border-top: 1px solid #eef1f6;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.platform-request-summary article > span {
+  width: 34px;
+  height: 34px;
+  color: #f26722;
+  background: #fff2e8;
+}
+
+.platform-request-summary article div {
+  min-width: 0;
+  display: grid;
+}
+
+.platform-request-summary article small {
+  color: #667085;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.platform-request-summary article button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: #f1eeff;
+  color: var(--geo-purple);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 0 11px;
+}
+
+.platform-geography-links > button {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 1px solid #eef1f6;
+  background: #fff;
+  color: #101828;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font: inherit;
+}
+
+.platform-geography-links > button > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+}
+
+.platform-geography-links > button small {
+  color: #667085;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-geography-links > button > svg {
+  width: 17px;
+  color: #667085;
+}
+
+.platform-geography-panel {
+  padding: 10px 14px;
+  border-bottom: 1px solid #eef1f6;
+  background: #fafbff;
+}
+
+.platform-geography-panel form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 90px auto;
+  gap: 6px;
+}
+
+.platform-geography-panel p,
+.platform-geography-panel article {
+  margin: 7px 0 0;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #344054;
+}
+
+.platform-geography-panel article div {
+  min-width: 0;
+  display: grid;
+}
+
+.platform-geography-panel article small {
+  color: #667085;
+}
+
+.platform-geography-panel article button {
+  flex: 0 0 32px;
+  height: 32px;
+  border: 1px solid #ded6ff;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--geo-purple);
+}
+
+.platform-geography-panel article button svg {
+  width: 16px;
+}
+
+.platform-settlement-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.platform-settlement-modal > button {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(16 24 40 / 48%);
+}
+
+.platform-settlement-modal > section {
+  position: relative;
+  width: min(420px, 100%);
+  border-radius: 20px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgb(16 24 40 / 22%);
+}
+
+.platform-settlement-modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.platform-settlement-modal h2,
+.platform-settlement-modal p {
+  margin: 0;
+}
+
+.platform-settlement-modal header small,
+.platform-settlement-modal p {
+  color: #667085;
+}
+
+.platform-settlement-modal header button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e0e5ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.platform-settlement-modal header svg {
+  width: 18px;
+}
+
+.platform-settlement-modal > section > p {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.platform-settlement-modal > section > p svg {
+  width: 15px;
+}
+
+.platform-settlement-modal > section > div {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.platform-settlement-modal article {
+  min-width: 0;
+  border-radius: 12px;
+  background: #f6f7fb;
+  padding: 9px;
+  display: grid;
+  gap: 3px;
+}
+
+.platform-settlement-modal article svg {
+  width: 17px;
+  color: var(--geo-purple);
+}
+
+.platform-settlement-modal article small {
+  color: #667085;
+  font-size: 10px;
+}
+
+.platform-settlement-modal footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef1f6;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 520px) {
+  .platform-geography-page {
+    gap: 10px;
+  }
+
+  .platform-geography-page .platform-page-head h1 {
+    font-size: 27px;
+  }
+
+  .platform-geography-page .platform-page-head p {
+    font-size: 12px;
+  }
+
+  .platform-geography-export button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .platform-geography-stats {
+    gap: 6px;
+  }
+
+  .platform-geography-stats article {
+    min-height: 82px;
+    padding: 8px;
+  }
+
+  .platform-geography-stats span {
+    width: 30px;
+    height: 30px;
+  }
+
+  .platform-geography-stats small {
+    font-size: 9px;
+  }
+
+  .platform-geography-stats strong {
+    font-size: 19px;
+  }
+
+  .platform-geography-add,
+  .platform-geography-panel form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .platform-geography-add button,
+  .platform-geography-panel form button {
+    min-height: 36px;
+  }
+
+  .platform-settlement-list__head,
+  .platform-settlement-list > button {
+    grid-template-columns: minmax(0, 1fr) 34px 34px 45px 14px;
+    gap: 2px;
+  }
+
+  .platform-settlement-list__head {
+    font-size: 8px;
+  }
+
+  .platform-settlement-list > button {
+    min-height: 52px;
+    padding: 5px 10px;
+  }
+
+  .platform-settlement-name {
+    gap: 6px;
+  }
+
+  .platform-settlement-name i {
+    flex-basis: 30px;
+    height: 30px;
+  }
+
+  .platform-settlement-name b {
+    font-size: 12px;
+  }
+
+  .platform-settlement-name small {
+    font-size: 9px;
+  }
+
+  .platform-settlement-list > button > strong {
+    font-size: 11px;
+  }
+
+  .platform-settlement-modal {
+    align-items: end;
+    padding: 0;
+  }
+
+  .platform-settlement-modal > section {
+    border-radius: 20px 20px 0 0;
+  }
+}

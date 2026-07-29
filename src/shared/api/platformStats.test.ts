@@ -70,6 +70,7 @@ describe('platform revenue stats', () => {
       {
         catalog_id: 'catalog-mangal',
         total: 700,
+        total_amount: 0,
         delivery_provider: 'restaurant',
         status: 'accepted'
       }

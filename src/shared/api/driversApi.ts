@@ -1,5 +1,11 @@
 import { supabase } from '../supabase';
-import type { CreateDriverPayload, CreateDriverResult, PlatformDriver, UpdateDriverPayload } from './platformTypes';
+import type {
+  CreateDriverPayload,
+  CreateDriverResult,
+  PlatformDriver,
+  PlatformDriverActivity,
+  UpdateDriverPayload
+} from './platformTypes';
 
 type DriverRow = {
   id: string;
@@ -101,6 +107,57 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
 
   if (fallback.error) throw fallback.error;
   return ((fallback.data ?? []) as unknown as DriverRow[]).map(mapDriver);
+}
+
+export async function getPlatformDriverActivity(): Promise<PlatformDriverActivity[]> {
+  if (!supabase) {
+    return demoDrivers.map((driver) => ({
+      driverId: driver.id,
+      deliveryCount: 0,
+      completedDeliveries: 0,
+      earnedAmount: 0
+    }));
+  }
+
+  const [deliveriesResult, earningsResult] = await Promise.all([
+    supabase.from('deliveries').select('driver_id, status').not('driver_id', 'is', null).limit(5000),
+    supabase.from('earnings').select('driver_id, amount, net_amount').limit(5000)
+  ]);
+
+  const activity = new Map<string, PlatformDriverActivity>();
+  const getActivity = (driverId: string) => {
+    const current = activity.get(driverId) ?? {
+      driverId,
+      deliveryCount: 0,
+      completedDeliveries: 0,
+      earnedAmount: 0
+    };
+    activity.set(driverId, current);
+    return current;
+  };
+
+  if (!deliveriesResult.error) {
+    for (const row of (deliveriesResult.data ?? []) as Array<{ driver_id: string | null; status: string | null }>) {
+      if (!row.driver_id) continue;
+      const current = getActivity(row.driver_id);
+      current.deliveryCount += 1;
+      if (row.status === 'delivered') current.completedDeliveries += 1;
+    }
+  }
+
+  if (!earningsResult.error) {
+    for (const row of (earningsResult.data ?? []) as Array<{
+      driver_id: string | null;
+      amount: number | string | null;
+      net_amount: number | string | null;
+    }>) {
+      if (!row.driver_id) continue;
+      const current = getActivity(row.driver_id);
+      current.earnedAmount += Number(row.net_amount ?? row.amount ?? 0);
+    }
+  }
+
+  return Array.from(activity.values());
 }
 
 export async function createDriver(payload: CreateDriverPayload): Promise<CreateDriverResult> {

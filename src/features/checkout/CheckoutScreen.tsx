@@ -1,0 +1,997 @@
+import { useQuery } from '@tanstack/react-query';
+import {
+  ArrowRight,
+  Banknote,
+  Check,
+  Clock,
+  Copy,
+  CreditCard,
+  Edit3,
+  Home,
+  LocateFixed,
+  MapPin,
+  Minus,
+  Package,
+  Plus,
+  QrCode,
+  ShieldCheck,
+  ShoppingBag,
+  ShoppingCart,
+  Trash2,
+  Truck,
+  X
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
+import { useClientPlatformStore } from '../client-platform/store';
+import type { ClientAddress, ClientOrder } from '../client-platform/types';
+import {
+  selectCartCount,
+  selectCartTotal,
+  useCartStore,
+  useOrderStore
+} from '../stores';
+import { parseCabinMeta } from '../restaurant-settings/catalogAdminModel';
+import { formatOrderPaymentMethodMarker } from '../restaurant-admin/orderPresentation';
+import { getClientCityId } from '../../shared/api/clientPlatformApi';
+import {
+  createRestaurantOrderFromCart,
+  type RestaurantDeliverySettings
+} from '../../shared/api/restaurantOrdersApi';
+import {
+  buildOrderStatusShareUrl,
+  buildRestaurantOrderFingerprint,
+  createRestaurantOrderIdempotencyKey,
+  type CreateRestaurantOrderFromCartInput
+} from '../../shared/api/restaurantOrderPayload';
+import {
+  getDeliverySettlements,
+  submitSettlementRequest
+} from '../../shared/api/settlementsApi';
+import {
+  loadPublicClientCheckoutProfile,
+  normalizeSettlementName,
+  savePublicClientProfile
+} from '../../shared/clientIdentity';
+import {
+  chooseMoreAccuratePosition,
+  DELIVERY_GEOLOCATION_OPTIONS,
+  DELIVERY_LOCATION_TIMEOUT_MS,
+  DELIVERY_TARGET_ACCURACY_M,
+  deliveryPositionIsAccurateEnough,
+  deliveryGeolocationTimeoutMessage,
+  getDeliveryGeolocationErrorMessage,
+  getDeliveryLowAccuracyMessage,
+  normalizeDeliveryCoordinates,
+  type DeliveryCoordinates
+} from '../../shared/deliveryLocation';
+import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
+import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
+import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
+import { SafeImage } from '../../shared/SafeImage';
+
+const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
+const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const buildDeliveryAddress = (city: string, settlement: string, address: string) =>
+  Array.from(new Set([city.trim(), settlement.trim(), address.trim()].filter(Boolean))).join(', ');
+
+export function CheckoutScreen({
+  catalogSlug,
+  restaurant,
+  cabins,
+  deliverySettings,
+  paymentSettings,
+  onEditCart,
+  onSubmitOrder
+}: {
+  catalogSlug: string;
+  restaurant: Restaurant;
+  cabins: Cabin[];
+  deliverySettings: RestaurantDeliverySettings;
+  paymentSettings: RestaurantPaymentSettings;
+  onEditCart: () => void;
+  onSubmitOrder: () => void;
+}) {
+  const {
+    mode,
+    cabinId,
+    deliveryCity,
+    deliverySettlement,
+    deliveryAddress,
+    deliveryLat,
+    deliveryLng,
+    deliveryAccuracyM,
+    clientName,
+    clientPhone,
+    setOrder
+  } = useOrderStore();
+  const selectedClientCityId = useClientPlatformStore((state) => state.selectedCityId);
+  const saveClientProfile = useClientPlatformStore((state) => state.saveProfile);
+  const addClientAddress = useClientPlatformStore((state) => state.addAddress);
+  const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
+  const items = useCartStore((state) => state.items);
+  const addCartItem = useCartStore((state) => state.add);
+  const decrementCartItem = useCartStore((state) => state.decrement);
+  const removeCartItem = useCartStore((state) => state.remove);
+  const total = selectCartTotal(items);
+  const cartCount = selectCartCount(items);
+  const [orderComment, setOrderComment] = useState('');
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'cash' | 'bank_transfer'>(() =>
+    paymentSettings.transferEnabled ? 'bank_transfer' : 'cash'
+  );
+  const usesBankTransfer = checkoutPaymentMethod === 'bank_transfer' && paymentSettings.transferEnabled;
+  const freeDeliveryFrom = Math.max(0, deliverySettings.free_delivery_from);
+  const remainingForFreeDelivery = Math.max(0, freeDeliveryFrom - total);
+  const freeDeliveryProgress = freeDeliveryFrom > 0
+    ? Math.min(100, (total / freeDeliveryFrom) * 100)
+    : 100;
+  const activeCabins = useMemo(
+    () => cabins.filter((cabin) => parseCabinMeta(cabin.feature).status === 'active'),
+    [cabins]
+  );
+  const availableModes = useMemo(() => {
+    const modes: Array<{ key: OrderMode; label: string; icon: typeof Home }> = [];
+    if (deliverySettings.enable_hall_orders) modes.push({ key: 'hall', label: 'В зале', icon: ShoppingCart });
+    if (deliverySettings.enable_pickup) modes.push({ key: 'takeaway', label: 'На вынос', icon: ShoppingBag });
+    if (deliverySettings.enable_delivery) modes.push({ key: 'delivery', label: 'Доставка', icon: MapPin });
+    return modes.length > 0 ? modes : [{ key: 'takeaway', label: 'На вынос', icon: ShoppingBag }];
+  }, [deliverySettings.enable_delivery, deliverySettings.enable_hall_orders, deliverySettings.enable_pickup]);
+  const configuredCity = deliverySettings.primary_city.trim();
+  const { data: globalDeliverySettlements = [] } = useQuery({
+    queryKey: ['delivery-settlements-public'],
+    queryFn: getDeliverySettlements,
+    staleTime: 5 * 60 * 1000
+  });
+  const selectedClientPlace = useMemo(() => {
+    const places = globalDeliverySettlements.flatMap((settlement) => [settlement.cityName, settlement.settlementName]);
+    return places.find((place) => place.trim() && getClientCityId(place) === selectedClientCityId)?.trim() ?? '';
+  }, [globalDeliverySettlements, selectedClientCityId]);
+  const settlementOptions = useMemo(() => {
+    const globalOptions = globalDeliverySettlements.flatMap((settlement) => [settlement.cityName, settlement.settlementName]);
+
+    return Array.from(
+      new Set(
+        [...(deliverySettings.service_settlements ?? []), ...globalOptions]
+          .map((settlement) => settlement.trim())
+          .filter(Boolean)
+      )
+    );
+  }, [deliverySettings.service_settlements, globalDeliverySettlements]);
+  const effectiveDeliveryCity = selectedClientPlace || deliveryCity || configuredCity;
+  const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
+  const [isLocating, setIsLocating] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [geoError, setGeoError] = useState('');
+  const [isDeliveryMapOpen, setIsDeliveryMapOpen] = useState(false);
+  const [usesCustomSettlement, setUsesCustomSettlement] = useState(false);
+  const [customSettlement, setCustomSettlement] = useState('');
+  const [deliveryValidationErrors, setDeliveryValidationErrors] = useState<string[]>([]);
+  const effectiveDeliverySettlement = normalizeSettlementName(
+    usesCustomSettlement ? customSettlement : deliverySettlement
+  );
+  const finalDeliveryAddress = buildDeliveryAddress(effectiveDeliveryCity, effectiveDeliverySettlement, deliveryAddress);
+  const settlementNeedsAdminReview =
+    Boolean(effectiveDeliverySettlement) &&
+    !settlementOptions.some((settlement) => normalizeSettlementName(settlement) === effectiveDeliverySettlement);
+  const selectedDeliveryLat = deliveryLat ?? DEFAULT_DELIVERY_LOCATION.lat;
+  const selectedDeliveryLng = deliveryLng ?? DEFAULT_DELIVERY_LOCATION.lng;
+  const locationSessionRef = useRef<{ watchId: number | null; timeoutId: number | null }>({
+    watchId: null,
+    timeoutId: null
+  });
+  const profileHydratedRef = useRef(false);
+  const submitLockRef = useRef(false);
+  const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
+  const selectedClientPlaceRef = useRef('');
+  const deliveryDetailsRef = useRef<HTMLElement | null>(null);
+  const clientNameRef = useRef<HTMLInputElement | null>(null);
+  const locationButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const validateDeliveryDetails = () => {
+    const errors: string[] = [];
+    if (deliveryLat === null || deliveryLng === null) errors.push('Определите местоположение или выберите точку на карте.');
+    if (!clientName.trim()) errors.push('Введите имя.');
+    if (clientPhone.replace(/\D/g, '').length < 10) errors.push('Введите корректный номер телефона.');
+    if (!effectiveDeliverySettlement) errors.push('Выберите село или город.');
+    if (!deliveryAddress.trim()) errors.push('Введите улицу и номер дома.');
+
+    setDeliveryValidationErrors(errors);
+    if (errors.length > 0) {
+      deliveryDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => {
+        if (deliveryLat === null || deliveryLng === null) {
+          locationButtonRef.current?.focus({ preventScroll: true });
+        } else if (!clientName.trim()) {
+          clientNameRef.current?.focus({ preventScroll: true });
+        }
+      }, 450);
+      toast.error('Заполните обязательные данные доставки');
+      return false;
+    }
+    return true;
+  };
+
+  const clearLocationSession = useCallback(() => {
+    const { watchId, timeoutId } = locationSessionRef.current;
+    if (watchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
+    locationSessionRef.current = { watchId: null, timeoutId: null };
+  }, []);
+
+  const applyDeliveryCoordinates = useCallback(
+    (coordinates: DeliveryCoordinates) => {
+      const { lat, lng, accuracyM } = normalizeDeliveryCoordinates(coordinates);
+      setOrder({
+        deliveryLat: lat,
+        deliveryLng: lng,
+        deliveryAccuracyM: accuracyM,
+        deliveryAddress: deliveryAddress || `${lat}, ${lng}`
+      });
+
+      if (accuracyM > DELIVERY_TARGET_ACCURACY_M) {
+        setGeoError(getDeliveryLowAccuracyMessage(accuracyM));
+      }
+    },
+    [deliveryAddress, setOrder]
+  );
+
+  const applyManualDeliveryPoint = useCallback(
+    ({ lat, lng }: { lat: number; lng: number }) => {
+      const nextLat = Number(lat.toFixed(7));
+      const nextLng = Number(lng.toFixed(7));
+      setGeoError('');
+      setOrder({
+        deliveryLat: nextLat,
+        deliveryLng: nextLng,
+        deliveryAccuracyM: null,
+        deliveryAddress: deliveryAddress || `${nextLat}, ${nextLng}`
+      });
+    },
+    [deliveryAddress, setOrder]
+  );
+
+  const applySearchedDeliveryPlace = useCallback(
+    (result: DeliveryLocationSearchResult) => {
+      const isKnownSettlement = settlementOptions.some(
+        (settlement) => normalizeSettlementName(settlement) === normalizeSettlementName(result.name)
+      );
+      setUsesCustomSettlement(!isKnownSettlement);
+      setCustomSettlement(isKnownSettlement ? '' : result.name);
+      setOrder({
+        deliverySettlement: result.name,
+        deliveryAddress: result.label
+      });
+    },
+    [setOrder, settlementOptions]
+  );
+
+  const locateDeliveryAddress = () => {
+    if (!navigator.geolocation) {
+      setGeoError('Геолокация недоступна в этом браузере.');
+      return;
+    }
+
+    clearLocationSession();
+    setIsLocating(true);
+    setGeoError('');
+
+    let bestCoordinates: DeliveryCoordinates | null = null;
+    let finished = false;
+
+    const finish = (coordinates: DeliveryCoordinates | null, message = '') => {
+      if (finished) return;
+      finished = true;
+      clearLocationSession();
+
+      if (coordinates) {
+        applyDeliveryCoordinates(coordinates);
+      } else {
+        setGeoError(message || 'Не удалось получить геолокацию. Проверьте разрешение браузера.');
+      }
+
+      setIsLocating(false);
+    };
+
+    const handlePosition = (position: GeolocationPosition) => {
+      bestCoordinates = chooseMoreAccuratePosition(bestCoordinates, position.coords);
+
+      if (deliveryPositionIsAccurateEnough(bestCoordinates, DELIVERY_TARGET_ACCURACY_M)) {
+        finish(bestCoordinates);
+      }
+    };
+
+    const handleError = (error: GeolocationPositionError) => {
+      if (bestCoordinates) {
+        finish(bestCoordinates);
+        return;
+      }
+      finish(null, getDeliveryGeolocationErrorMessage(error));
+    };
+
+    try {
+      const watchId = navigator.geolocation.watchPosition(
+        handlePosition,
+        handleError,
+        DELIVERY_GEOLOCATION_OPTIONS
+      );
+      const timeoutId = window.setTimeout(
+        () => finish(bestCoordinates, deliveryGeolocationTimeoutMessage),
+        DELIVERY_LOCATION_TIMEOUT_MS + 1_000
+      );
+      locationSessionRef.current = { watchId, timeoutId };
+    } catch {
+      finish(null, 'Не удалось запустить геолокацию. Проверьте разрешение браузера.');
+    }
+  };
+
+  useEffect(() => clearLocationSession, [clearLocationSession]);
+
+  useEffect(() => {
+    if (profileHydratedRef.current) return;
+    profileHydratedRef.current = true;
+    const savedProfile = loadPublicClientCheckoutProfile(catalogSlug);
+    if (!savedProfile) return;
+
+    setOrder({
+      clientName: clientName || savedProfile.name,
+      clientPhone: clientPhone || savedProfile.phone,
+      deliveryCity: deliveryCity || savedProfile.deliveryCity,
+      deliverySettlement: deliverySettlement || savedProfile.deliverySettlement,
+      deliveryAddress: deliveryAddress || savedProfile.deliveryAddress
+    });
+  }, [catalogSlug, clientName, clientPhone, deliveryAddress, deliveryCity, deliverySettlement, setOrder]);
+
+  useEffect(() => {
+    if (selectedClientPlace || !configuredCity || deliveryCity === configuredCity) return;
+    setOrder({ deliveryCity: configuredCity });
+  }, [configuredCity, deliveryCity, selectedClientPlace, setOrder]);
+
+  useEffect(() => {
+    if (mode !== 'delivery' || !selectedClientPlace || selectedClientPlaceRef.current === selectedClientPlace) return;
+    selectedClientPlaceRef.current = selectedClientPlace;
+    setOrder({ deliveryCity: selectedClientPlace, deliverySettlement: selectedClientPlace });
+  }, [mode, selectedClientPlace, setOrder]);
+
+  useEffect(() => {
+    if (!deliverySettlement || settlementOptions.includes(deliverySettlement)) return;
+    setUsesCustomSettlement(true);
+    setCustomSettlement(deliverySettlement);
+  }, [deliverySettlement, settlementOptions]);
+
+  useEffect(() => {
+    if (availableModes.some((item) => item.key === mode)) return;
+    const nextMode = (availableModes[0]?.key as OrderMode | undefined) ?? ('takeaway' as OrderMode);
+    setOrder({ mode: nextMode, cabinId: nextMode === 'hall' ? activeCabins[0]?.id || '' : '' });
+  }, [activeCabins, availableModes, mode, setOrder]);
+
+  useEffect(() => {
+    if (mode !== 'hall') return;
+    if (activeCabins.length === 1 && cabinId !== activeCabins[0].id) {
+      setOrder({ cabinId: activeCabins[0].id });
+      return;
+    }
+    if (activeCabins.length > 1 && cabinId && !activeCabins.some((cabin) => cabin.id === cabinId)) {
+      setOrder({ cabinId: '' });
+    }
+  }, [activeCabins, cabinId, mode, setOrder]);
+  const orderLines = [
+    'Здравствуйте! Хочу оформить заказ.',
+    '',
+    'Заказ:',
+    ...items.map((item, index) => `${index + 1}. ${item.product.title} - ${item.quantity} шт. x ${formatPrice(item.product.price)}`),
+    '',
+    `Итого: ${formatPrice(total)}`,
+    '',
+    'Получение:',
+    mode === 'hall'
+      ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}`
+      : mode === 'delivery'
+        ? `Доставка${finalDeliveryAddress ? `, ${finalDeliveryAddress}` : ''}`
+        : 'На вынос',
+    ...(mode === 'hall' && selectedCabin ? [`Кабинка: ${selectedCabin.title} (${selectedCabin.capacity})`] : []),
+    ...(mode === 'delivery' && deliveryCity ? [`Город: ${deliveryCity}`] : []),
+    ...(mode === 'delivery' && effectiveDeliverySettlement ? [`Село / район: ${effectiveDeliverySettlement}`] : []),
+    ...(mode === 'delivery' && deliveryAddress ? [`Адрес: ${deliveryAddress}`] : []),
+    ...(mode === 'delivery' && clientName ? [`Имя: ${clientName}`] : []),
+    ...(mode === 'delivery' && clientPhone ? [`Телефон: ${clientPhone}`] : []),
+    `Оплата: ${usesBankTransfer ? 'Безналично' : 'Наличными'}`,
+    '',
+    'Комментарий:',
+    'Пожалуйста, подтвердите заказ.'
+  ];
+  const getOrderIdempotencyKey = (payload: CreateRestaurantOrderFromCartInput) => {
+    const fingerprint = buildRestaurantOrderFingerprint(payload);
+
+    if (orderAttemptRef.current?.fingerprint !== fingerprint) {
+      orderAttemptRef.current = {
+        fingerprint,
+        idempotencyKey: createRestaurantOrderIdempotencyKey(fingerprint)
+      };
+    }
+
+    return orderAttemptRef.current.idempotencyKey;
+  };
+  const buildWhatsappHref = (orderId?: string) => {
+    if (!restaurant.whatsapp) return '#';
+
+    const lines = orderId
+      ? [
+          ...orderLines,
+          '',
+          'Ссылка на статус заказа:',
+          buildOrderStatusShareUrl({
+            origin: window.location.origin,
+            basePath: import.meta.env.BASE_URL,
+            restaurantSlug: catalogSlug,
+            orderId
+          })
+        ]
+      : orderLines;
+
+    return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;
+  };
+  const whatsappHref = buildWhatsappHref();
+  const openRestaurantMap = () => {
+    if (!restaurant.mapLink) {
+      alert('Карта не указана');
+      return;
+    }
+    window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
+  };
+  const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
+
+  return (
+    <main className="screen checkout-screen">
+      <section className="checkout-segment" aria-label="Тип заказа">
+        {availableModes.map(({ key, label, icon: Icon }) => (
+          <button
+            className={mode === key ? 'checkout-segment__button is-active' : 'checkout-segment__button'}
+            type="button"
+            key={key}
+            onClick={() =>
+              setOrder({
+                mode: key as OrderMode,
+                cabinId: key === 'hall' ? cabinId || activeCabins[0]?.id || '' : ''
+              })
+            }
+          >
+            <Icon />
+            {label}
+          </button>
+        ))}
+      </section>
+
+      {mode === 'hall' && activeCabins.length > 0 && (
+        <>
+          <section className="checkout-section-head">
+            <h2>Выбор кабинки</h2>
+            <p>Выберите кабинку для заказа</p>
+          </section>
+          <section className="checkout-cabin-grid">
+            {activeCabins.map(({ id, title, capacity, image_url }) => {
+              return (
+              <button className={cabinId === id ? 'checkout-cabin is-active' : 'checkout-cabin'} type="button" key={id} onClick={() => setOrder({ cabinId: id })}>
+                <SafeImage className="checkout-cabin__image" src={image_url} alt={title} />
+                <span className="checkout-cabin__overlay" />
+                {cabinId === id && (
+                  <span className="checkout-cabin__check">
+                    <Check />
+                  </span>
+                )}
+                <span className="checkout-cabin__label">
+                  <strong>{title}</strong>
+                  <small>{capacity}</small>
+                </span>
+              </button>
+              );
+            })}
+          </section>
+        </>
+      )}
+
+      {mode === 'takeaway' && (
+        <section className="takeaway-note">
+          <div className="takeaway-note__message">
+            <Package />
+            <strong>Вы заберёте заказ самостоятельно</strong>
+          </div>
+          <div className="restaurant-address">
+            <span>Адрес ресторана</span>
+            <strong>{restaurant.address || 'Адрес не указан'}</strong>
+            <button className="map-link-button" type="button" onClick={openRestaurantMap}>
+              <MapPin />
+              <span>Показать на карте</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {mode === 'delivery' && (
+        <section className="takeaway-note" ref={deliveryDetailsRef} id="checkout-delivery-details">
+          <div className="takeaway-note__message">
+            <MapPin />
+            <strong>Укажите населенный пункт и адрес доставки</strong>
+          </div>
+          <div className="checkout-location-actions">
+            <button
+              className="map-link-button checkout-location-button"
+              type="button"
+              onClick={locateDeliveryAddress}
+              disabled={isLocating}
+              ref={locationButtonRef}
+            >
+              <LocateFixed />
+              <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
+            </button>
+            <button className="map-link-button checkout-location-button" type="button" onClick={() => setIsDeliveryMapOpen(true)}>
+              <MapPin />
+              <span>Уточнить точку на карте</span>
+            </button>
+          </div>
+          {(deliveryLat !== null && deliveryLng !== null) && (
+            <p className="checkout-location-hint">
+              Координаты: {deliveryLat.toFixed(7)}, {deliveryLng.toFixed(7)}
+              {deliveryAccuracyM ? ` · точность ${deliveryAccuracyM} м` : ' · выбрано вручную'}
+            </p>
+          )}
+          {deliveryAccuracyM && deliveryAccuracyM > 100 && (
+            <p className="checkout-location-warning">Точность слабая. Проверьте адрес перед отправкой заказа.</p>
+          )}
+          {geoError && <p className="checkout-location-warning">{geoError}</p>}
+          {deliveryValidationErrors.length > 0 && (
+            <div className="checkout-validation-errors" role="alert">
+              <strong>Заполните данные для доставки:</strong>
+              <ul>
+                {deliveryValidationErrors.map((error) => <li key={error}>{error}</li>)}
+              </ul>
+            </div>
+          )}
+          <div className="checkout-delivery-fields">
+            <label className="checkout-field">
+              <span>Имя</span>
+              <input
+                ref={clientNameRef}
+                value={clientName}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  setOrder({ clientName: event.target.value });
+                }}
+                placeholder="Ваше имя"
+                required
+              />
+            </label>
+            <label className="checkout-field">
+              <span>Телефон</span>
+              <input
+                value={clientPhone}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  const digits = event.target.value.replace(/\D/g, '').replace(/^8/, '7').slice(0, 11);
+                  const local = digits.startsWith('7') ? digits.slice(1) : digits;
+                  const formatted = [
+                    '+7',
+                    local.length ? ` (${local.slice(0, 3)}` : '',
+                    local.length >= 3 ? ')' : '',
+                    local.length > 3 ? ` ${local.slice(3, 6)}` : '',
+                    local.length > 6 ? `-${local.slice(6, 8)}` : '',
+                    local.length > 8 ? `-${local.slice(8, 10)}` : ''
+                  ].join('');
+                  setOrder({ clientPhone: formatted });
+                }}
+                placeholder="+7 (___) ___-__-__"
+                inputMode="tel"
+                required
+              />
+            </label>
+            <label className="checkout-field">
+              <span>Село или город</span>
+              {settlementOptions.length > 0 ? (
+                <>
+                  <select
+                    required
+                    value={usesCustomSettlement ? '__other__' : deliverySettlement}
+                    onChange={(event) => {
+                      if (event.target.value === '__other__') {
+                        setUsesCustomSettlement(true);
+                        setOrder({ deliverySettlement: customSettlement });
+                        return;
+                      }
+                      setUsesCustomSettlement(false);
+                      setCustomSettlement('');
+                      setDeliveryValidationErrors([]);
+                      setOrder({ deliverySettlement: event.target.value });
+                    }}
+                  >
+                    <option value="">Выберите населенный пункт</option>
+                    {settlementOptions.map((settlement) => (
+                      <option value={settlement} key={settlement}>
+                        {settlement}
+                      </option>
+                    ))}
+                    <option value="__other__">Другой населенный пункт</option>
+                  </select>
+                  {usesCustomSettlement && (
+                    <input
+                      value={customSettlement}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setDeliveryValidationErrors([]);
+                        setCustomSettlement(value);
+                        setOrder({ deliverySettlement: value });
+                      }}
+                      placeholder="Введите село или город"
+                      required
+                    />
+                  )}
+                </>
+              ) : (
+                <input
+                  value={deliverySettlement}
+                  onChange={(event) => {
+                    setDeliveryValidationErrors([]);
+                    setOrder({ deliverySettlement: event.target.value });
+                  }}
+                  placeholder="Например: Цоци-Юрт"
+                  required
+                />
+              )}
+            </label>
+            <label className="checkout-field checkout-field--wide">
+              <span>Адрес</span>
+              <textarea
+                value={deliveryAddress}
+                onChange={(event) => {
+                  setDeliveryValidationErrors([]);
+                  setOrder({ deliveryAddress: event.target.value });
+                }}
+                rows={3}
+                placeholder="Улица, дом, ориентир"
+                required
+              />
+            </label>
+          </div>
+          {isDeliveryMapOpen && (
+            <div className="modal-backdrop delivery-map-backdrop">
+              <div className="delivery-map-sheet">
+                <button
+                  className="flow-modal__close"
+                  type="button"
+                  onClick={() => setIsDeliveryMapOpen(false)}
+                  aria-label="Закрыть карту"
+                >
+                  <X />
+                </button>
+                <h2>Точка доставки</h2>
+                <DeliveryMapPicker
+                  lat={selectedDeliveryLat}
+                  lng={selectedDeliveryLng}
+                  accuracyM={deliveryAccuracyM}
+                  isLocating={isLocating}
+                  error={geoError}
+                  onLocate={locateDeliveryAddress}
+                  onChange={applyManualDeliveryPoint}
+                  onSearchSelect={applySearchedDeliveryPlace}
+                  onDone={() => setIsDeliveryMapOpen(false)}
+                />
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {freeDeliveryFrom > 0 && (
+        <section className="checkout-free-delivery" aria-live="polite">
+          <Truck />
+          <div>
+            <strong>
+              {remainingForFreeDelivery > 0
+                ? `До бесплатной доставки осталось ${formatPrice(remainingForFreeDelivery)}`
+                : 'Бесплатная доставка доступна'}
+            </strong>
+            <span><i style={{ width: `${freeDeliveryProgress}%` }} /></span>
+          </div>
+        </section>
+      )}
+
+      <section className="checkout-payment-method" aria-labelledby="checkout-payment-title">
+        <div>
+          <CreditCard />
+          <h2 id="checkout-payment-title">Способ оплаты</h2>
+        </div>
+        <div className="checkout-payment-method__options">
+          <button
+            className={!usesBankTransfer ? 'is-active' : ''}
+            type="button"
+            aria-pressed={!usesBankTransfer}
+            onClick={() => setCheckoutPaymentMethod('cash')}
+          >
+            <Banknote />
+            <span><strong>Наличными</strong><small>при получении</small></span>
+            <i aria-hidden="true" />
+          </button>
+          <button
+            className={usesBankTransfer ? 'is-active' : ''}
+            type="button"
+            aria-pressed={usesBankTransfer}
+            disabled={!paymentSettings.transferEnabled}
+            onClick={() => setCheckoutPaymentMethod('bank_transfer')}
+          >
+            <CreditCard />
+            <span>
+              <strong>Безналично</strong>
+              <small>{paymentSettings.transferEnabled ? 'переводом' : 'не настроено'}</small>
+            </span>
+            <i aria-hidden="true" />
+          </button>
+        </div>
+      </section>
+
+      <section className="checkout-summary" id="checkout-review" tabIndex={-1}>
+        <div className="checkout-summary__head">
+          <ShoppingCart />
+          <div>
+            <h2>Ваш заказ</h2>
+            <span>{cartCount} товара</span>
+          </div>
+          <button type="button" onClick={onEditCart}>Изменить <ArrowRight /></button>
+        </div>
+        <div className="checkout-summary__list">
+          {items.map((item) => (
+            <article className="checkout-order-card" key={item.product.id}>
+              <SafeImage src={item.product.image_url} alt={item.product.title} />
+              <div className="checkout-order-card__body">
+                <div className="checkout-order-card__copy">
+                  <h3>{item.product.title}</h3>
+                  <p>{item.product.description}</p>
+                </div>
+                <button
+                  className="checkout-order-card__remove"
+                  type="button"
+                  onClick={() => removeCartItem(item.product.id)}
+                  aria-label={`Удалить ${item.product.title}`}
+                >
+                  <Trash2 />
+                </button>
+                <div className="checkout-order-card__bottom">
+                  <div>
+                    <strong>{formatPrice(item.product.price)}</strong>
+                    <span>{item.quantity} × {formatPrice(item.product.price)}</span>
+                  </div>
+                  <div className="checkout-order-card__stepper">
+                    <button type="button" onClick={() => decrementCartItem(item.product.id)} aria-label="Уменьшить"><Minus /></button>
+                    <b>{item.quantity}</b>
+                    <button type="button" onClick={() => addCartItem(item.product)} aria-label="Увеличить"><Plus /></button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="checkout-summary__total">
+          <span><ShoppingCart /> Итого</span>
+          <strong>{formatPrice(total)}</strong>
+        </div>
+      </section>
+
+      <section className="checkout-delivery-facts">
+        <div><Truck /><span>Стоимость доставки</span><strong>{freeDeliveryFrom > 0 ? '0 ₽' : 'По тарифу'}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
+        <div><Clock /><span>Время доставки</span><strong>≈ {deliverySettings.default_preparation_minutes}–{deliverySettings.default_preparation_minutes + 20} мин</strong></div>
+        <div><CreditCard /><span>Оплата</span><strong>{usesBankTransfer ? 'Безналично' : 'Наличными'}</strong><small>{usesBankTransfer ? 'переводом' : 'при получении'}</small></div>
+      </section>
+
+      <section className="checkout-comment-card">
+        <label htmlFor="checkout-comment"><Edit3 /> Комментарий к заказу <span>(необязательно)</span></label>
+        <textarea
+          id="checkout-comment"
+          value={orderComment}
+          onChange={(event) => setOrderComment(event.target.value)}
+          rows={2}
+          placeholder="Например: не класть лук, позвонить заранее..."
+        />
+      </section>
+
+      <section className="checkout-privacy-card">
+        <ShieldCheck />
+        <div><strong>Ваши данные защищены</strong><span>Используются только для обработки заказа</span></div>
+      </section>
+
+      <section className="checkout-submit-card">
+        {usesBankTransfer && (
+          <section className="checkout-payment-card">
+            <h3><CreditCard /> Оплата переводом</h3>
+            <strong>{formatPrice(total)}</strong>
+            <dl>
+              <div><dt>Получатель</dt><dd>{paymentRecipient || 'Получатель не указан'}</dd></div>
+              <div><dt>Номер</dt><dd>{paymentSettings.transferNumber || 'Номер не указан'}</dd></div>
+              <div><dt>Банк</dt><dd>{paymentSettings.bankName || 'Банк не указан'}</dd></div>
+            </dl>
+            {paymentSettings.qrUrl ? <img src={paymentSettings.qrUrl} alt="QR-код для оплаты" /> : <QrCode />}
+            <p>{paymentSettings.comment || 'Переведите сумму ресторану и после оплаты нажмите "Я оплатил".'}</p>
+            <div>
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(paymentSettings.transferNumber).then(() => toast.success('Номер скопирован'))}>
+                <Copy />
+                Скопировать
+              </button>
+              <button type="button" onClick={() => toast.success('Ресторан увидит, что вы отметили оплату')}>
+                Я оплатил
+              </button>
+            </div>
+          </section>
+        )}
+        <a
+          className={restaurant.whatsapp ? 'primary-wide checkout-summary__action' : 'primary-wide checkout-summary__action is-disabled'}
+          href={whatsappHref}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => {
+            event.preventDefault();
+            if (!restaurant.whatsapp) {
+              return;
+            }
+            if (submitLockRef.current) {
+              toast.info('Заказ уже отправляется. Подождите несколько секунд.');
+              return;
+            }
+            if (mode === 'delivery') {
+              if (!validateDeliveryDetails()) return;
+              savePublicClientProfile(catalogSlug, {
+                name: clientName,
+                phone: clientPhone,
+                deliveryCity: effectiveDeliveryCity,
+                deliverySettlement: effectiveDeliverySettlement,
+                deliveryAddress
+              });
+              if (settlementNeedsAdminReview) {
+                void submitSettlementRequest({
+                  cityName: effectiveDeliveryCity,
+                  settlementName: effectiveDeliverySettlement,
+                  source: `restaurant:${catalogSlug}`
+                });
+              }
+            }
+            const orderPayload: CreateRestaurantOrderFromCartInput = {
+              slug: catalogSlug,
+              items,
+              fulfillmentType: mode,
+              cabinLabel: mode === 'hall' ? selectedCabin?.title ?? '' : '',
+              deliveryCity: effectiveDeliveryCity,
+              deliverySettlement: effectiveDeliverySettlement,
+              deliveryAddress: finalDeliveryAddress,
+              deliveryLat,
+              deliveryLng,
+              deliveryAccuracyM,
+              comment: [
+                mode === 'hall' && selectedCabin ? `Кабинка: ${selectedCabin.title}` : '',
+                formatOrderPaymentMethodMarker(usesBankTransfer ? 'bank_transfer' : 'cash'),
+                orderComment.trim()
+              ].filter(Boolean).join('\n'),
+              customerName: mode === 'delivery' ? clientName.trim() : 'Гость',
+              customerPhone: mode === 'delivery' ? clientPhone.trim() : ''
+            };
+            let whatsappWindow: Window | null = null;
+            try {
+              whatsappWindow = window.open('about:blank', '_blank');
+            } catch {
+              whatsappWindow = null;
+            }
+            const openCreatedOrderWhatsapp = (href: string) => {
+              if (whatsappWindow && !whatsappWindow.closed) {
+                whatsappWindow.location.href = href;
+                return;
+              }
+              window.location.href = href;
+            };
+            const closeReservedWhatsappWindow = () => {
+              try {
+                whatsappWindow?.close();
+              } catch {
+                // The browser may block controlling a tab after opening it.
+              }
+            };
+            submitLockRef.current = true;
+            setIsSubmittingOrder(true);
+            void createRestaurantOrderFromCart({
+              ...orderPayload,
+              idempotencyKey: getOrderIdempotencyKey(orderPayload)
+            })
+              .then((orderId) => {
+                if (orderId) {
+                  const orderType: ClientOrder['orderType'] =
+                    mode === 'hall' ? 'dine_in' : mode === 'takeaway' ? 'pickup' : 'delivery';
+                  const deliveryProvider: ClientOrder['deliveryProvider'] =
+                    orderType === 'delivery'
+                      ? deliverySettings.use_platform_drivers
+                        ? 'platform'
+                        : 'restaurant'
+                      : orderType === 'pickup'
+                        ? 'pickup'
+                        : 'dine_in';
+                  const profileName = clientName.trim() || 'Гость';
+                  const profilePhone = clientPhone.trim();
+                  const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
+
+                  if (mode === 'delivery') {
+                    const clientAddress: ClientAddress = {
+                      id: `checkout-${catalogSlug}`,
+                      title: effectiveDeliverySettlement || effectiveDeliveryCity || 'Адрес доставки',
+                      addressLine: finalDeliveryAddress,
+                      lat: selectedDeliveryLat,
+                      lng: selectedDeliveryLng,
+                      accuracyM: deliveryAccuracyM,
+                      entrance: '',
+                      floor: '',
+                      apartment: '',
+                      intercomCode: '',
+                      landmark: '',
+                      comment: '',
+                      isDefault: true
+                    };
+
+                    saveClientProfile({ name: profileName, phone: profilePhone });
+                    addClientAddress(clientAddress);
+                  }
+
+                  submitClientOrder({
+                    id: orderId,
+                    restaurantSlug: catalogSlug,
+                    restaurantName: restaurant.name || catalogSlug,
+                    orderType,
+                    deliveryProvider,
+                    paymentMethod: usesBankTransfer ? 'bank_transfer' : 'cash',
+                    status: usesBankTransfer && paymentSettings.requireConfirmation
+                      ? 'waiting_payment_confirmation'
+                      : 'new',
+                    paymentStatus: usesBankTransfer ? 'waiting_confirmation' : 'unpaid',
+                    totalAmount: total,
+                    addressLine:
+                      orderType === 'delivery'
+                        ? finalDeliveryAddress
+                        : orderType === 'dine_in'
+                          ? selectedCabin?.title ?? 'В зале'
+                          : restaurant.address || 'Самовывоз',
+                    deliveryLat: orderType === 'delivery' ? deliveryLat : null,
+                    deliveryLng: orderType === 'delivery' ? deliveryLng : null,
+                    clientName: profileName,
+                    clientPhone: profilePhone,
+                    createdAt: new Date().toISOString(),
+                    estimatedTimeMin: preparationMinutes,
+                    estimatedTimeMax: preparationMinutes + (orderType === 'delivery' ? 20 : 10),
+                    items: items.map((item) => ({
+                      dishId: item.product.id,
+                      name: item.product.title,
+                      price: item.product.price,
+                      quantity: item.quantity
+                    }))
+                  });
+                  toast.success('Заказ создан в системе ресторана');
+                  openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
+                  window.setTimeout(onSubmitOrder, 500);
+                  return;
+                }
+                closeReservedWhatsappWindow();
+                toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
+              })
+              .catch((error) => {
+                console.error('Order creation failed', error);
+                closeReservedWhatsappWindow();
+                toast.error('Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
+              })
+              .finally(() => {
+                submitLockRef.current = false;
+                setIsSubmittingOrder(false);
+              });
+          }}
+          aria-disabled={isSubmittingOrder || !restaurant.whatsapp}
+        >
+          <ArrowRight />
+          {isSubmittingOrder ? 'Отправляем заказ...' : 'Отправить заказ'}
+        </a>
+      </section>
+    </main>
+  );
+}

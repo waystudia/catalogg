@@ -46,8 +46,44 @@ export type ClientSignup = {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  cityName?: string;
   source: string;
   createdAt: string;
+};
+
+export type PlatformUserOrder = {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  amount: number;
+  status: string;
+  cityName: string;
+  createdAt: string;
+};
+
+export type PlatformUserDirectoryItem = {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  cityName: string;
+  source: string;
+  createdAt: string;
+  ordersCount: number;
+  totalSpent: number;
+  averageCheck: number;
+  lastOrderAt: string | null;
+  favoriteRestaurant: string;
+  orders: PlatformUserOrder[];
+};
+
+export type PlatformUserDirectory = {
+  users: PlatformUserDirectoryItem[];
+  totalOrders: number;
+  totalRevenue: number;
+  settlements: string[];
+  restaurants: Array<{ id: string; name: string }>;
 };
 
 export type PlatformSettlementRequest = {
@@ -109,6 +145,7 @@ export type ClientListParams = {
 export type PlatformStats = {
   totalClients: number;
   activeCatalogs: number;
+  daysActive: number;
   monthlyRevenue: number;
   monthlyViews: number;
   totalDebt: number;
@@ -161,6 +198,13 @@ export type PlatformDriver = {
   createdAt: string;
 };
 
+export type PlatformDriverActivity = {
+  driverId: string;
+  deliveryCount: number;
+  completedDeliveries: number;
+  earnedAmount: number;
+};
+
 export type PlatformContestTicket = {
   id: string;
   contestId: string;
@@ -168,9 +212,19 @@ export type PlatformContestTicket = {
   restaurantName: string;
   customerName: string;
   customerPhone: string;
+  deliveryCity: string;
   totalAmount: number;
   orderedItems: string[];
   createdAt: string;
+};
+
+export type PlatformAnalytics = {
+  totalOrders: number;
+  uniqueCustomers: number;
+  repeatCustomers: number;
+  repeatOrderRate: number;
+  orderTypes: Array<{ key: 'hall' | 'takeaway' | 'delivery'; label: string; count: number }>;
+  locations: Array<{ name: string; count: number }>;
 };
 
 export type PlatformBillingSettings = {

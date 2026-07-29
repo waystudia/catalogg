@@ -1,0 +1,602 @@
+.platform-users-page {
+  gap: 12px;
+}
+
+.platform-users-page .platform-page-head button {
+  white-space: nowrap;
+}
+
+.platform-user-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.platform-user-stats article {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--platform-border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-user-stats span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: #f0edff;
+  color: var(--platform-accent);
+}
+
+.platform-user-stats svg {
+  width: 18px;
+  height: 18px;
+}
+
+.platform-user-stats small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.platform-user-stats strong {
+  overflow: hidden;
+  color: #101828;
+  font-size: 23px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-user-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.platform-user-toolbar > label,
+.platform-user-toolbar button,
+.platform-user-export {
+  min-height: 44px;
+  border: 1px solid var(--platform-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.platform-user-toolbar > label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.platform-user-toolbar input,
+.platform-user-filters input,
+.platform-user-filters select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #101828;
+  font: inherit;
+}
+
+.platform-user-toolbar svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: #667085;
+}
+
+.platform-user-toolbar > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: #475467;
+  font-weight: 700;
+}
+
+.platform-user-toolbar > button.is-active {
+  border-color: #8b72ff;
+  color: var(--platform-accent);
+}
+
+.platform-user-export {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  overflow: hidden;
+}
+
+.platform-user-export button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 0;
+  padding: 0 9px;
+  color: #475467;
+  font-weight: 700;
+}
+
+.platform-user-export button + button {
+  border-left: 1px solid var(--platform-border);
+}
+
+.platform-user-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--platform-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.platform-user-filters label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.platform-user-filters input,
+.platform-user-filters select {
+  height: 36px;
+  border: 1px solid #e4e7ec;
+  border-radius: 9px;
+  padding: 0 8px;
+}
+
+.platform-user-list {
+  overflow: hidden;
+  border: 1px solid var(--platform-border);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--platform-shadow);
+}
+
+.platform-user-list > header,
+.platform-user-list > button {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) minmax(72px, 0.45fr) minmax(100px, 0.55fr) minmax(125px, 0.7fr) 24px;
+  align-items: center;
+  gap: 10px;
+}
+
+.platform-user-list > header {
+  min-height: 38px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--platform-border);
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.platform-user-list > button {
+  width: 100%;
+  min-height: 68px;
+  border: 0;
+  border-bottom: 1px solid #eef0f4;
+  padding: 8px 14px;
+  background: #fff;
+  color: #101828;
+  text-align: left;
+}
+
+.platform-user-list > button:hover {
+  background: #fafaff;
+}
+
+.platform-user-list > button:last-of-type {
+  border-bottom: 0;
+}
+
+.platform-user-list > button > span:not(.platform-user-identity),
+.platform-user-list > button > strong {
+  min-width: 0;
+}
+
+.platform-user-list b,
+.platform-user-list small {
+  display: block;
+}
+
+.platform-user-list small {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 11px;
+}
+
+.platform-user-list > button > strong {
+  white-space: nowrap;
+}
+
+.platform-user-list .has-order b {
+  color: #079455;
+}
+
+.platform-user-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.platform-user-identity > i {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #f0edff;
+  color: var(--platform-accent);
+}
+
+.platform-user-identity > i svg {
+  width: 20px;
+  height: 20px;
+}
+
+.platform-user-identity > span {
+  min-width: 0;
+}
+
+.platform-user-identity b,
+.platform-user-identity small,
+.platform-user-identity em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-user-identity em {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  color: #667085;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.platform-user-identity em svg {
+  width: 11px;
+  height: 11px;
+}
+
+.platform-user-list > p {
+  margin: 0;
+  padding: 28px 16px;
+  color: #667085;
+  text-align: center;
+}
+
+.platform-user-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.platform-user-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.platform-user-modal > section {
+  position: relative;
+  z-index: 1;
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100dvh - 32px));
+  overflow-y: auto;
+  border: 1px solid var(--platform-border);
+  border-radius: 20px;
+  padding: 18px;
+  background: #f7f8fc;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+.platform-user-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-user-modal h2,
+.platform-user-modal h3,
+.platform-user-modal p {
+  margin: 0;
+}
+
+.platform-user-modal header small {
+  color: #667085;
+}
+
+.platform-user-modal header button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--platform-border);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.platform-user-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.platform-user-details-grid article,
+.platform-user-history {
+  border: 1px solid var(--platform-border);
+  border-radius: 14px;
+  padding: 13px;
+  background: #fff;
+}
+
+.platform-user-details-grid dl {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 0;
+}
+
+.platform-user-details-grid dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.platform-user-details-grid dt {
+  color: #667085;
+  font-size: 12px;
+}
+
+.platform-user-details-grid dd {
+  overflow: hidden;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.platform-user-history {
+  margin-top: 10px;
+}
+
+.platform-user-add-modal > section {
+  width: min(420px, 100%);
+}
+
+.platform-user-add-modal form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.platform-user-add-modal form label {
+  display: grid;
+  gap: 5px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.platform-user-add-modal form input {
+  min-height: 44px;
+  border: 1px solid var(--platform-border);
+  border-radius: 11px;
+  padding: 0 12px;
+  background: #fff;
+  color: #101828;
+  font: inherit;
+}
+
+.platform-user-add-modal form > button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--platform-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+}
+
+.platform-user-history > div {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.platform-user-history > div:last-child {
+  border-bottom: 0;
+}
+
+.platform-user-history b,
+.platform-user-history small {
+  display: block;
+}
+
+.platform-user-history small,
+.platform-user-history p {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 11px;
+}
+
+@media (max-width: 767px) {
+  .platform-users-page {
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .platform-users-page .platform-page-head {
+    min-height: 50px;
+  }
+
+  .platform-users-page .platform-page-head h1 {
+    font-size: 24px;
+  }
+
+  .platform-users-page .platform-page-head p {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+
+  .platform-users-page .platform-page-head button {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .platform-user-stats {
+    gap: 6px;
+  }
+
+  .platform-user-stats article {
+    min-height: 70px;
+    gap: 2px;
+    padding: 7px;
+    border-radius: 13px;
+  }
+
+  .platform-user-stats span {
+    width: 25px;
+    height: 25px;
+    border-radius: 8px;
+  }
+
+  .platform-user-stats svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .platform-user-stats small {
+    font-size: 9px;
+  }
+
+  .platform-user-stats strong {
+    font-size: 17px;
+  }
+
+  .platform-user-toolbar {
+    grid-template-columns: minmax(0, 1fr) 40px 74px;
+    gap: 5px;
+  }
+
+  .platform-user-toolbar > label,
+  .platform-user-toolbar button,
+  .platform-user-export {
+    min-height: 40px;
+  }
+
+  .platform-user-toolbar > label {
+    padding: 0 9px;
+  }
+
+  .platform-user-toolbar > label input {
+    min-width: 0;
+    font-size: 12px;
+  }
+
+  .platform-user-toolbar > button {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .platform-user-toolbar > button span,
+  .platform-user-export button:first-child span {
+    display: none;
+  }
+
+  .platform-user-export button {
+    padding: 0 4px;
+    font-size: 9px;
+  }
+
+  .platform-user-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 9px;
+  }
+
+  .platform-user-list > header {
+    display: none;
+  }
+
+  .platform-user-list > button {
+    grid-template-columns: minmax(0, 1fr) 35px 70px 70px 14px;
+    min-height: 58px;
+    gap: 4px;
+    padding: 5px 8px;
+  }
+
+  .platform-user-list > button > span:not(.platform-user-identity) b,
+  .platform-user-list > button > strong {
+    font-size: 11px;
+  }
+
+  .platform-user-list small {
+    font-size: 8px;
+  }
+
+  .platform-user-identity {
+    gap: 6px;
+  }
+
+  .platform-user-identity > i {
+    width: 30px;
+    height: 30px;
+  }
+
+  .platform-user-identity > i svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .platform-user-identity b {
+    font-size: 11px;
+  }
+
+  .platform-user-identity em {
+    font-size: 8px;
+  }
+
+  .platform-user-list .has-order b {
+    font-size: 9px !important;
+  }
+
+  .platform-user-list > button > svg {
+    width: 14px;
+  }
+
+  .platform-user-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-user-modal {
+    align-items: end;
+    padding: 0;
+  }
+
+  .platform-user-modal > section {
+    max-height: calc(100dvh - 54px);
+    border-radius: 20px 20px 0 0;
+    padding: 14px;
+  }
+}
