@@ -68,6 +68,7 @@ export function OrderDetailsPanel({
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConfirmingCash, setIsConfirmingCash] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
     !order.driverName &&
@@ -130,6 +131,8 @@ export function OrderDetailsPanel({
   };
   const phoneHref = getAdminOrderPhoneHref(order.clientPhone);
   const whatsappHref = getAdminOrderWhatsAppHref(order.clientPhone);
+  const driverPhoneHref = getAdminOrderPhoneHref(order.driverPhone ?? '');
+  const driverWhatsappHref = getAdminOrderWhatsAppHref(order.driverPhone ?? '');
   const routeHref = getAdminOrderRouteHref(order);
   const orderAddress = getAdminOrderLocationLabel(order);
   const visibleComment = getVisibleAdminOrderComment(order.comment);
@@ -188,6 +191,18 @@ export function OrderDetailsPanel({
               : order.status === 'on_the_way'
                   ? { label: 'Заказ доставлен', status: 'delivered' }
                   : null;
+  const changePrimaryStatus = async () => {
+    if (!nextStatusAction || nextStatusAction.disabled || isChangingStatus) return;
+    setIsChangingStatus(true);
+    try {
+      await onStatus(nextStatusAction.status);
+      toast.success(`Статус: ${nextStatusAction.label}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось изменить статус заказа');
+    } finally {
+      setIsChangingStatus(false);
+    }
+  };
 
   return (
     <aside className="admin-order-details-panel">
@@ -260,6 +275,66 @@ export function OrderDetailsPanel({
           </article>
         </section>
 
+        <section className="admin-order-person-cards">
+          <details className="admin-order-person-card">
+            <summary>
+              <span className="admin-order-person-card__avatar"><User /></span>
+              <span>
+                <small>Данные клиента</small>
+                <strong>{order.clientName || 'Клиент'}</strong>
+                <small>{order.clientPhone || 'Телефон не указан'}</small>
+              </span>
+              <ArrowRight />
+            </summary>
+            <div className="admin-order-person-card__body">
+              <p><MapPin />{orderAddress}</p>
+              <div>
+                {phoneHref && <a href={phoneHref}><Phone />Позвонить</a>}
+                {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
+                {routeHref && <a href={routeHref} target="_blank" rel="noreferrer"><MapPin />Маршрут</a>}
+              </div>
+            </div>
+          </details>
+
+          {order.driverName && (
+            <details className="admin-order-person-card admin-order-person-card--driver">
+              <summary>
+                <span className="admin-order-person-card__avatar">
+                  {order.driverPhotoUrl ? <img src={order.driverPhotoUrl} alt="" /> : <Truck />}
+                </span>
+                <span>
+                  <small>Данные водителя</small>
+                  <strong>{order.driverName}</strong>
+                  <small>
+                    {[order.driverVehicleInfo, order.driverCarNumber].filter(Boolean).join(' · ') || 'Автомобиль не указан'}
+                  </small>
+                </span>
+                <ArrowRight />
+              </summary>
+              <div className="admin-order-person-card__body">
+                <p><Phone />{order.driverPhone || 'Телефон не указан'}</p>
+                {order.driverLocationAt && (
+                  <p><MapPin />Был в сети: {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>
+                )}
+                <div>
+                  {driverPhoneHref && <a href={driverPhoneHref}><Phone />Позвонить</a>}
+                  {driverWhatsappHref && <a href={driverWhatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
+                </div>
+              </div>
+            </details>
+          )}
+          {!order.driverName && order.fulfillmentType === 'delivery' && (
+            <article className="admin-order-person-card admin-order-person-card--empty">
+              <span className="admin-order-person-card__avatar"><Truck /></span>
+              <span>
+                <small>Данные водителя</small>
+                <strong>Водитель не назначен</strong>
+                <small>Карточка появится после принятия заказа</small>
+              </span>
+            </article>
+          )}
+        </section>
+
         {visibleComment && <p className="admin-order-comment">{visibleComment}</p>}
 
         {order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null && (
@@ -322,24 +397,7 @@ export function OrderDetailsPanel({
           </section>
         )}
 
-        {order.driverName && (
-          <section className="admin-order-driver-card">
-            <span className="admin-order-driver-card__icon"><Truck /></span>
-            <span>
-              <small>Заказ принял водитель</small>
-              <strong>{order.driverName}</strong>
-              {order.driverLocationAt && (
-                <small>Был в сети: {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
-              )}
-            </span>
-            {order.driverPhone && <a href={`tel:${order.driverPhone}`}><Phone />Позвонить</a>}
-          </section>
-        )}
-
-        <div className="admin-order-contact-actions">
-          {phoneHref && <a href={phoneHref}><Phone />Позвонить</a>}
-          {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
-        </div>
+        {order.driverName && <p className="admin-order-driver-note">Заказ принял водитель: <strong>{order.driverName}</strong></p>}
 
         <footer className="admin-order-primary-actions">
         {order.status === 'new' && (
@@ -351,10 +409,10 @@ export function OrderDetailsPanel({
           <button
             className="admin-order-primary-actions__main"
             type="button"
-            disabled={nextStatusAction.disabled}
-            onClick={() => onStatus(nextStatusAction.status)}
+            disabled={nextStatusAction.disabled || isChangingStatus}
+            onClick={() => void changePrimaryStatus()}
           >
-            {nextStatusAction.label}
+            {isChangingStatus ? 'Сохраняем...' : nextStatusAction.label}
           </button>
         )}
         {orderIsFinished && (

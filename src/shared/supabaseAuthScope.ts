@@ -1,7 +1,5 @@
 export type SupabaseAuthScope = 'client' | 'driver' | 'restaurant-admin' | 'platform-admin' | 'login';
 
-const authScopes: readonly SupabaseAuthScope[] = ['client', 'driver', 'restaurant-admin', 'platform-admin', 'login'];
-
 const restaurantAdminSections = new Set([
   'dashboard',
   'dishes',
@@ -45,11 +43,7 @@ export const getSupabaseAuthStorageKeyForRedirect = (redirect: string) =>
   getSupabaseAuthStorageKey(getSupabaseAuthScope(redirect));
 
 export const getSupabaseAuthFallbackStorageKeys = (scope: SupabaseAuthScope) => {
-  const preferredScopes: readonly SupabaseAuthScope[] =
-    scope === 'client'
-      ? ['client', 'login', 'restaurant-admin', 'driver', 'platform-admin']
-      : [scope, 'login', ...authScopes.filter((candidate) => candidate !== scope && candidate !== 'login' && candidate !== 'client'), 'client'];
-
+  const preferredScopes: readonly SupabaseAuthScope[] = [scope, 'login'];
   return [...new Set(preferredScopes.map(getSupabaseAuthStorageKey)), 'waycatalog-auth'];
 };
 

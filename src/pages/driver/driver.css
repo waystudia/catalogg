@@ -378,6 +378,24 @@
   height: 18px;
 }
 
+.driver-topbar__actions .driver-refresh-button.is-refreshing svg {
+  animation: driver-refresh-spin 0.8s linear infinite;
+}
+
+.driver-refresh-status {
+  margin: -2px 0 8px;
+  color: #655a78;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+@keyframes driver-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .driver-topbar__actions .driver-online-button {
   height: 34px;
   border: 1px solid #eef0f4;

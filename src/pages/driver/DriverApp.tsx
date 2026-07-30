@@ -294,14 +294,14 @@ export function DriverApp() {
   const [recentDeliveryIds, setRecentDeliveryIds] = useState<Set<string>>(() => new Set());
   const knownDeliveryIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedDeliveriesRef = useRef(false);
-  const dashboardLoadRef = useRef<Promise<void> | null>(null);
+  const dashboardLoadRef = useRef<Promise<boolean> | null>(null);
 
   const loadDashboard = useCallback(() => {
     if (dashboardLoadRef.current) return dashboardLoadRef.current;
 
     const pendingLoad = (async () => {
       try {
-        const nextSnapshot = await getDriverDashboard(selectedDriverId);
+        const nextSnapshot = await getDriverDashboard();
         const visibleDeliveries = [
           nextSnapshot.activeDelivery,
           ...nextSnapshot.availableDeliveries
@@ -335,9 +335,14 @@ export function DriverApp() {
         knownDeliveryIdsRef.current = new Set(visibleDeliveries.map((offer) => offer.deliveryId));
         hasLoadedDeliveriesRef.current = true;
         setSnapshot(nextSnapshot);
+        if (nextSnapshot.profile.id !== demoDriverId && nextSnapshot.profile.id !== selectedDriverId) {
+          bindDriver(nextSnapshot.profile.id);
+        }
         setError('');
+        return true;
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить доставки');
+        return false;
       }
     })().finally(() => {
       if (dashboardLoadRef.current === pendingLoad) dashboardLoadRef.current = null;
@@ -345,7 +350,7 @@ export function DriverApp() {
 
     dashboardLoadRef.current = pendingLoad;
     return pendingLoad;
-  }, [selectedDriverId]);
+  }, [bindDriver, selectedDriverId]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -355,9 +360,10 @@ export function DriverApp() {
       const hasSession = await hasDriverAuthSession();
       if (!isMounted) return;
 
-      if (hasSession) {
-        setHasDriverAccess(true);
+      if (!hasSession) {
+        setHasDriverAccess(false);
         setAuthChecked(true);
+        return;
       }
 
       try {
@@ -368,17 +374,13 @@ export function DriverApp() {
           setHasDriverAccess(true);
           setError('');
         } else {
-          setHasDriverAccess(hasSession);
-          if (hasSession) {
-            setError('Не удалось загрузить профиль водителя. Нажмите обновить ещё раз.');
-          }
+          setHasDriverAccess(false);
+          setError('');
         }
       } catch {
         if (!isMounted) return;
-        setHasDriverAccess(hasSession);
-        if (hasSession) {
-          setError('Не удалось загрузить профиль водителя. Нажмите обновить ещё раз.');
-        }
+        setHasDriverAccess(false);
+        setError('');
       } finally {
         if (isMounted) setAuthChecked(true);
       }
@@ -603,7 +605,12 @@ export function DriverApp() {
         ) : route === 'earnings' ? (
           <DriverEarningsScreen snapshot={snapshot} />
         ) : route === 'settings' ? (
-          <DriverSettingsScreen profile={profile} onProfileSaved={loadDashboard} />
+          <DriverSettingsScreen
+            profile={profile}
+            onProfileSaved={async () => {
+              await loadDashboard();
+            }}
+          />
         ) : route === 'support' ? (
           <DriverSupportScreen />
         ) : (
@@ -666,11 +673,13 @@ function DriverHomeScreen({
   activeDelivery: DeliveryOffer | null;
   availableDeliveries: readonly DeliveryOffer[];
   error: string;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
   onAvailabilityChanged: (isOnline: boolean) => void;
 }) {
   const [availabilityError, setAvailabilityError] = useState('');
   const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState('');
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const displayedOnline = optimisticOnline ?? profile.isOnline;
@@ -723,6 +732,15 @@ function DriverHomeScreen({
     void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id }).then(setNotificationPermission);
   };
 
+  const refreshDashboard = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRefreshMessage('Обновляем заказы…');
+    const refreshed = await onRefresh();
+    setRefreshMessage(refreshed ? 'Заказы обновлены' : 'Обновление не выполнено');
+    setIsRefreshing(false);
+  };
+
   return (
     <>
       <header className="driver-topbar">
@@ -743,7 +761,14 @@ function DriverHomeScreen({
           >
             <Bell />
           </button>
-          <button className="driver-online-button driver-refresh-button" type="button" onClick={() => void onRefresh()} aria-label="Обновить">
+          <button
+            className={`driver-online-button driver-refresh-button ${isRefreshing ? 'is-refreshing' : ''}`}
+            type="button"
+            onClick={() => void refreshDashboard()}
+            aria-label="Обновить"
+            aria-busy={isRefreshing}
+            disabled={isRefreshing}
+          >
             <RefreshCw />
           </button>
           <button className="driver-online-button driver-availability-button" type="button" disabled={isUpdatingAvailability} onClick={() => void toggleOnline()} aria-label="Онлайн статус">
@@ -755,6 +780,7 @@ function DriverHomeScreen({
 
       {error && <p className="driver-error">{error}</p>}
       {availabilityError && <p className="driver-error">{availabilityError}</p>}
+      {refreshMessage && <p className="driver-refresh-status" role="status">{refreshMessage}</p>}
 
       <section className="driver-today-strip" aria-label="Статистика за сегодня">
         <DriverStat label="Сегодня" value={formatPrice(snapshot.stats.earningsToday)} />
@@ -815,7 +841,7 @@ function DriverIncomingOrderPanel({
 }: {
   driverId: string;
   offer: DeliveryOffer;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
 }) {
   const navigate = useNavigate();
   const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
@@ -887,7 +913,7 @@ function DriverCurrentDeliveryPanel({
   onRefresh
 }: {
   offer: DeliveryOffer;
-  onRefresh: () => Promise<void>;
+  onRefresh: () => Promise<boolean>;
 }) {
   const navigate = useNavigate();
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);

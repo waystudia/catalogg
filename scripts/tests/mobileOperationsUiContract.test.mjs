@@ -17,6 +17,13 @@ const deliveryApiSource = readFileSync(
   new URL('../../src/shared/api/deliveryApi.ts', import.meta.url),
   'utf8'
 );
+const driverProfileMigration = readFileSync(
+  new URL(
+    '../../supabase/migrations/20260730205305_add_driver_dashboard_profile_rpc.sql',
+    import.meta.url
+  ),
+  'utf8'
+);
 const mapSource = readFileSync(
   new URL('../../src/shared/DeliveryTrackingMap.tsx', import.meta.url),
   'utf8'
@@ -85,8 +92,8 @@ describe('mobile operational interfaces', () => {
   it('shows real driver earnings and platform debt as separate balance values', () => {
     assert.match(deliveryApiSource, /debtAmount/);
     assert.match(deliveryApiSource, /debt_amount/);
-    assert.match(deliveryApiSource, /driverDebtResult/);
-    assert.match(deliveryApiSource, /runSoftDriverQuery<\{ debt_amount:/);
+    assert.match(deliveryApiSource, /get_current_driver_dashboard_profile/);
+    assert.match(driverProfileMigration, /'debt_amount',\s*d\.debt_amount/);
     assert.match(driverSource, /Заработано/);
     assert.match(driverSource, /Долг платформе/);
   });

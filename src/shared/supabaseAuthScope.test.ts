@@ -21,13 +21,15 @@ describe('Supabase auth scopes', () => {
     assert.equal(getSupabaseAuthStorageKeyForRedirect('/driver'), 'waycatalog-auth-driver');
   });
 
-  it('can recover a missing scoped session from other known Supabase session keys', () => {
+  it('never replaces a driver session with a client or admin account from another tab', () => {
     assert.deepEqual(getSupabaseAuthFallbackStorageKeys('driver'), [
       'waycatalog-auth-driver',
       'waycatalog-auth-login',
-      'waycatalog-auth-restaurant-admin',
+      'waycatalog-auth'
+    ]);
+    assert.deepEqual(getSupabaseAuthFallbackStorageKeys('platform-admin'), [
       'waycatalog-auth-platform-admin',
-      'waycatalog-auth-client',
+      'waycatalog-auth-login',
       'waycatalog-auth'
     ]);
   });

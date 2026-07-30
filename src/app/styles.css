@@ -2367,72 +2367,146 @@
   text-decoration: none;
 }
 
-.admin-order-driver-card {
+.admin-order-person-cards {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid rgba(98, 70, 234, 0.24);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-order-person-card {
+  min-width: 0;
+  border: 1px solid rgba(98, 70, 234, 0.2);
   border-radius: 16px;
-  padding: 12px;
-  background: linear-gradient(135deg, #f6f3ff 0%, #ffffff 100%);
+  background: linear-gradient(135deg, #f8f6ff 0%, #ffffff 100%);
+  overflow: hidden;
 }
 
-.admin-order-driver-card__icon {
+.admin-order-person-card summary,
+.admin-order-person-card--empty {
   display: grid;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  border-radius: 14px;
-  background: #ebe7ff;
-  color: #5b3df5;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  min-height: 66px;
+  padding: 10px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.admin-order-driver-card__icon svg {
-  width: 22px;
-  height: 22px;
+.admin-order-person-card summary::-webkit-details-marker {
+  display: none;
 }
 
-.admin-order-driver-card > span:nth-child(2) {
+.admin-order-person-card summary > span:nth-child(2),
+.admin-order-person-card--empty > span:nth-child(2) {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-.admin-order-driver-card small {
+.admin-order-person-card summary > svg {
+  width: 16px;
+  transition: transform 160ms ease;
+}
+
+.admin-order-person-card[open] summary > svg {
+  transform: rotate(90deg);
+}
+
+.admin-order-person-card__avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #ebe7ff;
+  color: #5b3df5;
   overflow: hidden;
+}
+
+.admin-order-person-card__avatar svg {
+  width: 19px;
+}
+
+.admin-order-person-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-order-person-card small,
+.admin-order-person-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-order-person-card small {
   color: #667085;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.admin-order-person-card strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.admin-order-person-card__body {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid #e8e3ff;
+  padding: 10px;
+}
+
+.admin-order-person-card__body p {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: #475467;
   font-size: 11px;
   font-weight: 750;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.admin-order-driver-card strong {
-  overflow: hidden;
-  color: #111827;
-  font-size: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.admin-order-person-card__body p svg {
+  width: 14px;
+  flex: 0 0 14px;
 }
 
-.admin-order-driver-card > a {
+.admin-order-person-card__body div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-order-person-card__body a {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 32px;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border: 1px solid #d8d0ff;
-  border-radius: 12px;
-  padding: 0 10px;
+  border-radius: 10px;
+  padding: 0 8px;
   color: #5b3df5;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   text-decoration: none;
 }
 
-.admin-order-driver-card > a svg {
-  width: 15px;
-  height: 15px;
+.admin-order-person-card__body a svg {
+  width: 13px;
+}
+
+.admin-order-person-card--empty {
+  grid-template-columns: 38px minmax(0, 1fr);
+  opacity: 0.72;
+}
+
+.admin-order-driver-note {
+  margin: 0;
+  color: #475467;
+  font-size: 12px;
 }
 
 .admin-driver-dispatch__search {

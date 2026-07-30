@@ -18,6 +18,14 @@ const cashHandoverSql = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260730180401_enforce_cash_driver_handover.sql'),
   'utf8'
 );
+const driverDashboardProfileSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260730205305_add_driver_dashboard_profile_rpc.sql'),
+  'utf8'
+);
+const driverDashboardBundleSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260730213431_add_driver_dashboard_bundle_rpc.sql'),
+  'utf8'
+);
 
 const extractFunction = (name) => {
   const marker = `create or replace function public.${name}`;
@@ -80,6 +88,34 @@ describe('restaurant to driver delivery contract', () => {
     assert.doesNotMatch(driverApp, /await setDriverAvailability[\s\S]{0,200}await onRefresh\(\)/);
     assert.match(driverApp, /if \(!authChecked \|\| !hasDriverAccess \|\| selectedDriverId === demoDriverId\) return/);
     assert.match(driverApp, /window\.setInterval\(refreshWhenVisible, 10_000\)/);
+  });
+
+  it('loads the driver profile without a recursive drivers RLS query and makes manual refresh observable', () => {
+    assert.match(driverDashboardProfileSql, /create or replace function public\.get_current_driver_dashboard_profile\(\)/);
+    assert.match(driverDashboardProfileSql, /returns jsonb/);
+    assert.match(driverDashboardProfileSql, /security definer/);
+    assert.match(driverDashboardProfileSql, /viewer_driver_id uuid := public\.current_driver_id\(\)/);
+    assert.match(driverDashboardProfileSql, /jsonb_build_object\(/);
+    assert.match(driverDashboardProfileSql, /grant execute on function public\.get_current_driver_dashboard_profile\(\) to authenticated/);
+    assert.match(driverDashboardBundleSql, /create or replace function public\.get_current_driver_dashboard_data\(\)/);
+    assert.match(driverDashboardBundleSql, /'profile',\s*public\.get_current_driver_dashboard_profile\(\)/);
+    assert.match(driverDashboardBundleSql, /'deliveries',\s*public\.get_driver_delivery_offers\(\)/);
+    assert.match(driverDashboardBundleSql, /grant execute on function public\.get_current_driver_dashboard_data\(\) to authenticated/);
+    assert.match(driverApi, /rpc\('get_current_driver_dashboard_profile'\)/);
+    assert.match(driverApi, /rpc\('get_current_driver_dashboard_data'\)/);
+    assert.match(driverApi, /dashboardResult\.data\.profile/);
+    assert.match(driverApi, /dashboardResult\.data\.deliveries/);
+    assert.doesNotMatch(
+      driverApi,
+      /\.from\('drivers'\)[\s\S]{0,220}\.select\('id, name, phone, vehicle_info/
+    );
+    assert.match(driverApp, /const \[isRefreshing, setIsRefreshing\] = useState\(false\)/);
+    assert.match(driverApp, /setRefreshMessage\(refreshed \? 'Заказы обновлены'/);
+    assert.match(driverApp, /bindDriver\(nextSnapshot\.profile\.id\)/);
+    assert.match(driverApp, /aria-busy=\{isRefreshing\}/);
+    assert.match(driverApp, /disabled=\{isRefreshing\}/);
+    assert.match(driverApp, /if \(!hasSession\)[\s\S]{0,180}setHasDriverAccess\(false\)/);
+    assert.doesNotMatch(driverApp, /setHasDriverAccess\(hasSession\)/);
   });
 
   it('allows only the authenticated eligible driver to accept an offer', () => {

@@ -74,6 +74,9 @@ export type RestaurantOrder = {
   deliveryId: string | null;
   driverName: string | null;
   driverPhone: string | null;
+  driverVehicleInfo: string | null;
+  driverCarNumber: string | null;
+  driverPhotoUrl: string | null;
   driverLat: number | null;
   driverLng: number | null;
   driverLocationAt: string | null;
@@ -236,6 +239,9 @@ type OrderRow = {
     drivers?: MaybeArray<{
       name: string | null;
       phone: string | null;
+      vehicle_info: string | null;
+      car_number: string | null;
+      photo_url: string | null;
       last_lat: number | null;
       last_lng: number | null;
       last_location_at: string | null;
@@ -315,6 +321,9 @@ const demoOrders: RestaurantOrder[] = [
     deliveryId: null,
     driverName: null,
     driverPhone: null,
+    driverVehicleInfo: null,
+    driverCarNumber: null,
+    driverPhotoUrl: null,
     driverLat: null,
     driverLng: null,
     driverLocationAt: null,
@@ -372,7 +381,7 @@ const orderSelect = `
   payment_status,
   restaurant_payment_confirmed_at,
   restaurants(city_id, cities(name)),
-  deliveries(id, status, driver_id, pickup_qr_confirmed_at, drivers(name, phone, last_lat, last_lng, last_location_at)),
+  deliveries(id, status, driver_id, pickup_qr_confirmed_at, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
   order_items(id, title, quantity, unit_price, line_total)
 `;
 
@@ -426,6 +435,9 @@ const mapOrder = (row: OrderRow): RestaurantOrder => {
     deliveryId: delivery?.id ?? null,
     driverName: driver?.name ?? null,
     driverPhone: driver?.phone ?? null,
+    driverVehicleInfo: driver?.vehicle_info ?? null,
+    driverCarNumber: driver?.car_number ?? null,
+    driverPhotoUrl: driver?.photo_url ?? null,
     driverLat: driverLocation?.lat ?? null,
     driverLng: driverLocation?.lng ?? null,
     driverLocationAt: driver?.last_location_at ?? null,

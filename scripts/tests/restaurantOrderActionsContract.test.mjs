@@ -32,12 +32,31 @@ describe('restaurant order action contract', () => {
 
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+    const api = await read('src/shared/api/restaurantOrdersApi.ts');
     const styles = await read('src/app/styles.css');
 
     assert.match(panel, /order\.driverName && \(/);
-    assert.match(panel, /admin-order-driver-card/);
+    assert.match(panel, /admin-order-person-cards/);
+    assert.match(panel, /admin-order-person-card/);
+    assert.match(panel, /Данные клиента/);
+    assert.match(panel, /Данные водителя/);
     assert.match(panel, /Заказ принял водитель/);
     assert.match(panel, /order\.driverPhone/);
-    assert.match(styles, /\.admin-order-driver-card/);
+    assert.match(panel, /order\.driverVehicleInfo/);
+    assert.match(panel, /order\.driverCarNumber/);
+    assert.match(panel, /order\.driverPhotoUrl/);
+    assert.match(api, /drivers\(name, phone, vehicle_info, car_number, photo_url,/);
+    assert.match(styles, /\.admin-order-person-cards/);
+    assert.match(styles, /\.admin-order-person-card/);
+  });
+
+  it('makes the primary status action visibly await persistence', async () => {
+    const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+
+    assert.match(panel, /isChangingStatus/);
+    assert.match(panel, /await onStatus\(nextStatusAction\.status\)/);
+    assert.match(panel, /Сохраняем\.\.\./);
+    assert.match(panel, /toast\.success\(`Статус: \$\{nextStatusAction\.label\}`\)/);
+    assert.match(panel, /toast\.error\(error instanceof Error \? error\.message : 'Не удалось изменить статус заказа'\)/);
   });
 });

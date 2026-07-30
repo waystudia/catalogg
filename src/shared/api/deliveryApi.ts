@@ -348,6 +348,11 @@ type DriverSoftQueryResult<T> = {
   readonly error: unknown | null;
 };
 
+type DriverDashboardDataRow = {
+  readonly profile: DriverRow;
+  readonly deliveries: DeliveryRow[];
+};
+
 const runSoftDriverQuery = async <T,>(
   request: PromiseLike<{ data: T | null; error: unknown | null }>,
   message: string,
@@ -386,6 +391,44 @@ const loadDriverDeliveryOffers = async (): Promise<DriverSoftQueryResult<Deliver
     'Не удалось загрузить доставки водителя.',
     20_000
   );
+};
+
+const loadCurrentDriverProfile = async (): Promise<DriverSoftQueryResult<DriverRow>> => {
+  if (!supabase) return { data: null, error: null };
+  const client = supabase;
+  const requestProfile = () => runSoftDriverQuery<DriverRow>(
+    client.rpc('get_current_driver_dashboard_profile') as PromiseLike<{
+      data: DriverRow | null;
+      error: unknown | null;
+    }>,
+    'Не удалось загрузить данные водителя. Повторите обновление.',
+    12_000
+  );
+
+  const firstAttempt = await requestProfile();
+  if (!firstAttempt.error) return firstAttempt;
+
+  copySupabaseSessionToScope('driver');
+  return requestProfile();
+};
+
+const loadCurrentDriverDashboardData = async (): Promise<DriverSoftQueryResult<DriverDashboardDataRow>> => {
+  if (!supabase) return { data: null, error: null };
+  const client = supabase;
+  const requestDashboard = () => runSoftDriverQuery<DriverDashboardDataRow>(
+    client.rpc('get_current_driver_dashboard_data') as PromiseLike<{
+      data: DriverDashboardDataRow | null;
+      error: unknown | null;
+    }>,
+    'Не удалось загрузить профиль и заказы водителя. Повторите обновление.',
+    20_000
+  );
+
+  const firstAttempt = await requestDashboard();
+  if (!firstAttempt.error) return firstAttempt;
+
+  copySupabaseSessionToScope('driver');
+  return requestDashboard();
 };
 
 const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboardSnapshot => ({
@@ -636,57 +679,43 @@ export async function hasDriverAuthSession() {
   }
 }
 
-const resolveCurrentDriverId = async (fallbackDriverId: string) => {
-  if (!supabase || fallbackDriverId !== demoDriverId) return fallbackDriverId;
-  return (await getAuthenticatedDriverId()) ?? fallbackDriverId;
-};
-
-export async function getDriverDashboard(driverId = demoDriverId): Promise<DriverDashboardSnapshot> {
+export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
   if (!supabase) return buildDemoSnapshot();
 
-  const resolvedDriverId = await resolveCurrentDriverId(driverId);
-  const driverResult = await withDriverRequestTimeout(
-    supabase
-      .from('drivers')
-      .select('id, name, phone, vehicle_info, car_number, payout_details, photo_url, service_settlements, rating, status, is_online, last_lat, last_lng, last_location_at')
-      .eq('id', resolvedDriverId)
-      .maybeSingle(),
-    'Не удалось загрузить данные водителя. Повторите обновление.',
-    10_000
-  );
+  const dashboardResult = await loadCurrentDriverDashboardData();
+  let driverResult: DriverSoftQueryResult<DriverRow>;
+  let deliveriesResult: DriverSoftQueryResult<DeliveryRow[]>;
+
+  if (!dashboardResult.error && dashboardResult.data?.profile) {
+    driverResult = { data: dashboardResult.data.profile, error: null };
+    deliveriesResult = {
+      data: Array.isArray(dashboardResult.data.deliveries) ? dashboardResult.data.deliveries : [],
+      error: null
+    };
+  } else {
+    [driverResult, deliveriesResult] = await Promise.all([
+      loadCurrentDriverProfile(),
+      loadDriverDeliveryOffers()
+    ]);
+  }
 
   if (driverResult.error) throw driverResult.error;
-
-  const [driverDebtResult, deliveriesResult, earningsResult] = await Promise.all([
-    runSoftDriverQuery<{ debt_amount: number | string | null }>(
-      supabase
-        .from('drivers')
-        .select('debt_amount')
-        .eq('id', resolvedDriverId)
-        .maybeSingle() as PromiseLike<{
-          data: { debt_amount: number | string | null } | null;
-          error: unknown | null;
-        }>,
-      'Не удалось загрузить долг водителя.',
-      4_000
-    ),
-    loadDriverDeliveryOffers(),
-    runSoftDriverQuery<EarningRow[]>(
-      supabase
-        .from('earnings')
-        .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
-        .eq('driver_id', resolvedDriverId)
-        .order('created_at', { ascending: false })
-        .limit(30) as PromiseLike<{ data: EarningRow[] | null; error: unknown | null }>,
-      'Не удалось загрузить заработок водителя.',
-      8_000
-    )
-  ]);
-
   const driverRow = driverResult.data as DriverRow | null;
-  const profile = rowToDriverProfile(driverRow
-    ? { ...driverRow, debt_amount: driverDebtResult.data?.debt_amount ?? null }
-    : null);
+  if (!driverRow) throw new DriverActionError('Профиль водителя не найден. Войдите заново.', 'auth');
+
+  const resolvedDriverId = driverRow.id;
+  const earningsResult = await runSoftDriverQuery<EarningRow[]>(
+    supabase
+      .from('earnings')
+      .select('id, delivery_id, amount, net_amount, created_at, deliveries(id, order_id, orders(id, restaurants(name)))')
+      .eq('driver_id', resolvedDriverId)
+      .order('created_at', { ascending: false })
+      .limit(30) as PromiseLike<{ data: EarningRow[] | null; error: unknown | null }>,
+    'Не удалось загрузить заработок водителя.',
+    8_000
+  );
+
+  const profile = rowToDriverProfile(driverRow);
 
   if (deliveriesResult.error) throw deliveriesResult.error;
   const deliveryRows = (deliveriesResult.data ?? []) as unknown as DeliveryRow[];
