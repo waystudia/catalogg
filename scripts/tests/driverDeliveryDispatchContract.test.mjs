@@ -14,6 +14,10 @@ const restaurantApi = readFileSync(resolve(repoRoot, 'src/shared/api/restaurantO
 const driverApi = readFileSync(resolve(repoRoot, 'src/shared/api/deliveryApi.ts'), 'utf8');
 const driverApp = readFileSync(resolve(repoRoot, 'src/pages/driver/DriverApp.tsx'), 'utf8');
 const driverStore = readFileSync(resolve(repoRoot, 'src/features/driver/store.ts'), 'utf8');
+const cashHandoverSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260730180401_enforce_cash_driver_handover.sql'),
+  'utf8'
+);
 
 const extractFunction = (name) => {
   const marker = `create or replace function public.${name}`;
@@ -75,7 +79,7 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(driverApp, /setOptimisticOnline\(nextOnline\)[\s\S]{0,200}await setDriverAvailability[\s\S]{0,100}void onRefresh\(\)/);
     assert.doesNotMatch(driverApp, /await setDriverAvailability[\s\S]{0,200}await onRefresh\(\)/);
     assert.match(driverApp, /if \(!authChecked \|\| !hasDriverAccess \|\| selectedDriverId === demoDriverId\) return/);
-    assert.match(driverApp, /window\.setInterval\(refreshWhenVisible, 30_000\)/);
+    assert.match(driverApp, /window\.setInterval\(refreshWhenVisible, 10_000\)/);
   });
 
   it('allows only the authenticated eligible driver to accept an offer', () => {
@@ -84,14 +88,30 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(acceptSql, /public\.driver_serves_delivery_location/);
   });
 
-  it('lets only the assigned driver confirm pickup without QR and advances the order atomically', () => {
-    const pickupSql = extractFunction('confirm_driver_pickup');
-
-    assert.match(pickupSql, /public\.current_driver_id\(\)/);
-    assert.match(pickupSql, /update public\.deliveries[\s\S]*status = 'handed_over'/);
-    assert.match(pickupSql, /where id = target_delivery_id[\s\S]*driver_id = viewer_driver_id[\s\S]*status = 'arrived_to_restaurant'/);
-    assert.match(pickupSql, /returning order_id into target_order_id/);
-    assert.match(pickupSql, /update public\.orders[\s\S]*status = 'picked_up'/);
+  it('requires restaurant cash confirmation and restaurant QR verification before driver pickup', () => {
+    assert.match(cashHandoverSql, /pickup_qr_confirmed_at timestamptz/);
+    assert.match(cashHandoverSql, /create or replace function public\.confirm_restaurant_cash_payment/);
+    assert.match(cashHandoverSql, /public\.is_catalog_member/);
+    assert.match(cashHandoverSql, /restaurant_payment_confirmed_at/);
+    assert.match(cashHandoverSql, /create or replace function public\.confirm_delivery_pickup_qr/);
+    assert.match(cashHandoverSql, /pickup_qr_confirmed_at = now\(\)/);
+    assert.doesNotMatch(
+      cashHandoverSql.match(/create or replace function public\.confirm_delivery_pickup_qr[\s\S]*?(?=create or replace function public\.confirm_driver_pickup)/)?.[0] ?? '',
+      /set status = 'handed_over'/
+    );
+    assert.match(cashHandoverSql, /create or replace function public\.confirm_driver_pickup/);
+    assert.match(cashHandoverSql, /qr_confirmed_at is null/);
+    assert.match(cashHandoverSql, /payment_method:cash/);
+    assert.match(cashHandoverSql, /payment_confirmed_at is null/);
+    assert.match(cashHandoverSql, /perform public\.update_current_driver_delivery_status\(target_delivery_id, 'handed_over'\)/);
     assert.match(driverApi, /rpc\('confirm_driver_pickup'/);
+  });
+
+  it('returns handover gates to the assigned driver and renders the status progress bar', () => {
+    assert.match(cashHandoverSql, /'pickup_qr_confirmed_at'/);
+    assert.match(cashHandoverSql, /'restaurant_payment_confirmed_at'/);
+    assert.match(cashHandoverSql, /'payment_method'/);
+    assert.match(driverApp, /driver-delivery-progress/);
+    assert.match(driverApp, /getDriverDeliveryProgress/);
   });
 });

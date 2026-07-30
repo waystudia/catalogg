@@ -513,6 +513,80 @@
   font-size: 18px;
 }
 
+.driver-delivery-progress {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 2px;
+  margin: 13px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.driver-delivery-progress::before {
+  position: absolute;
+  top: 11px;
+  right: 7%;
+  left: 7%;
+  height: 2px;
+  background: #d8dce5;
+  content: "";
+}
+
+.driver-delivery-progress li {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.driver-delivery-progress li > span {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #98a2b3;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  box-shadow: 0 0 0 1px #d8dce5;
+}
+
+.driver-delivery-progress li[data-complete="true"] > span {
+  background: #5b3df4;
+  box-shadow: 0 0 0 1px #5b3df4;
+}
+
+.driver-delivery-progress li > small {
+  margin: 0;
+  color: #667085;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.driver-delivery-progress li[data-active="true"] > small {
+  color: #5b3df4;
+}
+
+.driver-current-block > .driver-handover-gate,
+.driver-order-panel > .driver-handover-gate {
+  display: block;
+  margin-top: 11px;
+  border-radius: 11px;
+  background: #fff7ed;
+  padding: 9px 10px;
+  color: #9a3412;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .driver-current-block__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

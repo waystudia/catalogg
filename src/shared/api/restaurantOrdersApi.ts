@@ -77,6 +77,8 @@ export type RestaurantOrder = {
   driverLat: number | null;
   driverLng: number | null;
   driverLocationAt: string | null;
+  restaurantPaymentConfirmedAt: string | null;
+  pickupQrConfirmedAt: string | null;
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -214,6 +216,7 @@ type OrderRow = {
   comment: string;
   status: RestaurantOrderStatus;
   payment_status?: PaymentStatus;
+  restaurant_payment_confirmed_at?: string | null;
   subtotal: number;
   delivery_fee: number;
   total: number;
@@ -229,6 +232,7 @@ type OrderRow = {
     id: string;
     status: DeliveryStatus | 'waiting_driver';
     driver_id: string | null;
+    pickup_qr_confirmed_at?: string | null;
     drivers?: MaybeArray<{
       name: string | null;
       phone: string | null;
@@ -314,6 +318,8 @@ const demoOrders: RestaurantOrder[] = [
     driverLat: null,
     driverLng: null,
     driverLocationAt: null,
+    restaurantPaymentConfirmedAt: null,
+    pickupQrConfirmedAt: null,
     subtotal: 1180,
     deliveryFee: 0,
     total: 1180,
@@ -364,8 +370,9 @@ const orderSelect = `
   qr_expires_at,
   verification_code,
   payment_status,
+  restaurant_payment_confirmed_at,
   restaurants(city_id, cities(name)),
-  deliveries(id, status, driver_id, drivers(name, phone, last_lat, last_lng, last_location_at)),
+  deliveries(id, status, driver_id, pickup_qr_confirmed_at, drivers(name, phone, last_lat, last_lng, last_location_at)),
   order_items(id, title, quantity, unit_price, line_total)
 `;
 
@@ -422,6 +429,8 @@ const mapOrder = (row: OrderRow): RestaurantOrder => {
     driverLat: driverLocation?.lat ?? null,
     driverLng: driverLocation?.lng ?? null,
     driverLocationAt: driver?.last_location_at ?? null,
+    restaurantPaymentConfirmedAt: row.restaurant_payment_confirmed_at ?? null,
+    pickupQrConfirmedAt: delivery?.pickup_qr_confirmed_at ?? null,
     subtotal: row.subtotal,
     deliveryFee: row.delivery_fee,
     total: row.total,
@@ -826,6 +835,7 @@ export async function updateRestaurantOrderStatus(
   reason = ''
 ) {
   if (!supabase) return;
+  const persistedStatus = status === 'cancelled' ? 'canceled' : status;
   if (
     status === 'waiting_driver' &&
     !canSendOrderToDelivery({
@@ -910,25 +920,23 @@ export async function updateRestaurantOrderStatus(
     if (deliveryTaskResult.error) throw deliveryTaskResult.error;
   }
 
-  const now = new Date().toISOString();
-  const patch: Record<string, unknown> = { status };
-  if (status === 'accepted' || status === 'confirmed') patch.accepted_at = order.acceptedAt ?? now;
-  if (status === 'ready' || status === 'waiting_driver') patch.ready_at = order.readyAt ?? now;
-  if (status === 'completed' || status === 'delivered') patch.completed_at = order.completedAt ?? now;
-  if (status === 'cancelled' || status === 'canceled') patch.cancellation_reason = reason || 'restaurant_cancelled';
-
-  const { error } = await supabase.from('orders').update(patch).eq('id', order.id).eq('catalog_id', order.catalogId);
-  if (error) throw error;
-
-  const historyResult = await supabase.from('order_status_history').insert({
-    catalog_id: order.catalogId,
-    order_id: order.id,
-    from_status: order.status,
-    to_status: status,
-    reason
+  const { error } = await supabase.rpc('update_restaurant_order_status', {
+    target_order_id: order.id,
+    target_catalog_id: order.catalogId,
+    next_status: persistedStatus,
+    status_reason: reason
   });
-  if (historyResult.error) throw historyResult.error;
+  if (error) throw error;
+}
 
+export async function confirmRestaurantCashPayment(order: RestaurantOrder): Promise<boolean> {
+  if (!supabase) return true;
+
+  const { data, error } = await supabase.rpc('confirm_restaurant_cash_payment', {
+    target_order_id: order.id
+  });
+  if (error) throw error;
+  return Boolean(data);
 }
 
 export async function assignRestaurantOrderDriver(order: RestaurantOrder, driverId: string) {

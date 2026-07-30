@@ -39,6 +39,17 @@ describe('background web push contract', () => {
     assert.match(source, /createPushSubscription/);
   });
 
+  it('revalidates the iPhone PWA subscription after returning online or from the background', async () => {
+    const driverApp = await read('src/pages/driver/DriverApp.tsx');
+    const notifications = await read('src/shared/restaurantOrderNotifications.ts');
+    assert.match(driverApp, /visibilitychange/);
+    assert.match(driverApp, /pageshow/);
+    assert.match(driverApp, /window\.addEventListener\(['"]online['"]/);
+    assert.match(driverApp, /restoreRestaurantOrderNotificationSubscription/);
+    assert.match(driverApp, /10_000/);
+    assert.match(notifications, /registered \? 'granted' : 'default'/);
+  });
+
   it('notifies only online drivers who serve the delivery city or settlement', async () => {
     const source = await read('supabase/functions/send-web-push/index.ts');
     assert.match(source, /delivery_city, delivery_settlement/);

@@ -62,7 +62,7 @@ export function RestaurantAdminWorkspace({
   onOpenScreen: (screen: RestaurantAdminSettingsScreen) => void;
   onOpenCatalog: () => void;
   onAddDish: () => void;
-  onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => void;
+  onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onOrderDelete: (order: RestaurantOrder) => void;
   onRefreshOrders: () => void;
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
@@ -108,7 +108,7 @@ export function RestaurantAdminWorkspace({
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
     : null;
   const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
-  const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled'].includes(order.status));
+  const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status));
   const openTab = (nextTab: RestaurantAdminTab) => {
     setTab(nextTab);
     if (nextTab !== 'settings') setSettingsView('home');
@@ -331,8 +331,8 @@ export function RestaurantAdminWorkspace({
                   catalogSlug={catalogSlug}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
-                  onStatus={(status, reason) => {
-                    onOrderStatus(selectedVisibleOrder, status, reason);
+                  onStatus={async (status, reason) => {
+                    await onOrderStatus(selectedVisibleOrder, status, reason);
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
                   }}
                   onRefreshOrders={onRefreshOrders}

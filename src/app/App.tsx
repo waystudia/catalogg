@@ -2450,13 +2450,18 @@ function AppContent({
     });
   };
 
-  const changeOrderStatus = (order: RestaurantOrder, status: RestaurantOrderStatus, reason = '') => {
-    persist(updateRestaurantOrderStatus(order, status, reason), () => {
+  const changeOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus, reason = '') => {
+    try {
+      await updateRestaurantOrderStatus(order, status, reason);
       setRestaurantOrders((current) =>
         current.map((item) => (item.id === order.id ? { ...item, status } : item))
       );
       refreshRestaurantOrders();
-    });
+    } catch (error) {
+      const message = errorMessageFor(error);
+      toast.error(message ? `Не удалось сохранить: ${message}` : 'Не удалось обновить заказ');
+      throw error;
+    }
   };
 
   const finishOrderFlow = () => {

@@ -40,6 +40,9 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly paymentLabel: string;
   readonly restaurantLogoUrl: string;
   readonly routeEtaMin: number;
+  readonly paymentMethod: 'cash' | 'bank_transfer';
+  readonly restaurantPaymentConfirmed: boolean;
+  readonly pickupQrConfirmed: boolean;
 };
 
 export type DriverEarning = {
@@ -81,6 +84,7 @@ type DeliveryRow = {
   delivery_provider: string;
   pickup_qr_token: string | null;
   pickup_qr_expires_at: string | null;
+  pickup_qr_confirmed_at?: string | null;
   assigned_at: string | null;
   route_to_restaurant_url: string | null;
   route_to_client_url: string | null;
@@ -95,6 +99,8 @@ type DeliveryRow = {
     fulfillment_type?: 'hall' | 'takeaway' | 'delivery' | null;
     status: OrderLifecycleSnapshot['status'];
     payment_status: OrderLifecycleSnapshot['paymentStatus'];
+    payment_method?: 'cash' | 'bank_transfer' | null;
+    restaurant_payment_confirmed_at?: string | null;
     client_name: string | null;
     client_phone: string | null;
     customer_name?: string | null;
@@ -268,7 +274,10 @@ const demoOffers: readonly DeliveryOffer[] = [
     orderTotal: 1640,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
-    routeEtaMin: 15
+    routeEtaMin: 15,
+    paymentMethod: 'bank_transfer',
+    restaurantPaymentConfirmed: true,
+    pickupQrConfirmed: false
   },
   {
     ...buildDriverDeliveryView({
@@ -290,7 +299,10 @@ const demoOffers: readonly DeliveryOffer[] = [
     orderTotal: 1180,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
-    routeEtaMin: 12
+    routeEtaMin: 12,
+    paymentMethod: 'bank_transfer',
+    restaurantPaymentConfirmed: true,
+    pickupQrConfirmed: false
   }
 ];
 
@@ -499,7 +511,10 @@ const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | n
     orderTotal: Number(order.total ?? order.total_amount ?? 0),
     paymentLabel: order.payment_status === 'confirmed' ? 'Оплата подтверждена' : 'Оплата ожидает',
     restaurantLogoUrl: restaurant?.logo_url ?? restaurant?.cover_url ?? '',
-    routeEtaMin: row.estimated_time_min ?? 20
+    routeEtaMin: row.estimated_time_min ?? 20,
+    paymentMethod: order.payment_method === 'cash' ? 'cash' : 'bank_transfer',
+    restaurantPaymentConfirmed: Boolean(order.restaurant_payment_confirmed_at),
+    pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at)
   };
 };
 

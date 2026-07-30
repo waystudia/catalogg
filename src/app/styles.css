@@ -1963,6 +1963,43 @@
   overflow-wrap: anywhere;
 }
 
+.admin-cash-handover {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  background: #fff7ed;
+  padding: 12px;
+}
+
+.admin-cash-handover > strong {
+  color: #9a3412;
+  font-size: 14px;
+}
+
+.admin-cash-handover > p {
+  margin: 0;
+  color: #7c2d12;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.admin-cash-handover > p[data-complete="true"] {
+  color: #067647;
+}
+
+.admin-cash-handover > button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 11px;
+  background: #f97316;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .admin-order-contact-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

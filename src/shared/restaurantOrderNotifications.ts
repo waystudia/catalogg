@@ -18,7 +18,8 @@ export async function requestRestaurantOrderNotificationPermission(context?: Web
       ? await Notification.requestPermission()
       : Notification.permission;
     if (permission === 'granted' && context) {
-      await registerWebPushSubscription(context);
+      const registered = await registerWebPushSubscription(context);
+      return registered ? 'granted' : 'default';
     }
     return permission;
   } catch {
@@ -31,11 +32,12 @@ export async function restoreRestaurantOrderNotificationSubscription(context: We
   if (!canRestoreWebPushSubscription(permission, context)) return permission;
 
   try {
-    await registerWebPushSubscription(context);
+    const registered = await registerWebPushSubscription(context);
+    return registered ? 'granted' : 'default';
   } catch {
     // The next PWA open will retry registration without interrupting the worker.
+    return 'default';
   }
-  return permission;
 }
 
 export async function showRestaurantOrderNotification({

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { getDriverNextAction, splitDriverHomeOffers } from './dashboardPresentation';
+import {
+  getDriverDeliveryProgress,
+  getDriverNextAction,
+  splitDriverHomeOffers
+} from './dashboardPresentation';
 
 describe('driver dashboard presentation', () => {
   it('separates one urgent offer, two compact offers, and the hidden remainder', () => {
@@ -50,5 +54,23 @@ describe('driver dashboard presentation', () => {
     });
     assert.equal(getDriverNextAction('waiting_courier'), null);
     assert.equal(getDriverNextAction('delivered'), null);
+  });
+
+  it('maps every active delivery state to the six-step driver progress bar', () => {
+    const labels = [
+      'Принял заказ',
+      'Еду в ресторан',
+      'Забрал заказ',
+      'Еду к клиенту',
+      'Я у клиента',
+      'Доставлено'
+    ];
+
+    assert.deepEqual(getDriverDeliveryProgress('assigned'), { activeStep: 1, labels });
+    assert.deepEqual(getDriverDeliveryProgress('arrived_to_restaurant'), { activeStep: 2, labels });
+    assert.deepEqual(getDriverDeliveryProgress('handed_over'), { activeStep: 3, labels });
+    assert.deepEqual(getDriverDeliveryProgress('on_the_way'), { activeStep: 4, labels });
+    assert.deepEqual(getDriverDeliveryProgress('arrived_to_client'), { activeStep: 5, labels });
+    assert.deepEqual(getDriverDeliveryProgress('delivered'), { activeStep: 6, labels });
   });
 });

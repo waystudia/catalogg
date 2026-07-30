@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   assignRestaurantOrderDriver,
+  confirmRestaurantCashPayment,
   getRestaurantDispatchDrivers,
   sendRestaurantOrderToDriverPool,
   type RestaurantDispatchDriver,
@@ -58,13 +59,15 @@ export function OrderDetailsPanel({
   catalogSlug: string;
   paymentSettings: RestaurantPaymentSettings;
   onClose: () => void;
-  onStatus: (status: RestaurantOrderStatus, reason?: string) => void;
+  onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onRefreshOrders: () => void;
   onDelete: () => void;
 }) {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => loadPaymentStatus(catalogSlug, order.id));
   const [assigningDriverId, setAssigningDriverId] = useState('');
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isConfirmingCash, setIsConfirmingCash] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
     ['waiting_driver', 'assigned_driver', 'driver_assigned'].includes(order.status);
@@ -138,6 +141,36 @@ export function OrderDetailsPanel({
   const orderItemsCount = getAdminOrderItemsCount(order);
   const orderIsFinished = ['cancelled', 'canceled', 'completed', 'delivered'].includes(order.status);
   const waitingForPayment = ['waiting_confirmation', 'rejected'].includes(order.paymentStatus);
+  const driverAtRestaurant = order.deliveryStatus === 'arrived_to_restaurant';
+  const cashHandover = orderPaymentMethod === 'cash' && driverAtRestaurant;
+  const cashPaymentConfirmed = Boolean(order.restaurantPaymentConfirmedAt);
+  const pickupQrConfirmed = Boolean(order.pickupQrConfirmedAt);
+  const rejectOrder = async () => {
+    if (isRejecting) return;
+    setIsRejecting(true);
+    try {
+      await onStatus('canceled', 'restaurant_rejected');
+      toast.success('Заказ отклонён');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось отклонить заказ');
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+  const confirmCashPayment = async () => {
+    if (isConfirmingCash) return;
+    setIsConfirmingCash(true);
+    try {
+      const confirmed = await confirmRestaurantCashPayment(order);
+      if (!confirmed) throw new Error('Не удалось подтвердить оплату');
+      toast.success('Оплата водителем подтверждена');
+      onRefreshOrders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось подтвердить оплату');
+    } finally {
+      setIsConfirmingCash(false);
+    }
+  };
   const nextStatusAction:
     | { label: string; status: RestaurantOrderStatus; disabled?: boolean }
     | null =
@@ -151,9 +184,7 @@ export function OrderDetailsPanel({
             ? { label: 'Вызвать доставку', status: 'waiting_driver', disabled: waitingForPayment }
             : order.status === 'ready'
               ? { label: 'Завершить заказ', status: 'completed' }
-              : order.status === 'assigned_driver' || order.status === 'driver_assigned'
-                ? { label: 'Передать курьеру', status: 'on_the_way' }
-                : order.status === 'on_the_way'
+              : order.status === 'on_the_way'
                   ? { label: 'Заказ доставлен', status: 'delivered' }
                   : null;
 
@@ -272,6 +303,24 @@ export function OrderDetailsPanel({
           </article>
         </section>
 
+        {cashHandover && (
+          <section className="admin-cash-handover">
+            <strong>Выдача наличного заказа</strong>
+            {!cashPaymentConfirmed ? (
+              <>
+                <p>Получите от водителя {formatPrice(order.subtotal)} за заказ. Без подтверждения QR не активируется.</p>
+                <button type="button" disabled={isConfirmingCash} onClick={() => void confirmCashPayment()}>
+                  {isConfirmingCash ? 'Подтверждаем...' : 'Подтверждаю оплату'}
+                </button>
+              </>
+            ) : !pickupQrConfirmed ? (
+              <p data-complete="true">Оплата подтверждена — отсканируйте QR водителя во вкладке «Сканер».</p>
+            ) : (
+              <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
+            )}
+          </section>
+        )}
+
         <div className="admin-order-contact-actions">
           {phoneHref && <a href={phoneHref}><Phone />Позвонить</a>}
           {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}
@@ -279,8 +328,8 @@ export function OrderDetailsPanel({
 
         <footer className="admin-order-primary-actions">
         {order.status === 'new' && (
-          <button className="admin-order-primary-actions__reject" type="button" onClick={() => onStatus('cancelled', 'restaurant_rejected')}>
-            Отклонить
+          <button className="admin-order-primary-actions__reject" type="button" disabled={isRejecting} onClick={() => void rejectOrder()}>
+            {isRejecting ? 'Отклоняем...' : 'Отклонить'}
           </button>
         )}
         {nextStatusAction && (

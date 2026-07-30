@@ -30,6 +30,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDriverStore } from '../../features/driver/store';
 import {
+  getDriverDeliveryProgress,
   getDriverNextAction,
   splitDriverHomeOffers
 } from '../../features/driver/dashboardPresentation';
@@ -402,10 +403,23 @@ export function DriverApp() {
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess || !effectiveDriverId) return;
-    void restoreRestaurantOrderNotificationSubscription({
-      role: 'driver',
-      driverId: effectiveDriverId
-    });
+    const restorePush = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        void restoreRestaurantOrderNotificationSubscription({
+          role: 'driver',
+          driverId: effectiveDriverId
+        });
+      }
+    };
+    restorePush();
+    window.addEventListener('online', restorePush);
+    window.addEventListener('pageshow', restorePush);
+    document.addEventListener('visibilitychange', restorePush);
+    return () => {
+      window.removeEventListener('online', restorePush);
+      window.removeEventListener('pageshow', restorePush);
+      document.removeEventListener('visibilitychange', restorePush);
+    };
   }, [authChecked, effectiveDriverId, hasDriverAccess]);
 
   useEffect(() => {
@@ -477,7 +491,7 @@ export function DriverApp() {
         refreshDriverDashboard();
       }
     };
-    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    const intervalId = window.setInterval(refreshWhenVisible, 10_000);
 
     window.addEventListener('focus', refreshWhenVisible);
     window.addEventListener('pageshow', refreshWhenVisible);
@@ -664,6 +678,13 @@ function DriverHomeScreen({
     () => splitDriverHomeOffers(availableDeliveries),
     [availableDeliveries]
   );
+
+  useEffect(() => {
+    void restoreRestaurantOrderNotificationSubscription({
+      role: 'driver',
+      driverId: profile.id
+    }).then(setNotificationPermission);
+  }, [profile.id]);
 
   useEffect(() => {
     if (optimisticOnline === profile.isOnline) setOptimisticOnline(null);
@@ -874,6 +895,15 @@ function DriverCurrentDeliveryPanel({
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState('');
   const nextAction = getDriverNextAction(offer.status);
+  const progress = getDriverDeliveryProgress(offer.status);
+  const waitingForCashConfirmation =
+    offer.status === 'arrived_to_restaurant' &&
+    offer.paymentMethod === 'cash' &&
+    !offer.restaurantPaymentConfirmed;
+  const waitingForQr =
+    offer.status === 'arrived_to_restaurant' &&
+    !offer.pickupQrConfirmed;
+  const pickupBlocked = waitingForCashConfirmation || waitingForQr;
 
   const advance = async () => {
     if (!nextAction || isUpdating) return;
@@ -886,14 +916,16 @@ function DriverCurrentDeliveryPanel({
     setIsUpdating(true);
     setError('');
     try {
-      updateLocalDeliveryStatus(nextAction.status);
       if (nextAction.status === 'delivered') {
         await completeDeliveryProgress(offer.deliveryId);
+        updateLocalDeliveryStatus(nextAction.status);
         completeLocalDelivery();
       } else if (offer.status === 'arrived_to_restaurant' && nextAction.status === 'handed_over') {
         await confirmDriverPickup(offer.deliveryId);
+        updateLocalDeliveryStatus(nextAction.status);
       } else {
         await updateDeliveryProgress(offer.deliveryId, nextAction.status);
+        updateLocalDeliveryStatus(nextAction.status);
       }
       await onRefresh();
     } catch (advanceError) {
@@ -923,6 +955,23 @@ function DriverCurrentDeliveryPanel({
         <span>Ваш заработок</span>
         <strong>{formatPrice(offer.deliveryFee)}</strong>
       </div>
+      <ol className="driver-delivery-progress" aria-label="Статус доставки">
+        {progress.labels.map((label, index) => {
+          const step = index + 1;
+          return (
+            <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
+              <span>{step}</span>
+              <small>{label}</small>
+            </li>
+          );
+        })}
+      </ol>
+      {waitingForCashConfirmation && (
+        <p className="driver-handover-gate">Передайте ресторану сумму заказа. Ресторан должен подтвердить оплату.</p>
+      )}
+      {!waitingForCashConfirmation && waitingForQr && (
+        <p className="driver-handover-gate">Покажите QR-код ресторану. После сканирования можно забрать заказ.</p>
+      )}
       {error && <small className="driver-incoming-order__error">{error}</small>}
       <div className="driver-current-block__actions">
         <Link className="driver-secondary" to={`/driver/map/${offer.deliveryId}`}><Navigation />Карта</Link>
@@ -932,7 +981,7 @@ function DriverCurrentDeliveryPanel({
           <button className="driver-secondary" type="button" disabled><Phone />Позвонить</button>
         )}
         {nextAction && (
-          <button className="driver-primary" type="button" disabled={isUpdating} onClick={() => void advance()}>
+          <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
             {isUpdating ? 'Сохраняем...' : nextAction.label}
           </button>
         )}
@@ -1300,6 +1349,17 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status) : null, [delivery]);
+  const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status) : null, [delivery]);
+  const waitingForCashConfirmation = Boolean(
+    delivery?.status === 'arrived_to_restaurant' &&
+    delivery.paymentMethod === 'cash' &&
+    !delivery.restaurantPaymentConfirmed
+  );
+  const waitingForQr = Boolean(
+    delivery?.status === 'arrived_to_restaurant' &&
+    !delivery.pickupQrConfirmed
+  );
+  const pickupBlocked = waitingForCashConfirmation || waitingForQr;
   const updateStatus = async (status?: DeliveryStatus, to?: string) => {
     if (!delivery || isUpdatingStatus) return;
     if (to && !status) {
@@ -1311,19 +1371,19 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
     setIsUpdatingStatus(true);
     try {
       if (status === 'delivered') {
-        updateLocalDeliveryStatus(status);
         await completeDeliveryProgress(delivery.deliveryId);
+        updateLocalDeliveryStatus(status);
         completeLocalDelivery();
         navigate('/driver/earnings');
         return;
       }
 
-      updateLocalDeliveryStatus(status);
       if (delivery.status === 'arrived_to_restaurant' && status === 'handed_over') {
         await confirmDriverPickup(delivery.deliveryId);
       } else {
         await updateDeliveryProgress(delivery.deliveryId, status);
       }
+      updateLocalDeliveryStatus(status);
       if (to) navigate(to);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : 'Не удалось обновить статус');
@@ -1358,6 +1418,19 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
       </Link>
       <section className="driver-order-panel">
         <h2>{delivery.restaurantName}</h2>
+        {progress && (
+          <ol className="driver-delivery-progress" aria-label="Статус доставки">
+            {progress.labels.map((label, index) => {
+              const step = index + 1;
+              return (
+                <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
+                  <span>{step}</span>
+                  <small>{label}</small>
+                </li>
+              );
+            })}
+          </ol>
+        )}
         <DriverRouteLine icon={<MapPin />} label="Адрес клиента" value={displayDeliveryAddress} />
         {delivery.clientName && <DriverRouteLine icon={<User />} label="Клиент" value={delivery.clientName} />}
         {delivery.clientPhone && <DriverRouteLine icon={<Phone />} label="Телефон" value={delivery.clientPhone} />}
@@ -1366,8 +1439,14 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
           {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить</a>}
           <Link to="/driver/qr"><QrCode />QR</Link>
         </div>
+        {waitingForCashConfirmation && (
+          <p className="driver-handover-gate">Оплатите заказ ресторану и дождитесь подтверждения оплаты.</p>
+        )}
+        {!waitingForCashConfirmation && waitingForQr && (
+          <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>
+        )}
         {nextAction && (
-          <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)} disabled={isUpdatingStatus}>
+          <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)} disabled={isUpdatingStatus || pickupBlocked}>
             {isUpdatingStatus ? 'Обновляем...' : nextAction.label}
           </button>
         )}

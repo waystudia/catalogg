@@ -30,3 +30,26 @@ export const getDriverNextAction = (status: DeliveryStatus): DriverNextAction =>
   if (status === 'arrived_to_client') return { label: 'Доставлено', status: 'delivered' };
   return null;
 };
+
+const driverDeliveryProgressLabels = [
+  'Принял заказ',
+  'Еду в ресторан',
+  'Забрал заказ',
+  'Еду к клиенту',
+  'Я у клиента',
+  'Доставлено'
+] as const;
+
+const driverDeliveryProgressStep: Partial<Record<DeliveryStatus, number>> = {
+  assigned: 1,
+  arrived_to_restaurant: 2,
+  handed_over: 3,
+  on_the_way: 4,
+  arrived_to_client: 5,
+  delivered: 6
+};
+
+export const getDriverDeliveryProgress = (status: DeliveryStatus) => ({
+  activeStep: driverDeliveryProgressStep[status] ?? 1,
+  labels: [...driverDeliveryProgressLabels]
+});

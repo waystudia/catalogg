@@ -98,7 +98,7 @@ export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; 
         try {
           const confirmed = await confirmDeliveryPickupQr(parsed.deliveryId, parsed.token);
           setScanState(confirmed ? 'success' : 'error');
-          setMessage(confirmed ? 'Передан водителю' : 'QR не подходит');
+          setMessage(confirmed ? 'QR подтверждён. Водитель может забрать заказ' : 'QR не подходит');
           if (confirmed) {
             window.localStorage.setItem('waycatalog-driver-delivery-confirmed', `${parsed.deliveryId}:${Date.now()}`);
           }
