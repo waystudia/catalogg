@@ -59,8 +59,13 @@ describe('mobile operational interfaces', () => {
   });
 
   it('makes an accepted delivery and the compact driver controls immediately distinguishable', () => {
+    const currentPanel = driverSource.slice(
+      driverSource.indexOf('function DriverCurrentDeliveryPanel'),
+      driverSource.indexOf('function DriverStat')
+    );
     assert.match(driverSource, /driver-current-block__accepted/);
     assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
+    assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
     assert.match(driverCss, /\.driver-current-block__accepted/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);

@@ -42,7 +42,8 @@ test('switches between street and labeled satellite maps and shows a routed summ
     />
   );
 
-  await expect.element(screen.getByText('3,5 км · 8 мин')).toBeVisible();
+  await expect.element(screen.getByText('3,5 км')).toBeVisible();
+  await expect.element(screen.getByText('8 мин')).toBeVisible();
   await expect.element(screen.getByTestId('delivery-road-route')).toHaveStyle({ zIndex: '2' });
   await screen.getByRole('button', { name: 'Спутник' }).click();
   await expect.element(screen.getByRole('button', { name: 'Спутник' })).toHaveAttribute('aria-pressed', 'true');

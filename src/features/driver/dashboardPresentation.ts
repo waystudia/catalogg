@@ -1,5 +1,13 @@
 import type { DeliveryStatus } from '../order/orderLifecycle';
 
+export const getDriverGrossEarning = (earning: {
+  readonly amount: number | string | null | undefined;
+  readonly netAmount?: number | string | null;
+}) => {
+  const amount = Number(earning.amount ?? 0);
+  return Number.isFinite(amount) ? amount : 0;
+};
+
 export const splitDriverHomeOffers = <T>(offers: readonly T[]) => ({
   urgentOffer: offers[0] ?? null,
   otherOffers: offers.slice(1, 3),

@@ -7,6 +7,7 @@ import {
   type DriverStatus,
   type OrderLifecycleSnapshot
 } from '../../features/order/orderLifecycle';
+import { getDriverGrossEarning } from '../../features/driver/dashboardPresentation';
 import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { supabase } from '../supabase';
@@ -530,7 +531,7 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
     deliveryId: row.delivery_id,
     orderNumber: orderNumber(delivery?.order_id ?? row.delivery_id, restaurant?.name),
     restaurantName: restaurant?.name ?? 'Ресторан',
-    amount: Number(row.net_amount ?? row.amount),
+    amount: getDriverGrossEarning({ amount: row.amount, netAmount: row.net_amount }),
     completedAt: row.created_at
   };
 };

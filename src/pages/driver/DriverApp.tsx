@@ -907,7 +907,6 @@ function DriverCurrentDeliveryPanel({
     <section className="driver-current-block">
       <div className="driver-current-block__accepted">
         <strong>✓ ЗАКАЗ ПРИНЯТ</strong>
-        <span>{deliveryStatusLabels[offer.status]}</span>
       </div>
       <header>
         <span>
@@ -915,7 +914,6 @@ function DriverCurrentDeliveryPanel({
           <small>Доставка · {offer.itemsCount} поз.</small>
         </span>
         <span>
-          <em>{deliveryStatusLabels[offer.status]}</em>
           <small>Осталось ≈ {offer.routeEtaMin} мин</small>
         </span>
       </header>
