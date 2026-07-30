@@ -70,6 +70,7 @@ export function OrderDetailsPanel({
   const [isConfirmingCash, setIsConfirmingCash] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
+    !order.driverName &&
     ['waiting_driver', 'assigned_driver', 'driver_assigned'].includes(order.status);
   const dispatchDriversQuery = useQuery({
     queryKey: ['restaurant-dispatch-drivers', order.id, order.catalogId, order.deliveryCity, order.deliverySettlement, order.driverName],
@@ -318,6 +319,20 @@ export function OrderDetailsPanel({
             ) : (
               <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
             )}
+          </section>
+        )}
+
+        {order.driverName && (
+          <section className="admin-order-driver-card">
+            <span className="admin-order-driver-card__icon"><Truck /></span>
+            <span>
+              <small>Заказ принял водитель</small>
+              <strong>{order.driverName}</strong>
+              {order.driverLocationAt && (
+                <small>Был в сети: {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
+              )}
+            </span>
+            {order.driverPhone && <a href={`tel:${order.driverPhone}`}><Phone />Позвонить</a>}
           </section>
         )}
 

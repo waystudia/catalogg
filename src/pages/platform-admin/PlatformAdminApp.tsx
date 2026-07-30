@@ -2050,7 +2050,9 @@ function DriverAdminCard({
 
 type BillingDraft = PlatformBillingSettings & {
   customSubject: string;
+  customTariffType: 'percent' | 'fixed';
   customTariff: number;
+  customTariffFixed: number;
 };
 
 const billingDraftStorageKey = 'waycatalog-platform-billing-draft';
@@ -2058,13 +2060,19 @@ const billingDraftStorageKey = 'waycatalog-platform-billing-draft';
 const readBillingDraft = (): BillingDraft => {
   const defaults: BillingDraft = {
     clientFee: 0,
+    restaurantTariffType: 'percent',
     restaurantCommission: 7,
+    restaurantFixedFee: 0,
+    driverTariffType: 'percent',
     driverTariff: 5,
+    driverFixedFee: 0,
     restaurantLimit: 5000,
     driverLimit: 3000,
     warningPercent: 80,
     customSubject: '',
-    customTariff: 0
+    customTariffType: 'percent',
+    customTariff: 0,
+    customTariffFixed: 0
   };
   try {
     const raw = window.localStorage.getItem(billingDraftStorageKey);
@@ -2091,6 +2099,9 @@ const subscriptionStatusLabel: Record<SubscriptionRow['status'], string> = {
   expired: 'Истёк',
   cancelled: 'Отменён'
 };
+
+const formatTariff = (type: 'percent' | 'fixed', percent: number, fixed: number) =>
+  type === 'fixed' ? formatMoney(fixed) : `${percent}%`;
 
 function PlatformInnerHeader({
   title,
@@ -2139,14 +2150,23 @@ function SubscriptionsPage() {
 
   useEffect(() => {
     if (!selectedCustomTariff) return;
-    setBilling((current) => ({ ...current, customTariff: selectedCustomTariff.tariffPercent }));
+    setBilling((current) => ({
+      ...current,
+      customTariffType: selectedCustomTariff.tariffType,
+      customTariff: selectedCustomTariff.tariffPercent,
+      customTariffFixed: selectedCustomTariff.tariffFixed
+    }));
   }, [selectedCustomTariff]);
 
   const saveBilling = async () => {
     const settings: PlatformBillingSettings = {
       clientFee: billing.clientFee,
+      restaurantTariffType: billing.restaurantTariffType,
       restaurantCommission: billing.restaurantCommission,
+      restaurantFixedFee: billing.restaurantFixedFee,
+      driverTariffType: billing.driverTariffType,
       driverTariff: billing.driverTariff,
+      driverFixedFee: billing.driverFixedFee,
       restaurantLimit: billing.restaurantLimit,
       driverLimit: billing.driverLimit,
       warningPercent: billing.warningPercent
@@ -2169,7 +2189,9 @@ function SubscriptionsPage() {
     try {
       const savedRemote = await savePlatformCustomTariff({
         subject: billing.customSubject,
-        tariffPercent: billing.customTariff
+        tariffType: billing.customTariffType,
+        tariffPercent: billing.customTariff,
+        tariffFixed: billing.customTariffFixed
       });
       window.localStorage.setItem(billingDraftStorageKey, JSON.stringify(billing));
       if (savedRemote) {
@@ -2239,8 +2261,24 @@ function SubscriptionsPage() {
           <PlatformInnerHeader title="Комиссии" description="Настройка комиссий для платформы" onBack={onBack} />
           <form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveBilling(); }}>
             <label>Комиссия с клиента, ₽<input type="number" min="0" value={billing.clientFee} onChange={(event) => setBilling({ ...billing, clientFee: Number(event.target.value) })} /></label>
-            <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>
-            <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>
+            <label>Тип тарифа ресторана
+              <select value={billing.restaurantTariffType} onChange={(event) => setBilling({ ...billing, restaurantTariffType: event.target.value as 'percent' | 'fixed' })}>
+                <option value="percent">Процент</option>
+                <option value="fixed">Фиксированная сумма</option>
+              </select>
+            </label>
+            {billing.restaurantTariffType === 'percent'
+              ? <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>
+              : <label>Тариф ресторана, ₽<input type="number" min="0" value={billing.restaurantFixedFee} onChange={(event) => setBilling({ ...billing, restaurantFixedFee: Number(event.target.value) })} /></label>}
+            <label>Тип тарифа водителя
+              <select value={billing.driverTariffType} onChange={(event) => setBilling({ ...billing, driverTariffType: event.target.value as 'percent' | 'fixed' })}>
+                <option value="percent">Процент</option>
+                <option value="fixed">Фиксированная сумма</option>
+              </select>
+            </label>
+            {billing.driverTariffType === 'percent'
+              ? <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>
+              : <label>Тариф водителя, ₽<input type="number" min="0" value={billing.driverFixedFee} onChange={(event) => setBilling({ ...billing, driverFixedFee: Number(event.target.value) })} /></label>}
             <button type="submit"><Save />Сохранить</button>
           </form>
         </main>
@@ -2262,7 +2300,7 @@ function SubscriptionsPage() {
     if (view === 'custom-tariff') {
       return (
         <main className="platform-page platform-compact-detail">
-          <PlatformInnerHeader title="Индивидуальный тариф" description="Персональный процент ресторана или водителя" onBack={onBack} />
+          <PlatformInnerHeader title="Индивидуальный тариф" description="Персональный процент или фиксированная комиссия" onBack={onBack} />
           <form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveCustomTariff(); }}>
             <label>Ресторан или водитель
               <select value={billing.customSubject} onChange={(event) => setBilling({ ...billing, customSubject: event.target.value })}>
@@ -2271,7 +2309,15 @@ function SubscriptionsPage() {
                 {(driversQuery.data ?? []).map((driver) => <option value={`driver:${driver.id}`} key={driver.id}>{driver.name}</option>)}
               </select>
             </label>
-            <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>
+            <label>Тип тарифа
+              <select value={billing.customTariffType} onChange={(event) => setBilling({ ...billing, customTariffType: event.target.value as 'percent' | 'fixed' })}>
+                <option value="percent">Процент</option>
+                <option value="fixed">Фиксированная сумма</option>
+              </select>
+            </label>
+            {billing.customTariffType === 'percent'
+              ? <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>
+              : <label>Тариф, ₽<input type="number" min="0" value={billing.customTariffFixed} onChange={(event) => setBilling({ ...billing, customTariffFixed: Number(event.target.value) })} /></label>}
             <button type="submit"><Save />Сохранить тариф</button>
           </form>
         </main>
@@ -2337,7 +2383,7 @@ function SubscriptionsPage() {
     Icon: typeof BadgePercent;
     tone: string;
   }> = [
-    { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {billing.restaurantCommission}% · Водитель {billing.driverTariff}%</>, Icon: BadgePercent, tone: 'purple' },
+    { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {formatTariff(billing.restaurantTariffType, billing.restaurantCommission, billing.restaurantFixedFee)} · Водитель {formatTariff(billing.driverTariffType, billing.driverTariff, billing.driverFixedFee)}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'limits', title: 'Лимиты', description: 'Лимиты и предупреждения', summary: <>Ресторан {formatMoney(billing.restaurantLimit)} · Водитель {formatMoney(billing.driverLimit)} · {billing.warningPercent}%</>, Icon: ShieldAlert, tone: 'violet' },
     { view: 'custom-tariff', title: 'Индивидуальный тариф', description: 'Установить тариф для ресторана или водителя', summary: <>{customTariffsQuery.data?.length ?? 0} настроено</>, Icon: UserRound, tone: 'purple' },
     { view: 'routes', title: 'Маршруты и тарифы', description: 'Управление маршрутами и стоимостью доставки', summary: <>{formatCount(activePricingRules.length, ['активный маршрут', 'активных маршрута', 'активных маршрутов'])} · от {formatMoney(minimumRoutePrice)}</>, Icon: MapPin, tone: 'purple' },

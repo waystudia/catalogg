@@ -14,8 +14,12 @@ type SubscriptionQueryRow = {
 
 type PlatformBillingSettingsRow = {
   client_fee: number | string | null;
+  restaurant_tariff_type: PlatformBillingSettings['restaurantTariffType'] | null;
   restaurant_commission_percent: number | string | null;
+  restaurant_tariff_fixed: number | string | null;
+  driver_tariff_type: PlatformBillingSettings['driverTariffType'] | null;
   driver_tariff_percent: number | string | null;
+  driver_tariff_fixed: number | string | null;
   restaurant_debt_limit: number | string | null;
   driver_debt_limit: number | string | null;
   warning_percent: number | string | null;
@@ -25,14 +29,20 @@ type PlatformCustomTariffRow = {
   id: string;
   subject_type: PlatformCustomTariff['subjectType'];
   subject_id: string;
+  tariff_type: PlatformCustomTariff['tariffType'] | null;
   tariff_percent: number | string | null;
+  tariff_fixed: number | string | null;
   is_active: boolean;
 };
 
 const defaultBillingSettings: PlatformBillingSettings = {
   clientFee: 0,
+  restaurantTariffType: 'percent',
   restaurantCommission: 7,
+  restaurantFixedFee: 0,
+  driverTariffType: 'percent',
   driverTariff: 5,
+  driverFixedFee: 0,
   restaurantLimit: 5000,
   driverLimit: 3000,
   warningPercent: 80
@@ -40,8 +50,12 @@ const defaultBillingSettings: PlatformBillingSettings = {
 
 const mapBillingSettings = (row: PlatformBillingSettingsRow | null | undefined): PlatformBillingSettings => ({
   clientFee: Number(row?.client_fee ?? defaultBillingSettings.clientFee),
+  restaurantTariffType: row?.restaurant_tariff_type === 'fixed' ? 'fixed' : 'percent',
   restaurantCommission: Number(row?.restaurant_commission_percent ?? defaultBillingSettings.restaurantCommission),
+  restaurantFixedFee: Number(row?.restaurant_tariff_fixed ?? defaultBillingSettings.restaurantFixedFee),
+  driverTariffType: row?.driver_tariff_type === 'fixed' ? 'fixed' : 'percent',
   driverTariff: Number(row?.driver_tariff_percent ?? defaultBillingSettings.driverTariff),
+  driverFixedFee: Number(row?.driver_tariff_fixed ?? defaultBillingSettings.driverFixedFee),
   restaurantLimit: Number(row?.restaurant_debt_limit ?? defaultBillingSettings.restaurantLimit),
   driverLimit: Number(row?.driver_debt_limit ?? defaultBillingSettings.driverLimit),
   warningPercent: Number(row?.warning_percent ?? defaultBillingSettings.warningPercent)
@@ -75,7 +89,7 @@ export async function getPlatformBillingSettings(): Promise<PlatformBillingSetti
 
   const { data, error } = await supabase
     .from('platform_billing_settings')
-    .select('client_fee, restaurant_commission_percent, driver_tariff_percent, restaurant_debt_limit, driver_debt_limit, warning_percent')
+    .select('client_fee, restaurant_tariff_type, restaurant_commission_percent, restaurant_tariff_fixed, driver_tariff_type, driver_tariff_percent, driver_tariff_fixed, restaurant_debt_limit, driver_debt_limit, warning_percent')
     .eq('id', 'global')
     .maybeSingle();
 
@@ -89,8 +103,12 @@ export async function savePlatformBillingSettings(input: PlatformBillingSettings
   const { error } = await supabase.from('platform_billing_settings').upsert({
     id: 'global',
     client_fee: input.clientFee,
+    restaurant_tariff_type: input.restaurantTariffType,
     restaurant_commission_percent: input.restaurantCommission,
+    restaurant_tariff_fixed: input.restaurantFixedFee,
+    driver_tariff_type: input.driverTariffType,
     driver_tariff_percent: input.driverTariff,
+    driver_tariff_fixed: input.driverFixedFee,
     restaurant_debt_limit: input.restaurantLimit,
     driver_debt_limit: input.driverLimit,
     warning_percent: input.warningPercent,
@@ -106,7 +124,7 @@ export async function getPlatformCustomTariffs(): Promise<PlatformCustomTariff[]
 
   const { data, error } = await supabase
     .from('platform_custom_tariffs')
-    .select('id, subject_type, subject_id, tariff_percent, is_active')
+    .select('id, subject_type, subject_id, tariff_type, tariff_percent, tariff_fixed, is_active')
     .eq('is_active', true);
 
   if (error) return [];
@@ -114,27 +132,42 @@ export async function getPlatformCustomTariffs(): Promise<PlatformCustomTariff[]
     id: row.id,
     subjectType: row.subject_type,
     subjectId: row.subject_id,
+    tariffType: row.tariff_type === 'fixed' ? 'fixed' : 'percent',
     tariffPercent: Number(row.tariff_percent ?? 0),
+    tariffFixed: Number(row.tariff_fixed ?? 0),
     isActive: row.is_active
   }));
 }
 
 export async function savePlatformCustomTariff(input: {
   subject: string;
+  tariffType: PlatformCustomTariff['tariffType'];
   tariffPercent: number;
+  tariffFixed: number;
 }): Promise<boolean> {
   if (!supabase) return false;
 
   const [subjectType, subjectId] = input.subject.split(':');
   const tariffPercent = Number(input.tariffPercent);
-  if ((subjectType !== 'restaurant' && subjectType !== 'driver') || !subjectId || !Number.isFinite(tariffPercent) || tariffPercent < 0) {
+  const tariffFixed = Number(input.tariffFixed);
+  if (
+    (subjectType !== 'restaurant' && subjectType !== 'driver') ||
+    !subjectId ||
+    !['percent', 'fixed'].includes(input.tariffType) ||
+    !Number.isFinite(tariffPercent) ||
+    tariffPercent < 0 ||
+    !Number.isFinite(tariffFixed) ||
+    tariffFixed < 0
+  ) {
     throw new Error('Выберите ресторан или водителя и укажите корректный тариф.');
   }
 
   const { error } = await supabase.from('platform_custom_tariffs').upsert({
     subject_type: subjectType,
     subject_id: subjectId,
+    tariff_type: input.tariffType,
     tariff_percent: tariffPercent,
+    tariff_fixed: tariffFixed,
     is_active: true,
     updated_at: new Date().toISOString()
   }, { onConflict: 'subject_type,subject_id' });

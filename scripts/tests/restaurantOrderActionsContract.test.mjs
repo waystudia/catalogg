@@ -29,4 +29,15 @@ describe('restaurant order action contract', () => {
     assert.match(panel, /Подтверждаю оплату/);
     assert.match(panel, /Оплата подтверждена — отсканируйте QR водителя/);
   });
+
+  it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
+    const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+    const styles = await read('src/app/styles.css');
+
+    assert.match(panel, /order\.driverName && \(/);
+    assert.match(panel, /admin-order-driver-card/);
+    assert.match(panel, /Заказ принял водитель/);
+    assert.match(panel, /order\.driverPhone/);
+    assert.match(styles, /\.admin-order-driver-card/);
+  });
 });

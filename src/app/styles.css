@@ -2367,6 +2367,74 @@
   text-decoration: none;
 }
 
+.admin-order-driver-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(98, 70, 234, 0.24);
+  border-radius: 16px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f6f3ff 0%, #ffffff 100%);
+}
+
+.admin-order-driver-card__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: #ebe7ff;
+  color: #5b3df5;
+}
+
+.admin-order-driver-card__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.admin-order-driver-card > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.admin-order-driver-card small {
+  overflow: hidden;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-order-driver-card strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-order-driver-card > a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d8d0ff;
+  border-radius: 12px;
+  padding: 0 10px;
+  color: #5b3df5;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.admin-order-driver-card > a svg {
+  width: 15px;
+  height: 15px;
+}
+
 .admin-driver-dispatch__search {
   min-height: 46px;
   border: 0;

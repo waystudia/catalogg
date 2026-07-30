@@ -276,8 +276,12 @@ export type PlatformAnalytics = {
 
 export type PlatformBillingSettings = {
   clientFee: number;
+  restaurantTariffType: 'percent' | 'fixed';
   restaurantCommission: number;
+  restaurantFixedFee: number;
+  driverTariffType: 'percent' | 'fixed';
   driverTariff: number;
+  driverFixedFee: number;
   restaurantLimit: number;
   driverLimit: number;
   warningPercent: number;
@@ -287,7 +291,9 @@ export type PlatformCustomTariff = {
   id: string;
   subjectType: 'restaurant' | 'driver';
   subjectId: string;
+  tariffType: 'percent' | 'fixed';
   tariffPercent: number;
+  tariffFixed: number;
   isActive: boolean;
 };
 

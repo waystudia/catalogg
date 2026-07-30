@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const appSource = fs.readFileSync(new URL('../../src/pages/platform-admin/PlatformAdminApp.tsx', import.meta.url), 'utf8');
+const subscriptionsSource = fs.readFileSync(new URL('../../src/shared/api/subscriptionsApi.ts', import.meta.url), 'utf8');
 const clientSource = fs.readFileSync(new URL('../../src/pages/client-platform/ClientPlatformApp.tsx', import.meta.url), 'utf8');
 const clientCss = fs.readFileSync(new URL('../../src/pages/client-platform/client-platform.css', import.meta.url), 'utf8');
 const adminCss = fs.readFileSync(new URL('../../src/pages/platform-admin/platform-admin.css', import.meta.url), 'utf8');
@@ -11,6 +12,10 @@ const migrationSource = fs.readFileSync(
   new URL('../../supabase/migrations/20260730120000_add_platform_content_pages_and_support.sql', import.meta.url),
   'utf8'
 );
+const migrationSql = fs.readdirSync(new URL('../../supabase/migrations', import.meta.url))
+  .filter((name) => name.endsWith('.sql'))
+  .map((name) => fs.readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8'))
+  .join('\n');
 
 test('subscriptions overview is a form-free navigation hub with six sections and recent payments', () => {
   assert.match(appSource, /platform-subscriptions-overview/);
@@ -18,6 +23,28 @@ test('subscriptions overview is a form-free navigation hub with six sections and
   assert.match(appSource, /Согласование цен водителей/);
   assert.match(appSource, /Последние платежи/);
   assert.match(appSource, /Все платежи/);
+});
+
+test('restaurant and driver tariffs support percent and fixed commission modes', () => {
+  assert.match(appSource, /Тип тарифа ресторана/);
+  assert.match(appSource, /Тип тарифа водителя/);
+  assert.match(appSource, /value="percent">Процент/);
+  assert.match(appSource, /value="fixed">Фиксированная сумма/);
+  assert.match(subscriptionsSource, /restaurant_tariff_type/);
+  assert.match(subscriptionsSource, /restaurant_tariff_fixed/);
+  assert.match(subscriptionsSource, /driver_tariff_type/);
+  assert.match(subscriptionsSource, /driver_tariff_fixed/);
+  assert.match(migrationSql, /add column if not exists restaurant_tariff_type/);
+  assert.match(migrationSql, /add column if not exists driver_tariff_type/);
+  assert.match(migrationSql, /when resolved_tariff_type = 'fixed' then resolved_tariff_fixed/);
+  assert.match(migrationSql, /else payout \* resolved_tariff_percent \/ 100/);
+  assert.match(subscriptionsSource, /restaurant_tariff_type:\s*input\.restaurantTariffType/);
+  assert.match(subscriptionsSource, /driver_tariff_fixed:\s*input\.driverFixedFee/);
+});
+
+test('mobile subscription metric labels wrap inside their cards', () => {
+  assert.match(adminCss, /\.platform-overview-metrics small\s*\{[\s\S]*overflow-wrap:\s*anywhere/);
+  assert.match(adminCss, /\.platform-overview-metrics article\s*\{[\s\S]*min-width:\s*0/);
 });
 
 test('settings overview exposes only banners, reusable pages, and support sections', () => {
