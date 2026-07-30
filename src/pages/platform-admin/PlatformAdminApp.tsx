@@ -102,7 +102,11 @@ import type {
   PlatformGlobalSettings,
   SubscriptionRow
 } from '../../shared/api/platformTypes';
-import { getPlatformContentPath, normalizeContentSlug } from '../../shared/platformContent';
+import {
+  getPlatformContentPath,
+  normalizeContentSlug,
+  validatePlatformBannerTarget
+} from '../../shared/platformContent';
 import { PlatformGeographyPage } from '../../features/platform-admin-geography/PlatformGeographyPage';
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
@@ -2817,12 +2821,11 @@ function PlatformBannerEditor({
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const selectedPage = pages.find((page) => page.id === pageId);
-    if (!selectedPage) {
-      toast.error('Выберите страницу при нажатии');
-      return;
-    }
     try {
+      const selectedPage = validatePlatformBannerTarget(
+        pages.find((page) => page.id === pageId),
+        isActive
+      );
       await savePlatformBanner({
         id: banner?.id,
         name: name.trim(),
@@ -2865,6 +2868,7 @@ function PlatformBannerEditor({
           Изображение / обложка
           <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" onChange={(event) => void uploadMedia(event.target.files?.[0])} disabled={isUploading} />
           <span><Upload />{isUploading ? 'Загружаем…' : 'Выбрать медиа'}</span>
+          <small>Горизонтальный формат 16:5. Изображение или видео заполнит баннер целиком.</small>
         </label>
         {imageUrl && (
           <div className="platform-banner-media-preview is-wide">
@@ -2876,7 +2880,15 @@ function PlatformBannerEditor({
         <label>Страница при нажатии
           <select value={pageId} onChange={(event) => setPageId(event.target.value)} required>
             <option value="">Выберите вспомогательную страницу</option>
-            {pages.map((page) => <option value={page.id} key={page.id}>{page.name} · /pages/{page.slug}</option>)}
+            {pages.map((page) => (
+              <option
+                value={page.id}
+                disabled={isActive && page.status !== 'published'}
+                key={page.id}
+              >
+                {page.name} · /pages/{page.slug}{page.status !== 'published' ? ' · сначала опубликуйте' : ''}
+              </option>
+            ))}
           </select>
         </label>
         <label>Начало показа<input type="date" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} /></label>
@@ -2933,7 +2945,14 @@ function PlatformContentPageEditor({
 
   const save = async () => {
     try {
-      await savePlatformContentPage({ id: page?.id, name, slug, status, blocks });
+      await savePlatformContentPage({
+        id: page?.id,
+        name,
+        slug,
+        status,
+        blocks,
+        bannerUsageCount: page?.bannerUsageCount ?? 0
+      });
       toast.success('Страница сохранена');
       onSaved();
     } catch (error) {

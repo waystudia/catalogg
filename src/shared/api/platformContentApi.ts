@@ -65,6 +65,7 @@ export async function savePlatformContentPage(input: {
   slug: string;
   status: PlatformContentPage['status'];
   blocks: PlatformContentBlock[];
+  bannerUsageCount?: number;
 }): Promise<void> {
   const validated = validatePlatformContentPage(input);
   if (!supabase) return;

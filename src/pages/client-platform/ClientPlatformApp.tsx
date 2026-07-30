@@ -82,6 +82,7 @@ import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
+import { getPromoAutoAdvanceDelay } from '../../features/client-platform/promoCarousel';
 import {
   chooseMoreAccuratePosition,
   DELIVERY_GEOLOCATION_OPTIONS,
@@ -484,37 +485,65 @@ const getPromoBannerIndex = (track: HTMLDivElement) => {
 
 function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [finishedVideoId, setFinishedVideoId] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const scrollEndRef = useRef<number | null>(null);
+  const centeredDisplayedIndexRef = useRef(-1);
   const bannerIds = banners.map((banner) => banner.id).join('|');
   const displayedBanners = banners.length > 1
     ? [banners[banners.length - 1], ...banners, banners[0]]
     : banners;
+  const activeBanner = banners[activeIndex];
+  const autoAdvanceDelay = getPromoAutoAdvanceDelay({
+    bannerCount: banners.length,
+    isVideo: Boolean(activeBanner && isVideoMediaUrl(activeBanner.imageUrl)),
+    videoPlayedToEnd: activeBanner?.id === finishedVideoId
+  });
+
+  const syncCenteredVideoPlayback = useCallback((track: HTMLDivElement, displayedIndex: number) => {
+    if (centeredDisplayedIndexRef.current === displayedIndex) return;
+    centeredDisplayedIndexRef.current = displayedIndex;
+    setFinishedVideoId(null);
+    track.querySelectorAll<HTMLVideoElement>('.promo-band video').forEach((video) => {
+      if (Number(video.dataset.displayedIndex) === displayedIndex) {
+        video.currentTime = 0;
+        void video.play().catch(() => undefined);
+      } else {
+        video.pause();
+      }
+    });
+  }, []);
 
   useEffect(() => {
     setActiveIndex(0);
+    setFinishedVideoId(null);
+    centeredDisplayedIndexRef.current = -1;
     window.requestAnimationFrame(() => {
       const track = trackRef.current;
-      if (track) track.scrollTo({ left: banners.length > 1 ? getPromoBannerLeft(track, 1) : 0 });
+      if (track) {
+        const displayedIndex = banners.length > 1 ? 1 : 0;
+        track.scrollTo({ left: getPromoBannerLeft(track, displayedIndex) });
+        syncCenteredVideoPlayback(track, displayedIndex);
+      }
     });
-  }, [bannerIds, banners.length]);
+  }, [bannerIds, banners.length, syncCenteredVideoPlayback]);
 
   useEffect(() => {
-    if (banners.length < 2) return undefined;
-
-    const timer = window.setInterval(() => {
+    if (autoAdvanceDelay === null) return undefined;
+    const timer = window.setTimeout(() => {
       const track = trackRef.current;
       if (track) {
         const nextIndex = getPromoBannerIndex(track) + 1;
         track.scrollTo({ left: getPromoBannerLeft(track, nextIndex), behavior: 'smooth' });
       }
-    }, 5000);
+    }, autoAdvanceDelay);
 
-    return () => {
-      window.clearInterval(timer);
-      if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
-    };
-  }, [banners.length]);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, autoAdvanceDelay, banners.length]);
+
+  useEffect(() => () => {
+    if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
+  }, []);
 
   if (banners.length === 0) return null;
 
@@ -527,6 +556,7 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
           const track = event.currentTarget;
           const rawIndex = getPromoBannerIndex(track);
           setActiveIndex(banners.length > 1 ? (rawIndex - 1 + banners.length) % banners.length : 0);
+          syncCenteredVideoPlayback(track, rawIndex);
           if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
           scrollEndRef.current = window.setTimeout(() => {
             if (rawIndex === 0) track.scrollTo({ left: getPromoBannerLeft(track, banners.length) });
@@ -548,7 +578,27 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
             {banner.imageUrl && (
               <span className="promo-band__media">
                 {isVideoMediaUrl(banner.imageUrl)
-                  ? <video src={banner.imageUrl} muted playsInline autoPlay loop />
+                  ? (
+                    <video
+                      src={banner.imageUrl}
+                      data-displayed-index={displayedIndex}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      onEnded={() => {
+                        const track = trackRef.current;
+                        if (track && getPromoBannerIndex(track) === displayedIndex) {
+                          setFinishedVideoId(banner.id);
+                        }
+                      }}
+                      onError={() => {
+                        const track = trackRef.current;
+                        if (track && getPromoBannerIndex(track) === displayedIndex) {
+                          setFinishedVideoId(banner.id);
+                        }
+                      }}
+                    />
+                  )
                   : <img src={banner.imageUrl} alt="" />}
               </span>
             )}

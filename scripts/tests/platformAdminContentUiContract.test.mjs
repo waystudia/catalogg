@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const appSource = fs.readFileSync(new URL('../../src/pages/platform-admin/PlatformAdminApp.tsx', import.meta.url), 'utf8');
 const clientSource = fs.readFileSync(new URL('../../src/pages/client-platform/ClientPlatformApp.tsx', import.meta.url), 'utf8');
+const clientCss = fs.readFileSync(new URL('../../src/pages/client-platform/client-platform.css', import.meta.url), 'utf8');
+const adminCss = fs.readFileSync(new URL('../../src/pages/platform-admin/platform-admin.css', import.meta.url), 'utf8');
 const routesSource = fs.readFileSync(new URL('../../src/main.tsx', import.meta.url), 'utf8');
 const migrationSource = fs.readFileSync(
   new URL('../../supabase/migrations/20260730120000_add_platform_content_pages_and_support.sql', import.meta.url),
@@ -33,4 +35,24 @@ test('content pages have a database model, banner relation, and a client route',
   assert.match(migrationSource, /grant select, insert, update, delete on table public\.platform_content_pages to authenticated/);
   assert.match(routesSource, /path="\/pages\/:pageSlug"/);
   assert.match(clientSource, /ContentPageScreen/);
+});
+
+test('client banners stay horizontal and place text actions above full-bleed media', () => {
+  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
+  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*max-height:\s*280px/);
+  assert.match(clientCss, /\.promo-band\s*>\s*\.promo-band__media\s*\{[\s\S]*position:\s*absolute/);
+  assert.match(clientCss, /\.promo-band\s*>\s*div,[\s\S]*\.promo-band\s*>\s*a\s*\{[\s\S]*z-index:\s*2/);
+  assert.match(adminCss, /\.platform-banner-media-preview\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
+});
+
+test('a centered video completes once before the carousel advances', () => {
+  assert.match(clientSource, /getPromoAutoAdvanceDelay/);
+  assert.match(clientSource, /onEnded=\{\(\)\s*=>/);
+  assert.doesNotMatch(clientSource, /<video[^>]*\sloop(?:\s|\/|>)/);
+});
+
+test('active banners reject draft pages before a broken client link is saved', () => {
+  assert.match(appSource, /validatePlatformBannerTarget/);
+  assert.match(appSource, /disabled=\{isActive && page\.status !== 'published'\}/);
+  assert.match(appSource, /bannerUsageCount:\s*page\?\.bannerUsageCount\s*\?\?\s*0/);
 });

@@ -23,10 +23,25 @@ export const validatePlatformContentPage = <T extends {
   name: string;
   slug: string;
   blocks: PlatformContentBlock[];
+  status?: 'draft' | 'published' | 'inactive';
+  bannerUsageCount?: number;
 }>(input: T): T => {
   const name = input.name.trim();
   const slug = normalizeContentSlug(input.slug);
   if (!name) throw new Error('Укажите название страницы.');
   if (!slug) throw new Error('Укажите корректный slug страницы.');
+  if ((input.bannerUsageCount ?? 0) > 0 && input.status && input.status !== 'published') {
+    throw new Error('Эта страница используется в материалах. Сначала отключите их или оставьте страницу опубликованной.');
+  }
   return { ...input, name, slug };
+};
+
+export const validatePlatformBannerTarget = <T extends {
+  status: 'draft' | 'published' | 'inactive';
+}>(page: T | undefined, isActive: boolean): T => {
+  if (!page) throw new Error('Выберите страницу при нажатии.');
+  if (isActive && page.status !== 'published') {
+    throw new Error('Сначала опубликуйте выбранную страницу.');
+  }
+  return page;
 };

@@ -228,17 +228,21 @@
 .promo-band {
   position: relative;
   display: grid;
-  width: calc(100% - 56px);
-  min-width: calc(100% - 56px);
+  width: calc(100% - 32px);
+  min-width: calc(100% - 32px);
+  aspect-ratio: 16 / 5;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
   gap: 8px;
-  min-height: 112px;
+  min-height: 132px;
+  max-height: 280px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: 20px;
   padding: 16px 18px;
   background: #5b3df4;
   color: #ffffff;
   overflow: hidden;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.08);
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
@@ -280,8 +284,8 @@
 }
 
 .promo-band strong {
-  max-width: 230px;
-  font-size: 21px;
+  max-width: min(72%, 520px);
+  font-size: clamp(20px, 3.1vw, 34px);
   line-height: 1.02;
 }
 
@@ -290,6 +294,14 @@
   color: rgba(255, 255, 255, 0.82);
   font-size: 12px;
   font-weight: 700;
+}
+
+.promo-band > .promo-band__media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  color: inherit;
 }
 
 .promo-band a {
