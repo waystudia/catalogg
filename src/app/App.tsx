@@ -662,10 +662,10 @@ function ProductTile({
     const tile = button.closest('.product-tile') as HTMLElement | null;
     const carousel = tile?.querySelector('.product-photo-carousel') as HTMLElement | null;
     const image = tile?.querySelector('.product-photo-carousel__slide.is-active img, .product-tile__image img') as HTMLImageElement | null;
-    const imageRect = image?.getBoundingClientRect();
+    const visibleImageRect = carousel?.getBoundingClientRect() ?? image?.getBoundingClientRect();
     return {
       buttonRect,
-      imageRect,
+      imageRect: visibleImageRect,
       imageUrl: carousel?.dataset.activeImage || image?.currentSrc || product.image_url
     };
   };
