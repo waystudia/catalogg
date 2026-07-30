@@ -29,9 +29,13 @@ describe('restaurant order action contract', () => {
     assert.match(api, /rpc\('confirm_restaurant_cash_payment'/);
     assert.match(panel, /Подтвердить получение наличных/);
     assert.match(panel, /До подтверждения водитель не сможет нажать «Забрал заказ»/);
+    assert.match(panel, /Статус водителя может обновляться с задержкой/);
+    assert.doesNotMatch(panel, /orderPaymentMethod === 'cash' && driverAtRestaurant/);
     assert.match(panel, /Оплата подтверждена — отсканируйте QR водителя/);
     assert.match(driver, /pickupBlocked = waitingForCashConfirmation \|\| waitingForQr/);
-    assert.match(driver, /Кнопка «Забрал заказ» станет доступна после подтверждения оплаты рестораном/);
+    assert.match(driver, /Я передал деньги/);
+    assert.match(driver, /Деньги переданы\. Ожидайте подтверждения оплаты рестораном/);
+    assert.match(driver, /После подтверждения рестораном появится QR/);
   });
 
   it('opens payment controls from the payment card and keeps the overflow menu for order actions', async () => {

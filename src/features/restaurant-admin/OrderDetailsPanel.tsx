@@ -150,7 +150,11 @@ export function OrderDetailsPanel({
   const orderIsFinished = ['cancelled', 'canceled', 'completed', 'delivered'].includes(order.status);
   const waitingForPayment = ['waiting_confirmation', 'rejected'].includes(order.paymentStatus);
   const driverAtRestaurant = order.deliveryStatus === 'arrived_to_restaurant';
-  const cashHandover = orderPaymentMethod === 'cash' && driverAtRestaurant;
+  const cashHandover =
+    orderPaymentMethod === 'cash' &&
+    Boolean(order.deliveryId) &&
+    Boolean(order.driverName) &&
+    !orderIsFinished;
   const cashPaymentConfirmed = Boolean(order.restaurantPaymentConfirmedAt);
   const pickupQrConfirmed = Boolean(order.pickupQrConfirmedAt);
   const rejectOrder = async () => {
@@ -405,6 +409,9 @@ export function OrderDetailsPanel({
                     Получите от водителя {formatPrice(order.subtotal)} и подтвердите наличные.
                     До подтверждения водитель не сможет нажать «Забрал заказ».
                   </p>
+                  {!driverAtRestaurant && (
+                    <p>Статус водителя может обновляться с задержкой. Подтверждайте только после фактического получения денег.</p>
+                  )}
                   <button type="button" disabled={isConfirmingCash} onClick={() => void confirmCashPayment()}>
                     {isConfirmingCash ? 'Подтверждаем...' : 'Подтвердить получение наличных'}
                   </button>
@@ -415,7 +422,7 @@ export function OrderDetailsPanel({
                 <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
               )
             ) : orderPaymentMethod === 'cash' ? (
-              <p>Подтверждение наличных станет доступно, когда водитель отметит прибытие в ресторан.</p>
+              <p>Подтверждение появится после назначения водителя на заказ.</p>
             ) : (
               <div className="admin-order-payment-panel__actions">
                 <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает подтверждения</button>
