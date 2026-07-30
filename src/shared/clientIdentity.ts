@@ -30,6 +30,25 @@ const profileStorageKey = (slug: string) => `waycatalog:${slug}:public-client-pr
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, ' ');
 
+export const normalizeRussianClientPhone = (value: string) => {
+  const digits = value.replace(/\D/g, '');
+  const nationalDigits = (digits.startsWith('7') || digits.startsWith('8') ? digits.slice(1) : digits).slice(0, 10);
+
+  return [
+    '+7',
+    nationalDigits.length ? ` (${nationalDigits.slice(0, 3)}` : '',
+    nationalDigits.length >= 3 ? ')' : '',
+    nationalDigits.length > 3 ? ` ${nationalDigits.slice(3, 6)}` : '',
+    nationalDigits.length > 6 ? `-${nationalDigits.slice(6, 8)}` : '',
+    nationalDigits.length > 8 ? `-${nationalDigits.slice(8, 10)}` : ''
+  ].join('');
+};
+
+export const isValidRussianClientPhone = (value: string) =>
+  value.replace(/\D/g, '').length === 11 &&
+  value.startsWith('+7') &&
+  normalizeRussianClientPhone(value) === value;
+
 const titleCaseWord = (word: string) =>
   word ? `${word[0].toLocaleUpperCase('ru-RU')}${word.slice(1).toLocaleLowerCase('ru-RU')}` : word;
 

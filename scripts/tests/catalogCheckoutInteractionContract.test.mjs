@@ -65,7 +65,30 @@ test('continue on checkout scrolls to the final order review', () => {
 
 test('delivery checkout requires customer, address, and map coordinates', () => {
   assert.match(checkoutSource, /deliveryLat === null \|\| deliveryLng === null/);
-  assert.match(checkoutSource, /clientPhone\.replace\(\/\\D\/g, ''\)\.length < 10/);
   assert.match(checkoutSource, /if \(!validateDeliveryDetails\(\)\) return/);
   assert.match(checkoutSource, /className="checkout-validation-errors" role="alert"/);
+});
+
+test('customer contacts are required once for hall, takeaway, and delivery before payment', () => {
+  const contactStart = checkoutSource.indexOf('className="checkout-customer-details"');
+  const paymentStart = checkoutSource.indexOf('className="checkout-payment-method"');
+  const deliveryStart = checkoutSource.indexOf('id="checkout-delivery-details"');
+
+  assert.ok(contactStart > deliveryStart, 'customer contacts must not be nested in delivery-only fields');
+  assert.ok(contactStart < paymentStart, 'customer contacts must appear before payment');
+  assert.match(checkoutSource, /normalizeRussianClientPhone\(event\.target\.value\)/);
+  assert.match(checkoutSource, /customerName:\s*clientName\.trim\(\)/);
+  assert.match(checkoutSource, /customerPhone:\s*clientPhone\.trim\(\)/);
+});
+
+test('order submission stays disabled until both customer name and phone are valid', () => {
+  assert.match(
+    checkoutSource,
+    /const isCheckoutContactValid = clientName\.trim\(\)\.length > 0 && isValidRussianClientPhone\(clientPhone\)/
+  );
+  assert.match(
+    checkoutSource,
+    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid\}/
+  );
+  assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
 });

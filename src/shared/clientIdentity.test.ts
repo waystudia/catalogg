@@ -9,6 +9,8 @@ const {
   loadClientPlatformProfile,
   loadPublicClientCheckoutProfile,
   loadPublicClientProfile,
+  isValidRussianClientPhone,
+  normalizeRussianClientPhone,
   normalizeSettlementName,
   savePublicClientProfile,
   saveLocalSettlementRequest,
@@ -130,6 +132,21 @@ describe('public client identity', () => {
 
   it('normalizes settlement names for matching and dedupe', () => {
     assert.equal(normalizeSettlementName('  цоци   юрт '), 'Цоци Юрт');
+  });
+
+  it('keeps the required +7 prefix while the client enters a Russian phone number', () => {
+    assert.equal(normalizeRussianClientPhone(''), '+7');
+    assert.equal(normalizeRussianClientPhone('8'), '+7');
+    assert.equal(normalizeRussianClientPhone('89288865470'), '+7 (928) 886-54-70');
+    assert.equal(normalizeRussianClientPhone('79288865470'), '+7 (928) 886-54-70');
+    assert.equal(normalizeRussianClientPhone('+7 (928) 886-54-70'), '+7 (928) 886-54-70');
+    assert.equal(normalizeRussianClientPhone('928886547099'), '+7 (928) 886-54-70');
+  });
+
+  it('accepts only a complete Russian client phone number', () => {
+    assert.equal(isValidRussianClientPhone('+7 (928) 886-54-7'), false);
+    assert.equal(isValidRussianClientPhone('+7 (928) 886-54-70'), true);
+    assert.equal(isValidRussianClientPhone('+8 (928) 886-54-70'), false);
   });
 
   it('deduplicates local new-settlement requests and increments count', () => {

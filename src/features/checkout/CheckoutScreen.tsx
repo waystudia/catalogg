@@ -50,7 +50,9 @@ import {
   submitSettlementRequest
 } from '../../shared/api/settlementsApi';
 import {
+  isValidRussianClientPhone,
   loadPublicClientCheckoutProfile,
+  normalizeRussianClientPhone,
   normalizeSettlementName,
   savePublicClientProfile
 } from '../../shared/clientIdentity';
@@ -167,6 +169,8 @@ export function CheckoutScreen({
   const [usesCustomSettlement, setUsesCustomSettlement] = useState(false);
   const [customSettlement, setCustomSettlement] = useState('');
   const [deliveryValidationErrors, setDeliveryValidationErrors] = useState<string[]>([]);
+  const [contactValidationErrors, setContactValidationErrors] = useState<string[]>([]);
+  const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
   );
@@ -185,14 +189,34 @@ export function CheckoutScreen({
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const selectedClientPlaceRef = useRef('');
   const deliveryDetailsRef = useRef<HTMLElement | null>(null);
+  const contactDetailsRef = useRef<HTMLElement | null>(null);
   const clientNameRef = useRef<HTMLInputElement | null>(null);
+  const clientPhoneRef = useRef<HTMLInputElement | null>(null);
   const locationButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const validateCheckoutContact = () => {
+    const errors: string[] = [];
+    if (!clientName.trim()) errors.push('Введите имя.');
+    if (!isValidRussianClientPhone(clientPhone)) errors.push('Введите полный номер телефона.');
+
+    setContactValidationErrors(errors);
+    if (errors.length === 0) return true;
+
+    contactDetailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => {
+      if (!clientName.trim()) {
+        clientNameRef.current?.focus({ preventScroll: true });
+      } else {
+        clientPhoneRef.current?.focus({ preventScroll: true });
+      }
+    }, 450);
+    toast.error('Введите имя и номер телефона');
+    return false;
+  };
 
   const validateDeliveryDetails = () => {
     const errors: string[] = [];
     if (deliveryLat === null || deliveryLng === null) errors.push('Определите местоположение или выберите точку на карте.');
-    if (!clientName.trim()) errors.push('Введите имя.');
-    if (clientPhone.replace(/\D/g, '').length < 10) errors.push('Введите корректный номер телефона.');
     if (!effectiveDeliverySettlement) errors.push('Выберите село или город.');
     if (!deliveryAddress.trim()) errors.push('Введите улицу и номер дома.');
 
@@ -202,8 +226,6 @@ export function CheckoutScreen({
       window.setTimeout(() => {
         if (deliveryLat === null || deliveryLng === null) {
           locationButtonRef.current?.focus({ preventScroll: true });
-        } else if (!clientName.trim()) {
-          clientNameRef.current?.focus({ preventScroll: true });
         }
       }, 450);
       toast.error('Заполните обязательные данные доставки');
@@ -335,14 +357,13 @@ export function CheckoutScreen({
     if (profileHydratedRef.current) return;
     profileHydratedRef.current = true;
     const savedProfile = loadPublicClientCheckoutProfile(catalogSlug);
-    if (!savedProfile) return;
 
     setOrder({
-      clientName: clientName || savedProfile.name,
-      clientPhone: clientPhone || savedProfile.phone,
-      deliveryCity: deliveryCity || savedProfile.deliveryCity,
-      deliverySettlement: deliverySettlement || savedProfile.deliverySettlement,
-      deliveryAddress: deliveryAddress || savedProfile.deliveryAddress
+      clientName: clientName || savedProfile?.name || '',
+      clientPhone: normalizeRussianClientPhone(clientPhone || savedProfile?.phone || ''),
+      deliveryCity: deliveryCity || savedProfile?.deliveryCity || '',
+      deliverySettlement: deliverySettlement || savedProfile?.deliverySettlement || '',
+      deliveryAddress: deliveryAddress || savedProfile?.deliveryAddress || ''
     });
   }, [catalogSlug, clientName, clientPhone, deliveryAddress, deliveryCity, deliverySettlement, setOrder]);
 
@@ -397,8 +418,8 @@ export function CheckoutScreen({
     ...(mode === 'delivery' && deliveryCity ? [`Город: ${deliveryCity}`] : []),
     ...(mode === 'delivery' && effectiveDeliverySettlement ? [`Село / район: ${effectiveDeliverySettlement}`] : []),
     ...(mode === 'delivery' && deliveryAddress ? [`Адрес: ${deliveryAddress}`] : []),
-    ...(mode === 'delivery' && clientName ? [`Имя: ${clientName}`] : []),
-    ...(mode === 'delivery' && clientPhone ? [`Телефон: ${clientPhone}`] : []),
+    ...(clientName ? [`Имя: ${clientName}`] : []),
+    ...(clientPhone ? [`Телефон: ${clientPhone}`] : []),
     `Оплата: ${usesBankTransfer ? 'Безналично' : 'Наличными'}`,
     '',
     'Комментарий:',
@@ -435,7 +456,6 @@ export function CheckoutScreen({
 
     return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
-  const whatsappHref = buildWhatsappHref();
   const openRestaurantMap = () => {
     if (!restaurant.mapLink) {
       alert('Карта не указана');
@@ -553,42 +573,6 @@ export function CheckoutScreen({
           )}
           <div className="checkout-delivery-fields">
             <label className="checkout-field">
-              <span>Имя</span>
-              <input
-                ref={clientNameRef}
-                value={clientName}
-                onChange={(event) => {
-                  setDeliveryValidationErrors([]);
-                  setOrder({ clientName: event.target.value });
-                }}
-                placeholder="Ваше имя"
-                required
-              />
-            </label>
-            <label className="checkout-field">
-              <span>Телефон</span>
-              <input
-                value={clientPhone}
-                onChange={(event) => {
-                  setDeliveryValidationErrors([]);
-                  const digits = event.target.value.replace(/\D/g, '').replace(/^8/, '7').slice(0, 11);
-                  const local = digits.startsWith('7') ? digits.slice(1) : digits;
-                  const formatted = [
-                    '+7',
-                    local.length ? ` (${local.slice(0, 3)}` : '',
-                    local.length >= 3 ? ')' : '',
-                    local.length > 3 ? ` ${local.slice(3, 6)}` : '',
-                    local.length > 6 ? `-${local.slice(6, 8)}` : '',
-                    local.length > 8 ? `-${local.slice(8, 10)}` : ''
-                  ].join('');
-                  setOrder({ clientPhone: formatted });
-                }}
-                placeholder="+7 (___) ___-__-__"
-                inputMode="tel"
-                required
-              />
-            </label>
-            <label className="checkout-field">
               <span>Село или город</span>
               {settlementOptions.length > 0 ? (
                 <>
@@ -697,6 +681,59 @@ export function CheckoutScreen({
           </div>
         </section>
       )}
+
+      <section
+        className="checkout-customer-details"
+        ref={contactDetailsRef}
+        aria-labelledby="checkout-customer-title"
+      >
+        <div className="checkout-customer-details__head">
+          <Home />
+          <div>
+            <h2 id="checkout-customer-title">Контактные данные</h2>
+            <p>Нужны ресторану для подтверждения заказа</p>
+          </div>
+        </div>
+        {contactValidationErrors.length > 0 && (
+          <div className="checkout-validation-errors" role="alert">
+            <ul>
+              {contactValidationErrors.map((error) => <li key={error}>{error}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="checkout-customer-details__fields">
+          <label className="checkout-field">
+            <span>Имя</span>
+            <input
+              ref={clientNameRef}
+              value={clientName}
+              onChange={(event) => {
+                setContactValidationErrors([]);
+                setOrder({ clientName: event.target.value });
+              }}
+              placeholder="Ваше имя"
+              autoComplete="name"
+              required
+            />
+          </label>
+          <label className="checkout-field">
+            <span>Телефон</span>
+            <input
+              ref={clientPhoneRef}
+              value={clientPhone || '+7'}
+              onChange={(event) => {
+                setContactValidationErrors([]);
+                setOrder({ clientPhone: normalizeRussianClientPhone(event.target.value) });
+              }}
+              inputMode="tel"
+              autoComplete="tel"
+              aria-describedby="checkout-phone-hint"
+              required
+            />
+            <small id="checkout-phone-hint">Введите 10 цифр после +7</small>
+          </label>
+        </div>
+      </section>
 
       <section className="checkout-payment-method" aria-labelledby="checkout-payment-title">
         <div>
@@ -823,13 +860,15 @@ export function CheckoutScreen({
             </div>
           </section>
         )}
-        <a
-          className={restaurant.whatsapp ? 'primary-wide checkout-summary__action' : 'primary-wide checkout-summary__action is-disabled'}
-          href={whatsappHref}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(event) => {
-            event.preventDefault();
+        <button
+          className={
+            restaurant.whatsapp && isCheckoutContactValid
+              ? 'primary-wide checkout-summary__action'
+              : 'primary-wide checkout-summary__action is-disabled'
+          }
+          type="button"
+          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid}
+          onClick={() => {
             if (!restaurant.whatsapp) {
               return;
             }
@@ -837,15 +876,9 @@ export function CheckoutScreen({
               toast.info('Заказ уже отправляется. Подождите несколько секунд.');
               return;
             }
+            if (!validateCheckoutContact()) return;
             if (mode === 'delivery') {
               if (!validateDeliveryDetails()) return;
-              savePublicClientProfile(catalogSlug, {
-                name: clientName,
-                phone: clientPhone,
-                deliveryCity: effectiveDeliveryCity,
-                deliverySettlement: effectiveDeliverySettlement,
-                deliveryAddress
-              });
               if (settlementNeedsAdminReview) {
                 void submitSettlementRequest({
                   cityName: effectiveDeliveryCity,
@@ -854,6 +887,13 @@ export function CheckoutScreen({
                 });
               }
             }
+            savePublicClientProfile(catalogSlug, {
+              name: clientName,
+              phone: clientPhone,
+              deliveryCity: effectiveDeliveryCity,
+              deliverySettlement: effectiveDeliverySettlement,
+              deliveryAddress
+            });
             const orderPayload: CreateRestaurantOrderFromCartInput = {
               slug: catalogSlug,
               items,
@@ -870,8 +910,8 @@ export function CheckoutScreen({
                 formatOrderPaymentMethodMarker(usesBankTransfer ? 'bank_transfer' : 'cash'),
                 orderComment.trim()
               ].filter(Boolean).join('\n'),
-              customerName: mode === 'delivery' ? clientName.trim() : 'Гость',
-              customerPhone: mode === 'delivery' ? clientPhone.trim() : ''
+              customerName: clientName.trim(),
+              customerPhone: clientPhone.trim()
             };
             let whatsappWindow: Window | null = null;
             try {
@@ -986,11 +1026,10 @@ export function CheckoutScreen({
                 setIsSubmittingOrder(false);
               });
           }}
-          aria-disabled={isSubmittingOrder || !restaurant.whatsapp}
         >
           <ArrowRight />
           {isSubmittingOrder ? 'Отправляем заказ...' : 'Отправить заказ'}
-        </a>
+        </button>
       </section>
     </main>
   );
