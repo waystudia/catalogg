@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const read = (path) => readFileSync(resolve(repoRoot, path), 'utf8');
+const migrationSql = readdirSync(resolve(repoRoot, 'supabase/migrations'))
+  .filter((name) => name.endsWith('.sql'))
+  .map((name) => read(`supabase/migrations/${name}`))
+  .join('\n');
+const driversApi = read('src/shared/api/driversApi.ts');
+const platformTypes = read('src/shared/api/platformTypes.ts');
+const driversPage = read('src/features/platform-admin-drivers/PlatformDriversPage.tsx');
+const restaurantApi = read('src/shared/api/restaurantOrdersApi.ts');
+const restaurantPanel = read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+const driverApi = read('src/shared/api/deliveryApi.ts');
+const driverApp = read('src/pages/driver/DriverApp.tsx');
+const mapSource = read('src/shared/DeliveryTrackingMap.tsx');
+const pushSource = read('supabase/functions/send-web-push/index.ts');
+
+describe('driver capacity and restaurant priority dispatch', () => {
+  it('stores a bounded simultaneous-order capacity for every driver', () => {
+    assert.match(migrationSql, /add column if not exists max_active_deliveries/);
+    assert.match(migrationSql, /max_active_deliveries between 1 and 10/);
+    assert.match(migrationSql, /active_delivery_count[\s\S]*max_active_deliveries/);
+    assert.match(platformTypes, /maxActiveDeliveries: number/);
+    assert.match(driversApi, /max_active_deliveries/);
+    assert.match(driversPage, /Одновременно заказов/);
+  });
+
+  it('lets a platform admin link priority couriers to a restaurant', () => {
+    assert.match(migrationSql, /restaurant_couriers[\s\S]*is_primary/);
+    assert.match(migrationSql, /restaurant_couriers[\s\S]*priority/);
+    assert.match(migrationSql, /platform admins manage restaurant couriers/);
+    assert.match(driversApi, /getDriverRestaurantAssignments/);
+    assert.match(driversApi, /saveDriverRestaurantAssignments/);
+    assert.match(driversPage, /Привязка к ресторанам/);
+    assert.match(driversPage, /Основной курьер/);
+  });
+
+  it('shows linked couriers first and exposes the general pool only as fallback', () => {
+    assert.match(restaurantApi, /isPrimary/);
+    assert.match(restaurantApi, /activeDeliveries/);
+    assert.match(restaurantApi, /maxActiveDeliveries/);
+    assert.match(restaurantPanel, /Курьеры ресторана/);
+    assert.match(restaurantPanel, /Вызвать таксистов/);
+    assert.match(restaurantPanel, /Свободных курьеров ресторана нет/);
+    assert.match(migrationSql, /delivery_provider = 'restaurant'/);
+    assert.match(migrationSql, /delivery_provider in \('platform', 'hybrid'\)/);
+    assert.match(pushSource, /restaurant_couriers/);
+    assert.match(pushSource, /max_active_deliveries/);
+  });
+
+  it('enforces capacity in the database when an offer is accepted', () => {
+    assert.match(migrationSql, /create or replace function public\.accept_available_delivery/);
+    assert.match(migrationSql, /active_delivery_count >= driver_capacity/);
+    assert.match(migrationSql, /Driver active delivery limit reached/);
+    assert.match(migrationSql, /create or replace function public\.assign_restaurant_delivery_driver/);
+    assert.match(restaurantApi, /assign_restaurant_delivery_driver/);
+    assert.match(driverApi, /accept_available_delivery/);
+  });
+
+  it('keeps driver debt synchronized from real commissions', () => {
+    assert.match(migrationSql, /refresh_driver_debt_amount/);
+    assert.match(migrationSql, /after insert or update or delete on public\.earnings/);
+    assert.match(migrationSql, /sum\(coalesce\(e\.commission, 0\)\)/);
+  });
+
+  it('opens navigation on a separate full-screen route and restores close follow mode', () => {
+    const activeScreen = driverApp.slice(
+      driverApp.indexOf('function DriverActiveScreen'),
+      driverApp.indexOf('function DriverQrScreen')
+    );
+    assert.doesNotMatch(activeScreen, /<DeliveryTrackingMap/);
+    assert.match(driverApp, /Открыть карту маршрута/);
+    assert.match(driverApp, /driver-phone--map/);
+    assert.match(mapSource, /setMapZoom\(17\)/);
+    assert.match(mapSource, /aria-label="Следить за водителем"/);
+  });
+});

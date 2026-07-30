@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { normalizeDriverCapacity } from '../driverCapacity';
 import {
   buildDeliveryDestinationAddress,
   buildYandexMapsRouteUrl,
@@ -101,6 +102,10 @@ export type RestaurantDispatchDriver = {
   status: string;
   scope: 'restaurant' | 'platform';
   servesOrder: boolean;
+  isPrimary: boolean;
+  priority: number;
+  activeDeliveries: number;
+  maxActiveDeliveries: number;
 };
 
 export type PublicRestaurantOrderStatus = {
@@ -446,9 +451,12 @@ type DispatchDriverRow = {
   rating: number | null;
   is_online: boolean | null;
   status: string | null;
+  max_active_deliveries?: number | string | null;
 };
 
 type RestaurantCourierRow = {
+  is_primary?: boolean | null;
+  priority?: number | null;
   drivers?: MaybeArray<DispatchDriverRow> | null;
 };
 
@@ -511,7 +519,8 @@ const driverServesOrder = (driver: DispatchDriverRow, order: Pick<RestaurantOrde
 const mapDispatchDriver = (
   row: DispatchDriverRow,
   order: Pick<RestaurantOrder, 'deliveryCity' | 'deliverySettlement'>,
-  scope: RestaurantDispatchDriver['scope']
+  scope: RestaurantDispatchDriver['scope'],
+  assignment?: Pick<RestaurantCourierRow, 'is_primary' | 'priority'>
 ): RestaurantDispatchDriver => ({
   id: row.id,
   name: row.name ?? 'Водитель',
@@ -522,7 +531,11 @@ const mapDispatchDriver = (
   isOnline: booleanValue(row.is_online),
   status: row.status ?? 'offline',
   scope,
-  servesOrder: driverServesOrder(row, order)
+  servesOrder: driverServesOrder(row, order),
+  isPrimary: assignment?.is_primary ?? false,
+  priority: Number(assignment?.priority ?? 100),
+  activeDeliveries: 0,
+  maxActiveDeliveries: normalizeDriverCapacity(row.max_active_deliveries)
 });
 
 const uniqueDispatchDrivers = (drivers: RestaurantDispatchDriver[]) => {
@@ -534,11 +547,6 @@ const uniqueDispatchDrivers = (drivers: RestaurantDispatchDriver[]) => {
     }
   }
   return Array.from(byId.values());
-};
-
-const createPickupToken = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID().replace(/-/g, '');
-  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 };
 
 const mapPublicOrderStatus = (row: PublicRestaurantOrderStatusRow): PublicRestaurantOrderStatus => ({
@@ -623,12 +631,16 @@ export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Prom
         isOnline: true,
         status: 'online',
         scope: 'restaurant',
-        servesOrder: true
+        servesOrder: true,
+        isPrimary: true,
+        priority: 1,
+        activeDeliveries: 0,
+        maxActiveDeliveries: 2
       }
     ];
   }
 
-  const driverSelect = 'id, name, phone, vehicle_info, car_number, city_name, service_settlements, rating, is_online, status';
+  const driverSelect = 'id, name, phone, vehicle_info, car_number, city_name, service_settlements, rating, is_online, status, max_active_deliveries';
   const restaurantResult = await supabase
     .from('restaurants')
     .select('id')
@@ -641,16 +653,17 @@ export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Prom
   if (restaurantIds.length > 0) {
     const ownResult = await supabase
       .from('restaurant_couriers')
-      .select(`drivers(${driverSelect})`)
+      .select(`is_primary, priority, drivers(${driverSelect})`)
       .in('restaurant_id', restaurantIds)
       .eq('is_active', true);
 
     if (ownResult.error && !relationMissing(ownResult.error)) throw ownResult.error;
 
     restaurantDrivers = ((ownResult.data ?? []) as unknown as RestaurantCourierRow[])
-      .map((row) => firstRelation(row.drivers))
-      .filter((driver): driver is DispatchDriverRow => Boolean(driver))
-      .map((driver) => mapDispatchDriver(driver, order, 'restaurant'));
+      .map((row) => ({ row, driver: firstRelation(row.drivers) }))
+      .filter((item): item is { row: RestaurantCourierRow; driver: DispatchDriverRow } => Boolean(item.driver))
+      .map(({ row, driver }) => mapDispatchDriver(driver, order, 'restaurant', row))
+      .sort((first, second) => Number(second.isPrimary) - Number(first.isPrimary) || first.priority - second.priority);
   }
 
   const platformResult = await supabase
@@ -666,7 +679,27 @@ export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Prom
     .map((driver) => mapDispatchDriver(driver, order, 'platform'))
     .filter((driver) => driver.servesOrder);
 
-  return uniqueDispatchDrivers([...restaurantDrivers, ...platformDrivers]);
+  const drivers = uniqueDispatchDrivers([...restaurantDrivers, ...platformDrivers]);
+  const driverIds = drivers.map((driver) => driver.id);
+  if (driverIds.length === 0) return drivers;
+
+  const activeResult = await supabase
+    .from('deliveries')
+    .select('driver_id')
+    .in('driver_id', driverIds)
+    .in('status', ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client']);
+  if (activeResult.error) throw activeResult.error;
+
+  const activeCounts = new Map<string, number>();
+  for (const row of (activeResult.data ?? []) as Array<{ driver_id: string | null }>) {
+    if (!row.driver_id) continue;
+    activeCounts.set(row.driver_id, (activeCounts.get(row.driver_id) ?? 0) + 1);
+  }
+
+  return drivers.map((driver) => ({
+    ...driver,
+    activeDeliveries: activeCounts.get(driver.id) ?? 0
+  }));
 }
 
 export function subscribeToRestaurantOrdersRealtime(catalogId: string | null | undefined, onChange: () => void) {
@@ -839,38 +872,12 @@ export async function assignRestaurantOrderDriver(order: RestaurantOrder, driver
   if (!supabase) return;
   if (!order.deliveryId) throw new Error('Сначала вызовите доставку, чтобы создать задачу для водителя.');
 
-  const pickupToken = createPickupToken();
-  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
-
-  const deliveryResult = await supabase
-    .from('deliveries')
-    .update({
-      driver_id: driverId,
-      status: 'assigned',
-      delivery_provider: 'restaurant',
-      assigned_at: new Date().toISOString(),
-      pickup_qr_token: pickupToken,
-      pickup_qr_expires_at: expiresAt
-    })
-    .eq('id', order.deliveryId)
-    .eq('order_id', order.id);
-
-  if (deliveryResult.error) throw deliveryResult.error;
-
-  const orderResult = await supabase
-    .from('orders')
-    .update({ status: 'assigned_driver' })
-    .eq('id', order.id)
-    .eq('catalog_id', order.catalogId);
-
-  if (orderResult.error) throw orderResult.error;
-
-  const driverResult = await supabase
-    .from('drivers')
-    .update({ is_online: true, status: 'heading_to_restaurant' })
-    .eq('id', driverId);
-
-  if (driverResult.error) throw driverResult.error;
+  const assignmentResult = await supabase.rpc('assign_restaurant_delivery_driver', {
+    target_delivery_id: order.deliveryId,
+    target_catalog_id: order.catalogId,
+    target_driver_id: driverId
+  });
+  if (assignmentResult.error) throw assignmentResult.error;
 }
 
 export async function sendRestaurantOrderToDriverPool(order: RestaurantOrder) {

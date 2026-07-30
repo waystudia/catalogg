@@ -20,6 +20,7 @@ import {
   type RestaurantOrder,
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
+import { driverHasCapacity } from '../../shared/driverCapacity';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import {
   loadPaymentStatus,
@@ -76,7 +77,12 @@ export function OrderDetailsPanel({
   const dispatchDrivers = dispatchDriversQuery.data ?? [];
   const onlineDrivers = dispatchDrivers.filter((driver) => driver.isOnline && driver.servesOrder);
   const ownDrivers = dispatchDrivers.filter((driver) => driver.scope === 'restaurant');
-  const ownOnlineDrivers = ownDrivers.filter((driver) => driver.isOnline && driver.servesOrder);
+  const ownOnlineDrivers = ownDrivers.filter(
+    (driver) =>
+      driver.isOnline &&
+      driver.servesOrder &&
+      driverHasCapacity(driver.activeDeliveries, driver.maxActiveDeliveries)
+  );
   const updatePaymentStatus = (status: PaymentStatus) => {
     savePaymentStatus(catalogSlug, order.id, status);
     setPaymentStatus(status);
@@ -296,7 +302,7 @@ export function OrderDetailsPanel({
           <section className="admin-driver-dispatch">
             <header>
               <div>
-                <strong>Водители</strong>
+                <strong>{ownDrivers.length > 0 ? 'Курьеры ресторана' : 'Водители'}</strong>
                 <span>В сети: {onlineDrivers.length}</span>
               </div>
               <button type="button" onClick={() => void dispatchDriversQuery.refetch()} disabled={dispatchDriversQuery.isFetching}>
@@ -316,7 +322,11 @@ export function OrderDetailsPanel({
                 {ownDrivers.length > 0 ? (
                   <div className="admin-driver-list">
                     {ownDrivers.map((driver) => {
-                      const canAssign = driver.isOnline && driver.servesOrder && assigningDriverId !== driver.id;
+                      const canAssign =
+                        driver.isOnline &&
+                        driver.servesOrder &&
+                        driverHasCapacity(driver.activeDeliveries, driver.maxActiveDeliveries) &&
+                        assigningDriverId !== driver.id;
                       return (
                         <button
                           type="button"
@@ -326,20 +336,27 @@ export function OrderDetailsPanel({
                           data-online={driver.isOnline}
                         >
                           <span>
-                            <strong>{driver.name}</strong>
+                            <strong>{driver.name}{driver.isPrimary ? ' · Основной курьер' : ''}</strong>
                             <small>{driver.vehicleInfo || 'Курьер'}{driver.carNumber ? ` · ${driver.carNumber}` : ''}</small>
+                            <small>Заказов: {driver.activeDeliveries} из {driver.maxActiveDeliveries}</small>
                           </span>
-                          <b>{driver.isOnline ? 'Отправить' : 'Не в сети'}</b>
+                          <b>
+                            {!driver.isOnline
+                              ? 'Не в сети'
+                              : !driverHasCapacity(driver.activeDeliveries, driver.maxActiveDeliveries)
+                                ? 'Занят'
+                                : 'Отправить'}
+                          </b>
                         </button>
                       );
                     })}
                   </div>
                 ) : (
-                  <p>Своих водителей в сети нет. Можно запустить общий поиск по платформе.</p>
+                  <p>Свободных курьеров ресторана нет. Можно вызвать водителей платформы.</p>
                 )}
 
                 <button className="admin-driver-dispatch__search" type="button" onClick={searchDriverPool} disabled={isSearchingDriver}>
-                  {isSearchingDriver ? 'Ищем водителя...' : 'ПОИСК ВОДИТЕЛЯ'}
+                  {isSearchingDriver ? 'Ищем водителей...' : 'Вызвать таксистов'}
                 </button>
                 {ownOnlineDrivers.length === 0 && <small>Заказ увидят все подходящие онлайн-водители.</small>}
               </>

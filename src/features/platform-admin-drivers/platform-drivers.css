@@ -181,6 +181,43 @@
   width: 14px;
 }
 
+.platform-driver-form__restaurants {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  margin: 0;
+  border: 1px solid #e4e8f0;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.platform-driver-form__restaurants legend {
+  padding: 0 4px;
+  color: #101828;
+  font-weight: 800;
+}
+
+.platform-driver-form__restaurants > small {
+  color: #667085;
+  line-height: 1.35;
+}
+
+.platform-driver-form__restaurants > label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 11px;
+  padding: 7px 9px;
+  background: #f8f9fc;
+}
+
+.platform-driver-form__restaurants > label b {
+  color: #6941c6;
+  font-size: 11px;
+}
+
 .platform-driver-list {
   overflow: visible;
   border: 1px solid #e4e8f0;

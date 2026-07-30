@@ -1,12 +1,13 @@
 /** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
 const config = {
+  plugins: ['@stryker-mutator/vitest-runner'],
   mutate: [
     'src/shared/pwaSession.ts:37:0-87:0',
     'src/shared/deliveryLocation.ts:1:0-95:0'
   ],
   testRunner: 'vitest',
   vitest: {
-    configFile: 'vitest.config.ts'
+    configFile: 'vitest.stryker.config.ts'
   },
   reporters: ['clear-text', 'progress'],
   thresholds: { high: 90, low: 75, break: 60 },

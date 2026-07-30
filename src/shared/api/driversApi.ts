@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { normalizeDriverCapacity } from '../driverCapacity';
 import type {
   CreateDriverPayload,
   CreateDriverResult,
@@ -23,6 +24,7 @@ type DriverRow = {
   status: string | null;
   rating: number | null;
   debt_amount?: number | string | null;
+  max_active_deliveries?: number | string | null;
   created_at: string;
   users?: {
     email?: string | null;
@@ -49,6 +51,7 @@ const demoDrivers: PlatformDriver[] = [
     status: 'online',
     rating: 4.9,
     debt: 0,
+    maxActiveDeliveries: 1,
     createdAt: new Date().toISOString()
   }
 ];
@@ -69,8 +72,16 @@ const mapDriver = (row: DriverRow): PlatformDriver => ({
   status: row.status ?? 'offline',
   rating: Number(row.rating ?? 5),
   debt: Number(row.debt_amount ?? 0),
+  maxActiveDeliveries: normalizeDriverCapacity(row.max_active_deliveries),
   createdAt: row.created_at
 });
+
+export type DriverRestaurantAssignment = {
+  restaurantId: string;
+  restaurantName: string;
+  isPrimary: boolean;
+  priority: number;
+};
 
 async function getFunctionErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'context' in error) {
@@ -93,7 +104,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
 
   const result = await supabase
     .from('drivers')
-    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, debt_amount, created_at, users(email), cities(name)')
+    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, debt_amount, max_active_deliveries, created_at, users(email), cities(name)')
     .order('created_at', { ascending: false });
 
   if (!result.error) {
@@ -210,6 +221,9 @@ export async function updateDriverProfile(payload: UpdateDriverPayload) {
   if (payload.carNumber !== undefined) driverPatch.car_number = payload.carNumber;
   if (payload.photoUrl !== undefined) driverPatch.photo_url = payload.photoUrl;
   if (payload.isActive !== undefined) driverPatch.is_active = payload.isActive;
+  if (payload.maxActiveDeliveries !== undefined) {
+    driverPatch.max_active_deliveries = normalizeDriverCapacity(payload.maxActiveDeliveries);
+  }
 
   if (Object.keys(driverPatch).length > 0) {
     const { error } = await supabase
@@ -230,4 +244,82 @@ export async function updateDriverProfile(payload: UpdateDriverPayload) {
       .eq('id', payload.userId);
     if (error) throw error;
   }
+}
+
+export async function getDriverRestaurantAssignments(driverId: string): Promise<{
+  restaurants: Array<{ id: string; name: string }>;
+  assignments: DriverRestaurantAssignment[];
+}> {
+  if (!supabase) {
+    return {
+      restaurants: [{ id: 'restaurant-demo', name: 'Демо-ресторан' }],
+      assignments: []
+    };
+  }
+
+  const [restaurantsResult, assignmentsResult] = await Promise.all([
+    supabase
+      .from('restaurants')
+      .select('id, name')
+      .order('name'),
+    supabase
+      .from('restaurant_couriers')
+      .select('restaurant_id, is_primary, priority, restaurants(name)')
+      .eq('driver_id', driverId)
+      .eq('is_active', true)
+  ]);
+
+  if (restaurantsResult.error) throw restaurantsResult.error;
+  if (assignmentsResult.error) throw assignmentsResult.error;
+
+  const restaurants = (restaurantsResult.data ?? []) as Array<{ id: string; name: string | null }>;
+  const assignments = (assignmentsResult.data ?? []) as unknown as Array<{
+    restaurant_id: string;
+    is_primary: boolean | null;
+    priority: number | null;
+    restaurants?: { name?: string | null } | Array<{ name?: string | null }> | null;
+  }>;
+
+  return {
+    restaurants: restaurants.map((restaurant) => ({
+      id: restaurant.id,
+      name: restaurant.name ?? 'Ресторан'
+    })),
+    assignments: assignments.map((assignment) => {
+      const restaurant = Array.isArray(assignment.restaurants)
+        ? assignment.restaurants[0]
+        : assignment.restaurants;
+      return {
+        restaurantId: assignment.restaurant_id,
+        restaurantName: restaurant?.name ?? 'Ресторан',
+        isPrimary: assignment.is_primary ?? false,
+        priority: Number(assignment.priority ?? 100)
+      };
+    })
+  };
+}
+
+export async function saveDriverRestaurantAssignments(
+  driverId: string,
+  assignments: Array<{ restaurantId: string; isPrimary: boolean }>
+) {
+  if (!supabase) return;
+
+  const deleteResult = await supabase
+    .from('restaurant_couriers')
+    .delete()
+    .eq('driver_id', driverId);
+  if (deleteResult.error) throw deleteResult.error;
+  if (assignments.length === 0) return;
+
+  const insertResult = await supabase.from('restaurant_couriers').insert(
+    assignments.map((assignment, index) => ({
+      restaurant_id: assignment.restaurantId,
+      driver_id: driverId,
+      is_active: true,
+      is_primary: assignment.isPrimary,
+      priority: assignment.isPrimary ? 1 : index + 10
+    }))
+  );
+  if (insertResult.error) throw insertResult.error;
 }

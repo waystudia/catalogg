@@ -16,5 +16,7 @@ vite.config.d.ts
 vite.config.js
 vitest.config.d.ts
 vitest.config.js
+vitest.stryker.config.d.ts
+vitest.stryker.config.js
 .stryker-tmp
 .vitest-attachments

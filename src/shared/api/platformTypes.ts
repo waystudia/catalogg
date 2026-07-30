@@ -234,6 +234,7 @@ export type PlatformDriver = {
   status: string;
   rating: number;
   debt: number;
+  maxActiveDeliveries: number;
   createdAt: string;
 };
 
@@ -311,6 +312,7 @@ export type UpdateDriverPayload = {
   vehicleInfo?: string;
   carNumber?: string;
   photoUrl?: string;
+  maxActiveDeliveries?: number;
   password?: string;
   isActive?: boolean;
 };

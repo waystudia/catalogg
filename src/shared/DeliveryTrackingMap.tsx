@@ -1,4 +1,4 @@
-import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, RotateCcw, Search } from 'lucide-react';
+import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import {
@@ -127,13 +127,13 @@ export function DeliveryTrackingMap({
   useEffect(() => {
     if (lastResetViewKeyRef.current === resetViewKey) return;
     lastResetViewKeyRef.current = resetViewKey;
-    setCenter(defaultCenter);
-    setMapZoom(defaultMapZoom);
+    setCenter(followDriverHeading && driver ? { lat: driver.lat, lng: driver.lng } : defaultCenter);
+    setMapZoom(followDriverHeading && driver ? 17 : defaultMapZoom);
     setSelectedPointKind(null);
     setManualRotation(0);
     lastAutoFollowCenterRef.current = driver ? { lat: driver.lat, lng: driver.lng } : null;
     userAdjustedViewRef.current = false;
-  }, [defaultCenter, defaultMapZoom, driver, resetViewKey]);
+  }, [defaultCenter, defaultMapZoom, driver, followDriverHeading, resetViewKey]);
   const tiles = useMemo(
     () => buildMapTileGrid({ center, zoom: mapZoom, mapSize, style: mapStyle }),
     [center, mapStyle, mapZoom]
@@ -339,7 +339,7 @@ export function DeliveryTrackingMap({
     setManualRotation(0);
     if (driver) {
       setCenter({ lat: driver.lat, lng: driver.lng });
-      setMapZoom(16);
+      setMapZoom(17);
       return;
     }
     setCenter(defaultCenter);
@@ -495,7 +495,7 @@ export function DeliveryTrackingMap({
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
-          <button type="button" onClick={centerOnDriver} aria-label="Вернуть обзор и направление на водителя"><RotateCcw /></button>
+          <button type="button" onClick={centerOnDriver} aria-label="Следить за водителем" title="Следить за водителем"><Navigation /></button>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
         </div>
         <div className="delivery-tracking-map__layers" aria-label="Слой карты" onPointerDown={(event) => event.stopPropagation()}>

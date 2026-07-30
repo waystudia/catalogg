@@ -56,6 +56,9 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.customer_phone else '' end/);
     assert.match(offersSql, /case when d\.driver_id = viewer_driver_id then o\.delivery_comment else null end/);
     assert.match(driverApi, /rpc\('get_driver_delivery_offers'\)/);
+    assert.match(driverApi, /loadDriverDeliveryOffers/);
+    assert.match(driverApi, /20_000/);
+    assert.match(driverApi, /firstAttempt\.error[\s\S]{0,500}get_driver_delivery_offers/);
     assert.doesNotMatch(offersSql, /r\.map_url/);
     assert.doesNotMatch(driverOfferFixSql, /r\.map_url/);
     assert.match(driverOfferFixSql, /'map_url', coalesce\(c\.map_url, ''\)/);

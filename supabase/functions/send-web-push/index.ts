@@ -126,8 +126,8 @@ Deno.serve(async (request) => {
       const deliveryId = asId(record.id);
       const orderId = asId(record.order_id);
       const [{ data: order }, { data: delivery }] = await Promise.all([
-        admin.from('orders').select('catalog_id, id, delivery_city, delivery_settlement').eq('id', orderId).maybeSingle(),
-        admin.from('deliveries').select('driver_id, status').eq('id', deliveryId).maybeSingle()
+        admin.from('orders').select('catalog_id, restaurant_id, id, delivery_city, delivery_settlement').eq('id', orderId).maybeSingle(),
+        admin.from('deliveries').select('driver_id, status, delivery_provider').eq('id', deliveryId).maybeSingle()
       ]);
       const catalogId = asId(order?.catalog_id);
       const driverId = asId(delivery?.driver_id);
@@ -147,11 +147,45 @@ Deno.serve(async (request) => {
       } else {
         const { data: onlineDrivers } = await admin
           .from('drivers')
-          .select('id, city_name, service_settlements')
+          .select('id, city_name, service_settlements, max_active_deliveries')
           .eq('is_active', true)
           .eq('is_online', true);
-        const onlineDriverIds = (onlineDrivers ?? [])
+        const onlineDriverRows = onlineDrivers ?? [];
+        const candidateIds = onlineDriverRows.map((driver) => driver.id).filter(Boolean);
+        const { data: activeDeliveries } = candidateIds.length > 0
+          ? await admin
+            .from('deliveries')
+            .select('driver_id')
+            .in('driver_id', candidateIds)
+            .in('status', ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client'])
+          : { data: [] };
+        const activeCounts = new Map<string, number>();
+        for (const activeDelivery of activeDeliveries ?? []) {
+          const activeDriverId = asId(activeDelivery.driver_id);
+          if (activeDriverId) activeCounts.set(activeDriverId, (activeCounts.get(activeDriverId) ?? 0) + 1);
+        }
+
+        let restaurantCourierIds: Set<string> | null = null;
+        if (asString(delivery?.delivery_provider) === 'restaurant') {
+          const restaurantId = asId(order?.restaurant_id);
+          const { data: restaurants } = restaurantId
+            ? { data: [{ id: restaurantId }] }
+            : await admin.from('restaurants').select('id').eq('catalog_id', catalogId);
+          const restaurantIds = (restaurants ?? []).map((restaurant) => restaurant.id).filter(Boolean);
+          const { data: restaurantCouriers } = restaurantIds.length > 0
+            ? await admin
+              .from('restaurant_couriers')
+              .select('driver_id')
+              .in('restaurant_id', restaurantIds)
+              .eq('is_active', true)
+            : { data: [] };
+          restaurantCourierIds = new Set((restaurantCouriers ?? []).map((courier) => asId(courier.driver_id)).filter(Boolean));
+        }
+
+        const onlineDriverIds = onlineDriverRows
           .filter((driver) => driverServesDeliveryLocation(driver, order?.delivery_city, order?.delivery_settlement))
+          .filter((driver) => (activeCounts.get(driver.id) ?? 0) < Number(driver.max_active_deliveries ?? 1))
+          .filter((driver) => restaurantCourierIds === null || restaurantCourierIds.has(driver.id))
           .map((driver) => driver.id)
           .filter(Boolean);
         if (onlineDriverIds.length > 0) {

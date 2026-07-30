@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Ban,
@@ -25,8 +25,10 @@ import {
 import { toast } from 'sonner';
 import {
   createDriver,
+  getDriverRestaurantAssignments,
   getDrivers,
   getPlatformDriverActivity,
+  saveDriverRestaurantAssignments,
   updateDriverProfile,
   updateDriverServiceSettlements
 } from '../../shared/api/driversApi';
@@ -106,9 +108,24 @@ function DriverForm({
   const [serviceSettlements, setServiceSettlements] = useState(driver?.serviceSettlements ?? []);
   const [vehicleInfo, setVehicleInfo] = useState(driver?.vehicleInfo ?? '');
   const [carNumber, setCarNumber] = useState(driver?.carNumber ?? '');
+  const [maxActiveDeliveries, setMaxActiveDeliveries] = useState(driver?.maxActiveDeliveries ?? 1);
+  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
+  const [primaryRestaurantId, setPrimaryRestaurantId] = useState('');
   const [password, setPassword] = useState(driver ? '' : generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const assignmentsQuery = useQuery({
+    queryKey: ['driver-restaurant-assignments', driver?.id],
+    queryFn: () => getDriverRestaurantAssignments(driver?.id ?? ''),
+    enabled: Boolean(driver?.id)
+  });
+
+  useEffect(() => {
+    const assignments = assignmentsQuery.data?.assignments;
+    if (!assignments) return;
+    setRestaurantIds(assignments.map((assignment) => assignment.restaurantId));
+    setPrimaryRestaurantId(assignments.find((assignment) => assignment.isPrimary)?.restaurantId ?? '');
+  }, [assignmentsQuery.data]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -124,8 +141,16 @@ function DriverForm({
           serviceSettlements,
           vehicleInfo,
           carNumber,
+          maxActiveDeliveries,
           password: password.trim() || undefined
         });
+        await saveDriverRestaurantAssignments(
+          driver.id,
+          restaurantIds.map((restaurantId) => ({
+            restaurantId,
+            isPrimary: restaurantId === primaryRestaurantId
+          }))
+        );
         toast.success('Данные водителя сохранены');
         onSaved();
       } else {
@@ -142,6 +167,11 @@ function DriverForm({
         if (serviceSettlements.length) {
           await updateDriverServiceSettlements(result.driverId, serviceSettlements);
         }
+        await updateDriverProfile({
+          driverId: result.driverId,
+          userId: result.userId,
+          maxActiveDeliveries
+        });
         toast.success('Водитель создан');
         onSaved(result, password);
       }
@@ -166,6 +196,11 @@ function DriverForm({
         </label>
         <label>Автомобиль<input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Lada Granta" /></label>
         <label>Госномер<input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="А123ВС 95" /></label>
+        <label>Одновременно заказов
+          <select value={maxActiveDeliveries} onChange={(event) => setMaxActiveDeliveries(Number(event.target.value))}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => <option value={value} key={value}>{value}</option>)}
+          </select>
+        </label>
         <label className="platform-driver-form__wide">Города и сёла работы
           <select
             multiple
@@ -176,6 +211,42 @@ function DriverForm({
             {settlementOptions.map((settlement) => <option value={settlement} key={settlement}>{settlement}</option>)}
           </select>
         </label>
+        {driver && (
+          <fieldset className="platform-driver-form__restaurants">
+            <legend>Привязка к ресторанам</legend>
+            <small>Сначала заказ увидят выбранные курьеры ресторана. Основной курьер отображается первым.</small>
+            {assignmentsQuery.isLoading && <span>Загружаем рестораны…</span>}
+            {assignmentsQuery.data?.restaurants.map((restaurant) => {
+              const checked = restaurantIds.includes(restaurant.id);
+              return (
+                <label key={restaurant.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      setRestaurantIds((current) => event.target.checked
+                        ? [...current, restaurant.id]
+                        : current.filter((id) => id !== restaurant.id));
+                      if (!event.target.checked && primaryRestaurantId === restaurant.id) {
+                        setPrimaryRestaurantId('');
+                      }
+                    }}
+                  />
+                  <span>{restaurant.name}</span>
+                  <input
+                    type="radio"
+                    name="primary-restaurant"
+                    checked={primaryRestaurantId === restaurant.id}
+                    disabled={!checked}
+                    onChange={() => setPrimaryRestaurantId(restaurant.id)}
+                    aria-label={`Основной курьер — ${restaurant.name}`}
+                  />
+                  <b>Основной курьер</b>
+                </label>
+              );
+            })}
+          </fieldset>
+        )}
         <label className="platform-driver-form__wide">{driver ? 'Новый пароль (необязательно)' : 'Временный пароль'}
           <span className="platform-driver-form__password">
             <input
@@ -240,6 +311,7 @@ function DriverDetails({
         <div><dt>Госномер</dt><dd>{driver.carNumber || 'Не указан'}</dd></div>
         <div><dt>Город</dt><dd>{driver.cityName || 'Не указан'}</dd></div>
         <div><dt>Зоны работы</dt><dd>{driver.serviceSettlements.join(', ') || 'Не указаны'}</dd></div>
+        <div><dt>Одновременно заказов</dt><dd>{driver.maxActiveDeliveries}</dd></div>
         <div><dt>Рейтинг</dt><dd>{driver.rating.toFixed(1)}</dd></div>
       </dl>
     </div>
@@ -248,8 +320,16 @@ function DriverDetails({
 
 export function PlatformDriversPage() {
   const queryClient = useQueryClient();
-  const driversQuery = useQuery({ queryKey: ['platform-drivers'], queryFn: getDrivers });
-  const activityQuery = useQuery({ queryKey: ['platform-driver-activity'], queryFn: getPlatformDriverActivity });
+  const driversQuery = useQuery({
+    queryKey: ['platform-drivers'],
+    queryFn: getDrivers,
+    refetchInterval: 15_000
+  });
+  const activityQuery = useQuery({
+    queryKey: ['platform-driver-activity'],
+    queryFn: getPlatformDriverActivity,
+    refetchInterval: 15_000
+  });
   const settlementsQuery = useQuery({ queryKey: ['delivery-settlements'], queryFn: getDeliverySettlements });
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DriverFilter>('all');
@@ -397,6 +477,7 @@ export function PlatformDriversPage() {
               <small>{driver.phone || driver.email || 'Контакты не указаны'}</small>
               <small>{driver.vehicleInfo || 'Автомобиль не указан'}{driver.carNumber ? ` · ${driver.carNumber}` : ''}</small>
               <em><MapPin />{driver.serviceSettlements.join(', ') || driver.cityName || 'Город не указан'}</em>
+              <em><Truck />До {driver.maxActiveDeliveries} заказов одновременно</em>
             </div>
             <span className={driver.isOnline ? 'platform-driver-status is-online' : 'platform-driver-status'}>
               {driver.isOnline ? 'Онлайн' : 'Оффлайн'}

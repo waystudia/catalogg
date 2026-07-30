@@ -569,20 +569,19 @@ export function DriverApp() {
 
   return (
     <main className="driver-app">
-      <section className="driver-phone">
+      <section className={route === 'map' ? 'driver-phone driver-phone--map' : 'driver-phone'}>
         {route === 'profile' ? (
           <DriverProfileScreen profile={profile} snapshot={snapshot} error={error} />
         ) : route === 'orders' ? (
           <DriverOrdersScreen
             driverId={effectiveDriverId}
-            profile={profile}
             offers={availableDeliveries}
             activeDelivery={activeDelivery}
             recentDeliveryIds={recentDeliveryIds}
             error={error}
           />
         ) : route === 'active' ? (
-          <DriverActiveScreen delivery={activeDelivery} profile={profile} />
+          <DriverActiveScreen delivery={activeDelivery} />
         ) : route === 'map' ? (
           <DriverMapScreen delivery={mapDelivery} profile={profile} />
         ) : route === 'qr' ? (
@@ -1109,14 +1108,12 @@ export function DriverYandexNavigationActions({
 
 function DriverOrdersScreen({
   driverId,
-  profile,
   offers,
   activeDelivery,
   recentDeliveryIds,
   error
 }: {
   driverId: string;
-  profile: DriverProfile;
   offers: readonly DeliveryOffer[];
   activeDelivery: DeliveryOffer | null;
   recentDeliveryIds: Set<string>;
@@ -1135,7 +1132,7 @@ function DriverOrdersScreen({
   const offerGroups = useMemo(() => groupOrdersByDate(visibleOffers), [visibleOffers]);
 
   if (selectedOffer?.isAssignedToViewer) {
-    return <DriverActiveScreen delivery={selectedOffer} profile={profile} />;
+    return <DriverActiveScreen delivery={selectedOffer} />;
   }
 
   if (selectedOffer) return <DriverNewOrderScreen driverId={driverId} offer={selectedOffer} />;
@@ -1296,14 +1293,12 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   );
 }
 
-function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
+function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const navigate = useNavigate();
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [error, setError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
-  const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status) : null, [delivery]);
@@ -1355,30 +1350,14 @@ function DriverActiveScreen({ delivery, profile }: { delivery: DeliveryOffer | n
   return (
     <>
       <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{deliveryStatusLabels[delivery.status]}</small>} />
-      {completeMapData ? (
-        <DeliveryTrackingMap
-          className="driver-tracking-map"
-          initialStyle="satellite"
-          restaurant={{ lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
-          client={{
-            lat: completeMapData.deliveryLat,
-            lng: completeMapData.deliveryLng,
-            label: delivery.clientName || 'Клиент',
-            address: displayDeliveryAddress,
-            details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
-          }}
-          routePoints={getDriverRoutePoints({
-            status: delivery.status,
-            driver: { lat: profile.lastLat, lng: profile.lastLng },
-            restaurant: { lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng },
-            client: { lat: completeMapData.deliveryLat, lng: completeMapData.deliveryLng }
-          })}
-          followDriverHeading={profile.lastLat !== null && profile.lastLng !== null}
-          driver={profile.lastLat !== null && profile.lastLng !== null
-            ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
-            : null}
-        />
-      ) : <DriverMapUnavailable message={getDriverMapUnavailableMessage(mapData)} />}
+      <Link className="driver-open-map" to={`/driver/map/${delivery.deliveryId}`}>
+        <Navigation />
+        <span>
+          <strong>Открыть карту маршрута</strong>
+          <small>Полноэкранная навигация со слежением за водителем</small>
+        </span>
+        <ChevronRight />
+      </Link>
       <section className="driver-order-panel">
         <h2>{delivery.restaurantName}</h2>
         <DriverRouteLine icon={<MapPin />} label="Адрес клиента" value={displayDeliveryAddress} />

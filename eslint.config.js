@@ -7,7 +7,7 @@ import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   {
-    ignores: ['dist', 'node_modules', 'vite.config.d.ts', 'supabase/functions']
+    ignores: ['dist', 'node_modules', '.stryker-tmp', 'vite.config.d.ts', 'supabase/functions']
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended, prettier],
