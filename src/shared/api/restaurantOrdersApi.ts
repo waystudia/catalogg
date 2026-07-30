@@ -73,6 +73,7 @@ export type RestaurantOrder = {
   paymentStatus: PaymentStatus;
   deliveryStatus: DeliveryStatus;
   deliveryId: string | null;
+  deliveryUpdatedAt: string | null;
   driverName: string | null;
   driverPhone: string | null;
   driverVehicleInfo: string | null;
@@ -236,6 +237,7 @@ type OrderRow = {
     id: string;
     status: DeliveryStatus | 'waiting_driver';
     driver_id: string | null;
+    updated_at?: string | null;
     pickup_qr_confirmed_at?: string | null;
     drivers?: MaybeArray<{
       name: string | null;
@@ -335,6 +337,7 @@ const demoOrders: RestaurantOrder[] = [
     paymentStatus: 'unpaid',
     deliveryStatus: 'not_required',
     deliveryId: null,
+    deliveryUpdatedAt: null,
     driverName: null,
     driverPhone: null,
     driverVehicleInfo: null,
@@ -397,7 +400,7 @@ const orderSelect = `
   payment_status,
   restaurant_payment_confirmed_at,
   restaurants(city_id, cities(name)),
-  deliveries(id, status, driver_id, pickup_qr_confirmed_at, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
+  deliveries(id, status, driver_id, updated_at, pickup_qr_confirmed_at, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
   order_items(id, title, quantity, unit_price, line_total)
 `;
 
@@ -407,9 +410,11 @@ const selectRelevantDelivery = (deliveries: OrderRow['deliveries']) => {
     const firstAssigned = Number(Boolean(first.driver_id));
     const secondAssigned = Number(Boolean(second.driver_id));
     if (firstAssigned !== secondAssigned) return secondAssigned - firstAssigned;
-    const firstActive = Number(first.status === 'assigned' || first.status === 'arrived_to_restaurant' || first.status === 'on_the_way');
-    const secondActive = Number(second.status === 'assigned' || second.status === 'arrived_to_restaurant' || second.status === 'on_the_way');
-    return secondActive - firstActive;
+    const activeStatuses = ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client'];
+    const firstActive = Number(activeStatuses.includes(first.status));
+    const secondActive = Number(activeStatuses.includes(second.status));
+    if (firstActive !== secondActive) return secondActive - firstActive;
+    return new Date(second.updated_at ?? 0).getTime() - new Date(first.updated_at ?? 0).getTime();
   })[0] ?? null;
 };
 
@@ -461,6 +466,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
         ? 'waiting_courier'
         : delivery?.status ?? (row.fulfillment_type === 'delivery' ? 'waiting_courier' : 'not_required'),
     deliveryId: delivery?.id ?? null,
+    deliveryUpdatedAt: delivery?.updated_at ?? null,
     driverName: driver?.name ?? null,
     driverPhone: driver?.phone ?? null,
     driverVehicleInfo: driver?.vehicle_info ?? null,
@@ -807,6 +813,16 @@ export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder
     if (!driverId || order.driverName) return order;
     return hydrateRestaurantOrderDriver(order, driversById.get(driverId) ?? null);
   });
+}
+
+export async function deleteRestaurantTestOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'>) {
+  if (!supabase) return true;
+  const { data, error } = await supabase.rpc('delete_restaurant_test_order', {
+    target_order_id: order.id,
+    target_catalog_id: order.catalogId
+  });
+  if (error) throw new Error(error.message);
+  return Boolean(data);
 }
 
 export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Promise<RestaurantDispatchDriver[]> {

@@ -148,7 +148,20 @@ export function getAdminOrderRouteHref(order: RestaurantOrder) {
 export function groupAdminOrdersByMonth(orders: readonly RestaurantOrder[]) {
   const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
   const groups = new Map<string, { key: string; label: string; orders: RestaurantOrder[] }>();
-  const sortedOrders = [...orders].sort(
+  const activeDeliveryOrders = orders
+    .filter(
+      (order) =>
+        order.fulfillmentType === 'delivery' &&
+        !['delivered', 'completed', 'cancelled', 'canceled'].includes(order.status) &&
+        !['delivered', 'failed'].includes(order.deliveryStatus)
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.deliveryUpdatedAt ?? right.createdAt).getTime() -
+        new Date(left.deliveryUpdatedAt ?? left.createdAt).getTime()
+    );
+  const activeOrderIds = new Set(activeDeliveryOrders.map((order) => order.id));
+  const sortedOrders = orders.filter((order) => !activeOrderIds.has(order.id)).sort(
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
   );
 
@@ -160,7 +173,12 @@ export function groupAdminOrdersByMonth(orders: readonly RestaurantOrder[]) {
     groups.set(key, group);
   }
 
-  return [...groups.values()];
+  return [
+    ...(activeDeliveryOrders.length > 0
+      ? [{ key: 'active-deliveries', label: 'Активные доставки', orders: activeDeliveryOrders }]
+      : []),
+    ...groups.values()
+  ];
 }
 
 export function playRestaurantAdminOrderSound() {

@@ -11,7 +11,12 @@ import { getCurrentStock } from '../restaurant-settings/catalogAdminModel';
 import { DeliverySettingsCard, SettingsHub, defaultRestaurantDeliverySettings } from '../restaurant-settings';
 import { ScannerPage } from '../../pages/scanner/ScannerPage';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
-import type { RestaurantDeliverySettings, RestaurantOrder, RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import {
+  deleteRestaurantTestOrder,
+  type RestaurantDeliverySettings,
+  type RestaurantOrder,
+  type RestaurantOrderStatus
+} from '../../shared/api/restaurantOrdersApi';
 import { formatOrderTime } from '../../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission,
@@ -128,6 +133,18 @@ export function RestaurantAdminWorkspace({
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
     });
+  };
+  const deleteTestOrder = async (order: RestaurantOrder) => {
+    if (!window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) return;
+    try {
+      const deleted = await deleteRestaurantTestOrder(order);
+      if (!deleted) throw new Error('Заказ уже удалён или не найден');
+      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      toast.success(`Тестовый заказ #${order.orderNumber} удалён`);
+      onRefreshOrders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить тестовый заказ');
+    }
   };
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({ role: 'restaurant', catalogSlug }).then(setNotificationPermission);
@@ -359,30 +376,42 @@ export function RestaurantAdminWorkspace({
                       </summary>
                       <div>
                         {group.orders.map((order) => (
-                          <button
-                            className="admin-order-card"
-                            data-active={selectedVisibleOrder?.id === order.id}
-                            data-highlighted={recentOrderIds.has(order.id)}
-                            type="button"
-                            key={order.id}
-                            onClick={() => openOrderFromList(order)}
-                          >
-                            <span className="admin-order-card__head">
-                              <strong>#{order.orderNumber}</strong>
-                              <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
-                            </span>
-                            <span className="admin-order-card__meta">
-                              {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
-                            </span>
-                            <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
-                            <span className="admin-order-card__foot">
-                              <b>{formatPrice(order.total)}</b>
-                              <i data-tone={adminOrderStatusTones[order.status]}>
-                                {order.status === 'new' && <span aria-hidden="true" />}
-                                {adminOrderStatusLabels[order.status]}
-                              </i>
-                            </span>
-                          </button>
+                          <div className="admin-order-card-shell" key={order.id}>
+                            <button
+                              className="admin-order-card"
+                              data-active={selectedVisibleOrder?.id === order.id}
+                              data-highlighted={recentOrderIds.has(order.id)}
+                              type="button"
+                              onClick={() => openOrderFromList(order)}
+                            >
+                              <span className="admin-order-card__head">
+                                <strong>#{order.orderNumber}</strong>
+                                <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
+                              </span>
+                              <span className="admin-order-card__meta">
+                                {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
+                              </span>
+                              <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
+                              <span className="admin-order-card__foot">
+                                <b>{formatPrice(order.total)}</b>
+                                <i data-tone={adminOrderStatusTones[order.status]}>
+                                  {order.status === 'new' && <span aria-hidden="true" />}
+                                  {adminOrderStatusLabels[order.status]}
+                                </i>
+                              </span>
+                            </button>
+                            {import.meta.env.DEV && (
+                              <button
+                                className="admin-order-card__dev-delete"
+                                type="button"
+                                aria-label={`Удалить тестовый заказ ${order.orderNumber}`}
+                                title="Удалить тестовый заказ"
+                                onClick={() => void deleteTestOrder(order)}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </details>

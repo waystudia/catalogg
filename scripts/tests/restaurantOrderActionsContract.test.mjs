@@ -54,6 +54,20 @@ describe('restaurant order action contract', () => {
     assert.match(overflowMenu, /Удалить заказ/);
   });
 
+  it('exposes quick irreversible deletion only in the local development order list', async () => {
+    const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
+    const api = await read('src/shared/api/restaurantOrdersApi.ts');
+    const migration = await read('supabase/migrations/20260730234824_development_delete_restaurant_order.sql');
+
+    assert.match(workspace, /import\.meta\.env\.DEV &&/);
+    assert.match(workspace, /admin-order-card__dev-delete/);
+    assert.match(workspace, /deleteRestaurantTestOrder\(order\)/);
+    assert.match(api, /rpc\('delete_restaurant_test_order'/);
+    assert.match(migration, /public\.is_catalog_member/);
+    assert.match(migration, /client\.owner_user_id = auth\.uid\(\)/);
+    assert.match(migration, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon/);
+  });
+
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const api = await read('src/shared/api/restaurantOrdersApi.ts');

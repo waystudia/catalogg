@@ -1207,12 +1207,40 @@
 
 .admin-order-card {
   display: grid;
+  width: 100%;
   gap: 5px;
   min-height: auto;
   padding: 12px 14px;
   color: #111827;
   font: inherit;
   text-align: left;
+}
+
+.admin-order-card-shell {
+  position: relative;
+}
+
+.admin-order-card__dev-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #d92d20;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.admin-order-card-shell:has(.admin-order-card__dev-delete) .admin-order-card__head {
+  padding-right: 34px;
 }
 
 .admin-order-card[data-active='true'] {
