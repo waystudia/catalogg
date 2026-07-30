@@ -112,6 +112,41 @@ $$;
 revoke all on function public.confirm_delivery_pickup_qr(uuid, text) from public, anon;
 grant execute on function public.confirm_delivery_pickup_qr(uuid, text) to authenticated;
 
+create or replace function public.confirm_delivery_pickup_qr_by_token(
+  target_catalog_slug text,
+  presented_token text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_delivery_id uuid;
+begin
+  select d.id
+    into target_delivery_id
+  from public.deliveries d
+  join public.orders o on o.id = d.order_id
+  join public.catalogs c on c.id = o.catalog_id
+  where lower(c.slug) = lower(trim(target_catalog_slug))
+    and d.status = 'arrived_to_restaurant'
+    and d.pickup_qr_token = trim(presented_token)
+    and d.pickup_qr_expires_at > now()
+  order by d.updated_at desc nulls last, d.created_at desc
+  limit 1;
+
+  if target_delivery_id is null then
+    return false;
+  end if;
+
+  return public.confirm_delivery_pickup_qr(target_delivery_id, presented_token);
+end;
+$$;
+
+revoke all on function public.confirm_delivery_pickup_qr_by_token(text, text) from public, anon;
+grant execute on function public.confirm_delivery_pickup_qr_by_token(text, text) to authenticated;
+
 create or replace function public.update_current_driver_delivery_status(
   target_delivery_id uuid,
   next_status text

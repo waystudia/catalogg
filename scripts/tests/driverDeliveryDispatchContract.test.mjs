@@ -26,6 +26,10 @@ const driverDashboardBundleSql = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260730213431_add_driver_dashboard_bundle_rpc.sql'),
   'utf8'
 );
+const restaurantQrFallbackSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260730223000_add_restaurant_qr_token_fallback.sql'),
+  'utf8'
+);
 
 const extractFunction = (name) => {
   const marker = `create or replace function public.${name}`;
@@ -75,7 +79,7 @@ describe('restaurant to driver delivery contract', () => {
     assert.doesNotMatch(driverOfferFixSql, /r\.map_url/);
     assert.match(driverOfferFixSql, /'map_url', coalesce\(c\.map_url, ''\)/);
     assert.match(driverApi, /if \(deliveriesResult\.error\) throw deliveriesResult\.error/);
-    assert.doesNotMatch(driverApi, /\.from\('deliveries'\)[\s\S]{0,500}\.select\(/);
+    assert.match(driverApi, /rpc\('confirm_delivery_pickup_qr_by_token'/);
   });
 
   it('uses the database driver status as the single online source of truth', () => {
@@ -141,6 +145,15 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(cashHandoverSql, /payment_confirmed_at is null/);
     assert.match(cashHandoverSql, /perform public\.update_current_driver_delivery_status\(target_delivery_id, 'handed_over'\)/);
     assert.match(driverApi, /rpc\('confirm_driver_pickup'/);
+    assert.match(restaurantQrFallbackSql, /create or replace function public\.confirm_delivery_pickup_qr_by_token/);
+    assert.match(restaurantQrFallbackSql, /lower\(c\.slug\) = lower\(trim\(target_catalog_slug\)\)/);
+    assert.match(restaurantQrFallbackSql, /return public\.confirm_delivery_pickup_qr\(target_delivery_id, presented_token\)/);
+    assert.match(restaurantQrFallbackSql, /pickup_qr_expires_at > now\(\)/);
+    assert.match(restaurantQrFallbackSql, /create or replace function public\.refresh_current_driver_pickup_qr/);
+    assert.match(restaurantQrFallbackSql, /viewer_driver_id uuid := public\.current_driver_id\(\)/);
+    assert.match(restaurantQrFallbackSql, /pickup_qr_expires_at = now\(\) \+ interval '30 minutes'/);
+    assert.match(driverApi, /rpc\('refresh_current_driver_pickup_qr'/);
+    assert.match(driverApi, /rpc\('confirm_delivery_pickup_qr_by_token'/);
   });
 
   it('returns handover gates to the assigned driver and renders the status progress bar', () => {

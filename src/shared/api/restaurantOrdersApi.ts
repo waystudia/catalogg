@@ -14,6 +14,7 @@ import {
 } from './restaurantOrderPayload';
 import { getConfiguredDeliveryPrice } from './deliveryPricingApi';
 import { resolveStoredDeliveryLocation } from '../deliveryLocation';
+import { formatPublicOrderNumber } from '../publicOrderNumber';
 
 type MaybeArray<T> = T | T[];
 
@@ -256,6 +257,21 @@ type OrderRow = {
   }>;
 };
 
+type OrderDeliveryRow = NonNullable<OrderRow['deliveries']>[number];
+
+type DriverLookupRow = {
+  order_id?: string;
+  id: string;
+  name: string | null;
+  phone: string | null;
+  vehicle_info: string | null;
+  car_number: string | null;
+  photo_url: string | null;
+  last_lat: number | null;
+  last_lng: number | null;
+  last_location_at: string | null;
+};
+
 type PublicRestaurantOrderStatusRow = {
   id?: unknown;
   customer_name?: unknown;
@@ -385,8 +401,20 @@ const orderSelect = `
   order_items(id, title, quantity, unit_price, line_total)
 `;
 
-const mapOrder = (row: OrderRow): RestaurantOrder => {
-  const delivery = row.deliveries?.[0];
+const selectRelevantDelivery = (deliveries: OrderRow['deliveries']) => {
+  if (!Array.isArray(deliveries) || deliveries.length === 0) return null;
+  return [...deliveries].sort((first, second) => {
+    const firstAssigned = Number(Boolean(first.driver_id));
+    const secondAssigned = Number(Boolean(second.driver_id));
+    if (firstAssigned !== secondAssigned) return secondAssigned - firstAssigned;
+    const firstActive = Number(first.status === 'assigned' || first.status === 'arrived_to_restaurant' || first.status === 'on_the_way');
+    const secondActive = Number(second.status === 'assigned' || second.status === 'arrived_to_restaurant' || second.status === 'on_the_way');
+    return secondActive - firstActive;
+  })[0] ?? null;
+};
+
+const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => {
+  const delivery = selectRelevantDelivery(row.deliveries);
   const driver = firstRelation(delivery?.drivers);
   const deliveryLocation = resolveStoredDeliveryLocation({
     lat: row.delivery_lat,
@@ -409,7 +437,7 @@ const mapOrder = (row: OrderRow): RestaurantOrder => {
 
   return {
     id: row.id,
-    orderNumber: row.id.slice(0, 8).toUpperCase(),
+    orderNumber: formatPublicOrderNumber(row.id, restaurantNameOrSlug),
     catalogId: row.catalog_id,
     clientName: row.customer_name,
     clientPhone: row.customer_phone,
@@ -461,6 +489,28 @@ const mapOrder = (row: OrderRow): RestaurantOrder => {
       unitPrice: item.unit_price,
       lineTotal: item.line_total
     }))
+  };
+};
+
+const hydrateRestaurantOrderDriver = (order: RestaurantOrder, driver: DriverLookupRow | null): RestaurantOrder => {
+  if (!driver) return order;
+  const driverLocation = resolveStoredDeliveryLocation({
+    lat: driver.last_lat,
+    lng: driver.last_lng,
+    accuracyM: null,
+    note: ''
+  });
+
+  return {
+    ...order,
+    driverName: driver.name ?? order.driverName,
+    driverPhone: driver.phone ?? order.driverPhone,
+    driverVehicleInfo: driver.vehicle_info ?? order.driverVehicleInfo,
+    driverCarNumber: driver.car_number ?? order.driverCarNumber,
+    driverPhotoUrl: driver.photo_url ?? order.driverPhotoUrl,
+    driverLat: driverLocation?.lat ?? order.driverLat,
+    driverLng: driverLocation?.lng ?? order.driverLng,
+    driverLocationAt: driver.last_location_at ?? order.driverLocationAt
   };
 };
 
@@ -699,7 +749,64 @@ export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return ((data ?? []) as unknown as OrderRow[]).map(mapOrder);
+  const rows = ((data ?? []) as unknown as OrderRow[]);
+  const mappedOrders = rows.map((row) => mapOrder(row, slug));
+  const ordersMissingDriver = mappedOrders.filter(
+    (order) =>
+      order.fulfillmentType === 'delivery' &&
+      !order.driverName &&
+      ['driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'].includes(order.status)
+  );
+  if (ordersMissingDriver.length === 0) return mappedOrders;
+
+  const missingDriverIds = Array.from(
+    new Set(
+      rows
+        .map((row) => selectRelevantDelivery(row.deliveries))
+        .filter((delivery): delivery is OrderDeliveryRow => Boolean(delivery?.driver_id))
+        .filter((delivery) => {
+          const driver = firstRelation(delivery.drivers);
+          return !driver?.name;
+        })
+        .map((delivery) => String(delivery.driver_id))
+    )
+  );
+
+  const driverRpcResult = await supabase.rpc('get_restaurant_assigned_drivers', {
+    target_catalog_id: catalogId
+  });
+  if (driverRpcResult.error) {
+    console.warn('Assigned restaurant drivers RPC failed; using the legacy table fallback.', driverRpcResult.error);
+  }
+  const driversResult = driverRpcResult.error && missingDriverIds.length > 0
+    ? await supabase
+        .from('drivers')
+        .select('id, name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at')
+        .in('id', missingDriverIds)
+    : driverRpcResult;
+
+  if (driversResult.error) return mappedOrders;
+
+  const driverRows = (driversResult.data ?? []) as DriverLookupRow[];
+  const driversByOrderId = new Map(
+    driverRows
+      .filter((driver) => driver.order_id)
+      .map((driver) => [String(driver.order_id), driver])
+  );
+  const driversById = new Map(
+    driverRows.map((driver) => [driver.id, driver])
+  );
+
+  return mappedOrders.map((order, index) => {
+    const driverByOrder = driversByOrderId.get(order.id);
+    if (driverByOrder && !order.driverName) {
+      return hydrateRestaurantOrderDriver(order, driverByOrder);
+    }
+    const delivery = selectRelevantDelivery(rows[index]?.deliveries);
+    const driverId = delivery?.driver_id ?? null;
+    if (!driverId || order.driverName) return order;
+    return hydrateRestaurantOrderDriver(order, driversById.get(driverId) ?? null);
+  });
 }
 
 export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Promise<RestaurantDispatchDriver[]> {

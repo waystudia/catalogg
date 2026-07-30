@@ -28,6 +28,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import { useDriverStore } from '../../features/driver/store';
 import {
   getDriverDeliveryProgress,
@@ -49,6 +50,7 @@ import {
   getAuthenticatedDriverId,
   getDriverDashboard,
   hasDriverAuthSession,
+  refreshDriverPickupQr,
   saveDriverProfile,
   signOutDriver,
   setDriverAvailability,
@@ -78,6 +80,39 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 
 const buildDriverPickupQrPayload = (delivery: Pick<DeliveryOffer, 'deliveryId' | 'orderId' | 'pickupQrToken'> | null) =>
   delivery?.pickupQrToken ? `wc-delivery|${delivery.deliveryId}|${delivery.pickupQrToken}` : '';
+
+const useDriverPickupQrImage = (payload: string) => {
+  const [qrImageUrl, setQrImageUrl] = useState('');
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!payload) {
+      setQrImageUrl('');
+      return () => {
+        isCancelled = true;
+      };
+    }
+
+    void QRCode.toDataURL(payload, {
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      width: 320
+    })
+      .then((dataUrl) => {
+        if (!isCancelled) setQrImageUrl(dataUrl);
+      })
+      .catch(() => {
+        if (!isCancelled) setQrImageUrl('');
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [payload]);
+
+  return qrImageUrl;
+};
 
 const coordinatePairPattern = /-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+/g;
 const addressHasStreetDetails = (value: string) =>
@@ -251,8 +286,8 @@ const latestDeliveryStatus = (first: DeliveryStatus, second: DeliveryStatus) =>
 
 const emptySnapshot: DriverDashboardSnapshot = {
   profile: {
-    id: 'driver-demo',
-    name: 'Водитель',
+    id: '',
+    name: '',
     phone: '',
     vehicleInfo: '',
     carNumber: '',
@@ -683,12 +718,14 @@ function DriverHomeScreen({
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const displayedOnline = optimisticOnline ?? profile.isOnline;
+  const displayDriverName = profile.name.trim() || 'Профиль загружается…';
   const { urgentOffer, otherOffers, hiddenOffersCount } = useMemo(
     () => splitDriverHomeOffers(availableDeliveries),
     [availableDeliveries]
   );
 
   useEffect(() => {
+    if (!profile.id) return;
     void restoreRestaurantOrderNotificationSubscription({
       role: 'driver',
       driverId: profile.id
@@ -749,7 +786,7 @@ function DriverHomeScreen({
             {displayedOnline ? 'Вы в сети' : 'Вы не в сети'}
             <span data-online={displayedOnline} aria-hidden="true" />
           </strong>
-          <small>{profile.name}</small>
+          <small>{displayDriverName}</small>
         </div>
         <div className="driver-topbar__actions">
           <button
@@ -919,9 +956,13 @@ function DriverCurrentDeliveryPanel({
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
+  const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
   const nextAction = getDriverNextAction(offer.status);
   const progress = getDriverDeliveryProgress(offer.status);
+  const qrPayload = buildDriverPickupQrPayload(offer);
+  const qrImageUrl = useDriverPickupQrImage(qrPayload);
   const waitingForCashConfirmation =
     offer.status === 'arrived_to_restaurant' &&
     offer.paymentMethod === 'cash' &&
@@ -930,6 +971,40 @@ function DriverCurrentDeliveryPanel({
     offer.status === 'arrived_to_restaurant' &&
     !offer.pickupQrConfirmed;
   const pickupBlocked = waitingForCashConfirmation || waitingForQr;
+
+  useEffect(() => {
+    const qrExpiresAt = offer.pickupQrExpiresAt;
+    if (!waitingForQr || !qrExpiresAt) {
+      setQrSecondsLeft(0);
+      return undefined;
+    }
+
+    const updateTimer = () => {
+      const secondsLeft = Math.max(
+        0,
+        Math.ceil((new Date(qrExpiresAt).getTime() - Date.now()) / 1000)
+      );
+      setQrSecondsLeft(secondsLeft);
+
+      if (secondsLeft === 0 && !qrRefreshInFlightRef.current) {
+        qrRefreshInFlightRef.current = true;
+        void refreshDriverPickupQr(offer.deliveryId)
+          .then(() => onRefresh())
+          .catch((refreshError) => {
+            setError(refreshError instanceof Error ? refreshError.message : 'Не удалось обновить QR-код');
+          })
+          .finally(() => {
+            qrRefreshInFlightRef.current = false;
+          });
+      }
+    };
+
+    updateTimer();
+    const intervalId = window.setInterval(updateTimer, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [offer.deliveryId, offer.pickupQrExpiresAt, onRefresh, waitingForQr]);
+
+  const qrTimerLabel = `${String(Math.floor(qrSecondsLeft / 60)).padStart(2, '0')}:${String(qrSecondsLeft % 60).padStart(2, '0')}`;
 
   const advance = async () => {
     if (!nextAction || isUpdating) return;
@@ -998,9 +1073,29 @@ function DriverCurrentDeliveryPanel({
       {!waitingForCashConfirmation && waitingForQr && (
         <p className="driver-handover-gate">Покажите QR-код ресторану. После сканирования можно забрать заказ.</p>
       )}
+      {!waitingForCashConfirmation && waitingForQr && qrPayload && (
+        <button
+          className="driver-inline-qr"
+          type="button"
+          onClick={() => navigate('/driver/qr')}
+          aria-label="Открыть QR заказа на весь экран"
+        >
+          {qrImageUrl ? <img src={qrImageUrl} alt={`QR выдачи заказа ${offer.orderNumber}`} /> : <QrCode />}
+          <span>
+            <strong>Показать QR ресторану</strong>
+            <small>Нажмите, чтобы открыть крупный QR на весь экран.</small>
+            <small className="driver-inline-qr__timer">
+              {qrSecondsLeft > 0 ? `Новый QR через ${qrTimerLabel}` : 'Обновляем QR-код…'}
+            </small>
+          </span>
+        </button>
+      )}
       {error && <small className="driver-incoming-order__error">{error}</small>}
       <div className="driver-current-block__actions">
-        <Link className="driver-secondary" to={`/driver/map/${offer.deliveryId}`}><Navigation />Карта</Link>
+        <Link
+          className={`driver-secondary ${offer.status === 'assigned' ? 'driver-secondary--map-hint' : ''}`}
+          to={`/driver/map/${offer.deliveryId}`}
+        ><Navigation />Карта</Link>
         {offer.clientPhone ? (
           <a className="driver-secondary" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
         ) : (
@@ -1485,9 +1580,7 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 
 function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const qrPayload = buildDriverPickupQrPayload(delivery);
-  const qrImageUrl = qrPayload
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=H&qzone=4&data=${encodeURIComponent(qrPayload)}`
-    : '';
+  const qrImageUrl = useDriverPickupQrImage(qrPayload);
 
   return (
     <>

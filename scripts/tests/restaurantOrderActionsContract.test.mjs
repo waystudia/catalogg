@@ -46,6 +46,11 @@ describe('restaurant order action contract', () => {
     assert.match(panel, /order\.driverCarNumber/);
     assert.match(panel, /order\.driverPhotoUrl/);
     assert.match(api, /drivers\(name, phone, vehicle_info, car_number, photo_url,/);
+    assert.match(api, /selectRelevantDelivery/);
+    assert.match(api, /rpc\('get_restaurant_assigned_drivers'/);
+    assert.match(api, /from\('drivers'\)/);
+    assert.match(api, /if \(!driverId \|\| order\.driverName\) return order/);
+    assert.match(api, /formatPublicOrderNumber\(row\.id, restaurantNameOrSlug\)/);
     assert.match(styles, /\.admin-order-person-cards/);
     assert.match(styles, /\.admin-order-person-card/);
   });

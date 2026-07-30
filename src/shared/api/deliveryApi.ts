@@ -10,6 +10,7 @@ import {
 import { getDriverGrossEarning } from '../../features/driver/dashboardPresentation';
 import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
+import { formatPublicOrderNumber } from '../publicOrderNumber';
 import { supabase } from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthStorageKey } from '../supabaseAuthScope';
 
@@ -43,6 +44,7 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly paymentMethod: 'cash' | 'bank_transfer';
   readonly restaurantPaymentConfirmed: boolean;
   readonly pickupQrConfirmed: boolean;
+  readonly pickupQrExpiresAt?: string;
 };
 
 export type DriverEarning = {
@@ -458,53 +460,6 @@ const normalizeOrderType = (order: DeliveryOrderRow): OrderLifecycleSnapshot['or
   return 'dine_in';
 };
 
-const restaurantInitials: Record<string, string> = {
-  А: 'A',
-  Б: 'B',
-  В: 'V',
-  Г: 'G',
-  Д: 'D',
-  Е: 'E',
-  Ё: 'E',
-  Ж: 'Z',
-  З: 'Z',
-  И: 'I',
-  Й: 'I',
-  К: 'K',
-  Л: 'L',
-  М: 'M',
-  Н: 'N',
-  О: 'O',
-  П: 'P',
-  Р: 'R',
-  С: 'S',
-  Т: 'T',
-  У: 'U',
-  Ф: 'F',
-  Х: 'H',
-  Ц: 'C',
-  Ч: 'C',
-  Ш: 'S',
-  Щ: 'S',
-  Ы: 'Y',
-  Э: 'E',
-  Ю: 'U',
-  Я: 'Y'
-};
-
-const orderNumberPrefix = (restaurantName?: string | null) => {
-  const first = restaurantName?.trim().charAt(0).toUpperCase() || 'W';
-  return /^[A-Z]$/.test(first) ? first : restaurantInitials[first] ?? 'W';
-};
-
-const orderNumberSequence = (orderId: string) => {
-  const hash = Array.from(orderId).reduce((value, char) => ((value * 31) + char.charCodeAt(0)) >>> 0, 7);
-  return String((hash % 9999) + 1).padStart(4, '0');
-};
-
-const orderNumber = (orderId: string, restaurantName?: string | null) =>
-  `${orderNumberPrefix(restaurantName)}${orderNumberSequence(orderId)}`;
-
 const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | null => {
   const order = firstRelation(row.orders);
   if (!order) return null;
@@ -548,7 +503,7 @@ const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | n
   return {
     ...buildDriverDeliveryView({ order: lifecycleOrder, assignment, viewerDriverId }),
     deliveryId: row.id,
-    orderNumber: orderNumber(row.order_id, restaurant?.name),
+    orderNumber: formatPublicOrderNumber(row.order_id, restaurant?.name),
     createdAt: order.created_at,
     itemsCount: (order.order_items ?? []).reduce((sum, item) => sum + Math.max(1, Number(item.quantity ?? 1)), 0),
     orderTotal: Number(order.total ?? order.total_amount ?? 0),
@@ -557,7 +512,8 @@ const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | n
     routeEtaMin: row.estimated_time_min ?? 20,
     paymentMethod: order.payment_method === 'cash' ? 'cash' : 'bank_transfer',
     restaurantPaymentConfirmed: Boolean(order.restaurant_payment_confirmed_at),
-    pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at)
+    pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at),
+    pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined
   };
 };
 
@@ -587,7 +543,7 @@ const rowToEarning = (row: EarningRow): DriverEarning => {
   return {
     id: row.id,
     deliveryId: row.delivery_id,
-    orderNumber: orderNumber(delivery?.order_id ?? row.delivery_id, restaurant?.name),
+    orderNumber: formatPublicOrderNumber(delivery?.order_id ?? row.delivery_id, restaurant?.name),
     restaurantName: restaurant?.name ?? 'Ресторан',
     amount: getDriverGrossEarning({ amount: row.amount, netAmount: row.net_amount }),
     completedAt: row.created_at
@@ -1005,7 +961,31 @@ export async function completeDeliveryProgress(deliveryId: string) {
   if (error) throw error;
 }
 
-export async function confirmDeliveryPickupQr(deliveryId: string, token: string): Promise<boolean> {
+export async function refreshDriverPickupQr(deliveryId: string) {
+  if (!supabase) {
+    return {
+      token: createPickupQrToken({ orderId: deliveryId, driverId: demoDriverId, nonce: crypto.randomUUID() }),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    };
+  }
+
+  const { data, error } = await supabase.rpc('refresh_current_driver_pickup_qr', {
+    target_delivery_id: deliveryId
+  });
+  if (error) throw error;
+
+  const row = (data ?? {}) as { token?: unknown; expires_at?: unknown };
+  return {
+    token: typeof row.token === 'string' ? row.token : '',
+    expiresAt: typeof row.expires_at === 'string' ? row.expires_at : ''
+  };
+}
+
+export async function confirmDeliveryPickupQr(
+  deliveryId: string,
+  token: string,
+  restaurantSlug = ''
+): Promise<boolean> {
   if (!supabase) return token.trim().length > 0;
 
   const { data, error } = await supabase.rpc('confirm_delivery_pickup_qr', {
@@ -1014,7 +994,54 @@ export async function confirmDeliveryPickupQr(deliveryId: string, token: string)
   });
 
   if (error) throw error;
-  return Boolean(data);
+  if (data) return true;
+  if (!restaurantSlug.trim()) return false;
+
+  const fallbackResult = await supabase.rpc('confirm_delivery_pickup_qr_by_token', {
+    target_catalog_slug: restaurantSlug.trim().toLowerCase(),
+    presented_token: token
+  });
+
+  if (!fallbackResult.error) return Boolean(fallbackResult.data);
+  if ((fallbackResult.error as { code?: string } | null)?.code !== 'PGRST202') {
+    throw fallbackResult.error;
+  }
+
+  const { data: catalogRow, error: catalogError } = await supabase
+    .from('catalogs')
+    .select('id')
+    .eq('slug', restaurantSlug.trim().toLowerCase())
+    .maybeSingle();
+  if (catalogError || !catalogRow?.id) return false;
+
+  const { data: orderRows, error: ordersError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('catalog_id', catalogRow.id)
+    .limit(500);
+  if (ordersError) throw ordersError;
+
+  const orderIds = ((orderRows ?? []) as Array<{ id: string }>).map((row) => row.id);
+  if (orderIds.length === 0) return false;
+
+  const deliveryLookup = await supabase
+    .from('deliveries')
+    .select('id')
+    .in('order_id', orderIds)
+    .eq('status', 'arrived_to_restaurant')
+    .eq('pickup_qr_token', token.trim())
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (deliveryLookup.error || !deliveryLookup.data?.id) return false;
+
+  const retryResult = await supabase.rpc('confirm_delivery_pickup_qr', {
+    target_delivery_id: deliveryLookup.data.id,
+    presented_token: token
+  });
+  if (retryResult.error) throw retryResult.error;
+  return Boolean(retryResult.data);
 }
 
 export async function confirmDriverPickup(deliveryId: string): Promise<boolean> {

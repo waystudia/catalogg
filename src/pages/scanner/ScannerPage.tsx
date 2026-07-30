@@ -96,7 +96,7 @@ export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; 
         setScanState('searching');
         setMessage('Проверяю QR');
         try {
-          const confirmed = await confirmDeliveryPickupQr(parsed.deliveryId, parsed.token);
+          const confirmed = await confirmDeliveryPickupQr(parsed.deliveryId, parsed.token, slug);
           setScanState(confirmed ? 'success' : 'error');
           setMessage(confirmed ? 'QR подтверждён. Водитель может забрать заказ' : 'QR не подходит');
           if (confirmed) {

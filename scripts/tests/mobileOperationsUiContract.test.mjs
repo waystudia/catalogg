@@ -83,8 +83,14 @@ describe('mobile operational interfaces', () => {
     );
     assert.match(driverSource, /driver-current-block__accepted/);
     assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
+    assert.match(driverSource, /driver-inline-qr/);
+    assert.match(driverSource, /Показать QR ресторану/);
+    assert.match(driverSource, /Профиль загружается/);
+    assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
     assert.match(driverCss, /\.driver-current-block__accepted/);
+    assert.match(driverCss, /\.driver-inline-qr/);
+    assert.match(driverCss, /\.driver-secondary--map-hint/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
   });
