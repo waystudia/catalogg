@@ -1068,7 +1068,9 @@ function DriverCurrentDeliveryPanel({
         })}
       </ol>
       {waitingForCashConfirmation && (
-        <p className="driver-handover-gate">Передайте ресторану сумму заказа. Ресторан должен подтвердить оплату.</p>
+        <p className="driver-handover-gate">
+          Передайте ресторану сумму заказа. Кнопка «Забрал заказ» станет доступна после подтверждения оплаты рестораном.
+        </p>
       )}
       {!waitingForCashConfirmation && waitingForQr && (
         <p className="driver-handover-gate">Покажите QR-код ресторану. После сканирования можно забрать заказ.</p>
@@ -1561,7 +1563,9 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
           <Link to="/driver/qr"><QrCode />QR</Link>
         </div>
         {waitingForCashConfirmation && (
-          <p className="driver-handover-gate">Оплатите заказ ресторану и дождитесь подтверждения оплаты.</p>
+          <p className="driver-handover-gate">
+            Передайте ресторану сумму заказа. Кнопка «Забрал заказ» станет доступна после подтверждения оплаты рестораном.
+          </p>
         )}
         {!waitingForCashConfirmation && waitingForQr && (
           <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>
@@ -1735,7 +1739,9 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
             </ol>
           )}
           {waitingForCashConfirmation && (
-            <p className="driver-handover-gate">Оплатите заказ ресторану и дождитесь подтверждения.</p>
+            <p className="driver-handover-gate">
+              Передайте ресторану сумму заказа. Кнопка «Забрал заказ» станет доступна после подтверждения оплаты рестораном.
+            </p>
           )}
           {!waitingForCashConfirmation && waitingForQr && (
             <p className="driver-handover-gate">Покажите QR ресторану перед получением заказа.</p>

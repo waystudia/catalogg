@@ -63,12 +63,15 @@ export function OrderDetailsPanel({
   onRefreshOrders: () => void;
   onDelete: () => void;
 }) {
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() => loadPaymentStatus(catalogSlug, order.id));
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() =>
+    order.restaurantPaymentConfirmedAt ? 'confirmed' : loadPaymentStatus(catalogSlug, order.id)
+  );
   const [assigningDriverId, setAssigningDriverId] = useState('');
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConfirmingCash, setIsConfirmingCash] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isPaymentPanelOpen, setIsPaymentPanelOpen] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
     !order.driverName &&
@@ -94,8 +97,9 @@ export function OrderDetailsPanel({
   };
 
   useEffect(() => {
-    setPaymentStatus(loadPaymentStatus(catalogSlug, order.id));
-  }, [catalogSlug, order.id]);
+    setPaymentStatus(order.restaurantPaymentConfirmedAt ? 'confirmed' : loadPaymentStatus(catalogSlug, order.id));
+    setIsPaymentPanelOpen(false);
+  }, [catalogSlug, order.id, order.restaurantPaymentConfirmedAt]);
   const refreshDriverDispatch = () => {
     onRefreshOrders();
     void dispatchDriversQuery.refetch();
@@ -167,6 +171,7 @@ export function OrderDetailsPanel({
     try {
       const confirmed = await confirmRestaurantCashPayment(order);
       if (!confirmed) throw new Error('Не удалось подтвердить оплату');
+      updatePaymentStatus('confirmed');
       toast.success('Оплата водителем подтверждена');
       onRefreshOrders();
     } catch (error) {
@@ -224,10 +229,7 @@ export function OrderDetailsPanel({
           <details className="admin-order-more">
             <summary aria-label="Дополнительные действия"><MoreHorizontal /></summary>
             <div>
-              <span>Оплата</span>
-              <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает подтверждения</button>
-              <button type="button" onClick={() => updatePaymentStatus('confirmed')}>Подтвердить оплату</button>
-              <button type="button" onClick={() => updatePaymentStatus('declined')}>Отклонить оплату</button>
+              <span>Заказ</span>
               {!orderIsFinished && order.status !== 'new' && (
                 <button type="button" data-danger="true" onClick={() => onStatus('cancelled', 'restaurant_rejected')}>
                   Отменить заказ
@@ -368,31 +370,58 @@ export function OrderDetailsPanel({
         </section>
 
         <section className="admin-order-status-grid">
-          <article>
+          <button
+            className="admin-order-payment-card"
+            type="button"
+            aria-expanded={isPaymentPanelOpen}
+            aria-controls="admin-order-payment-panel"
+            data-attention={cashHandover && !cashPaymentConfirmed}
+            onClick={() => setIsPaymentPanelOpen((isOpen) => !isOpen)}
+          >
             <span>Оплата</span>
             <strong>{paymentStatusLabels[paymentStatus]}</strong>
             <small>{orderPaymentMethodLabels[orderPaymentMethod]}</small>
-          </article>
+            {cashHandover && !cashPaymentConfirmed && (
+              <em>Нажмите, чтобы подтвердить получение наличных</em>
+            )}
+            <ArrowRight aria-hidden="true" />
+          </button>
           <article>
             <span>{order.verificationCode ? 'Код подтверждения' : 'Подтверждение доставки'}</span>
             <strong>{order.verificationCode ?? (order.qrToken ? 'QR включен' : 'Не требуется')}</strong>
           </article>
         </section>
 
-        {cashHandover && (
-          <section className="admin-cash-handover">
-            <strong>Выдача наличного заказа</strong>
-            {!cashPaymentConfirmed ? (
-              <>
-                <p>Получите от водителя {formatPrice(order.subtotal)} за заказ. Без подтверждения QR не активируется.</p>
-                <button type="button" disabled={isConfirmingCash} onClick={() => void confirmCashPayment()}>
-                  {isConfirmingCash ? 'Подтверждаем...' : 'Подтверждаю оплату'}
-                </button>
-              </>
-            ) : !pickupQrConfirmed ? (
-              <p data-complete="true">Оплата подтверждена — отсканируйте QR водителя во вкладке «Сканер».</p>
+        {isPaymentPanelOpen && (
+          <section id="admin-order-payment-panel" className="admin-order-payment-panel">
+            <header>
+              <span>Оплата</span>
+              <strong>{paymentStatusLabels[paymentStatus]} · {orderPaymentMethodLabels[orderPaymentMethod]}</strong>
+            </header>
+            {cashHandover ? (
+              !cashPaymentConfirmed ? (
+                <>
+                  <p>
+                    Получите от водителя {formatPrice(order.subtotal)} и подтвердите наличные.
+                    До подтверждения водитель не сможет нажать «Забрал заказ».
+                  </p>
+                  <button type="button" disabled={isConfirmingCash} onClick={() => void confirmCashPayment()}>
+                    {isConfirmingCash ? 'Подтверждаем...' : 'Подтвердить получение наличных'}
+                  </button>
+                </>
+              ) : !pickupQrConfirmed ? (
+                <p data-complete="true">Оплата подтверждена — отсканируйте QR водителя во вкладке «Сканер».</p>
+              ) : (
+                <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
+              )
+            ) : orderPaymentMethod === 'cash' ? (
+              <p>Подтверждение наличных станет доступно, когда водитель отметит прибытие в ресторан.</p>
             ) : (
-              <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
+              <div className="admin-order-payment-panel__actions">
+                <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает подтверждения</button>
+                <button type="button" onClick={() => updatePaymentStatus('confirmed')}>Подтвердить оплату</button>
+                <button type="button" data-danger="true" onClick={() => updatePaymentStatus('declined')}>Отклонить оплату</button>
+              </div>
             )}
           </section>
         )}

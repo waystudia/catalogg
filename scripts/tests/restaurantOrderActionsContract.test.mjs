@@ -23,11 +23,31 @@ describe('restaurant order action contract', () => {
   it('shows the restaurant cash-payment gate before allowing QR verification', async () => {
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const api = await read('src/shared/api/restaurantOrdersApi.ts');
+    const driver = await read('src/pages/driver/DriverApp.tsx');
 
     assert.match(api, /confirmRestaurantCashPayment/);
     assert.match(api, /rpc\('confirm_restaurant_cash_payment'/);
-    assert.match(panel, /Подтверждаю оплату/);
+    assert.match(panel, /Подтвердить получение наличных/);
+    assert.match(panel, /До подтверждения водитель не сможет нажать «Забрал заказ»/);
     assert.match(panel, /Оплата подтверждена — отсканируйте QR водителя/);
+    assert.match(driver, /pickupBlocked = waitingForCashConfirmation \|\| waitingForQr/);
+    assert.match(driver, /Кнопка «Забрал заказ» станет доступна после подтверждения оплаты рестораном/);
+  });
+
+  it('opens payment controls from the payment card and keeps the overflow menu for order actions', async () => {
+    const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+    const menuStart = panel.indexOf('<details className="admin-order-more">');
+    const menuEnd = panel.indexOf('</details>', menuStart);
+    const overflowMenu = panel.slice(menuStart, menuEnd);
+
+    assert.match(panel, /className="admin-order-payment-card"/);
+    assert.match(panel, /aria-expanded=\{isPaymentPanelOpen\}/);
+    assert.match(panel, /isPaymentPanelOpen &&/);
+    assert.match(panel, /id="admin-order-payment-panel"/);
+    assert.match(panel, /Нажмите, чтобы подтвердить получение наличных/);
+    assert.doesNotMatch(overflowMenu, /Ожидает подтверждения|Подтвердить оплату|Отклонить оплату/);
+    assert.match(overflowMenu, /Отменить заказ/);
+    assert.match(overflowMenu, /Удалить заказ/);
   });
 
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
