@@ -20,6 +20,7 @@ const driverApp = read('src/pages/driver/DriverApp.tsx');
 const mapSource = read('src/shared/DeliveryTrackingMap.tsx');
 const pushSource = read('supabase/functions/send-web-push/index.ts');
 const deliverySettings = read('src/features/restaurant-settings/DeliverySettingsCard.tsx');
+const driverCss = read('src/pages/driver/driver.css');
 
 describe('driver capacity and restaurant priority dispatch', () => {
   it('stores a bounded simultaneous-order capacity for every driver', () => {
@@ -45,6 +46,10 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(migrationSql, /link_restaurant_courier_by_email/);
     assert.match(migrationSql, /lower\(coalesce\(d\.email/);
     assert.match(migrationSql, /public\.is_catalog_member\(target_catalog_id/);
+    assert.match(
+      migrationSql,
+      /on conflict on constraint restaurant_couriers_restaurant_id_driver_id_key/
+    );
     assert.match(migrationSql, /grant execute on function public\.link_restaurant_courier_by_email/);
     assert.match(restaurantApi, /linkRestaurantCourierByEmail/);
     assert.match(restaurantApi, /removeRestaurantCourier/);
@@ -91,5 +96,25 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(driverApp, /driver-phone--map/);
     assert.match(mapSource, /setMapZoom\(17\)/);
     assert.match(mapSource, /aria-label="Следить за водителем"/);
+  });
+
+  it('keeps restaurant order intake enabled while allowing fulfillment modes to be configured', () => {
+    assert.doesNotMatch(deliverySettings, /Принимать заказы/);
+    assert.match(deliverySettings, /Заказы в зале/);
+    assert.match(deliverySettings, /Самовывоз/);
+    assert.match(deliverySettings, /Доставка/);
+  });
+
+  it('keeps progress and the next delivery action inside the full-screen driver map', () => {
+    const mapScreen = driverApp.slice(
+      driverApp.indexOf('function DriverMapScreen'),
+      driverApp.indexOf('function DriverEarningsScreen')
+    );
+    assert.match(mapScreen, /getDriverDeliveryProgress/);
+    assert.match(mapScreen, /getDriverNextAction/);
+    assert.match(mapScreen, /driver-map-status-overlay/);
+    assert.match(mapScreen, /updateDeliveryProgress/);
+    assert.match(driverCss, /\.driver-phone--map\s*\{[\s\S]*height:\s*100dvh/);
+    assert.match(driverCss, /\.driver-map-status-overlay/);
   });
 });

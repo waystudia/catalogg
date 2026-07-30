@@ -251,7 +251,6 @@ export function DeliverySettingsCard({
       </header>
 
       <div className="delivery-settings-basic">
-        <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_orders} onChange={(event) => setBoolean('enable_orders', event.target.checked)} /><span><strong>Принимать заказы</strong><small>Главный переключатель новых заказов.</small></span></label>
         <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} /><span><strong>Заказы в зале</strong><small>Столики и кабинки.</small></span></label>
         <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} /><span><strong>Самовывоз</strong><small>Получение в ресторане.</small></span></label>
         <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_delivery} onChange={(event) => setBoolean('enable_delivery', event.target.checked)} /><span><strong>Доставка</strong><small>Доставка по адресу клиента.</small></span></label>
