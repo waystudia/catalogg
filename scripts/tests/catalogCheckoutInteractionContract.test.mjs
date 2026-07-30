@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const appSource = await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const appStyles = await readFile(new URL('../../src/app/styles.css', import.meta.url), 'utf8');
 const checkoutSource = await readFile(
   new URL('../../src/features/checkout/CheckoutScreen.tsx', import.meta.url),
   'utf8'
@@ -18,7 +19,20 @@ test('the product animation targets the lower cart bar and addition remains imme
   assert.match(appSource, /add\(product\);[\s\S]*playAddSound\(\);[\s\S]*requestAnimationFrame/);
   assert.match(appSource, /querySelector\('\.product-photo-carousel__slide\.is-active img/);
   assert.match(appSource, /cart-flyer--reverse/);
-  assert.match(appSource, /playCartAnimation\(event\.currentTarget,\s*true\);[\s\S]*decrement\(product\.id\)/);
+  assert.match(appSource, /const animationSnapshot = captureCartAnimation\(event\.currentTarget\);[\s\S]*playCartAnimation\(animationSnapshot,\s*true\);[\s\S]*decrement\(product\.id\)/);
+});
+
+test('the cart animation preserves the exact visible product photo before quantity changes', () => {
+  assert.match(appSource, /data-active-image=\{images\[activeIndex\] \?\? product\.image_url\}/);
+  assert.match(appSource, /const animationSnapshot = captureCartAnimation\(event\.currentTarget\);[\s\S]*add\(product\)/);
+  assert.match(appSource, /requestAnimationFrame\(\(\) => playCartAnimation\(animationSnapshot\)\)/);
+  assert.match(appSource, /carousel\?\.dataset\.activeImage/);
+});
+
+test('product controls suppress native text selection and touch callouts', () => {
+  assert.match(appSource, /onDoubleClick=\{\(event\) => event\.preventDefault\(\)\}/);
+  assert.match(appSource, /className=\{quantity > 0 \? 'product-tile__stepper has-quantity'/);
+  assert.match(appStyles, /\.product-tile[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*user-select:\s*none;/);
 });
 
 test('product photos repeat at both edges and normalize after scrolling', () => {

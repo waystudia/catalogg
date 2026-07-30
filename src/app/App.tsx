@@ -417,6 +417,7 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
     <>
       <div
         className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
+        data-active-image={images[activeIndex] ?? product.image_url}
         role={hero ? 'button' : undefined}
         tabIndex={hero ? 0 : undefined}
         aria-label={hero ? `Увеличить фото: ${product.title}` : undefined}
@@ -656,11 +657,23 @@ function ProductTile({
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
 
-  const playCartAnimation = (button: HTMLButtonElement, reverse = false) => {
+  const captureCartAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
     const tile = button.closest('.product-tile') as HTMLElement | null;
+    const carousel = tile?.querySelector('.product-photo-carousel') as HTMLElement | null;
     const image = tile?.querySelector('.product-photo-carousel__slide.is-active img, .product-tile__image img') as HTMLImageElement | null;
     const imageRect = image?.getBoundingClientRect();
+    return {
+      buttonRect,
+      imageRect,
+      imageUrl: carousel?.dataset.activeImage || image?.currentSrc || product.image_url
+    };
+  };
+
+  const playCartAnimation = (
+    { buttonRect, imageRect, imageUrl }: ReturnType<typeof captureCartAnimation>,
+    reverse = false
+  ) => {
     const target = document.querySelector('[data-cart-animation-target] .cart-bar__icon') as HTMLElement | null;
     const targetRect = target?.getBoundingClientRect();
     const startX = imageRect ? imageRect.left + imageRect.width / 2 : buttonRect.left + buttonRect.width / 2;
@@ -668,7 +681,6 @@ function ProductTile({
     const endX = targetRect ? targetRect.left + targetRect.width / 2 : Math.max(50, window.innerWidth * 0.18);
     const endY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 54;
     const flyer = document.createElement('span');
-    const flyerImageUrl = image?.currentSrc || product.image_url;
     const width = Math.min(imageRect?.width ?? 64, 180);
     const height = Math.min(imageRect?.height ?? 64, 150);
 
@@ -683,9 +695,9 @@ function ProductTile({
     flyer.style.setProperty('--flyer-width', `${width}px`);
     flyer.style.setProperty('--flyer-height', `${height}px`);
 
-    if (flyerImageUrl) {
+    if (imageUrl) {
       const flyerImage = document.createElement('img');
-      flyerImage.src = flyerImageUrl;
+      flyerImage.src = imageUrl;
       flyerImage.alt = '';
       flyer.append(flyerImage);
     } else {
@@ -762,6 +774,7 @@ function ProductTile({
           <div
             className={quantity > 0 ? 'product-tile__stepper has-quantity' : 'product-tile__stepper'}
             onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.preventDefault()}
           >
             {quantity > 0 && (
               <>
@@ -770,7 +783,8 @@ function ProductTile({
                   type="button"
                   aria-label={`Уменьшить ${product.title}`}
                   onClick={(event) => {
-                    playCartAnimation(event.currentTarget, true);
+                    const animationSnapshot = captureCartAnimation(event.currentTarget);
+                    playCartAnimation(animationSnapshot, true);
                     decrement(product.id);
                     playCartSound('remove');
                   }}
@@ -791,10 +805,11 @@ function ProductTile({
                   onOpen(product);
                   return;
                 }
+                const animationSnapshot = captureCartAnimation(button);
                 add(product);
                 onAdd?.(product);
                 playAddSound();
-                window.requestAnimationFrame(() => playCartAnimation(button));
+                window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));
               }}
             >
               <Plus />

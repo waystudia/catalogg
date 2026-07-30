@@ -3556,6 +3556,21 @@ a {
   overflow: hidden;
 }
 
+.product-tile,
+.product-tile button,
+.product-tile__stepper,
+.product-tile__stepper-count,
+.product-tile__quantity-badge {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.product-tile button,
+.product-tile__stepper {
+  touch-action: manipulation;
+}
+
 .product-photo-carousel {
   position: relative;
   width: 100%;
