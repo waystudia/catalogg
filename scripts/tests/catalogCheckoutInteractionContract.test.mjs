@@ -27,6 +27,8 @@ test('the cart animation preserves the exact visible product photo before quanti
   assert.match(appSource, /const animationSnapshot = captureCartAnimation\(event\.currentTarget\);[\s\S]*add\(product\)/);
   assert.match(appSource, /requestAnimationFrame\(\(\) => playCartAnimation\(animationSnapshot\)\)/);
   assert.match(appSource, /carousel\?\.dataset\.activeImage/);
+  assert.match(appSource, /const visibleImageRect = carousel\?\.getBoundingClientRect\(\) \?\? image\?\.getBoundingClientRect\(\)/);
+  assert.match(appSource, /imageRect:\s*visibleImageRect/);
 });
 
 test('product controls suppress native text selection and touch callouts', () => {
