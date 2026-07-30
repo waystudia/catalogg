@@ -7,6 +7,10 @@ const checkoutSource = await readFile(
   new URL('../../src/features/checkout/CheckoutScreen.tsx', import.meta.url),
   'utf8'
 );
+const clientPlatformSource = await readFile(
+  new URL('../../src/pages/client-platform/ClientPlatformApp.tsx', import.meta.url),
+  'utf8'
+);
 
 test('the product animation targets the lower cart bar and addition remains immediate', () => {
   assert.match(appSource, /data-cart-animation-target/);
@@ -26,6 +30,13 @@ test('product photos repeat at both edges and normalize after scrolling', () => 
 test('restaurant footer uses the current WayYaam brand', () => {
   assert.match(appSource, /Сайт создан в WayYaam/);
   assert.match(appSource, /WayYaam\. Все права защищены/);
+});
+
+test('the restaurant cart stays visible in the platform main menu', () => {
+  assert.match(clientPlatformSource, /useCartStore/);
+  assert.match(clientPlatformSource, /PlatformRestaurantCartDock/);
+  assert.match(clientPlatformSource, /platform-restaurant-cart-dock/);
+  assert.match(clientPlatformSource, /to="\/mangal\/checkout"/);
 });
 
 test('continue on checkout scrolls to the final order review', () => {

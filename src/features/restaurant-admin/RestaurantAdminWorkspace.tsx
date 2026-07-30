@@ -407,6 +407,7 @@ export function RestaurantAdminWorkspace({
               />
             ) : (
               <DeliverySettingsCard
+                catalogSlug={catalogSlug}
                 settings={deliverySettings ?? defaultRestaurantDeliverySettings}
                 onSave={onSaveDeliverySettings}
                 onOpenBackup={() => onOpenScreen('settings-backup')}

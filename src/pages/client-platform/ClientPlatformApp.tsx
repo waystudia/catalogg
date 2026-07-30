@@ -50,6 +50,7 @@ import {
   selectRestaurantCart,
   useClientPlatformStore
 } from '../../features/client-platform/store';
+import { selectCartCount, selectCartTotal, useCartStore } from '../../features/stores';
 import type {
   ClientAddress,
   ClientCartLine,
@@ -349,8 +350,28 @@ function PlatformLayout({
   return (
     <div className="client-platform platform-theme">
       <div className="platform-page">{children}</div>
+      {active === 'home' && <PlatformRestaurantCartDock />}
       <BottomNav active={active} cartCount={cartCount} />
     </div>
+  );
+}
+
+function PlatformRestaurantCartDock() {
+  const items = useCartStore((state) => state.items);
+  const count = selectCartCount(items);
+  const total = selectCartTotal(items);
+  if (count === 0) return null;
+
+  return (
+    <Link className="platform-restaurant-cart-dock" to="/mangal/checkout">
+      <ShoppingCart />
+      <span>
+        <strong>В корзине · {count}</strong>
+        <small>{items.map((item) => item.product.title).join(', ')}</small>
+      </span>
+      <b>{formatPrice(total)}</b>
+      <ChevronRight />
+    </Link>
   );
 }
 

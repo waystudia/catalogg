@@ -19,6 +19,7 @@ const driverApi = read('src/shared/api/deliveryApi.ts');
 const driverApp = read('src/pages/driver/DriverApp.tsx');
 const mapSource = read('src/shared/DeliveryTrackingMap.tsx');
 const pushSource = read('supabase/functions/send-web-push/index.ts');
+const deliverySettings = read('src/features/restaurant-settings/DeliverySettingsCard.tsx');
 
 describe('driver capacity and restaurant priority dispatch', () => {
   it('stores a bounded simultaneous-order capacity for every driver', () => {
@@ -38,6 +39,18 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(driversApi, /saveDriverRestaurantAssignments/);
     assert.match(driversPage, /Привязка к ресторанам/);
     assert.match(driversPage, /Основной курьер/);
+  });
+
+  it('lets a restaurant owner manage own couriers by driver login email', () => {
+    assert.match(migrationSql, /link_restaurant_courier_by_email/);
+    assert.match(migrationSql, /lower\(coalesce\(d\.email/);
+    assert.match(migrationSql, /public\.is_catalog_member\(target_catalog_id/);
+    assert.match(migrationSql, /grant execute on function public\.link_restaurant_courier_by_email/);
+    assert.match(restaurantApi, /linkRestaurantCourierByEmail/);
+    assert.match(restaurantApi, /removeRestaurantCourier/);
+    assert.match(deliverySettings, /E-mail водителя/);
+    assert.match(deliverySettings, /Добавить курьера/);
+    assert.match(deliverySettings, /Удалить курьера/);
   });
 
   it('shows linked couriers first and exposes the general pool only as fallback', () => {

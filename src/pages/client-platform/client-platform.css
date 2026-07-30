@@ -861,6 +861,57 @@
   gap: 5px;
 }
 
+.platform-restaurant-cart-dock {
+  position: fixed;
+  right: 12px;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  left: 12px;
+  z-index: 51;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 9px;
+  min-height: 64px;
+  border: 1px solid rgba(91, 63, 244, 0.2);
+  border-radius: 18px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #111827;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.platform-restaurant-cart-dock > svg:first-child {
+  color: #5b3df4;
+}
+
+.platform-restaurant-cart-dock span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.platform-restaurant-cart-dock strong,
+.platform-restaurant-cart-dock small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-restaurant-cart-dock strong {
+  font-size: 13px;
+}
+
+.platform-restaurant-cart-dock small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.platform-restaurant-cart-dock b {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
 .bottom-nav {
   position: fixed;
   right: 0;
@@ -2063,6 +2114,11 @@
 }
 
 @media (min-width: 1040px) {
+  .platform-restaurant-cart-dock {
+    right: calc(50% - 340px);
+    left: calc(50% - 340px);
+  }
+
   .bottom-nav {
     right: calc(50% - 360px);
     left: calc(50% - 360px);

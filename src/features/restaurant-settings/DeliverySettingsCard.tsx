@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  getRestaurantOwnCouriers,
+  linkRestaurantCourierByEmail,
+  removeRestaurantCourier,
   type RestaurantDeliverySettings
 } from '../../shared/api/restaurantOrdersApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
@@ -25,21 +28,35 @@ const sectionTitles: Record<Exclude<DetailSection, null>, string> = {
 
 export function DeliverySettingsCard({
   settings,
+  catalogSlug,
   onSave,
   onOpenBackup,
   onBack
 }: {
   settings: RestaurantDeliverySettings;
+  catalogSlug: string;
   onSave: (settings: RestaurantDeliverySettings) => void;
   onOpenBackup: () => void;
   onBack: () => void;
 }) {
   const [draft, setDraft] = useState(settings);
   const [section, setSection] = useState<DetailSection>(null);
+  const [courierEmail, setCourierEmail] = useState('');
+  const [courierMessage, setCourierMessage] = useState('');
+  const [isSavingCourier, setIsSavingCourier] = useState(false);
   const { data: directorySettlements = [] } = useQuery({
     queryKey: ['delivery-settlements-public'],
     queryFn: getDeliverySettlements,
     staleTime: 5 * 60 * 1000
+  });
+  const {
+    data: ownCouriers = [],
+    refetch: refetchOwnCouriers
+  } = useQuery({
+    queryKey: ['restaurant-own-couriers', catalogSlug],
+    queryFn: () => getRestaurantOwnCouriers(catalogSlug),
+    enabled: section === 'couriers' && draft.use_own_courier,
+    staleTime: 30_000
   });
 
   useEffect(() => {
@@ -84,6 +101,38 @@ export function DeliverySettingsCard({
     }));
   };
   const save = () => onSave(draft);
+  const addCourier = async () => {
+    const normalizedEmail = courierEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setCourierMessage('Введите корректный e-mail водителя.');
+      return;
+    }
+    setIsSavingCourier(true);
+    setCourierMessage('');
+    try {
+      const courier = await linkRestaurantCourierByEmail(catalogSlug, normalizedEmail);
+      setCourierEmail('');
+      setCourierMessage(`${courier.name} добавлен в курьеры ресторана.`);
+      await refetchOwnCouriers();
+    } catch (error) {
+      setCourierMessage(error instanceof Error ? error.message : 'Не удалось добавить курьера.');
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
+  const removeCourier = async (driverId: string) => {
+    setIsSavingCourier(true);
+    setCourierMessage('');
+    try {
+      await removeRestaurantCourier(catalogSlug, driverId);
+      setCourierMessage('Курьер удалён из ресторана.');
+      await refetchOwnCouriers();
+    } catch (error) {
+      setCourierMessage(error instanceof Error ? error.message : 'Не удалось удалить курьера.');
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
 
   if (section) {
     return (
@@ -96,6 +145,40 @@ export function DeliverySettingsCard({
         {section === 'couriers' && (
           <div className="delivery-settings-switches">
             <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} /><span><strong>Свой курьер</strong><small>Назначать водителей ресторана.</small></span></label>
+            {draft.use_own_courier && (
+              <section className="restaurant-courier-linker">
+                <label>
+                  E-mail водителя
+                  <input
+                    type="email"
+                    value={courierEmail}
+                    onChange={(event) => setCourierEmail(event.target.value)}
+                    placeholder="driver@example.com"
+                    autoComplete="off"
+                  />
+                </label>
+                <button type="button" disabled={isSavingCourier} onClick={() => void addCourier()}>
+                  Добавить курьера
+                </button>
+                {courierMessage && <small role="status">{courierMessage}</small>}
+                <div className="restaurant-courier-list">
+                  {ownCouriers.map((courier) => (
+                    <article key={courier.driverId}>
+                      <span><strong>{courier.name}</strong><small>{courier.email}</small></span>
+                      <button
+                        type="button"
+                        disabled={isSavingCourier}
+                        aria-label={`Удалить курьера ${courier.name}`}
+                        onClick={() => void removeCourier(courier.driverId)}
+                      >
+                        Удалить курьера
+                      </button>
+                    </article>
+                  ))}
+                  {ownCouriers.length === 0 && <small>Курьеры ещё не привязаны.</small>}
+                </div>
+              </section>
+            )}
             <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_platform_drivers} onChange={(event) => setBoolean('use_platform_drivers', event.target.checked)} /><span><strong>Водители платформы</strong><small>Передавать доставку курьерам WayCatalog.</small></span></label>
             <label className="settings-toggle-row"><input type="checkbox" checked={draft.fallback_to_platform_drivers} onChange={(event) => setBoolean('fallback_to_platform_drivers', event.target.checked)} /><span><strong>Передавать после таймера</strong><small>Искать водителя платформы, если свой курьер не найден.</small></span></label>
             <label>Ожидание своего курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
