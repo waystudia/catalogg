@@ -1,0 +1,84 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { describe, it } from 'node:test';
+
+const driverSource = readFileSync(new URL('../../src/pages/driver/DriverApp.tsx', import.meta.url), 'utf8');
+const driverCss = readFileSync(new URL('../../src/pages/driver/driver.css', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const platformCss = readFileSync(
+  new URL('../../src/pages/platform-admin/platform-admin.css', import.meta.url),
+  'utf8'
+);
+const deliveryApiSource = readFileSync(
+  new URL('../../src/shared/api/deliveryApi.ts', import.meta.url),
+  'utf8'
+);
+const mapSource = readFileSync(
+  new URL('../../src/shared/DeliveryTrackingMap.tsx', import.meta.url),
+  'utf8'
+);
+const mapCss = readFileSync(
+  new URL('../../src/shared/delivery-tracking-map.css', import.meta.url),
+  'utf8'
+);
+
+describe('mobile operational interfaces', () => {
+  it('orders the driver home screen as stats, current delivery, urgent offer, and compact remainder', () => {
+    const stats = driverSource.indexOf('driver-today-strip');
+    const current = driverSource.indexOf('Текущая доставка');
+    const urgent = driverSource.indexOf('<DriverIncomingOrderPanel');
+    const others = driverSource.indexOf('Другие доступные заказы');
+
+    assert.ok(stats >= 0, 'single-row today statistics are missing');
+    assert.ok(current > stats, 'current delivery must follow today statistics');
+    assert.ok(urgent > current, 'urgent offer must follow the current delivery');
+    assert.ok(others > urgent, 'compact offer list must follow the urgent offer');
+    assert.match(driverSource, /Ещё \{hiddenOffersCount\} заказ/);
+  });
+
+  it('uses a readable left-to-right gradient sweep only on the urgent offer', () => {
+    assert.match(driverCss, /\.driver-urgent-offer::before/);
+    assert.match(driverCss, /linear-gradient\(\s*90deg/s);
+    assert.match(driverCss, /animation:\s*driver-urgent-sweep/);
+    assert.match(driverCss, /@keyframes driver-urgent-sweep/);
+    assert.match(driverCss, /translateX\(-/);
+    assert.match(driverCss, /translateX\(/);
+    assert.match(driverCss, /prefers-reduced-motion:\s*reduce/);
+  });
+
+  it('keeps the platform More sheet scrollable inside a short mobile viewport', () => {
+    assert.match(platformCss, /\.platform-more-sheet__panel\s*\{[^}]*max-height:/s);
+    assert.match(platformCss, /\.platform-more-sheet__panel\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(platformCss, /\.platform-more-sheet__panel\s*\{[^}]*overscroll-behavior:\s*contain/s);
+  });
+
+  it('waits for restaurant session restoration before deciding to show the login form', () => {
+    assert.match(appSource, /adminSessionChecked/);
+    assert.match(appSource, /Проверяем вход в ресторан/);
+    assert.match(appSource, /adminSessionChecked\s*\?\s*\(/s);
+  });
+
+  it('makes an accepted delivery and the compact driver controls immediately distinguishable', () => {
+    assert.match(driverSource, /driver-current-block__accepted/);
+    assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
+    assert.match(driverCss, /\.driver-current-block__accepted/);
+    assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
+    assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
+  });
+
+  it('shows real driver earnings and platform debt as separate balance values', () => {
+    assert.match(deliveryApiSource, /debtAmount/);
+    assert.match(deliveryApiSource, /debt_amount/);
+    assert.match(deliveryApiSource, /driverDebtResult/);
+    assert.match(deliveryApiSource, /runSoftDriverQuery<\{ debt_amount:/);
+    assert.match(driverSource, /Заработано/);
+    assert.match(driverSource, /Долг платформе/);
+  });
+
+  it('keeps map controls compact and exposes a bottom navigation instruction', () => {
+    assert.match(mapSource, /delivery-tracking-map__navigation/);
+    assert.match(mapSource, /Через/);
+    assert.match(mapCss, /\.delivery-tracking-map__controls button\s*\{[^}]*width:\s*3[0-4]px/s);
+    assert.match(mapCss, /\.delivery-tracking-map__attribution\s*\{[^}]*font-size:\s*[5-7]px/s);
+  });
+});

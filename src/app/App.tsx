@@ -1917,6 +1917,7 @@ function AppContent({
   const updateTheme = useThemeStore((state) => state.updateTheme);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const setAdmin = useAuthStore((state) => state.setAdmin);
+  const [adminSessionChecked, setAdminSessionChecked] = useState(false);
   const setAdminEditor = useAdminStore((state) => state.setEditor);
   const [screen, setScreen] = useState<Screen>('home');
   const catalogScrollPositionRef = useRef(0);
@@ -2046,8 +2047,22 @@ function AppContent({
   }, [catalogSlug]);
 
   useEffect(() => {
-    void hasAdminSession(catalogSlug).then(setAdmin);
-    return onAdminSessionChange(setAdmin, catalogSlug);
+    let isCurrentCatalog = true;
+    setAdminSessionChecked(false);
+    void hasAdminSession(catalogSlug).then((hasSession) => {
+      if (!isCurrentCatalog) return;
+      setAdmin(hasSession);
+      setAdminSessionChecked(true);
+    });
+    const unsubscribe = onAdminSessionChange((hasSession) => {
+      if (!isCurrentCatalog) return;
+      setAdmin(hasSession);
+      setAdminSessionChecked(true);
+    }, catalogSlug);
+    return () => {
+      isCurrentCatalog = false;
+      unsubscribe();
+    };
   }, [catalogSlug, setAdmin]);
 
   useEffect(() => {
@@ -2749,11 +2764,18 @@ function AppContent({
     >
       <Toaster richColors position="top-center" />
       {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (
-        <LoginModal
-          catalogSlug={catalogSlug}
-          onClose={() => setScreen('home')}
-          onSuccess={() => openRestaurantAdminPath(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
-        />
+        adminSessionChecked ? (
+          <LoginModal
+            catalogSlug={catalogSlug}
+            onClose={() => setScreen('home')}
+            onSuccess={() => openRestaurantAdminPath(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
+          />
+        ) : (
+          <main className="restaurant-session-check" role="status" aria-live="polite">
+            <span />
+            <strong>Проверяем вход в ресторан...</strong>
+          </main>
+        )
       ) : screen === 'admin-home' ? (
         renderRestaurantAdmin()
       ) : screen.startsWith('settings') ? (

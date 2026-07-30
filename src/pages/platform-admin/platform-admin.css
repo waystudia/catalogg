@@ -2301,9 +2301,13 @@
   .platform-more-sheet__panel {
     display: grid;
     gap: 8px;
-    padding: 18px;
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
     border-radius: 18px 18px 0 0;
     background: #fff;
+    scrollbar-gutter: stable;
   }
 
   .platform-more-sheet__panel > button {

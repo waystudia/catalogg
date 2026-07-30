@@ -19,6 +19,7 @@ export type DriverProfile = {
   readonly vehicleInfo: string;
   readonly carNumber: string;
   readonly payoutDetails: string;
+  readonly debtAmount: number;
   readonly photoUrl: string;
   readonly serviceSettlements: readonly string[];
   readonly rating: number;
@@ -138,6 +139,7 @@ type DriverRow = {
   vehicle_info: string | null;
   car_number: string | null;
   payout_details?: string | null;
+  debt_amount?: number | string | null;
   photo_url: string | null;
   service_settlements?: string[] | null;
   rating: number | null;
@@ -228,6 +230,7 @@ const demoProfile: DriverProfile = {
   vehicleInfo: 'Hyundai Solaris',
   carNumber: 'A123BC 95',
   payoutDetails: 'Карта / счёт',
+  debtAmount: 0,
   photoUrl: '',
   serviceSettlements: ['Грозный'],
   rating: 4.9,
@@ -479,6 +482,7 @@ const rowToDriverProfile = (row: DriverRow | null): DriverProfile => ({
   vehicleInfo: row?.vehicle_info ?? demoProfile.vehicleInfo,
   carNumber: row?.car_number ?? demoProfile.carNumber,
   payoutDetails: row?.payout_details ?? demoProfile.payoutDetails,
+  debtAmount: Number(row?.debt_amount ?? 0),
   photoUrl: row?.photo_url ?? '',
   serviceSettlements: Array.isArray(row?.service_settlements) ? row.service_settlements : demoProfile.serviceSettlements,
   rating: row?.rating ?? demoProfile.rating,
@@ -609,9 +613,20 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
   );
 
   if (driverResult.error) throw driverResult.error;
-  const profile = rowToDriverProfile(driverResult.data as DriverRow | null);
 
-  const [deliveriesResult, earningsResult] = await Promise.all([
+  const [driverDebtResult, deliveriesResult, earningsResult] = await Promise.all([
+    runSoftDriverQuery<{ debt_amount: number | string | null }>(
+      supabase
+        .from('drivers')
+        .select('debt_amount')
+        .eq('id', resolvedDriverId)
+        .maybeSingle() as PromiseLike<{
+          data: { debt_amount: number | string | null } | null;
+          error: unknown | null;
+        }>,
+      'Не удалось загрузить долг водителя.',
+      4_000
+    ),
     runSoftDriverQuery<DeliveryRow[]>(
       supabase.rpc('get_driver_delivery_offers') as PromiseLike<{ data: DeliveryRow[] | null; error: unknown | null }>,
       'Не удалось загрузить доставки водителя.',
@@ -628,6 +643,11 @@ export async function getDriverDashboard(driverId = demoDriverId): Promise<Drive
       8_000
     )
   ]);
+
+  const driverRow = driverResult.data as DriverRow | null;
+  const profile = rowToDriverProfile(driverRow
+    ? { ...driverRow, debt_amount: driverDebtResult.data?.debt_amount ?? null }
+    : null);
 
   if (deliveriesResult.error) throw deliveriesResult.error;
   const deliveryRows = (deliveriesResult.data ?? []) as unknown as DeliveryRow[];

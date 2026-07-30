@@ -57,8 +57,91 @@ describe('delivery navigation providers', () => {
       baseUrl: 'https://router.example///',
       points: [restaurant, client]
     })).toBe(
-      'https://router.example/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=false'
+      'https://router.example/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=true'
     );
+  });
+
+  it('exposes the next useful road maneuver for the driver navigation card', () => {
+    expect(parseRoadRoutePayload({
+      ...routePayload,
+      routes: [{
+        ...routePayload.routes[0],
+        legs: [{
+          steps: [
+            {
+              distance: 12,
+              duration: 0,
+              name: '',
+              maneuver: { type: 'depart', modifier: 'straight' }
+            },
+            {
+              distance: 0,
+              duration: 0,
+              name: 'служебный проезд',
+              maneuver: { type: 'turn', modifier: 'left' }
+            },
+            {
+              distance: 220,
+              duration: 38,
+              name: 'ул. Ленина',
+              maneuver: { type: 'turn', modifier: 'right' }
+            }
+          ]
+        }]
+      }]
+    })).toEqual({
+      success: true,
+      data: {
+        distanceM: 3450,
+        durationS: 482,
+        geometry: [restaurant, { lat: 43.32, lng: 45.701 }, client],
+        nextManeuver: {
+          distanceM: 220,
+          instruction: 'Поверните направо',
+          street: 'ул. Ленина'
+        }
+      }
+    });
+  });
+
+  it.each([
+    ['roundabout', undefined, 'Въезжайте на круговое движение'],
+    ['rotary', undefined, 'Въезжайте на круговое движение'],
+    ['arrive', undefined, 'Вы прибыли'],
+    ['turn', 'left', 'Поверните налево'],
+    ['turn', 'slight right', 'Держитесь правее'],
+    ['turn', 'slight left', 'Держитесь левее'],
+    ['turn', 'uturn', 'Развернитесь'],
+    ['continue', 'straight', 'Продолжайте движение']
+  ] as const)('formats %s/%s as a Russian navigation instruction', (type, modifier, instruction) => {
+    const result = parseRoadRoutePayload({
+      ...routePayload,
+      routes: [{
+        ...routePayload.routes[0],
+        legs: [{
+          steps: [{
+            distance: 135,
+            duration: 20,
+            name: 'тестовая улица',
+            maneuver: { type, ...(modifier ? { modifier } : {}) }
+          }]
+        }]
+      }]
+    });
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        distanceM: 3450,
+        durationS: 482,
+        geometry: [restaurant, { lat: 43.32, lng: 45.701 }, client],
+        nextManeuver: {
+          distanceM: 135,
+          instruction,
+          street: 'тестовая улица'
+        }
+      }
+    });
   });
 
   it('validates and converts road geometry without swapping latitude and longitude', () => {

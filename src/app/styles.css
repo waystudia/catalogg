@@ -5836,6 +5836,39 @@ a {
   font-size: 14px;
 }
 
+.restaurant-session-check {
+  display: grid;
+  min-height: 100dvh;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  background: #f7f8fc;
+  color: #111827;
+  text-align: center;
+}
+
+.restaurant-session-check > span {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #e8e4ff;
+  border-top-color: #5b3df4;
+  border-radius: 999px;
+  animation: restaurant-session-spin 0.8s linear infinite;
+}
+
+@keyframes restaurant-session-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .restaurant-session-check > span {
+    animation: none;
+  }
+}
+
 @media (max-width: 340px) {
   .product-tile__body {
     padding: 8px;

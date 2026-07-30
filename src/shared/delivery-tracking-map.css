@@ -11,7 +11,7 @@
   position: relative;
   z-index: 4;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px;
+  grid-template-columns: minmax(0, 1fr) 38px;
   gap: 8px;
   padding: 10px;
   background: #ffffff;
@@ -31,7 +31,7 @@
 
 .delivery-tracking-map__search input {
   min-width: 0;
-  height: 44px;
+  height: 38px;
   border: 0;
   background: transparent;
   color: #111827;
@@ -51,8 +51,8 @@
 
 .delivery-tracking-map__locate {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   place-items: center;
 }
 
@@ -114,8 +114,8 @@
 
 .delivery-tracking-map__controls {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 8px;
+  right: 8px;
   z-index: 3;
   display: grid;
   gap: 6px;
@@ -123,8 +123,8 @@
 
 .delivery-tracking-map__controls button {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
@@ -134,8 +134,8 @@
 }
 
 .delivery-tracking-map__controls svg {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
 }
 
 .delivery-tracking-map__tile {
@@ -321,23 +321,30 @@
 
 .delivery-tracking-map__attribution {
   position: absolute;
-  right: 8px;
-  bottom: 48px;
-  padding: 2px 5px;
-  background: rgb(255 255 255 / 80%);
+  right: 5px;
+  bottom: 2px;
+  z-index: 4;
+  max-width: 72%;
+  overflow: hidden;
+  padding: 1px 3px;
+  background: rgb(255 255 255 / 68%);
   color: #667085;
-  font-size: 10px;
+  font-size: 6px;
+  line-height: 1.05;
+  opacity: 0.72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .delivery-tracking-map__layers {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 8px;
+  left: 8px;
   z-index: 3;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px;
+  padding: 3px;
   border: 1px solid rgb(255 255 255 / 42%);
   border-radius: 10px;
   background: rgb(15 23 42 / 78%);
@@ -347,19 +354,19 @@
 }
 
 .delivery-tracking-map__layers > svg {
-  width: 18px;
-  height: 18px;
-  margin: 0 3px;
+  width: 14px;
+  height: 14px;
+  margin: 0 2px;
 }
 
 .delivery-tracking-map__layers button {
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 28px;
+  padding: 0 7px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -368,10 +375,70 @@
   color: #111827;
 }
 
-.delivery-tracking-map__route-summary {
+.delivery-tracking-map__navigation {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  left: 8px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 14px;
+  padding: 8px 10px;
+  background: rgb(17 24 39 / 90%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 28%);
+  backdrop-filter: blur(10px);
+}
+
+.delivery-tracking-map__navigation > svg {
+  width: 28px;
+  height: 28px;
+  color: #a78bfa;
+}
+
+.delivery-tracking-map__navigation > span,
+.delivery-tracking-map__navigation > span > * {
   display: block;
-  padding: 0 14px 12px;
-  background: #ffffff;
-  color: #111827;
-  font-size: 14px;
+  min-width: 0;
+}
+
+.delivery-tracking-map__navigation > span small {
+  color: #c4b5fd;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.delivery-tracking-map__navigation > span strong {
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-tracking-map__navigation > span em {
+  overflow: hidden;
+  color: #d1d5db;
+  font-size: 8px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-tracking-map__navigation > b {
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.delivery-tracking-map__navigation > b small {
+  display: block;
+  margin-top: 2px;
+  color: #d1d5db;
+  font-size: 9px;
 }

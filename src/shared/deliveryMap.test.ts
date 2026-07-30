@@ -141,7 +141,7 @@ describe('delivery map picker geometry', () => {
           { lat: 43.318123, lng: 45.698456 }
         ]
       }),
-      'https://router.project-osrm.org/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=false'
+      'https://router.project-osrm.org/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=true'
     );
   });
 

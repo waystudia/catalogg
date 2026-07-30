@@ -1,4 +1,4 @@
-import { Home, Layers3, LocateFixed, MapPin, Minus, Plus, RotateCcw, Search } from 'lucide-react';
+import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, RotateCcw, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import {
@@ -46,6 +46,9 @@ const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-
 }).format(distanceM / 1000)} км`;
 
 const formatRouteDuration = (durationS: number) => `${Math.max(1, Math.round(durationS / 60))} мин`;
+const formatManeuverDistance = (distanceM: number) => distanceM < 1_000
+  ? `${Math.max(1, Math.round(distanceM))} м`
+  : formatRouteDistance(distanceM);
 const formatRoutePointKey = (points: ReadonlyArray<DeliveryMapCoordinates>) =>
   points.map((point) => `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`).join('|');
 const getApproximateDistanceM = (first: DeliveryMapCoordinates, second: DeliveryMapCoordinates) => {
@@ -500,22 +503,34 @@ export function DeliveryTrackingMap({
           <button type="button" aria-pressed={mapStyle === 'street'} onClick={() => setMapStyle('street')}>Схема</button>
           <button type="button" aria-pressed={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')}>Спутник</button>
         </div>
+        {roadRoute && (
+          <aside className="delivery-tracking-map__navigation" aria-label="Следующая подсказка маршрута">
+            <Navigation aria-hidden="true" />
+            <span>
+              <small>
+                {roadRoute.nextManeuver
+                  ? `Через ${formatManeuverDistance(roadRoute.nextManeuver.distanceM)}`
+                  : 'До следующей точки'}
+              </small>
+              <strong>
+                {roadRoute.nextManeuver?.instruction ?? 'Продолжайте по маршруту'}
+              </strong>
+              {roadRoute.nextManeuver?.street && <em>{roadRoute.nextManeuver.street}</em>}
+            </span>
+            <b>{formatRouteDistance(roadRoute.distanceM)}<small>{formatRouteDuration(roadRoute.durationS)}</small></b>
+          </aside>
+        )}
+        <small className="delivery-tracking-map__attribution">
+          {mapStyle === 'satellite'
+            ? '© Esri, Maxar, Earthstar Geographics, GIS User Community'
+            : '© OpenStreetMap contributors'}
+        </small>
       </div>
       <div className="delivery-tracking-map__legend">
         {restaurant && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--restaurant" />{restaurant.label}</span>}
         {driver && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--driver" />{driver.label}</span>}
         {client && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--client" />{client.label}</span>}
       </div>
-      {roadRoute && (
-        <strong className="delivery-tracking-map__route-summary">
-          {formatRouteDistance(roadRoute.distanceM)} · {formatRouteDuration(roadRoute.durationS)}
-        </strong>
-      )}
-      <small className="delivery-tracking-map__attribution">
-        {mapStyle === 'satellite'
-          ? '© Esri, Maxar, Earthstar Geographics, GIS User Community'
-          : '© OpenStreetMap contributors'}
-      </small>
     </section>
   );
 }
