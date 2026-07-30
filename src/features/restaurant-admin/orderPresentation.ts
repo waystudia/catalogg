@@ -170,18 +170,35 @@ export function playRestaurantAdminOrderSound() {
     if (!AudioContextCtor) return;
 
     const audio = new AudioContextCtor();
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.001, audio.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.16, audio.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
-    oscillator.connect(gain);
-    gain.connect(audio.destination);
-    oscillator.start();
-    oscillator.stop(audio.currentTime + 0.24);
-    window.setTimeout(() => void audio.close(), 320);
+    const notes = [
+      { frequency: 659.25, start: 0, duration: 0.34 },
+      { frequency: 783.99, start: 0.3, duration: 0.34 },
+      { frequency: 987.77, start: 0.62, duration: 0.44 },
+      { frequency: 1318.51, start: 1.12, duration: 0.34 }
+    ];
+    const peakGain = 0.34;
+    const soundEndsAt = audio.currentTime + 1.55;
+    void audio.resume();
+    notes.forEach((note, index) => {
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      const startsAt = audio.currentTime + note.start;
+      const endsAt = startsAt + note.duration;
+      oscillator.type = index === notes.length - 1 ? 'sine' : 'triangle';
+      oscillator.frequency.setValueAtTime(note.frequency, startsAt);
+      gain.gain.setValueAtTime(0.001, startsAt);
+      gain.gain.exponentialRampToValueAtTime(peakGain, startsAt + 0.035);
+      gain.gain.setValueAtTime(peakGain * 0.82, endsAt - 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, endsAt);
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+      oscillator.start(startsAt);
+      oscillator.stop(endsAt);
+    });
+    window.setTimeout(
+      () => void audio.close(),
+      Math.max(100, Math.ceil((soundEndsAt - audio.currentTime) * 1000) + 100)
+    );
   } catch {
     // Browsers may block notification sounds until a user gesture.
   }

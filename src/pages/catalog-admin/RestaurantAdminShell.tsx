@@ -57,6 +57,7 @@ import {
   restoreRestaurantOrderNotificationSubscription,
   showRestaurantOrderNotification
 } from '../../shared/restaurantOrderNotifications';
+import { playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
 
 type AdminSection = 'home' | 'catalog' | 'dishes' | 'orders' | 'stocks' | 'settings';
 type SettingsSection =
@@ -213,30 +214,6 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 const paymentStorageKey = (slug: string) => `waycatalog:${slug}:payment-settings`;
 const paymentStatusStorageKey = (slug: string) => `waycatalog:${slug}:payment-statuses`;
 
-function playNewOrderSound() {
-  try {
-    const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
-    const AudioContextCtor = window.AudioContext ?? audioWindow.webkitAudioContext;
-    if (!AudioContextCtor) return;
-
-    const audio = new AudioContextCtor();
-    const oscillator = audio.createOscillator();
-    const gain = audio.createGain();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 880;
-    gain.gain.setValueAtTime(0.001, audio.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.16, audio.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
-    oscillator.connect(gain);
-    gain.connect(audio.destination);
-    oscillator.start();
-    oscillator.stop(audio.currentTime + 0.24);
-    window.setTimeout(() => void audio.close(), 320);
-  } catch {
-    // Browsers may block audio until the first user gesture.
-  }
-}
-
 function getOrderItemsCount(order: RestaurantOrder) {
   return order.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
 }
@@ -377,7 +354,7 @@ export function RestaurantAdminShell({
       if (newOrderIds.length > 0) {
         setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
         toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
-        playNewOrderSound();
+        playRestaurantAdminOrderSound();
         newOrders.slice(0, 3).forEach((order) => {
           void showRestaurantOrderNotification({
             title: `Новый заказ #${order.orderNumber}`,

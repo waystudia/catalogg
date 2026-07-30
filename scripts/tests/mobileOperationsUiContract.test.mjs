@@ -5,6 +5,10 @@ import { describe, it } from 'node:test';
 const driverSource = readFileSync(new URL('../../src/pages/driver/DriverApp.tsx', import.meta.url), 'utf8');
 const driverCss = readFileSync(new URL('../../src/pages/driver/driver.css', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const restaurantOrderPresentation = readFileSync(
+  new URL('../../src/features/restaurant-admin/orderPresentation.ts', import.meta.url),
+  'utf8'
+);
 const platformCss = readFileSync(
   new URL('../../src/pages/platform-admin/platform-admin.css', import.meta.url),
   'utf8'
@@ -56,6 +60,13 @@ describe('mobile operational interfaces', () => {
     assert.match(appSource, /adminSessionChecked/);
     assert.match(appSource, /Проверяем вход в ресторан/);
     assert.match(appSource, /adminSessionChecked\s*\?\s*\(/s);
+  });
+
+  it('plays a loud melodic restaurant order alert for longer than one second', () => {
+    assert.match(restaurantOrderPresentation, /const notes = \[/);
+    assert.match(restaurantOrderPresentation, /start:\s*1\.12/);
+    assert.match(restaurantOrderPresentation, /peakGain = 0\.34/);
+    assert.match(restaurantOrderPresentation, /audio\.currentTime \+ 1\.55/);
   });
 
   it('makes an accepted delivery and the compact driver controls immediately distinguishable', () => {
