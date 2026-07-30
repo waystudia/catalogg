@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getPromoAutoAdvanceDelay } from '../../src/features/client-platform/promoCarousel';
+import {
+  getPromoAutoAdvanceDelay,
+  getPromoLoopResetIndex
+} from '../../src/features/client-platform/promoCarousel';
 
 describe('promo carousel timing', () => {
   it('keeps an active video centered until one complete playback ends', () => {
@@ -31,5 +34,22 @@ describe('promo carousel timing', () => {
       isVideo: true,
       videoPlayedToEnd: true
     })).toBeNull();
+  });
+});
+
+describe('promo carousel infinite loop', () => {
+  it('resets only cloned edge slides to their matching real slide', () => {
+    expect(getPromoLoopResetIndex(0, 3)).toBe(3);
+    expect(getPromoLoopResetIndex(4, 3)).toBe(1);
+    expect(getPromoLoopResetIndex(1, 3)).toBeNull();
+    expect(getPromoLoopResetIndex(3, 3)).toBeNull();
+    expect(getPromoLoopResetIndex(0, 2)).toBe(2);
+    expect(getPromoLoopResetIndex(3, 2)).toBe(1);
+  });
+
+  it('does not reset when the carousel has fewer than two banners', () => {
+    expect(getPromoLoopResetIndex(0, 0)).toBeNull();
+    expect(getPromoLoopResetIndex(0, 1)).toBeNull();
+    expect(getPromoLoopResetIndex(2, 1)).toBeNull();
   });
 });

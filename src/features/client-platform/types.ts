@@ -206,8 +206,15 @@ export type PlatformBanner = {
   linkUrl: string;
   pageId: string | null;
   actionLabel: string;
+  contentPosition: PlatformBannerPosition;
+  buttonPosition: PlatformBannerPosition;
   isActive: boolean;
 };
+
+export type PlatformBannerPosition =
+  | 'top-left' | 'top-center' | 'top-right'
+  | 'center-left' | 'center' | 'center-right'
+  | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
 export type PlatformContentBlock = {
   id: string;

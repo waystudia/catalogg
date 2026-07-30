@@ -287,6 +287,7 @@
   max-width: min(72%, 520px);
   font-size: clamp(20px, 3.1vw, 34px);
   line-height: 1.02;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.78), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .promo-band span {
@@ -294,6 +295,7 @@
   color: rgba(255, 255, 255, 0.82);
   font-size: 12px;
   font-weight: 700;
+  text-shadow: 0 2px 9px rgba(0, 0, 0, 0.82), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .promo-band > .promo-band__media {
@@ -307,18 +309,45 @@
 .promo-band a {
   display: inline-flex;
   width: fit-content;
-  min-height: 34px;
-  max-width: 180px;
+  min-height: 28px;
+  max-width: 150px;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  padding: 0 18px;
-  background: #5b3fff;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: rgba(91, 63, 255, 0.48);
+  backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
 }
+
+.promo-band__copy,
+.promo-band__action {
+  position: absolute !important;
+  z-index: 2;
+}
+
+.promo-band__copy--top-left,
+.promo-band__action--top-left { top: 14px; left: 16px; }
+.promo-band__copy--top-center,
+.promo-band__action--top-center { top: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+.promo-band__copy--top-right,
+.promo-band__action--top-right { top: 14px; right: 16px; text-align: right; }
+.promo-band__copy--center-left,
+.promo-band__action--center-left { top: 50%; left: 16px; transform: translateY(-50%); }
+.promo-band__copy--center,
+.promo-band__action--center { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.promo-band__copy--center-right,
+.promo-band__action--center-right { top: 50%; right: 16px; transform: translateY(-50%); text-align: right; }
+.promo-band__copy--bottom-left,
+.promo-band__action--bottom-left { bottom: 14px; left: 16px; }
+.promo-band__copy--bottom-center,
+.promo-band__action--bottom-center { bottom: 14px; left: 50%; transform: translateX(-50%); text-align: center; }
+.promo-band__copy--bottom-right,
+.promo-band__action--bottom-right { right: 16px; bottom: 14px; text-align: right; }
 
 .promo-carousel__dots {
   display: flex;

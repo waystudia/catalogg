@@ -18,6 +18,8 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       linkUrl: '/restaurants',
       pageId: null,
       actionLabel: 'Подробнее',
+      contentPosition: 'top-left',
+      buttonPosition: 'bottom-left',
       isActive: true
     }
   ],

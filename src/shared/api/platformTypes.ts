@@ -116,11 +116,18 @@ export type PlatformBannerAdmin = {
   linkUrl: string;
   pageId: string | null;
   actionLabel: string;
+  contentPosition: PlatformBannerPosition;
+  buttonPosition: PlatformBannerPosition;
   startsAt: string | null;
   endsAt: string | null;
   sortOrder: number;
   isActive: boolean;
 };
+
+export type PlatformBannerPosition =
+  | 'top-left' | 'top-center' | 'top-right'
+  | 'center-left' | 'center' | 'center-right'
+  | 'bottom-left' | 'bottom-center' | 'bottom-right';
 
 export type PlatformGlobalSettings = {
   supportWhatsapp: string;

@@ -43,6 +43,24 @@ test('client banners stay horizontal and place text actions above full-bleed med
   assert.match(clientCss, /\.promo-band\s*>\s*\.promo-band__media\s*\{[\s\S]*position:\s*absolute/);
   assert.match(clientCss, /\.promo-band\s*>\s*div,[\s\S]*\.promo-band\s*>\s*a\s*\{[\s\S]*z-index:\s*2/);
   assert.match(adminCss, /\.platform-banner-media-preview\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
+  assert.match(clientCss, /\.promo-band strong[\s\S]*text-shadow:/);
+  assert.match(clientCss, /\.promo-band a[\s\S]*background:\s*rgba\(/);
+  assert.match(clientCss, /\.promo-band a[\s\S]*backdrop-filter:\s*blur/);
+});
+
+test('banner editor controls text and button placement independently', () => {
+  assert.match(appSource, /Расположение текста/);
+  assert.match(appSource, /Расположение кнопки/);
+  assert.match(appSource, /contentPosition/);
+  assert.match(appSource, /buttonPosition/);
+  assert.match(clientSource, /promo-band__copy--\$\{banner\.contentPosition\}/);
+  assert.match(clientSource, /promo-band__action--\$\{banner\.buttonPosition\}/);
+});
+
+test('carousel waits for scroll settling and resets cloned slides without animation', () => {
+  assert.match(clientSource, /getPromoLoopResetIndex/);
+  assert.match(clientSource, /scrollBehavior\s*=\s*'auto'/);
+  assert.match(clientSource, /requestAnimationFrame/);
 });
 
 test('a centered video completes once before the carousel advances', () => {

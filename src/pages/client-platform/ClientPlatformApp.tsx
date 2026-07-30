@@ -82,7 +82,7 @@ import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
-import { getPromoAutoAdvanceDelay } from '../../features/client-platform/promoCarousel';
+import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
   chooseMoreAccuratePosition,
   DELIVERY_GEOLOCATION_OPTIONS,
@@ -559,9 +559,15 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
           syncCenteredVideoPlayback(track, rawIndex);
           if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
           scrollEndRef.current = window.setTimeout(() => {
-            if (rawIndex === 0) track.scrollTo({ left: getPromoBannerLeft(track, banners.length) });
-            if (rawIndex === banners.length + 1) track.scrollTo({ left: getPromoBannerLeft(track, 1) });
-          }, 140);
+            const resetIndex = getPromoLoopResetIndex(getPromoBannerIndex(track), banners.length);
+            if (resetIndex === null) return;
+            track.style.scrollBehavior = 'auto';
+            track.scrollTo({ left: getPromoBannerLeft(track, resetIndex) });
+            window.requestAnimationFrame(() => {
+              track.style.scrollBehavior = '';
+              syncCenteredVideoPlayback(track, resetIndex);
+            });
+          }, 360);
         }}
       >
         {displayedBanners.map((banner, displayedIndex) => {
@@ -602,14 +608,14 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
                   : <img src={banner.imageUrl} alt="" />}
               </span>
             )}
-            <div>
+            <div className={`promo-band__copy promo-band__copy--${banner.contentPosition}`}>
               <strong>{banner.title}</strong>
               <span>{banner.subtitle}</span>
             </div>
             {actionIsExternal ? (
-              <a href={actionUrl} target="_blank" rel="noreferrer">{banner.actionLabel}</a>
+              <a className={`promo-band__action promo-band__action--${banner.buttonPosition}`} href={actionUrl} target="_blank" rel="noreferrer">{banner.actionLabel}</a>
             ) : (
-              <Link to={actionUrl}>{banner.actionLabel}</Link>
+              <Link className={`promo-band__action promo-band__action--${banner.buttonPosition}`} to={actionUrl}>{banner.actionLabel}</Link>
             )}
           </article>
           );

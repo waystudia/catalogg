@@ -380,16 +380,29 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
       ? [product.image_url]
       : [];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [displayedIndex, setDisplayedIndex] = useState(images.length > 1 ? 1 : 0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
   const touchStartX = useRef<number | null>(null);
   const didSwipe = useRef(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const scrollEndRef = useRef<number | null>(null);
+  const displayedImages = images.length > 1
+    ? [images[images.length - 1], ...images, images[0]]
+    : (images.length ? images : ['']);
 
   useEffect(() => {
     setActiveIndex(0);
-    trackRef.current?.scrollTo({ left: 0 });
-  }, [product.id]);
+    setDisplayedIndex(images.length > 1 ? 1 : 0);
+    window.requestAnimationFrame(() => {
+      const track = trackRef.current;
+      if (track) track.scrollTo({ left: images.length > 1 ? track.clientWidth : 0 });
+    });
+  }, [product.id, images.length]);
+
+  useEffect(() => () => {
+    if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
+  }, []);
 
   useEffect(() => {
     if (!isViewerOpen) return;
@@ -436,19 +449,37 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
           className="product-photo-carousel__track"
           ref={trackRef}
           onScroll={(event) => {
-            const width = event.currentTarget.clientWidth;
-            if (width > 0) setActiveIndex(Math.round(event.currentTarget.scrollLeft / width));
+            const track = event.currentTarget;
+            const width = track.clientWidth;
+            if (width <= 0) return;
+            const rawIndex = Math.round(track.scrollLeft / width);
+            setDisplayedIndex(rawIndex);
+            setActiveIndex(images.length > 1 ? (rawIndex - 1 + images.length) % images.length : 0);
+            if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
+            scrollEndRef.current = window.setTimeout(() => {
+              if (images.length < 2) return;
+              const settledIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+              const resetIndex = settledIndex === 0 ? images.length : settledIndex === images.length + 1 ? 1 : null;
+              if (resetIndex === null) return;
+              track.style.scrollBehavior = 'auto';
+              track.scrollTo({ left: resetIndex * track.clientWidth });
+              setDisplayedIndex(resetIndex);
+              window.requestAnimationFrame(() => {
+                track.style.scrollBehavior = '';
+              });
+            }, 180);
           }}
         >
-          {(images.length ? images : ['']).map((image, index) => (
-            <SafeImage
-              className={hero ? 'product-hero' : undefined}
-              src={image}
-              alt={index === 0 ? product.title : `${product.title}, фото ${index + 1}`}
-              loading={hero ? undefined : 'lazy'}
-              draggable={false}
-              key={`${image}-${index}`}
-            />
+          {displayedImages.map((image, index) => (
+            <span className={`product-photo-carousel__slide${index === displayedIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
+              <SafeImage
+                className={hero ? 'product-hero' : undefined}
+                src={image}
+                alt={activeIndex === 0 ? product.title : `${product.title}, фото ${activeIndex + 1}`}
+                loading={hero ? undefined : 'lazy'}
+                draggable={false}
+              />
+            </span>
           ))}
         </div>
         {images.length > 1 && (
@@ -560,8 +591,8 @@ function TopBar({
 function SiteCredit() {
   return (
     <footer className="site-credit">
-      <span>Сайт создан в WayCatalog</span>
-      <small>© {new Date().getFullYear()} WayCatalog. Все права защищены.</small>
+      <span>Сайт создан в WayYaam</span>
+      <small>© {new Date().getFullYear()} WayYaam. Все права защищены.</small>
     </footer>
   );
 }
@@ -625,10 +656,10 @@ function ProductTile({
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
 
-  const playAddAnimation = (button: HTMLButtonElement) => {
+  const playCartAnimation = (button: HTMLButtonElement, reverse = false) => {
     const buttonRect = button.getBoundingClientRect();
     const tile = button.closest('.product-tile') as HTMLElement | null;
-    const image = tile?.querySelector('.product-photo-carousel__track img, .product-tile__image img') as HTMLImageElement | null;
+    const image = tile?.querySelector('.product-photo-carousel__slide.is-active img, .product-tile__image img') as HTMLImageElement | null;
     const imageRect = image?.getBoundingClientRect();
     const target = document.querySelector('[data-cart-animation-target] .cart-bar__icon') as HTMLElement | null;
     const targetRect = target?.getBoundingClientRect();
@@ -641,7 +672,7 @@ function ProductTile({
     const width = Math.min(imageRect?.width ?? 64, 180);
     const height = Math.min(imageRect?.height ?? 64, 150);
 
-    flyer.className = 'cart-flyer';
+    flyer.className = reverse ? 'cart-flyer cart-flyer--reverse' : 'cart-flyer';
     flyer.setAttribute('aria-hidden', 'true');
     flyer.style.setProperty('--flyer-start-x', `${startX}px`);
     flyer.style.setProperty('--flyer-start-y', `${startY}px`);
@@ -738,7 +769,8 @@ function ProductTile({
                   className="product-tile__stepper-button product-tile__stepper-button--minus"
                   type="button"
                   aria-label={`Уменьшить ${product.title}`}
-                  onClick={() => {
+                  onClick={(event) => {
+                    playCartAnimation(event.currentTarget, true);
                     decrement(product.id);
                     playCartSound('remove');
                   }}
@@ -762,7 +794,7 @@ function ProductTile({
                 add(product);
                 onAdd?.(product);
                 playAddSound();
-                window.requestAnimationFrame(() => playAddAnimation(button));
+                window.requestAnimationFrame(() => playCartAnimation(button));
               }}
             >
               <Plus />

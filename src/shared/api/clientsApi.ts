@@ -164,6 +164,8 @@ type PlatformBannerRow = {
   page_id?: string | null;
   platform_content_pages?: { slug?: string | null } | Array<{ slug?: string | null }> | null;
   action_label: string;
+  content_position?: PlatformBannerAdmin['contentPosition'] | null;
+  button_position?: PlatformBannerAdmin['buttonPosition'] | null;
   starts_at?: string | null;
   ends_at?: string | null;
   sort_order: number;
@@ -263,6 +265,8 @@ const mapPlatformBanner = (row: PlatformBannerRow): PlatformBannerAdmin => ({
     : row.link_url,
   pageId: row.page_id ?? null,
   actionLabel: row.action_label || 'Заказать',
+  contentPosition: row.content_position ?? 'top-left',
+  buttonPosition: row.button_position ?? 'bottom-left',
   startsAt: row.starts_at ?? null,
   endsAt: row.ends_at ?? null,
   sortOrder: row.sort_order,
@@ -763,6 +767,8 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
       linkUrl: '/restaurants',
       pageId: null,
       actionLabel: 'Подробнее',
+      contentPosition: 'top-left',
+      buttonPosition: 'bottom-left',
       startsAt: null,
       endsAt: null,
       sortOrder: 0,
@@ -772,7 +778,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
 
   const modernResult = await supabase
     .from('platform_banners')
-    .select('id, name, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, starts_at, ends_at, sort_order, is_active, platform_content_pages(slug)')
+    .select('id, name, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, starts_at, ends_at, sort_order, is_active, platform_content_pages(slug)')
     .order('sort_order');
   const legacyResult = modernResult.error
     ? await supabase
@@ -796,6 +802,8 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
     link_url: banner.linkUrl,
     page_id: banner.pageId,
     action_label: banner.actionLabel,
+    content_position: banner.contentPosition,
+    button_position: banner.buttonPosition,
     starts_at: banner.startsAt,
     ends_at: banner.endsAt,
     sort_order: banner.sortOrder,

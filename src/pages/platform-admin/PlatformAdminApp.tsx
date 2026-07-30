@@ -2800,6 +2800,8 @@ function PlatformBannerEditor({
   const [backgroundColor, setBackgroundColor] = useState(banner?.backgroundColor ?? '#5b3df4');
   const [pageId, setPageId] = useState(banner?.pageId ?? '');
   const [actionLabel, setActionLabel] = useState(banner?.actionLabel ?? 'Подробнее');
+  const [contentPosition, setContentPosition] = useState<PlatformBannerAdmin['contentPosition']>(banner?.contentPosition ?? 'top-left');
+  const [buttonPosition, setButtonPosition] = useState<PlatformBannerAdmin['buttonPosition']>(banner?.buttonPosition ?? 'bottom-left');
   const [startsAt, setStartsAt] = useState(banner?.startsAt?.slice(0, 10) ?? '');
   const [endsAt, setEndsAt] = useState(banner?.endsAt?.slice(0, 10) ?? '');
   const [sortOrder, setSortOrder] = useState(banner?.sortOrder ?? defaultSortOrder);
@@ -2837,6 +2839,8 @@ function PlatformBannerEditor({
         linkUrl: getPlatformContentPath(selectedPage.slug),
         pageId: selectedPage.id,
         actionLabel: actionLabel.trim() || 'Подробнее',
+        contentPosition,
+        buttonPosition,
         startsAt: startsAt ? new Date(`${startsAt}T00:00:00`).toISOString() : null,
         endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : null,
         sortOrder,
@@ -2877,6 +2881,32 @@ function PlatformBannerEditor({
           </div>
         )}
         <label>Текст кнопки<input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} placeholder="Подробнее" /></label>
+        <label>Расположение текста
+          <select value={contentPosition} onChange={(event) => setContentPosition(event.target.value as PlatformBannerAdmin['contentPosition'])}>
+            <option value="top-left">Сверху слева</option>
+            <option value="top-center">Сверху по центру</option>
+            <option value="top-right">Сверху справа</option>
+            <option value="center-left">По центру слева</option>
+            <option value="center">По центру</option>
+            <option value="center-right">По центру справа</option>
+            <option value="bottom-left">Снизу слева</option>
+            <option value="bottom-center">Снизу по центру</option>
+            <option value="bottom-right">Снизу справа</option>
+          </select>
+        </label>
+        <label>Расположение кнопки
+          <select value={buttonPosition} onChange={(event) => setButtonPosition(event.target.value as PlatformBannerAdmin['buttonPosition'])}>
+            <option value="top-left">Сверху слева</option>
+            <option value="top-center">Сверху по центру</option>
+            <option value="top-right">Сверху справа</option>
+            <option value="center-left">По центру слева</option>
+            <option value="center">По центру</option>
+            <option value="center-right">По центру справа</option>
+            <option value="bottom-left">Снизу слева</option>
+            <option value="bottom-center">Снизу по центру</option>
+            <option value="bottom-right">Снизу справа</option>
+          </select>
+        </label>
         <label>Страница при нажатии
           <select value={pageId} onChange={(event) => setPageId(event.target.value)} required>
             <option value="">Выберите вспомогательную страницу</option>
