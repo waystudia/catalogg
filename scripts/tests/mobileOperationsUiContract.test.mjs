@@ -5,6 +5,11 @@ import { describe, it } from 'node:test';
 const driverSource = readFileSync(new URL('../../src/pages/driver/DriverApp.tsx', import.meta.url), 'utf8');
 const driverCss = readFileSync(new URL('../../src/pages/driver/driver.css', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const supabaseSource = readFileSync(new URL('../../src/shared/supabase.ts', import.meta.url), 'utf8');
+const restaurantSessionSource = readFileSync(
+  new URL('../../src/shared/restaurantSession.ts', import.meta.url),
+  'utf8'
+);
 const restaurantOrderPresentation = readFileSync(
   new URL('../../src/features/restaurant-admin/orderPresentation.ts', import.meta.url),
   'utf8'
@@ -67,6 +72,10 @@ describe('mobile operational interfaces', () => {
     assert.match(appSource, /adminSessionChecked/);
     assert.match(appSource, /Проверяем вход в ресторан/);
     assert.match(appSource, /adminSessionChecked\s*\?\s*\(/s);
+    assert.match(restaurantSessionSource, /RESTAURANT_SESSION_CHECK_TIMEOUT_MS/);
+    assert.match(supabaseSource, /settleRestaurantSessionCheck\(resolveAdminSession/);
+    assert.match(supabaseSource, /hasAdminSession\(catalogSlug, session\)/);
+    assert.match(appSource, /\.catch\(\(error\) => \{[\s\S]*setAdminSessionChecked\(true\)/);
   });
 
   it('plays a loud melodic restaurant order alert for longer than one second', () => {

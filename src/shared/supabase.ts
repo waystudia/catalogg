@@ -1,8 +1,9 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { cabins, categories, products, restaurant, themeSettings } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
+import { settleRestaurantSessionCheck } from './restaurantSession';
 import { makeRestaurantCoordinates, parseRestaurantCoordinatesFromMapLink } from './restaurantLocation';
 import {
   DEFAULT_PHOTO_QUALITY_SETTINGS,
@@ -444,18 +445,12 @@ export async function signInAdmin(email: string, password: string, catalogSlug?:
     return email.trim().toLowerCase() === 'admin' && password.trim() === '1234';
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password
-  });
+  const { data, error } = await signInWithPasswordResilient(email, password);
 
-  if (error) return false;
+  if (error || !data.session) return false;
 
   const normalizedSlug = normalizeCatalogSlug(catalogSlug);
-  const { data: rpcAccess, error: rpcError } = await supabase.rpc('has_catalog_admin_access', {
-    target_slug: normalizedSlug
-  });
-  const isAdmin = rpcError ? await hasAdminSession(normalizedSlug) : Boolean(rpcAccess);
+  const isAdmin = await hasAdminSession(normalizedSlug, data.session);
   if (!isAdmin) {
     await supabase.auth.signOut();
   }
@@ -469,12 +464,27 @@ export async function signOutAdmin() {
   await supabase.auth.signOut();
 }
 
-export async function hasAdminSession(catalogSlug?: string) {
+async function resolveAdminSession(catalogSlug?: string, knownSession?: Session | null) {
   if (!supabase) return false;
-  const { data } = await supabase.auth.getSession();
-  if (!data.session) return false;
+  const sessionResult =
+    knownSession !== undefined
+      ? { data: { session: knownSession } }
+      : await supabase.auth.getSession();
+  const session = sessionResult.data.session;
+  if (!session) return false;
 
   const normalizedSlug = normalizeCatalogSlug(catalogSlug);
+  const { data: rpcAccess, error: rpcError } = await supabase.rpc('has_catalog_admin_access', {
+    target_slug: normalizedSlug
+  });
+  if (!rpcError) return Boolean(rpcAccess);
+
+  const rpcErrorText = `${rpcError.code ?? ''} ${rpcError.message ?? ''}`.toLowerCase();
+  const rpcIsMissing =
+    rpcErrorText.includes('pgrst202') ||
+    (rpcErrorText.includes('has_catalog_admin_access') && rpcErrorText.includes('not found'));
+  if (!rpcIsMissing) return false;
+
   const platformCatalogId = await getPlatformCatalogId(normalizedSlug);
   let hasPlatformClientAccess = false;
   let hasCatalogMemberAccess = false;
@@ -484,7 +494,7 @@ export async function hasAdminSession(catalogSlug?: string) {
       .from('clients')
       .select('id')
       .eq('catalog_id', platformCatalogId)
-      .eq('owner_user_id', data.session.user.id)
+      .eq('owner_user_id', session.user.id)
       .maybeSingle();
 
     hasPlatformClientAccess = Boolean(client);
@@ -493,7 +503,7 @@ export async function hasAdminSession(catalogSlug?: string) {
       .from('catalog_members')
       .select('user_id')
       .eq('catalog_id', platformCatalogId)
-      .eq('user_id', data.session.user.id)
+      .eq('user_id', session.user.id)
       .limit(1)
       .maybeSingle();
 
@@ -503,7 +513,7 @@ export async function hasAdminSession(catalogSlug?: string) {
   const { data: adminUser } = await supabase
     .from('admin_user')
     .select('user_id')
-    .eq('user_id', data.session.user.id)
+    .eq('user_id', session.user.id)
     .maybeSingle();
 
   return catalogAccessAllowsAdmin({
@@ -511,6 +521,10 @@ export async function hasAdminSession(catalogSlug?: string) {
     hasPlatformClientAccess: hasPlatformClientAccess || hasCatalogMemberAccess,
     hasLegacyAdminAccess: Boolean(adminUser)
   });
+}
+
+export async function hasAdminSession(catalogSlug?: string, knownSession?: Session | null) {
+  return settleRestaurantSessionCheck(resolveAdminSession(catalogSlug, knownSession));
 }
 
 export function onAdminSessionChange(callback: (isAdmin: boolean) => void, catalogSlug?: string) {
@@ -521,7 +535,7 @@ export function onAdminSessionChange(callback: (isAdmin: boolean) => void, catal
       callback(false);
       return;
     }
-    void hasAdminSession(catalogSlug).then(callback);
+    void hasAdminSession(catalogSlug, session).then(callback).catch(() => callback(false));
   });
 
   return () => data.subscription.unsubscribe();

@@ -2100,6 +2100,11 @@ function AppContent({
       if (!isCurrentCatalog) return;
       setAdmin(hasSession);
       setAdminSessionChecked(true);
+    }).catch((error) => {
+      console.error('Restaurant session restoration failed', error);
+      if (!isCurrentCatalog) return;
+      setAdmin(false);
+      setAdminSessionChecked(true);
     });
     const unsubscribe = onAdminSessionChange((hasSession) => {
       if (!isCurrentCatalog) return;
