@@ -43,6 +43,7 @@ import {
   orderPaymentMethodLabels,
   paymentStatusLabels
 } from './orderPresentation';
+import { calculateDriverCashHandover } from '../order/orderLifecycle';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -413,7 +414,10 @@ export function OrderDetailsPanel({
               !cashPaymentConfirmed ? (
                 <>
                   <p>
-                    Получите от водителя {formatPrice(order.subtotal)} и подтвердите наличные.
+                    Получите от водителя {formatPrice(calculateDriverCashHandover({
+                      clientTotal: order.total,
+                      courierPayout: order.courierPayout
+                    }))} и подтвердите наличные. Выплата курьеру {formatPrice(order.courierPayout)} оплачивается рестораном и уже вычтена.
                     До подтверждения водитель не сможет нажать «Забрал заказ».
                   </p>
                   {!driverAtRestaurant && (

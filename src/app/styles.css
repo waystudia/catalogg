@@ -984,6 +984,13 @@
   color: #ea580c;
 }
 
+.admin-finance-summary .admin-finance-summary__net {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .admin-today-card {
   display: flex;
   align-items: center;

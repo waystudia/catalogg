@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  calculateDriverCashHandover,
   buildDriverDeliveryView,
   buildDeliveryDestinationAddress,
   buildYandexMapsRouteAppUrl,
@@ -13,6 +14,20 @@ import {
   rotatePickupQr,
   verifyPickupQr
 } from './orderLifecycle';
+
+describe('cash settlement with the restaurant', () => {
+  it('makes the restaurant fund the courier payout when delivery is free for the client', () => {
+    assert.equal(calculateDriverCashHandover({ clientTotal: 1500, courierPayout: 200 }), 1300);
+  });
+
+  it('keeps a paid client delivery fee inside the courier payout calculation', () => {
+    assert.equal(calculateDriverCashHandover({ clientTotal: 1620, courierPayout: 200 }), 1420);
+  });
+
+  it('never asks the driver to hand over a negative amount', () => {
+    assert.equal(calculateDriverCashHandover({ clientTotal: 150, courierPayout: 200 }), 0);
+  });
+});
 import type { DeliveryAssignment, DriverDeliveryView, OrderLifecycleSnapshot } from './orderLifecycle';
 
 const order = (overrides: Partial<OrderLifecycleSnapshot> = {}): OrderLifecycleSnapshot => ({

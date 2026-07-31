@@ -39,6 +39,7 @@ const order = (overrides: Partial<RestaurantOrder> = {}): RestaurantOrder => ({
   pickupQrConfirmedAt: null,
   subtotal: 690,
   deliveryFee: 0,
+  courierPayout: 200,
   total: 690,
   createdAt: new Date().toISOString(),
   acceptedAt: null,
@@ -60,7 +61,14 @@ describe('restaurant finance summary', () => {
         tariffPercent: 7,
         tariffFixed: 30
       }),
-      { grossRevenue: 690, platformDebt: 30 }
+      { grossRevenue: 690, platformDebt: 30, courierExpense: 200, netRevenue: 460 }
+    );
+  });
+
+  it('keeps free delivery out of the client total and records the courier payout as a restaurant expense', () => {
+    assert.deepEqual(
+      calculateRestaurantFinance([order({ subtotal: 1500, deliveryFee: 0, total: 1500, courierPayout: 200 })], null),
+      { grossRevenue: 1500, platformDebt: 0, courierExpense: 200, netRevenue: 1300 }
     );
   });
 
@@ -71,7 +79,7 @@ describe('restaurant finance summary', () => {
         tariffPercent: 7,
         tariffFixed: 30
       }),
-      { grossRevenue: 0, platformDebt: 0 }
+      { grossRevenue: 0, platformDebt: 0, courierExpense: 0, netRevenue: 0 }
     );
   });
 });

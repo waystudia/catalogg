@@ -109,7 +109,9 @@ export function RestaurantAdminWorkspace({
   });
   const {
     grossRevenue: monthRevenue,
-    platformDebt: restaurantDebt
+    platformDebt: restaurantDebt,
+    courierExpense,
+    netRevenue
   } = calculateRestaurantFinance(monthOrders, billingTariff);
   const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
   const filteredOrders =
@@ -284,6 +286,9 @@ export function RestaurantAdminWorkspace({
                   <CreditCard />
                 </article>
               </div>
+              <p className="admin-finance-summary__net">
+                Курьерам: {formatPrice(courierExpense)} · После курьеров и тарифа: {formatPrice(netRevenue)}
+              </p>
             </section>
             <section className="admin-today-card">
               <div>

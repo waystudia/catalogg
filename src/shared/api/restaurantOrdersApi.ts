@@ -86,6 +86,7 @@ export type RestaurantOrder = {
   pickupQrConfirmedAt: string | null;
   subtotal: number;
   deliveryFee: number;
+  courierPayout: number;
   total: number;
   createdAt: string;
   acceptedAt: string | null;
@@ -239,6 +240,7 @@ type OrderRow = {
     driver_id: string | null;
     updated_at?: string | null;
     pickup_qr_confirmed_at?: string | null;
+    offered_fee?: number | null;
     drivers?: MaybeArray<{
       name: string | null;
       phone: string | null;
@@ -355,6 +357,7 @@ const demoOrders: RestaurantOrder[] = [
     pickupQrConfirmedAt: null,
     subtotal: 1180,
     deliveryFee: 0,
+    courierPayout: 0,
     total: 1180,
     createdAt: new Date().toISOString(),
     acceptedAt: null,
@@ -405,7 +408,7 @@ const orderSelect = `
   payment_status,
   restaurant_payment_confirmed_at,
   restaurants(city_id, cities(name)),
-  deliveries(id, status, driver_id, updated_at, pickup_qr_confirmed_at, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
+  deliveries(id, status, driver_id, updated_at, pickup_qr_confirmed_at, offered_fee, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
   order_items(id, title, quantity, unit_price, line_total)
 `;
 
@@ -484,6 +487,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     pickupQrConfirmedAt: delivery?.pickup_qr_confirmed_at ?? null,
     subtotal: row.subtotal,
     deliveryFee: row.delivery_fee,
+    courierPayout: Number(delivery?.offered_fee ?? 0),
     total: row.total,
     createdAt: row.created_at,
     acceptedAt: row.accepted_at ?? null,

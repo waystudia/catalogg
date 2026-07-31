@@ -40,6 +40,7 @@ import {
 } from '../../features/driver/dashboardPresentation';
 import {
   buildYandexMapsRouteAppUrl,
+  calculateDriverCashHandover,
   getDriverNavigationStage,
   getDriverRoutePoints
 } from '../../features/order/orderLifecycle';
@@ -291,9 +292,18 @@ const deliveryStatusProgress: Record<DeliveryStatus, number> = {
 const latestDeliveryStatus = (first: DeliveryStatus, second: DeliveryStatus) =>
   deliveryStatusProgress[second] > deliveryStatusProgress[first] ? second : first;
 
-function DriverCashPaymentHandover({ deliveryId }: { deliveryId: string }) {
+function DriverCashPaymentHandover({
+  deliveryId,
+  clientTotal,
+  courierPayout
+}: {
+  deliveryId: string;
+  clientTotal: number;
+  courierPayout: number;
+}) {
   const storageKey = `driver-cash-handed-over:${deliveryId}`;
   const [moneyHandedOver, setMoneyHandedOver] = useState(false);
+  const restaurantCashAmount = calculateDriverCashHandover({ clientTotal, courierPayout });
 
   useEffect(() => {
     setMoneyHandedOver(window.sessionStorage.getItem(storageKey) === 'true');
@@ -309,7 +319,7 @@ function DriverCashPaymentHandover({ deliveryId }: { deliveryId: string }) {
       <p>
         {moneyHandedOver
           ? 'Деньги переданы. Ожидайте подтверждения оплаты рестораном.'
-          : 'Передайте ресторану сумму заказа и отметьте это кнопкой ниже.'}
+          : `Передайте ресторану ${formatPrice(restaurantCashAmount)}. Ваши ${formatPrice(courierPayout)} уже удержаны из суммы ресторана.`}
       </p>
       <button type="button" disabled={moneyHandedOver} onClick={confirmMoneyHandedOver}>
         {moneyHandedOver ? 'Деньги переданы ✓' : 'Я передал деньги'}
@@ -1124,7 +1134,11 @@ function DriverCurrentDeliveryPanel({
         })}
       </ol>
       {waitingForCashConfirmation && (
-        <DriverCashPaymentHandover deliveryId={offer.deliveryId} />
+        <DriverCashPaymentHandover
+          deliveryId={offer.deliveryId}
+          clientTotal={offer.orderTotal}
+          courierPayout={offer.deliveryFee}
+        />
       )}
       {!waitingForCashConfirmation && waitingForQr && (
         <p className="driver-handover-gate">Покажите QR-код ресторану. После сканирования можно забрать заказ.</p>
@@ -1677,7 +1691,11 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
           <Link to="/driver/qr"><QrCode />QR</Link>
         </div>
         {waitingForCashConfirmation && (
-          <DriverCashPaymentHandover deliveryId={delivery.deliveryId} />
+          <DriverCashPaymentHandover
+            deliveryId={delivery.deliveryId}
+            clientTotal={delivery.orderTotal}
+            courierPayout={delivery.deliveryFee}
+          />
         )}
         {!waitingForCashConfirmation && waitingForQr && (
           <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>

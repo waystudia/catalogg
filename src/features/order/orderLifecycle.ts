@@ -106,6 +106,14 @@ export type DriverDeliveryView = {
   readonly pickupQrToken?: string;
 };
 
+export const calculateDriverCashHandover = ({
+  clientTotal,
+  courierPayout
+}: {
+  clientTotal: number;
+  courierPayout: number;
+}) => Math.max(0, clientTotal - courierPayout);
+
 type RoutePoint = {
   readonly lat?: number | null;
   readonly lng?: number | null;

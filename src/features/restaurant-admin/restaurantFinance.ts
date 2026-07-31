@@ -15,6 +15,7 @@ export const calculateRestaurantFinance = (
 ) => {
   const billableOrders = orders.filter(isBillableOrder);
   const grossRevenue = billableOrders.reduce((total, order) => total + order.total, 0);
+  const courierExpense = billableOrders.reduce((total, order) => total + order.courierPayout, 0);
   const platformDebt = tariff
     ? billableOrders.reduce(
         (total, order) =>
@@ -28,6 +29,8 @@ export const calculateRestaurantFinance = (
 
   return {
     grossRevenue,
-    platformDebt: Math.round(platformDebt)
+    platformDebt: Math.round(platformDebt),
+    courierExpense: Math.round(courierExpense),
+    netRevenue: Math.round(grossRevenue - platformDebt - courierExpense)
   };
 };
