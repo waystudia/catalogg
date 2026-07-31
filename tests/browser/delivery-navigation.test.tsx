@@ -52,6 +52,7 @@ test('switches between street and labeled satellite maps and shows a routed summ
 });
 
 test('keeps navigation controls compact and separates compass from driver follow mode', async () => {
+  const onRouteSummaryChange = vi.fn();
   const loadRoute = vi.fn(async () => ({
     distanceM: 32_200,
     durationS: 2_340,
@@ -72,9 +73,29 @@ test('keeps navigation controls compact and separates compass from driver follow
       initialStyle="satellite"
       navigationMode
       followDriverHeading
+      onRouteSummaryChange={onRouteSummaryChange}
     />
   );
 
+  await expect.element(screen.getByRole('img', { name: 'Поворот направо' })).toBeVisible();
+  await expect.element(screen.getByText('Через 332 м')).toBeVisible();
+  await expect.element(screen.getByText('32,2 км')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('39 мин')).not.toBeInTheDocument();
+  const clientMarker = screen.getByRole('button', { name: 'Клиент: Клиент' });
+  await expect.element(clientMarker).toBeVisible();
+  const clientMarkerElement = clientMarker.element();
+  const mapRotatorElement = clientMarkerElement.parentElement;
+  const clientMarkerIcon = clientMarkerElement.querySelector('svg');
+  expect(mapRotatorElement).not.toBeNull();
+  expect(clientMarkerIcon).not.toBeNull();
+  const getRotation = (element: Element) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(element).transform);
+    return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+  };
+  const mapRotation = getRotation(mapRotatorElement!);
+  const visibleMarkerRotation = mapRotation + getRotation(clientMarkerElement) + getRotation(clientMarkerIcon!);
+  expect(Math.abs(mapRotation)).toBeGreaterThan(1);
+  expect(Math.abs(visibleMarkerRotation)).toBeLessThan(0.5);
   await expect.element(screen.getByRole('button', { name: 'Переключить на схему' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Выровнять карту по компасу' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Следить за водителем' })).toBeVisible();
@@ -85,6 +106,7 @@ test('keeps navigation controls compact and separates compass from driver follow
   await expect.element(screen.getByRole('button', { name: 'Переключить на спутник' })).toBeVisible();
   await screen.getByRole('button', { name: 'Включить голосовые подсказки' }).click();
   await expect.element(screen.getByRole('button', { name: 'Выключить голосовые подсказки' })).toHaveAttribute('aria-pressed', 'true');
+  expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
 });
 
 test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {

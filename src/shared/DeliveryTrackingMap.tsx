@@ -1,5 +1,8 @@
 import {
+  ArrowUp,
   Compass,
+  CornerUpLeft,
+  CornerUpRight,
   Home,
   Layers3,
   LocateFixed,
@@ -7,6 +10,7 @@ import {
   Minus,
   Navigation,
   Plus,
+  RotateCcw,
   Search,
   Volume2,
   VolumeX
@@ -47,7 +51,10 @@ type DeliveryTrackingMapProps = {
   searchLocations?: (query: string) => Promise<ReadonlyArray<DeliveryLocationSearchResult>>;
   followDriverHeading?: boolean;
   navigationMode?: boolean;
+  onRouteSummaryChange?: (summary: DeliveryRouteSummary | null) => void;
 };
+
+export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 
 const mapSize = 640;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
@@ -81,7 +88,8 @@ export function DeliveryTrackingMap({
   enableSearch = false,
   searchLocations = searchDeliveryLocations,
   followDriverHeading = false,
-  navigationMode = false
+  navigationMode = false,
+  onRouteSummaryChange
 }: DeliveryTrackingMapProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; center: DeliveryMapCoordinates; zoom: number; rotation: number } | null>(null);
@@ -140,6 +148,12 @@ export function DeliveryTrackingMap({
   const [center, setCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(defaultMapZoom);
   const [manualRotation, setManualRotation] = useState(0);
+  useEffect(() => {
+    onRouteSummaryChange?.(roadRoute
+      ? { distanceM: roadRoute.distanceM, durationS: roadRoute.durationS }
+      : null);
+  }, [onRouteSummaryChange, roadRoute]);
+
   useEffect(() => {
     if (lastResetViewKeyRef.current === resetViewKey) return;
     lastResetViewKeyRef.current = resetViewKey;
@@ -512,7 +526,13 @@ export function DeliveryTrackingMap({
               />
             </svg>
             {restaurantPoint && restaurant && (
-              <TrackingMarker point={restaurantPoint} kind="restaurant" icon={<Home />} onSelect={() => focusPoint('restaurant', restaurant)} />
+              <TrackingMarker
+                point={restaurantPoint}
+                kind="restaurant"
+                mapRotation={mapRotation}
+                icon={<Home />}
+                onSelect={() => focusPoint('restaurant', restaurant)}
+              />
             )}
             {driverPoint && driver && (
               <TrackingMarker
@@ -524,7 +544,13 @@ export function DeliveryTrackingMap({
               />
             )}
             {clientPoint && client && (
-              <TrackingMarker point={clientPoint} kind="client" icon={<MapPin />} onSelect={() => focusPoint('client', client)} />
+              <TrackingMarker
+                point={clientPoint}
+                kind="client"
+                mapRotation={mapRotation}
+                icon={<MapPin />}
+                onSelect={() => focusPoint('client', client)}
+              />
             )}
           </div>
           {selectedPoint && selectedPointPosition && (
@@ -590,7 +616,7 @@ export function DeliveryTrackingMap({
         )}
         {roadRoute && (
           <aside className="delivery-tracking-map__navigation" aria-label="Следующая подсказка маршрута">
-            <Navigation aria-hidden="true" />
+            <ManeuverIcon instruction={roadRoute.nextManeuver?.instruction} />
             <span>
               <small>
                 {roadRoute.nextManeuver
@@ -600,9 +626,10 @@ export function DeliveryTrackingMap({
               <strong>
                 {roadRoute.nextManeuver?.instruction ?? 'Продолжайте по маршруту'}
               </strong>
-              {roadRoute.nextManeuver?.street && <em>{roadRoute.nextManeuver.street}</em>}
             </span>
-            <b>{formatRouteDistance(roadRoute.distanceM)}<small>{formatRouteDuration(roadRoute.durationS)}</small></b>
+            {!navigationMode && (
+              <b>{formatRouteDistance(roadRoute.distanceM)}<small>{formatRouteDuration(roadRoute.durationS)}</small></b>
+            )}
           </aside>
         )}
         <small className="delivery-tracking-map__attribution">
@@ -620,6 +647,19 @@ export function DeliveryTrackingMap({
       )}
     </section>
   );
+}
+
+function ManeuverIcon({ instruction = '' }: { instruction?: string }) {
+  if (/направо|правее/i.test(instruction)) {
+    return <CornerUpRight role="img" aria-label="Поворот направо" />;
+  }
+  if (/налево|левее/i.test(instruction)) {
+    return <CornerUpLeft role="img" aria-label="Поворот налево" />;
+  }
+  if (/развернитесь/i.test(instruction)) {
+    return <RotateCcw role="img" aria-label="Разворот" />;
+  }
+  return <ArrowUp role="img" aria-label="Продолжайте прямо" />;
 }
 
 function DriverArrowIcon() {
@@ -645,19 +685,22 @@ function TrackingMarker({
   point,
   kind,
   heading = 0,
+  mapRotation = 0,
   icon,
   onSelect
 }: {
   point: { x: number; y: number; label: string; address?: string };
   kind: 'restaurant' | 'driver' | 'client';
   heading?: number;
+  mapRotation?: number;
   icon: ReactNode;
   onSelect: () => void;
 }) {
   const style = {
     left: point.x,
     top: point.y,
-    '--driver-heading': `${heading}deg`
+    '--driver-heading': `${heading}deg`,
+    '--map-counter-rotation': `${-mapRotation}deg`
   } as CSSProperties;
 
   return (
@@ -666,6 +709,7 @@ function TrackingMarker({
       style={style}
       type="button"
       title={point.address || point.label}
+      aria-label={`${kind === 'restaurant' ? 'Ресторан' : kind === 'driver' ? 'Водитель' : 'Клиент'}: ${point.label}`}
       onClick={onSelect}
     >
       {icon}

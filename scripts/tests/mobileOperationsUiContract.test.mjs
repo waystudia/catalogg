@@ -164,8 +164,23 @@ describe('mobile operational interfaces', () => {
     assert.match(mapSource, /Выровнять карту по компасу/);
     assert.match(mapSource, /Следить за водителем/);
     assert.match(mapSource, /Включить голосовые подсказки/);
+    assert.match(mapSource, /--map-counter-rotation/);
+    assert.match(mapSource, /onRouteSummaryChange/);
+    assert.match(driverSource, /driver-map-sheet__metrics/);
+    assert.match(driverSource, /routeSummary\?\.distanceM/);
+    assert.doesNotMatch(
+      driverSource.slice(
+        driverSource.indexOf('<header className="driver-map-sheet__order">'),
+        driverSource.indexOf('<div className="driver-map-sheet__route">')
+      ),
+      /Осталось/
+    );
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation[\s\S]*width:\s*12[0-9]px/);
+    assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
+    assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*10[0-9]px/s);
+    assert.match(driverCss, /\.driver-map-sheet__actions\s*\{[^}]*min-height:\s*3[6-9]px/s);
+    assert.match(driverCss, /\.driver-map-sheet__yandex,[\s\S]*min-height:\s*3[6-9]px/s);
     assert.match(driverCss, /\.driver-map-sheet[\s\S]*height:\s*2[0-9]dvh/);
   });
 });

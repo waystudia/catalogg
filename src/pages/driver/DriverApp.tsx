@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Check,
   CircleDollarSign,
+  Clock3,
   ClipboardList,
   Headphones,
   Home,
@@ -66,7 +67,7 @@ import {
 } from '../../shared/api/deliveryApi';
 import { requestDriverDeliveryPrice } from '../../shared/api/deliveryPricingApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
-import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
+import { DeliveryTrackingMap, type DeliveryRouteSummary } from '../../shared/DeliveryTrackingMap';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission,
@@ -79,6 +80,10 @@ import { supabase } from '../../shared/supabase';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const formatDriverMapDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+}).format(distanceM / 1000)} км`;
 
 const buildDriverPickupQrPayload = (delivery: Pick<DeliveryOffer, 'deliveryId' | 'orderId' | 'pickupQrToken'> | null) =>
   delivery?.pickupQrToken ? `wc-delivery|${delivery.deliveryId}|${delivery.pickupQrToken}` : '';
@@ -1687,6 +1692,7 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
   const navigate = useNavigate();
   const [routeRefreshKey, setRouteRefreshKey] = useState(0);
+  const [routeSummary, setRouteSummary] = useState<DeliveryRouteSummary | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
@@ -1760,6 +1766,7 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
               routePoints={currentRoutePoints}
               followDriverHeading={currentDriverPoint !== null}
               driver={currentDriverPoint}
+              onRouteSummaryChange={setRouteSummary}
             />
         ) : delivery ? (
           <DriverMapUnavailable tall message={getDriverMapUnavailableMessage(mapData)} />
@@ -1771,6 +1778,7 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
             navigationMode
             driver={currentDriverPoint}
             followDriverHeading={currentDriverPoint !== null}
+            onRouteSummaryChange={setRouteSummary}
           />
         )}
       </div>
@@ -1802,7 +1810,6 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
                 <small>✓ Заказ принят</small>
                 <strong>{delivery.orderNumber}</strong>
               </span>
-              <b>Осталось ≈ {delivery.routeEtaMin} мин</b>
             </header>
             <div className="driver-map-sheet__route">
               <Home />
@@ -1811,6 +1818,10 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
               <MapPin />
               <span><small>Точка Б</small><strong>{delivery.clientName || 'Клиент'}</strong></span>
             </div>
+          <div className="driver-map-sheet__metrics" aria-label="Осталось по маршруту">
+            <span><Navigation />{formatDriverMapDistance(routeSummary?.distanceM ?? delivery.distanceKm * 1_000)}</span>
+            <span><Clock3 />≈ {Math.max(1, Math.round((routeSummary?.durationS ?? delivery.routeEtaMin * 60) / 60))} мин</span>
+          </div>
           {progress && (
             <ol className="driver-delivery-progress" aria-label="Статус доставки">
               {progress.labels.map((label, index) => {

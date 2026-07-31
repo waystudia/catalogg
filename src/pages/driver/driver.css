@@ -48,7 +48,10 @@
 
 .driver-map-canvas {
   position: absolute;
-  inset: 0;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 
 .driver-phone--map .delivery-tracking-map {
@@ -72,7 +75,7 @@
 }
 
 .driver-phone--map .delivery-tracking-map__controls {
-  top: 82px;
+  top: 18px;
   right: 14px;
   gap: 7px;
 }
@@ -86,49 +89,34 @@
 }
 
 .driver-phone--map .delivery-tracking-map__navigation {
-  top: 82px;
+  top: 18px;
   right: auto;
   bottom: auto;
   left: 14px;
-  width: 128px;
-  min-height: 128px;
-  grid-template-columns: 28px minmax(0, 1fr);
+  width: 104px;
+  min-height: 92px;
+  grid-template-columns: 22px minmax(0, 1fr);
   align-content: center;
   gap: 6px;
   border: 0;
   border-radius: 18px;
-  padding: 10px;
+  padding: 8px;
   background: linear-gradient(135deg, #6d4aff, #4f2de1);
   color: #fff;
 }
 
 .driver-phone--map .delivery-tracking-map__navigation > svg {
-  width: 26px;
-  height: 26px;
+  width: 21px;
+  height: 21px;
 }
 
 .driver-phone--map .delivery-tracking-map__navigation > span strong {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 10px;
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-.driver-phone--map .delivery-tracking-map__navigation > span em {
-  display: none;
-}
-
-.driver-phone--map .delivery-tracking-map__navigation > b {
-  grid-column: 1 / -1;
-  font-size: 10px;
-  text-align: left;
-}
-
-.driver-phone--map .delivery-tracking-map__navigation > b small {
-  display: inline;
-  margin: 0 0 0 7px;
 }
 
 .driver-phone--map .delivery-tracking-map__navigation-bottom-controls {
@@ -148,14 +136,18 @@
 
 .driver-map-topbar {
   position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  right: 14px;
-  left: 14px;
+  top: 0;
+  right: 0;
+  left: 0;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  pointer-events: none;
+  height: 64px;
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ec;
+  pointer-events: auto;
 }
 
 .driver-map-topbar > button {
@@ -208,10 +200,12 @@
   height: 28dvh;
   min-height: 170px;
   max-height: 58dvh;
-  gap: 7px;
+  grid-template-rows: 8px auto auto auto auto 38px;
+  align-content: start;
+  gap: 3px;
   overflow: hidden;
   border-radius: 26px 26px 0 0;
-  padding: 7px 12px calc(10px + env(safe-area-inset-bottom));
+  padding: 4px 10px calc(4px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.16);
   backdrop-filter: blur(16px);
@@ -226,7 +220,7 @@
 .driver-map-sheet__handle {
   display: grid;
   width: 100%;
-  min-height: 12px;
+  min-height: 8px;
   place-items: center;
   border: 0;
   background: transparent;
@@ -234,8 +228,8 @@
 }
 
 .driver-map-sheet__handle span {
-  width: 42px;
-  height: 4px;
+  width: 36px;
+  height: 3px;
   border-radius: 999px;
   background: #d0d5dd;
 }
@@ -248,25 +242,48 @@
   gap: 10px;
 }
 
+.driver-map-sheet__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #344054;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.driver-map-sheet__metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.driver-map-sheet__metrics svg {
+  width: 12px;
+  height: 12px;
+  color: #5b3df4;
+}
+
 .driver-map-sheet__order > span {
-  display: grid;
+  display: flex;
   min-width: 0;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
 }
 
 .driver-map-sheet__order small {
   width: max-content;
   border-radius: 999px;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: #5b3df4;
   color: #fff;
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .driver-map-sheet__order strong {
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1;
 }
 
@@ -278,17 +295,17 @@
 
 .driver-map-sheet__route {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 12px 24px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr) 10px 20px minmax(0, 1fr);
   align-items: center;
   gap: 5px;
   min-width: 0;
 }
 
 .driver-map-sheet__route > svg {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  padding: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+  padding: 4px;
   background: #f0edff;
   color: #5b3df4;
 }
@@ -300,12 +317,12 @@
 
 .driver-map-sheet__route small {
   color: #667085;
-  font-size: 8px;
+  font-size: 7px;
 }
 
 .driver-map-sheet__route strong {
   overflow: hidden;
-  font-size: 10px;
+  font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -321,30 +338,32 @@
 }
 
 .driver-map-sheet .driver-delivery-progress li > span {
-  width: 25px;
-  height: 25px;
+  width: 21px;
+  height: 21px;
 }
 
 .driver-map-sheet .driver-delivery-progress li > span svg {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
 }
 
 .driver-map-sheet .driver-delivery-progress li > small {
-  font-size: 6px;
+  font-size: 5px;
+  line-height: 1.05;
 }
 
 .driver-map-sheet__actions {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr);
-  gap: 7px;
+  min-height: 38px;
+  gap: 5px;
 }
 
 .driver-map-sheet__yandex,
 .driver-map-sheet__client {
   display: grid;
   min-width: 0;
-  min-height: 48px;
+  min-height: 38px;
   align-items: center;
   border: 1px solid #e4e7ec;
   border-radius: 13px;
@@ -352,20 +371,20 @@
 }
 
 .driver-map-sheet__yandex {
-  grid-template-columns: 28px minmax(0, 1fr) 14px;
-  gap: 5px;
-  padding: 7px;
+  grid-template-columns: 22px minmax(0, 1fr) 11px;
+  gap: 4px;
+  padding: 4px;
 }
 
 .driver-map-sheet__yandex > svg:first-child {
-  width: 25px;
-  height: 25px;
+  width: 20px;
+  height: 20px;
   color: #5b3df4;
 }
 
 .driver-map-sheet__yandex > svg:last-child {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   color: #667085;
 }
 
@@ -378,7 +397,7 @@
 .driver-map-sheet__yandex strong,
 .driver-map-sheet__client strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -387,7 +406,7 @@
 .driver-map-sheet__client small {
   overflow: hidden;
   color: #667085;
-  font-size: 7px;
+  font-size: 6px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -396,7 +415,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
   margin: 0;
-  padding: 7px;
+  padding: 4px;
 }
 
 .driver-map-sheet__client > div {
@@ -406,8 +425,8 @@
 
 .driver-map-sheet__client a {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   place-items: center;
   border-radius: 50%;
   background: #f0edff;
@@ -415,8 +434,8 @@
 }
 
 .driver-map-sheet__client a svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .driver-map-sheet__empty {
