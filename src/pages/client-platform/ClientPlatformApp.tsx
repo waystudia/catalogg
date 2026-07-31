@@ -71,10 +71,17 @@ import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
   saveClientReview,
-  saveClientSignup,
   subscribeClientOrderRealtime,
   subscribeClientPlatformSnapshotRealtime
 } from '../../shared/api/clientPlatformApi';
+import {
+  buildClientAuthPath,
+  hasStoredClientSession,
+  loginClientAccount,
+  logoutClientAccount,
+  registerClientAccount,
+  restoreClientAccountSession
+} from '../../shared/api/clientAccountApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
@@ -1259,6 +1266,10 @@ function CartPage({
   const increment = useClientPlatformStore((state) => state.addDish);
   const decrement = useClientPlatformStore((state) => state.decrementDish);
   const summary = calculateCartSummary(lines, dishes, 0);
+  const checkoutPath = `/r/${restaurant.slug}/checkout`;
+  const checkoutTarget = hasStoredClientSession()
+    ? checkoutPath
+    : buildClientAuthPath(checkoutPath);
 
   return (
     <>
@@ -1270,8 +1281,8 @@ function CartPage({
           <>
             <CartLineList lines={lines} dishes={dishes} restaurantSlug={restaurant.slug} onIncrement={increment} onDecrement={decrement} />
             <CartTotal summary={summary} />
-            <Link className="restaurant-primary-button" to={`/r/${restaurant.slug}/checkout`}>
-              Оформить заказ
+            <Link className="restaurant-primary-button" to={checkoutTarget}>
+              {hasStoredClientSession() ? 'Оформить заказ' : 'Войти или зарегистрироваться'}
             </Link>
           </>
         )}
@@ -1370,6 +1381,13 @@ function CheckoutPage({
   const summary = calculateCartSummary(lines, dishes, 0);
   const increment = useClientPlatformStore((state) => state.addDish);
   const decrement = useClientPlatformStore((state) => state.decrementDish);
+  const hasClientAccount = hasStoredClientSession();
+
+  useEffect(() => {
+    if (!hasClientAccount) {
+      navigate(buildClientAuthPath(`/r/${restaurant.slug}/checkout`), { replace: true });
+    }
+  }, [hasClientAccount, navigate, restaurant.slug]);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2164,15 +2182,21 @@ function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
 function ProfilePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
   const [clientPhone, setClientPhone] = useState(profile.phone);
+  const [clientPassword, setClientPassword] = useState('');
+  const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>('login');
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [activeRole, setActiveRole] = useState<'client' | 'restaurant' | 'driver' | null>(null);
+  const clientAuthRequested = searchParams.get('clientAuth') === '1';
+  const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
+  const [activeRole, setActiveRole] = useState<'client' | 'restaurant' | 'driver' | null>(
+    clientAuthRequested ? 'client' : null
+  );
   const [restaurantEmail, setRestaurantEmail] = useState('');
   const [restaurantPassword, setRestaurantPassword] = useState('');
   const [restaurantError, setRestaurantError] = useState('');
@@ -2189,6 +2213,20 @@ function ProfilePage() {
   const displayName = profile.name || 'Гость WayCatalog';
   const displayPhone = profile.phone || 'Телефон не указан';
   const displayAddress = addresses.find((address) => address.isDefault)?.addressLine ?? addresses[0]?.addressLine ?? '';
+  const returnToValue = searchParams.get('returnTo') ?? '';
+  const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
+    ? returnToValue
+    : '/profile';
+
+  useEffect(() => {
+    void restoreClientAccountSession().then((session) => {
+      if (!session) return;
+      saveProfile({ name: session.name, phone: session.phone });
+      setClientName(session.name);
+      setClientPhone(session.phone);
+      setClientMessage('Вы вошли в аккаунт');
+    });
+  }, [saveProfile]);
 
   const submitClientProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2198,19 +2236,29 @@ function ProfilePage() {
     setClientMessage('');
     setIsSavingClient(true);
 
-    if (!nextProfile.name || !nextProfile.phone) {
-      setClientError('Введите имя и номер телефона.');
+    if (!nextProfile.phone || !clientPassword) {
+      setClientError('Введите номер телефона и пароль.');
+      setIsSavingClient(false);
+      return;
+    }
+    if (clientAuthMode === 'register' && !nextProfile.name) {
+      setClientError('Введите имя.');
       setIsSavingClient(false);
       return;
     }
 
     try {
-      saveProfile(nextProfile);
-      await saveClientSignup(nextProfile);
-      setClientMessage('Профиль сохранён');
+      const session = clientAuthMode === 'register'
+        ? await registerClientAccount({ ...nextProfile, password: clientPassword })
+        : await loginClientAccount({ phone: nextProfile.phone, password: clientPassword });
+      saveProfile({ name: session.name, phone: session.phone });
+      setClientName(session.name);
+      setClientPhone(session.phone);
+      setClientPassword('');
+      setClientMessage(clientAuthMode === 'register' ? 'Аккаунт создан' : 'Вход выполнен');
+      navigate(clientReturnTo, { replace: true });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'неизвестная ошибка';
-      setClientError(`Профиль сохранён на устройстве. Supabase: ${message}`);
+      setClientError(error instanceof Error ? error.message : 'Не удалось войти.');
     } finally {
       setIsSavingClient(false);
     }
@@ -2245,6 +2293,7 @@ function ProfilePage() {
     saveProfile({ name: '', phone: '' });
     setClientName('');
     setClientPhone('');
+    setClientPassword('');
     setClientMessage('');
     setClientError('');
     setRestaurantEmail('');
@@ -2252,6 +2301,7 @@ function ProfilePage() {
     setRestaurantError('');
     setActiveRole(null);
     setAccountOpen(false);
+    void logoutClientAccount();
     void signOutPlatformAdmin();
   };
 
@@ -2312,19 +2362,72 @@ function ProfilePage() {
 
           {activeRole === 'client' && (
             <form className="profile-inline-form" onSubmit={submitClientProfile}>
-              <label className="field-label">
-                <span>Имя</span>
-                <input value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Ваше имя" />
-              </label>
+              <div className="segment-control">
+                <button
+                  className={clientAuthMode === 'login' ? 'is-active' : ''}
+                  type="button"
+                  onClick={() => {
+                    setClientAuthMode('login');
+                    setClientError('');
+                  }}
+                >
+                  Войти
+                </button>
+                <button
+                  className={clientAuthMode === 'register' ? 'is-active' : ''}
+                  type="button"
+                  onClick={() => {
+                    setClientAuthMode('register');
+                    setClientError('');
+                  }}
+                >
+                  Регистрация
+                </button>
+              </div>
+              {clientAuthMode === 'register' && (
+                <label className="field-label">
+                  <span>Имя</span>
+                  <input
+                    value={clientName}
+                    onChange={(event) => setClientName(event.target.value)}
+                    placeholder="Ваше имя"
+                    autoComplete="name"
+                    required
+                  />
+                </label>
+              )}
               <label className="field-label">
                 <span>Телефон</span>
-                <input value={clientPhone} onChange={(event) => setClientPhone(event.target.value)} placeholder="+7" inputMode="tel" />
+                <input
+                  value={clientPhone}
+                  onChange={(event) => setClientPhone(event.target.value)}
+                  placeholder="+7"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  required
+                />
+              </label>
+              <label className="field-label">
+                <span>Пароль</span>
+                <input
+                  value={clientPassword}
+                  onChange={(event) => setClientPassword(event.target.value)}
+                  type="password"
+                  autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
+                  minLength={6}
+                  maxLength={72}
+                  required
+                />
               </label>
               {clientError && <small className="form-error">{clientError}</small>}
               {clientMessage && <small className="form-success">{clientMessage}</small>}
               <button className="wide-action" type="submit" disabled={isSavingClient}>
                 <UserRoundCheck />
-                {isSavingClient ? 'Сохраняем...' : 'Войти как клиент'}
+                {isSavingClient
+                  ? 'Проверяем...'
+                  : clientAuthMode === 'register'
+                    ? 'Зарегистрироваться'
+                    : 'Войти как клиент'}
               </button>
             </form>
           )}

@@ -1259,10 +1259,26 @@ export function DriverYandexNavigationActions({
           {isConfirmingPickup ? 'Подтверждаем...' : 'Я взял заказ'}
         </button>
       )}
-      <button className="driver-secondary" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
-        <Navigation />
-        Использовать Яндекс Карты
-      </button>
+      {navigationStage.activeLeg === 'client' && clientCoordinatesAreReady ? (
+        <a
+          className={
+            delivery.status === 'handed_over'
+              ? 'driver-secondary driver-secondary--map-hint'
+              : 'driver-secondary'
+          }
+          href={clientRoute}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <Navigation />
+          Построить маршрут к клиенту
+        </a>
+      ) : (
+        <button className="driver-secondary" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
+          <Navigation />
+          Использовать Яндекс Карты
+        </button>
+      )}
       {isOpen && (
         <div className="driver-yandex-navigation__routes">
           {restaurantCoordinatesAreReady ? (

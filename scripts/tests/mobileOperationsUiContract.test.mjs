@@ -100,6 +100,11 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-current-block__accepted/);
     assert.match(driverCss, /\.driver-inline-qr/);
     assert.match(driverCss, /\.driver-secondary--map-hint/);
+    assert.match(driverSource, /Построить маршрут к клиенту/);
+    assert.match(
+      driverSource,
+      /delivery\.status === 'handed_over'[\s\S]*driver-secondary--map-hint/
+    );
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
   });

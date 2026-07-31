@@ -65,9 +65,8 @@ test('reveals Yandex restaurant navigation before pickup and client navigation a
     <DriverYandexNavigationActions delivery={navigationDelivery('handed_over')} />
   );
 
-  await handedOverScreen.getByRole('button', { name: 'Использовать Яндекс Карты' }).click();
-  const clientRoute = handedOverScreen.getByRole('link', { name: 'Маршрут до клиента' });
-  await expect.element(clientRoute).toHaveAttribute('aria-current', 'step');
+  const clientRoute = handedOverScreen.getByRole('link', { name: 'Построить маршрут к клиенту' });
+  await expect.element(clientRoute).toHaveClass(/driver-secondary--map-hint/);
   await expect.element(clientRoute).toHaveAttribute(
     'href',
     'yandexmaps://maps.yandex.ru/?rtext=~43.318123%2C45.698456&rtt=auto'
@@ -83,8 +82,10 @@ test('reveals Yandex restaurant navigation before pickup and client navigation a
       }}
     />
   );
-  await clientOnlyScreen.getByRole('button', { name: 'Использовать Яндекс Карты' }).click();
-  await expect.element(clientOnlyScreen.getByRole('link', { name: 'Маршрут до клиента' })).toHaveAttribute('aria-current', 'step');
+  await expect.element(clientOnlyScreen.getByRole('link', { name: 'Построить маршрут к клиенту' })).toHaveAttribute(
+    'href',
+    'yandexmaps://maps.yandex.ru/?rtext=~43.318123%2C45.698456&rtt=auto'
+  );
 });
 
 test('offers manual pickup confirmation when the driver reached the restaurant', async () => {

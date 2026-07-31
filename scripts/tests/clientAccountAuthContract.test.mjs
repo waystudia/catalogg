@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+
+const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
+const apiSource = fs.readFileSync('src/shared/api/clientAccountApi.ts', 'utf8');
+const migrationFiles = fs
+  .readdirSync('supabase/migrations')
+  .filter((name) => name.endsWith('_add_client_password_accounts.sql'));
+
+test('client checkout requires a real account session', () => {
+  assert.match(appSource, /buildClientAuthPath\(`\/r\/\$\{restaurant\.slug\}\/checkout`\)/);
+  assert.match(appSource, /Войти или зарегистрироваться/);
+});
+
+test('client profile supports separate registration and login flows', () => {
+  assert.match(appSource, /registerClientAccount/);
+  assert.match(appSource, /loginClientAccount/);
+  assert.match(appSource, /type="password"/);
+  assert.match(appSource, /Зарегистрироваться/);
+});
+
+test('client account session is restored from the server', () => {
+  assert.match(apiSource, /get_client_account_session/);
+  assert.match(apiSource, /waycatalog-client-session/);
+});
+
+test('password account migration hashes passwords and isolates private tables', () => {
+  assert.equal(migrationFiles.length, 1);
+  const sql = fs.readFileSync(`supabase/migrations/${migrationFiles[0]}`, 'utf8');
+  assert.match(sql, /extensions\.crypt\(.*extensions\.gen_salt\('bf'/s);
+  assert.doesNotMatch(sql, /\n\s+password\s+text\s+not null/i);
+  assert.match(sql, /enable row level security/i);
+  assert.match(sql, /revoke all on table public\.client_accounts from public, anon, authenticated/i);
+  assert.match(sql, /revoke all on table public\.client_account_sessions from public, anon, authenticated/i);
+});
