@@ -93,7 +93,7 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /driver-current-block__accepted/);
     assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
     assert.match(driverSource, /driver-inline-qr/);
-    assert.match(driverSource, /Показать QR ресторану/);
+    assert.match(driverSource, /Показать QR: \{terms\.placeDative\}/);
     assert.match(driverSource, /Профиль загружается/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
@@ -132,12 +132,12 @@ describe('mobile operational interfaces', () => {
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /Построить маршрут к ресторану/);
-    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted\)/);
+    assert.match(currentPanel, /Построить маршрут: \{terms\.placeDative\}/);
+    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted,\s*offer\.businessType\)/);
     assert.match(currentPanel, /nextAction\.label/);
     assert.match(
       driverSource,
-      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted\)/
+      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted,\s*delivery\.businessType\)/
     );
   });
 

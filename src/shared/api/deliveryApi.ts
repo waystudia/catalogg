@@ -13,6 +13,7 @@ import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
 import { supabase } from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthStorageKey } from '../supabaseAuthScope';
+import { normalizeBusinessType, type BusinessType } from '../businessTerminology';
 
 export type DriverProfile = {
   readonly id: string;
@@ -33,6 +34,7 @@ export type DriverProfile = {
 };
 
 export type DeliveryOffer = DriverDeliveryView & {
+  readonly businessType: BusinessType;
   readonly deliveryId: string;
   readonly orderNumber: string;
   readonly createdAt: string;
@@ -460,7 +462,11 @@ const normalizeOrderType = (order: DeliveryOrderRow): OrderLifecycleSnapshot['or
   return 'dine_in';
 };
 
-const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | null => {
+const rowToOffer = (
+  row: DeliveryRow,
+  viewerDriverId: string,
+  businessType: BusinessType = 'restaurant'
+): DeliveryOffer | null => {
   const order = firstRelation(row.orders);
   if (!order) return null;
   const restaurant = firstRelation(order.restaurants);
@@ -502,6 +508,7 @@ const rowToOffer = (row: DeliveryRow, viewerDriverId: string): DeliveryOffer | n
 
   return {
     ...buildDriverDeliveryView({ order: lifecycleOrder, assignment, viewerDriverId }),
+    businessType,
     deliveryId: row.id,
     orderNumber: formatPublicOrderNumber(row.order_id, restaurant?.name),
     createdAt: order.created_at,
@@ -676,8 +683,25 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
   if (deliveriesResult.error) throw deliveriesResult.error;
   const deliveryRows = (deliveriesResult.data ?? []) as unknown as DeliveryRow[];
 
+  const catalogIds = Array.from(new Set(deliveryRows
+    .map((row) => firstRelation(row.orders)?.catalog_id)
+    .filter((id): id is string => Boolean(id))));
+  const businessTypeByCatalog = new Map<string, BusinessType>();
+  if (catalogIds.length > 0) {
+    const { data: catalogTypes } = await supabase
+      .from('catalogs')
+      .select('id, business_type')
+      .in('id', catalogIds);
+    (catalogTypes ?? []).forEach((catalog) => {
+      businessTypeByCatalog.set(catalog.id, normalizeBusinessType(catalog.business_type));
+    });
+  }
+
   let offers = deliveryRows
-    .map((row) => rowToOffer(row, profile.id))
+    .map((row) => {
+      const catalogId = firstRelation(row.orders)?.catalog_id;
+      return rowToOffer(row, profile.id, catalogId ? businessTypeByCatalog.get(catalogId) : undefined);
+    })
     .filter((offer): offer is DeliveryOffer => Boolean(offer));
 
   const assignedOrderIds = Array.from(new Set(offers

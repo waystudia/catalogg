@@ -43,6 +43,7 @@ export function DesignEditor({
             categories={categories}
             products={products}
             cartCount={cartCount}
+            businessType={restaurant.business_type}
             onBack={() => {
               onCloseProduct();
               setEditor(null);

@@ -104,7 +104,7 @@ export const createClientSchema = z.object({
   serviceSettlementsText: z.string().trim().max(1500, 'Слишком длинный список').optional(),
   password: z.string().refine(isStrongPassword, 'Минимум 10 символов: A-z, цифра и спецсимвол'),
   templateVersionId: z.string().uuid('Выберите шаблон'),
-  businessType: z.string().min(2, 'Выберите тип бизнеса'),
+  businessType: z.enum(['restaurant', 'coffee_shop']),
   planId: z.string().optional(),
   subscriptionEndsAt: z.string().optional(),
   status: z.enum(['active', 'inactive', 'blocked', 'pending']).default('active'),

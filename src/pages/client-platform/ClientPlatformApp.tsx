@@ -67,6 +67,7 @@ import type {
   PlatformBanner
 } from '../../features/client-platform/types';
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
+import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
@@ -462,7 +463,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
       <Link className="platform-search platform-search--home" to="/restaurants">
         <Search />
-        <span>Блюдо или ресторан</span>
+        <span>Позиция или заведение</span>
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
@@ -477,7 +478,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       ) : (
         <section className="empty-state empty-state--compact">
           <Store />
-          <strong>Рестораны пока не подключены</strong>
+          <strong>Заведения пока не подключены</strong>
           <Link to="/city">Выбрать другое место</Link>
         </section>
       )}
@@ -847,7 +848,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       </label>
       <button className="wide-action" type="button" disabled={!nearestCityId} onClick={() => chooseCity(nearestCityId)}>
         <LocateFixed />
-        Показать ближайшие рестораны
+        Показать ближайшие заведения
       </button>
       {recentCities.length > 0 && (
         <section className="plain-section">
@@ -878,7 +879,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
                   <small>
                     {countRestaurantsForCity(snapshot, city.id) > 0
                       ? formatRestaurantCount(countRestaurantsForCity(snapshot, city.id))
-                      : 'Пока нет ресторанов'}
+                      : 'Пока нет заведений'}
                     {city.region ? ` · ${city.region}` : ''}
                   </small>
                 </span>
@@ -951,14 +952,14 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   return (
     <>
-      <PageHeader title="Рестораны" />
+      <PageHeader title="Заведения" />
       <label className="platform-search">
         <Search />
         <input
-          aria-label="Поиск ресторанов"
+          aria-label="Поиск заведений"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск ресторанов"
+          placeholder="Поиск заведений"
           type="search"
         />
       </label>
@@ -1071,10 +1072,10 @@ function RestaurantArea({
     return (
       <div className="client-platform platform-theme">
         <div className="platform-page">
-          <PageHeader title="Ресторан не найден" backTo="/restaurants" />
+          <PageHeader title="Заведение не найдено" backTo="/restaurants" />
           <Link className="wide-link" to="/restaurants">
             <Store />
-            К ресторанам
+            К заведениям
           </Link>
         </div>
       </div>
@@ -1130,6 +1131,7 @@ function RestaurantCatalogPage({
   snapshot: ClientPlatformSnapshot;
   restaurant: ClientRestaurant;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const [searchParams, setSearchParams] = useSearchParams();
   const favoriteRestaurantIds = useClientPlatformStore((state) => state.favoriteRestaurantIds);
   const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
@@ -1157,7 +1159,7 @@ function RestaurantCatalogPage({
             className={favoriteRestaurantIds.includes(restaurant.id) ? 'restaurant-round is-active' : 'restaurant-round'}
             type="button"
             onClick={() => toggleFavoriteRestaurant(restaurant.id)}
-            aria-label="Добавить ресторан в избранное"
+            aria-label={`Добавить ${terms.placeAccusative} в избранное`}
           >
             <Heart />
           </button>
@@ -1209,7 +1211,7 @@ function RestaurantCatalogPage({
         </section>
 
         <section className="restaurant-section">
-          <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? 'Блюда'}</h2>
+          <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? terms.items}</h2>
           <div className="dish-grid">
             {visibleDishes.map((dish) => (
               <article className="dish-card" key={dish.id}>
@@ -1217,7 +1219,7 @@ function RestaurantCatalogPage({
                   className={favoriteDishIds.includes(dish.id) ? 'dish-card__favorite is-active' : 'dish-card__favorite'}
                   type="button"
                   onClick={() => toggleFavoriteDish(dish.id)}
-                  aria-label="Добавить блюдо в избранное"
+                  aria-label={`Добавить ${terms.itemLower} в избранное`}
                 >
                   <Heart />
                 </button>
@@ -1763,6 +1765,7 @@ function PaymentPage({
   snapshot: ClientPlatformSnapshot;
   restaurant: ClientRestaurant;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const navigate = useNavigate();
   const drafts = useClientPlatformStore((state) => state.checkoutDrafts);
   const setPaymentMethod = useClientPlatformStore((state) => state.setDraftPaymentMethod);
@@ -1802,7 +1805,7 @@ function PaymentPage({
               {method === 'qr' ? <QrCode /> : method === 'bank_transfer' ? <Building2 /> : <Banknote />}
               <span>
                 <strong>{paymentMethodLabels[method]}</strong>
-                <small>{method === 'cash' ? 'Оплата при получении' : 'Ресторан подтвердит оплату вручную'}</small>
+                <small>{method === 'cash' ? 'Оплата при получении' : `${terms.place} подтвердит оплату вручную`}</small>
               </span>
             </button>
           ))}
@@ -1956,6 +1959,7 @@ function OrderStatusPage({
   restaurant: ClientRestaurant;
   orderId?: string;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
   const order = selectClientOrderForStatus(orders, restaurant.slug, orderId);
@@ -2004,7 +2008,7 @@ function OrderStatusPage({
         <section className="status-panel">
           <small>Статус заказа</small>
           <h1>{statusLabels[order.status]}</h1>
-          {order.status === 'waiting_payment_confirmation' && <p>Ресторан получил заказ и проверяет оплату.</p>}
+          {order.status === 'waiting_payment_confirmation' && <p>{terms.paymentConfirmation}</p>}
           <OrderProgress status={order.status} />
         </section>
         <section className="delivery-info">

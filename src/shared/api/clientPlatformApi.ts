@@ -24,6 +24,7 @@ import type {
   RestaurantTheme
 } from '../../features/client-platform/types';
 import { normalizePhotoQualitySettings } from '../photoQuality';
+import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
 
 type CatalogRow = {
@@ -34,6 +35,7 @@ type CatalogRow = {
   logo_url: string;
   banner_url: string;
   status: 'draft' | 'published' | 'archived';
+  business_type: string | null;
 };
 
 type RestaurantProfileRow = {
@@ -651,7 +653,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
 
   const catalogsResult = await supabase
     .from('catalogs')
-    .select('id, slug, name, description, logo_url, banner_url, status')
+    .select('id, slug, name, description, logo_url, banner_url, status, business_type')
     .eq('status', 'published')
     .order('name');
 
@@ -924,7 +926,8 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         paymentByCatalog.get(catalog.id)?.enable_transfer === false ? undefined : 'bank_transfer',
         paymentByCatalog.get(catalog.id)?.allow_cash === false ? undefined : 'cash'
       ].filter((method): method is ClientPaymentMethod => Boolean(method)),
-      publicPath: `/${catalog.slug}`
+      publicPath: `/${catalog.slug}`,
+      businessType: normalizeBusinessType(catalog.business_type)
     };
   });
 

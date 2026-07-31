@@ -44,6 +44,7 @@ export type Restaurant = {
   mapLink: string;
   lat: number | null;
   lng: number | null;
+  business_type?: import('../shared/businessTerminology').BusinessType;
 };
 
 export type Category = {

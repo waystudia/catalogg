@@ -192,7 +192,8 @@ const statusLabels: Record<PlatformClient['status'], string> = {
 
 const businessTypeLabels: Record<string, string> = {
   restaurant: 'Ресторан',
-  cafe: 'Кафе',
+  coffee_shop: 'Кофейня',
+  cafe: 'Кофейня',
   salon: 'Салон красоты',
   barbershop: 'Барбершоп',
   shop: 'Магазин',
@@ -440,7 +441,7 @@ function RestaurantRevenueSummary({ stats }: { stats?: PlatformStats }) {
   return (
     <section className="restaurant-revenue-summary">
       <header>
-        <h2>Рестораны по выручке</h2>
+        <h2>Заведения по выручке</h2>
         <strong>{formatMoney(stats?.monthlyRevenue ?? 0)}</strong>
       </header>
       <div>
@@ -930,7 +931,7 @@ function CreateClientForm({
       serviceSettlementsText: '',
       password: generateSecurePassword(),
       templateVersionId: firstTemplate?.templateVersionId ?? '',
-      businessType: firstTemplate?.businessType ?? 'restaurant',
+      businessType: 'restaurant',
       planId: 'trial',
       subscriptionStatus: 'trial',
       status: 'active',
@@ -954,7 +955,6 @@ function CreateClientForm({
   useEffect(() => {
     if (!templateVersionId && firstTemplate) {
       setValue('templateVersionId', firstTemplate.templateVersionId, { shouldValidate: true });
-      setValue('businessType', firstTemplate.businessType);
     }
   }, [firstTemplate, setValue, templateVersionId]);
 
@@ -1091,11 +1091,6 @@ function CreateClientForm({
               <select
                 {...register('templateVersionId')}
                 aria-invalid={Boolean(errors.templateVersionId)}
-                onChange={(event) => {
-                  const template = templates.find((item) => item.templateVersionId === event.target.value);
-                  setValue('templateVersionId', event.target.value, { shouldValidate: true });
-                  setValue('businessType', template?.businessType ?? 'restaurant');
-                }}
               >
                 {templates.map((template) => (
                   <option value={template.templateVersionId} key={template.templateVersionId}>
@@ -1109,6 +1104,17 @@ function CreateClientForm({
                 </em>
               )}
               {errors.templateVersionId && <small>{errors.templateVersionId.message}</small>}
+            </label>
+            <label>
+              <span>
+                Тип заведения <b>*</b>
+              </span>
+              <select {...register('businessType')} aria-invalid={Boolean(errors.businessType)}>
+                <option value="restaurant">🍽 Ресторан</option>
+                <option value="coffee_shop">☕ Кофейня</option>
+              </select>
+              <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
+              {errors.businessType && <small>{errors.businessType.message}</small>}
             </label>
             <label>
               Имя владельца
@@ -1224,6 +1230,7 @@ function EditClientForm({
   const [phone, setPhone] = useState(client.phone);
   const [primaryCity, setPrimaryCity] = useState(client.primaryCity);
   const [serviceSettlementsText, setServiceSettlementsText] = useState(formatSettlementsInput(client.serviceSettlements));
+  const [businessType, setBusinessType] = useState(client.businessType);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState(client.status);
@@ -1247,6 +1254,7 @@ function EditClientForm({
         phone,
         primaryCity,
         serviceSettlements: parseSettlementsInput(serviceSettlementsText),
+        businessType,
         password: password || undefined,
         status,
         planId,
@@ -1277,6 +1285,14 @@ function EditClientForm({
         <section className="client-form-section">
           <h3>Данные клиента</h3>
           <div className="client-form-grid">
+            <label>
+              Тип заведения
+              <select value={businessType} onChange={(event) => setBusinessType(event.target.value as PlatformClient['businessType'])}>
+                <option value="restaurant">🍽 Ресторан</option>
+                <option value="coffee_shop">☕ Кофейня</option>
+              </select>
+              <em>Тексты интерфейса обновятся автоматически, данные сохранятся.</em>
+            </label>
             <label>
               Название клиента
               <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />

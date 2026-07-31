@@ -255,6 +255,7 @@ type PlatformCatalogRow = {
   instagram_url: string | null;
   address: string | null;
   map_url: string | null;
+  business_type: string | null;
 };
 
 type PlatformRestaurantLocationRow = {
@@ -317,7 +318,8 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   whatsapp: value.whatsapp ?? '',
   instagram_url: value.instagram_url ?? '',
   address: value.address ?? '',
-  mapLink: value.map_url ?? ''
+  mapLink: value.map_url ?? '',
+  business_type: value.business_type === 'coffee_shop' ? 'coffee_shop' : 'restaurant'
 });
 
 const withRestaurantLocation = (
@@ -575,7 +577,7 @@ export async function loadCatalog(catalogSlug?: string) {
   if (!isLegacyCatalog(normalizedSlug)) {
     const catalogResult = await supabase
       .from('catalogs')
-      .select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url')
+      .select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url, business_type')
       .eq('slug', normalizedSlug)
       .maybeSingle();
 

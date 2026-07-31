@@ -8,6 +8,7 @@ type UpdateClientPayload = {
   phone?: string;
   primaryCity?: string;
   serviceSettlements?: string[];
+  businessType?: 'restaurant' | 'coffee_shop';
   password?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
   planId?: string;
@@ -64,6 +65,9 @@ const assertPayload = (payload: UpdateClientPayload) => {
   }
   if (payload.password !== undefined && payload.password.length > 0 && !isStrongPassword(payload.password)) {
     throw new Error('Password is too weak.');
+  }
+  if (payload.businessType !== undefined && !['restaurant', 'coffee_shop'].includes(payload.businessType)) {
+    throw new Error('Business type is invalid.');
   }
 };
 
@@ -158,6 +162,7 @@ Deno.serve(async (request) => {
     if (payload.phone !== undefined) clientUpdates.phone = payload.phone;
     if (payload.primaryCity !== undefined) clientUpdates.primary_city = payload.primaryCity;
     if (payload.serviceSettlements !== undefined) clientUpdates.service_settlements = payload.serviceSettlements;
+    if (payload.businessType !== undefined) clientUpdates.business_type = payload.businessType;
     if (payload.status !== undefined) clientUpdates.status = payload.status;
     if (payload.planId !== undefined) clientUpdates.plan_code = payload.planId;
     if (payload.subscriptionStatus !== undefined) clientUpdates.subscription_status = payload.subscriptionStatus;
@@ -171,9 +176,10 @@ Deno.serve(async (request) => {
       if (clientUpdateError) throw clientUpdateError;
     }
 
-    if (payload.companyName !== undefined || payload.status !== undefined) {
+    if (payload.companyName !== undefined || payload.status !== undefined || payload.businessType !== undefined) {
       const catalogUpdates: Record<string, unknown> = {};
       if (payload.companyName !== undefined) catalogUpdates.name = payload.companyName;
+      if (payload.businessType !== undefined) catalogUpdates.business_type = payload.businessType;
       if (payload.status !== undefined) {
         catalogUpdates.status = payload.status === 'blocked' || payload.status === 'inactive' ? 'draft' : 'published';
       }

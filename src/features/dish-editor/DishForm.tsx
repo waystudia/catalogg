@@ -5,6 +5,7 @@ import { QuantityInput } from './QuantityInput';
 import { TagsSelector } from './TagsSelector';
 import type { Category, Product } from '../../entities/models';
 import type { Dish } from './types';
+import type { BusinessType } from '../../shared/businessTerminology';
 
 const serveOptions = ['с луком', 'с соусом', 'с гарниром', 'без добавок'];
 
@@ -55,7 +56,8 @@ export function DishForm({
   products,
   error,
   onChange,
-  onSubmit
+  onSubmit,
+  businessType = 'restaurant'
 }: {
   dish: Dish;
   categories: Category[];
@@ -63,6 +65,7 @@ export function DishForm({
   error: string;
   onChange: (patch: Partial<Dish>) => void;
   onSubmit: () => void;
+  businessType?: BusinessType;
 }) {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,7 +75,7 @@ export function DishForm({
   return (
     <form className="dish-form" onSubmit={submit}>
       {error && <p className="dish-alert">{error}</p>}
-      <PhotoUploader images={dish.images} onChange={(images) => onChange({ images })} />
+      <PhotoUploader images={dish.images} businessType={businessType} onChange={(images) => onChange({ images })} />
 
       <section className="dish-section">
         <div className="dish-two-fields dish-two-fields--title">
@@ -125,6 +128,7 @@ export function DishForm({
       </section>
 
       <QuantityInput
+        businessType={businessType}
         weight={dish.weight}
         dailyQuantity={dish.dailyQuantity}
         unlimitedQuantity={dish.unlimitedQuantity}

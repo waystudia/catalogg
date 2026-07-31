@@ -29,6 +29,7 @@ import { SafeImage } from '../../shared/SafeImage';
 import { OrderDetailsPanel } from './OrderDetailsPanel';
 import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
 import { calculateRestaurantFinance } from './restaurantFinance';
+import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   adminOrderStatusFilters, adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
   getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
@@ -76,6 +77,7 @@ export function RestaurantAdminWorkspace({
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
   const navigate = useNavigate();
+  const terms = getBusinessTerms(restaurant.business_type);
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
@@ -236,8 +238,8 @@ export function RestaurantAdminWorkspace({
       <div className="restaurant-admin__workspace">
         <section className="restaurant-admin__hero">
           <div>
-            <span>Панель ресторана</span>
-            <h1>{restaurant.name || 'Ресторан'}</h1>
+            <span>Панель: {terms.placeLower}</span>
+            <h1>{restaurant.name || terms.place}</h1>
             <p>{restaurant.subtitle || 'Управляйте меню, заказами и доставкой'}</p>
           </div>
           <div className="restaurant-admin__hero-actions">
@@ -271,7 +273,7 @@ export function RestaurantAdminWorkspace({
               </header>
               <div>
                 <article>
-                  <span>Получено рестораном</span>
+                  <span>Получено {terms.placeInstrumental}</span>
                   <strong>{formatPrice(monthRevenue)}</strong>
                   <ArrowRight />
                 </article>
@@ -304,7 +306,7 @@ export function RestaurantAdminWorkspace({
               </button>
             </section>
             <section className="admin-quick-actions">
-              <button type="button" onClick={onAddDish}><Plus />Добавить блюдо</button>
+              <button type="button" onClick={onAddDish}><Plus />{terms.addItem}</button>
                 <button type="button" onClick={() => onOpenScreen('settings-stock')}><Package />Остатки</button>
                 <button type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
                 <button type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
@@ -316,10 +318,10 @@ export function RestaurantAdminWorkspace({
           <section className="restaurant-admin__content">
             <section className="admin-section-card">
               <h2>Каталог</h2>
-              <p>Откройте клиентский каталог в режиме ресторана: карточки можно редактировать, скрывать и менять остатки.</p>
+              <p>Откройте клиентский каталог в режиме заведения: карточки можно редактировать, скрывать и менять остатки.</p>
               <div className="admin-quick-actions">
                 <button type="button" onClick={onOpenCatalog}><Utensils />Открыть каталог</button>
-                <button type="button" onClick={onAddDish}><Plus />Добавить блюдо</button>
+                <button type="button" onClick={onAddDish}><Plus />{terms.addItem}</button>
                 <button type="button" onClick={() => onOpenScreen('settings-categories')}><Tags />Категории</button>
                 <button type="button" onClick={() => onOpenScreen('settings-stock')}><RefreshCcw />Остатки</button>
                 <button type="button" onClick={() => onOpenScreen('settings-design')}><Paintbrush />Дизайн</button>
@@ -471,7 +473,7 @@ export function RestaurantAdminWorkspace({
         )}
       </div>
 
-      <nav className="restaurant-admin-nav" aria-label="Админка ресторана">
+      <nav className="restaurant-admin-nav" aria-label={`Панель заведения: ${terms.place}`}>
         <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => openTab('home')}><Home />Главная</button>
         <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
         <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>

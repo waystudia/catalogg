@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 
 function NumericInput({
   value,
@@ -50,7 +51,8 @@ export function QuantityInput({
   unlimitedQuantity,
   onWeightChange,
   onQuantityChange,
-  onUnlimitedChange
+  onUnlimitedChange,
+  businessType = 'restaurant'
 }: {
   weight: number;
   dailyQuantity: number;
@@ -58,7 +60,9 @@ export function QuantityInput({
   onWeightChange: (weight: number) => void;
   onQuantityChange: (quantity: number) => void;
   onUnlimitedChange: (unlimited: boolean) => void;
+  businessType?: BusinessType;
 }) {
+  const terms = getBusinessTerms(businessType);
   return (
     <section className="dish-section">
       <h3>Параметры</h3>
@@ -91,7 +95,7 @@ export function QuantityInput({
         />
         <span>
           <strong>Без ограничений</strong>
-          <small>Блюдо всегда доступно для заказа</small>
+          <small>{terms.item} всегда доступно для заказа</small>
         </span>
       </label>
       {!unlimitedQuantity && dailyQuantity === 0 && <p className="dish-stock-warning">Закончилось</p>}

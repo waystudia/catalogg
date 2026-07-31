@@ -1,4 +1,5 @@
 import type { PhotoQualitySettings } from '../../shared/photoQuality';
+import type { BusinessType } from '../../shared/businessTerminology';
 
 export type ClientOrderType = 'dine_in' | 'pickup' | 'delivery';
 
@@ -63,6 +64,7 @@ export type ClientRestaurant = {
   orderTypes: ClientOrderType[];
   paymentMethods: ClientPaymentMethod[];
   publicPath?: string;
+  businessType?: BusinessType;
 };
 
 export type ClientPlatformCategory = {

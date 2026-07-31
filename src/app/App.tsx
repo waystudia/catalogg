@@ -162,6 +162,7 @@ import {
   getPhotoQualityFilter,
   type PhotoQualitySettings
 } from '../shared/photoQuality';
+import { getBusinessTerms } from '../shared/businessTerminology';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1319,6 +1320,7 @@ function CatalogScreen({
   onStockChange: (productId: string, stockCount: number) => void;
   flowAction?: FlowAction;
 }) {
+  const terms = getBusinessTerms(restaurant?.business_type);
   const [active, setActive] = useState(initialCategory);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -1444,7 +1446,7 @@ function CatalogScreen({
               </div>
             </section>
             {(preparationLabel || freeDeliveryLabel) && (
-              <section className="restaurant-menu-highlights" aria-label="Информация о ресторане">
+              <section className="restaurant-menu-highlights" aria-label={`Информация о заведении: ${terms.place}`}>
                 <span><Star /> <strong>5.0</strong></span>
                 {preparationLabel && <span title={`Готовка ${preparationLabel}`}><Timer /> <strong>{preparationLabel}</strong></span>}
                 {freeDeliveryLabel && <span title={`Бесплатная доставка ${freeDeliveryLabel}`}><Truck /> <strong>{freeDeliveryLabel}</strong></span>}
@@ -1504,7 +1506,7 @@ function CatalogScreen({
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Найти блюдо во всём меню"
+            placeholder={`Найти ${terms.itemLower} во всём меню`}
           />
           {query && <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск"><X /></button>}
         </label>

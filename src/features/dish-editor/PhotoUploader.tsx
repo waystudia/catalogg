@@ -1,5 +1,6 @@
 import { Plus, X } from 'lucide-react';
 import { imageFileToDataUrl } from '../../shared/images';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 
 function moveItem(items: string[], from: number, to: number) {
   const next = [...items];
@@ -10,11 +11,14 @@ function moveItem(items: string[], from: number, to: number) {
 
 export function PhotoUploader({
   images,
-  onChange
+  onChange,
+  businessType = 'restaurant'
 }: {
   images: string[];
   onChange: (images: string[]) => void;
+  businessType?: BusinessType;
 }) {
+  const terms = getBusinessTerms(businessType);
   const addFiles = async (files: FileList | null) => {
     if (!files) {
       return;
@@ -29,7 +33,7 @@ export function PhotoUploader({
   return (
     <section className="dish-section">
       <div className="dish-section__head">
-        <h3>Фотографии блюда</h3>
+        <h3>Фотографии {terms.itemGenitive}</h3>
         <span>{images.length}/3</span>
       </div>
       <small>До 3 фото · формат 4:3 · важное по центру.</small>
@@ -49,7 +53,7 @@ export function PhotoUploader({
               }
             }}
           >
-            <img src={image} alt={`Фото блюда ${index + 1}`} />
+            <img src={image} alt={`Фото: ${terms.itemLower} ${index + 1}`} />
             <button
               type="button"
               aria-label="Удалить фото"

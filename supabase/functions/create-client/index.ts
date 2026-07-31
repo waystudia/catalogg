@@ -66,6 +66,7 @@ const assertPayload = (payload: CreateClientPayload) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new Error('Email is invalid.');
   if (!isStrongPassword(payload.password)) throw new Error('Password is too weak.');
   if (!payload.templateVersionId) throw new Error('Template is required.');
+  if (!['restaurant', 'coffee_shop'].includes(payload.businessType)) throw new Error('Business type is invalid.');
   if (!payload.adminConsentConfirmed) throw new Error('Client consent confirmation is required.');
 };
 
@@ -181,7 +182,7 @@ Deno.serve(async (request) => {
       const nextCatalogStatus = payload.status === 'inactive' || payload.status === 'blocked' ? 'draft' : 'published';
       const { data: catalog, error: catalogFetchError } = await adminClient
         .from('catalogs')
-        .update({ status: nextCatalogStatus })
+        .update({ status: nextCatalogStatus, business_type: payload.businessType })
         .eq('id', catalogId)
         .select('id, slug')
         .single();
@@ -213,6 +214,7 @@ Deno.serve(async (request) => {
           owner_user_id: ownerUserId,
           catalog_id: catalog.id,
           company_name: payload.name,
+          business_type: payload.businessType,
           owner_name: payload.ownerName ?? '',
           email: payload.email,
           phone: payload.phone ?? '',
