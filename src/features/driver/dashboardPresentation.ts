@@ -41,7 +41,7 @@ const driverDeliveryProgressLabels = [
 ] as const;
 
 const driverDeliveryProgressStep: Partial<Record<DeliveryStatus, number>> = {
-  assigned: 1,
+  assigned: 2,
   arrived_to_restaurant: 2,
   handed_over: 3,
   on_the_way: 4,

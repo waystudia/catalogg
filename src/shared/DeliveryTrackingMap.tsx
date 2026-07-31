@@ -34,6 +34,7 @@ type DeliveryTrackingMapProps = {
   enableSearch?: boolean;
   searchLocations?: (query: string) => Promise<ReadonlyArray<DeliveryLocationSearchResult>>;
   followDriverHeading?: boolean;
+  navigationMode?: boolean;
 };
 
 const mapSize = 640;
@@ -67,7 +68,8 @@ export function DeliveryTrackingMap({
   loadRoute = defaultRouteLoader,
   enableSearch = false,
   searchLocations = searchDeliveryLocations,
-  followDriverHeading = false
+  followDriverHeading = false,
+  navigationMode = false
 }: DeliveryTrackingMapProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; center: DeliveryMapCoordinates; zoom: number; rotation: number } | null>(null);
@@ -495,14 +497,20 @@ export function DeliveryTrackingMap({
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
-          <button type="button" onClick={centerOnDriver} aria-label="Следить за водителем" title="Следить за водителем"><Navigation /></button>
-          <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
+          <button type="button" onClick={centerOnDriver} aria-label="Определить местоположение" title="Определить местоположение">
+            {navigationMode ? <LocateFixed /> : <Navigation />}
+          </button>
+          {!navigationMode && (
+            <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
+          )}
         </div>
-        <div className="delivery-tracking-map__layers" aria-label="Слой карты" onPointerDown={(event) => event.stopPropagation()}>
-          <Layers3 aria-hidden="true" />
-          <button type="button" aria-pressed={mapStyle === 'street'} onClick={() => setMapStyle('street')}>Схема</button>
-          <button type="button" aria-pressed={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')}>Спутник</button>
-        </div>
+        {!navigationMode && (
+          <div className="delivery-tracking-map__layers" aria-label="Слой карты" onPointerDown={(event) => event.stopPropagation()}>
+            <Layers3 aria-hidden="true" />
+            <button type="button" aria-pressed={mapStyle === 'street'} onClick={() => setMapStyle('street')}>Схема</button>
+            <button type="button" aria-pressed={mapStyle === 'satellite'} onClick={() => setMapStyle('satellite')}>Спутник</button>
+          </div>
+        )}
         {roadRoute && (
           <aside className="delivery-tracking-map__navigation" aria-label="Следующая подсказка маршрута">
             <Navigation aria-hidden="true" />

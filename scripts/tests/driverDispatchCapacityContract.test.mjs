@@ -95,7 +95,7 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(driverApp, /Открыть карту маршрута/);
     assert.match(driverApp, /driver-phone--map/);
     assert.match(mapSource, /setMapZoom\(17\)/);
-    assert.match(mapSource, /aria-label="Следить за водителем"/);
+    assert.match(mapSource, /aria-label="Определить местоположение"/);
   });
 
   it('keeps restaurant order intake enabled while allowing fulfillment modes to be configured', () => {
@@ -105,16 +105,21 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(deliverySettings, /Доставка/);
   });
 
-  it('keeps progress and the next delivery action inside the full-screen driver map', () => {
+  it('keeps the full-screen driver map focused on navigation and compact contact actions', () => {
     const mapScreen = driverApp.slice(
       driverApp.indexOf('function DriverMapScreen'),
       driverApp.indexOf('function DriverEarningsScreen')
     );
     assert.match(mapScreen, /getDriverDeliveryProgress/);
-    assert.match(mapScreen, /getDriverNextAction/);
-    assert.match(mapScreen, /driver-map-status-overlay/);
-    assert.match(mapScreen, /updateDeliveryProgress/);
+    assert.match(mapScreen, /driver-map-sheet/);
+    assert.match(mapScreen, /Яндекс Карты/);
+    assert.match(mapScreen, /К ресторану и клиенту/);
+    assert.match(mapScreen, /Позвонить клиенту/);
+    assert.match(mapScreen, /Написать клиенту/);
+    assert.doesNotMatch(mapScreen, /getDriverNextAction/);
+    assert.doesNotMatch(mapScreen, /updateDeliveryProgress/);
     assert.match(driverCss, /\.driver-phone--map\s*\{[\s\S]*height:\s*100dvh/);
-    assert.match(driverCss, /\.driver-map-status-overlay/);
+    assert.match(driverCss, /\.driver-map-sheet/);
+    assert.match(driverCss, /height:\s*32dvh/);
   });
 });

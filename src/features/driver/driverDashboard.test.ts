@@ -66,7 +66,7 @@ describe('driver dashboard presentation', () => {
       'Доставлено'
     ];
 
-    assert.deepEqual(getDriverDeliveryProgress('assigned'), { activeStep: 1, labels });
+    assert.deepEqual(getDriverDeliveryProgress('assigned'), { activeStep: 2, labels });
     assert.deepEqual(getDriverDeliveryProgress('arrived_to_restaurant'), { activeStep: 2, labels });
     assert.deepEqual(getDriverDeliveryProgress('handed_over'), { activeStep: 3, labels });
     assert.deepEqual(getDriverDeliveryProgress('on_the_way'), { activeStep: 4, labels });
