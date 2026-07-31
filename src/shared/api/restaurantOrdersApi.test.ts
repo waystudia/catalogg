@@ -5,6 +5,8 @@ import {
   createRestaurantOrderWithClient,
   buildOrderStatusShareUrl,
   buildPublicRestaurantOrderItems,
+  findRestaurantOrderStockIssues,
+  getRestaurantOrderCreationErrorMessage,
   normalizeRestaurantDeliverySettingsForSave,
   resolvePublicOrderRpcName,
   type CreateRestaurantOrderFromCartInput,
@@ -32,6 +34,40 @@ const product = (overrides: Partial<Product> = {}): Product => ({
 });
 
 describe('public restaurant order payload', () => {
+  it('finds sold-out products in a persisted cart using the current catalog stock', () => {
+    const staleCart: CartItem[] = [{
+      product: product({ id: 'lamb-skewer', title: 'Шашлык из баранины', stock_count: 5 }),
+      quantity: 2
+    }];
+
+    assert.deepEqual(
+      findRestaurantOrderStockIssues(staleCart, [
+        product({ id: 'lamb-skewer', title: 'Шашлык из баранины', stock_count: 0, current_stock: 0, is_unlimited: false })
+      ]),
+      [{
+        productId: 'lamb-skewer',
+        title: 'Шашлык из баранины',
+        requested: 2,
+        available: 0
+      }]
+    );
+  });
+
+  it('allows unlimited products regardless of their numeric stock field', () => {
+    const cart: CartItem[] = [{ product: product({ id: 'tea' }), quantity: 3 }];
+    assert.deepEqual(
+      findRestaurantOrderStockIssues(cart, [product({ id: 'tea', stock_count: 0, is_unlimited: true })]),
+      []
+    );
+  });
+
+  it('translates a database stock race into a useful customer message', () => {
+    assert.equal(
+      getRestaurantOrderCreationErrorMessage(new Error('Legacy product stock is not enough')),
+      'Один из товаров уже закончился. Обновите корзину и попробуйте снова.'
+    );
+  });
+
   it('serializes legacy cart lines with an explicit empty options array', () => {
     const items: CartItem[] = [{ product: product(), quantity: 2 }];
 

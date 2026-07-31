@@ -1,4 +1,4 @@
-import type { CartItem } from '../../entities/models';
+import type { CartItem, Product } from '../../entities/models';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
 
 type DeliverySettingsForSave = {
@@ -43,6 +43,51 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
     quantity: Math.max(1, item.quantity),
     options: []
   }));
+
+export type RestaurantOrderStockIssue = {
+  productId: string;
+  title: string;
+  requested: number;
+  available: number;
+};
+
+export const findRestaurantOrderStockIssues = (
+  items: CartItem[],
+  liveProducts: Product[]
+): RestaurantOrderStockIssue[] => {
+  const productsById = new Map(liveProducts.map((product) => [product.id, product]));
+
+  return items.flatMap((item) => {
+    const liveProduct = productsById.get(item.product.id);
+    if (!liveProduct || liveProduct.is_hidden) {
+      return [{
+        productId: item.product.id,
+        title: item.product.title,
+        requested: item.quantity,
+        available: 0
+      }];
+    }
+    if (liveProduct.is_unlimited) return [];
+
+    const available = Math.max(0, liveProduct.current_stock ?? liveProduct.stock_count ?? 0);
+    return available < item.quantity
+      ? [{
+          productId: item.product.id,
+          title: liveProduct.title || item.product.title,
+          requested: item.quantity,
+          available
+        }]
+      : [];
+  });
+};
+
+export const getRestaurantOrderCreationErrorMessage = (error: unknown) => {
+  const text = errorText(error).toLowerCase();
+  if (text.includes('stock is not enough') || text.includes('insufficient stock')) {
+    return 'Один из товаров уже закончился. Обновите корзину и попробуйте снова.';
+  }
+  return 'Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.';
+};
 
 const formatSelectedChoices = (items: CartItem[]) => {
   const lines = items

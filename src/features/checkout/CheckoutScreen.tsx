@@ -43,6 +43,8 @@ import {
   buildOrderStatusShareUrl,
   buildRestaurantOrderFingerprint,
   createRestaurantOrderIdempotencyKey,
+  findRestaurantOrderStockIssues,
+  getRestaurantOrderCreationErrorMessage,
   type CreateRestaurantOrderFromCartInput
 } from '../../shared/api/restaurantOrderPayload';
 import {
@@ -72,6 +74,7 @@ import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { SafeImage } from '../../shared/SafeImage';
+import { loadCatalog } from '../../shared/supabase';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -116,6 +119,7 @@ export function CheckoutScreen({
   const addCartItem = useCartStore((state) => state.add);
   const decrementCartItem = useCartStore((state) => state.decrement);
   const removeCartItem = useCartStore((state) => state.remove);
+  const updateCartItemQuantity = useCartStore((state) => state.updateQuantity);
   const total = selectCartTotal(items);
   const cartCount = selectCartCount(items);
   const [orderComment, setOrderComment] = useState('');
@@ -868,7 +872,7 @@ export function CheckoutScreen({
           }
           type="button"
           disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid}
-          onClick={() => {
+          onClick={async () => {
             if (!restaurant.whatsapp) {
               return;
             }
@@ -913,6 +917,35 @@ export function CheckoutScreen({
               customerName: clientName.trim(),
               customerPhone: clientPhone.trim()
             };
+            submitLockRef.current = true;
+            setIsSubmittingOrder(true);
+
+            try {
+              const currentCatalog = await loadCatalog(catalogSlug);
+              const stockIssues = findRestaurantOrderStockIssues(items, currentCatalog.products);
+              if (stockIssues.length > 0) {
+                stockIssues.forEach((issue) => {
+                  updateCartItemQuantity(issue.productId, issue.available);
+                });
+                orderAttemptRef.current = null;
+                const firstIssue = stockIssues[0];
+                toast.error(
+                  firstIssue.available === 0
+                    ? `«${firstIssue.title}» закончился. Товар удалён из корзины.`
+                    : `Для «${firstIssue.title}» осталось ${firstIssue.available} шт. Количество в корзине обновлено.`
+                );
+                submitLockRef.current = false;
+                setIsSubmittingOrder(false);
+                return;
+              }
+            } catch (error) {
+              console.error('Catalog stock refresh failed', error);
+              toast.error('Не удалось проверить актуальные остатки. Проверьте интернет и попробуйте ещё раз.');
+              submitLockRef.current = false;
+              setIsSubmittingOrder(false);
+              return;
+            }
+
             let whatsappWindow: Window | null = null;
             try {
               whatsappWindow = window.open('about:blank', '_blank');
@@ -933,8 +966,6 @@ export function CheckoutScreen({
                 // The browser may block controlling a tab after opening it.
               }
             };
-            submitLockRef.current = true;
-            setIsSubmittingOrder(true);
             void createRestaurantOrderFromCart({
               ...orderPayload,
               idempotencyKey: getOrderIdempotencyKey(orderPayload)
@@ -1019,7 +1050,7 @@ export function CheckoutScreen({
               .catch((error) => {
                 console.error('Order creation failed', error);
                 closeReservedWhatsappWindow();
-                toast.error('Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
+                toast.error(getRestaurantOrderCreationErrorMessage(error));
               })
               .finally(() => {
                 submitLockRef.current = false;
