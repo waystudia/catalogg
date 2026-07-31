@@ -66,6 +66,8 @@ const isTransientAuthError = (error: unknown) => {
     message.includes('timeout') ||
     message.includes('deadline') ||
     message.includes('failed to fetch') ||
+    message.includes('abort') ||
+    message.includes('signal') ||
     message.includes('unexpected_failure')
   );
 };
@@ -110,7 +112,8 @@ export async function signInWithPasswordResilient(email: string, password: strin
         return sessionResult;
       }
       lastError = result.error;
-      if (!isTransientAuthError(result.error) || attempt === 1) return result;
+      if (!isTransientAuthError(result.error)) return result;
+      if (attempt === 1) break;
     } catch (error) {
       lastError = error;
       if (attempt === 1) break;

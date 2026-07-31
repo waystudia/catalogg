@@ -102,6 +102,8 @@ export async function resolveLoginRedirect(email: string, password: string) {
       message.includes('timeout') ||
       message.includes('deadline') ||
       message.includes('fetch') ||
+      message.includes('abort') ||
+      message.includes('signal') ||
       message.includes('temporarily') ||
       message.includes('медленно')
     ) {

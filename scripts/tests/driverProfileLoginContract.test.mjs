@@ -14,7 +14,10 @@ describe('driver login from the client profile', () => {
     assert.match(supabase, /autoRefreshToken: false/);
     assert.match(supabase, /persistSession: false/);
     assert.match(supabase, /controller\.abort\(\)/);
+    assert.match(supabase, /message\.includes\('abort'\)/);
+    assert.match(supabase, /message\.includes\('signal'\)/);
     assert.match(supabase, /attempt < 2/);
+    assert.match(supabase, /if \(attempt === 1\) break/);
     assert.match(supabase, /supabase\.auth\.setSession/);
     assert.match(redirect, /signInWithPasswordResilient\(email, password\)/);
     assert.match(redirect, /Сервис входа временно отвечает медленно/);
