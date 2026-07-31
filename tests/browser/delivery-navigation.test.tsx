@@ -146,6 +146,46 @@ test('keeps navigation controls compact and separates compass from driver follow
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
 });
 
+test('keeps a wide upright restaurant destination label the same size while zooming', async () => {
+  const screen = await render(
+    <main className="driver-app">
+      <section className="driver-phone--map">
+        <DeliveryTrackingMap
+          restaurant={{ ...restaurant, label: 'Мангал' }}
+          client={client}
+          driver={{ ...restaurant, label: 'Моё местоположение' }}
+          routePoints={[restaurant, client]}
+          loadRoute={async () => ({
+            distanceM: 3_000,
+            durationS: 360,
+            geometry: [restaurant, client]
+          })}
+          initialStyle="satellite"
+          navigationMode
+          followDriverHeading
+        />
+      </section>
+    </main>
+  );
+
+  const restaurantMarker = screen.getByRole('button', { name: 'Ресторан: Мангал' });
+  await expect.element(restaurantMarker.getByText('Мангал')).toBeVisible();
+  await expect.element(restaurantMarker.getByText('Ресторан')).toBeVisible();
+  const readMarkerSize = () => {
+    const style = getComputedStyle(restaurantMarker.element());
+    return { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) };
+  };
+  const initialSize = readMarkerSize();
+  expect(initialSize.width).toBeGreaterThanOrEqual(80);
+  expect(initialSize.height).toBeGreaterThanOrEqual(40);
+
+  await screen.getByRole('button', { name: 'Отдалить' }).click();
+  await screen.getByRole('button', { name: 'Отдалить' }).click();
+  const zoomedOutSize = readMarkerSize();
+  expect(zoomedOutSize.width).toBe(initialSize.width);
+  expect(zoomedOutSize.height).toBe(initialSize.height);
+});
+
 test('shows route progress for the current restaurant or client leg', async () => {
   const restaurantLeg = await render(
     <DriverRouteLegProgress

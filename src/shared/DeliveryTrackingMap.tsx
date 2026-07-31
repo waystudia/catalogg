@@ -768,6 +768,12 @@ function TrackingMarker({
       onClick={onSelect}
     >
       {icon}
+      {kind === 'restaurant' && (
+        <span className="delivery-tracking-map__marker-label">
+          <strong>{point.label}</strong>
+          <small>Ресторан</small>
+        </span>
+      )}
     </button>
   );
 }
