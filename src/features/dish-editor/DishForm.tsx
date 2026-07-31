@@ -158,33 +158,53 @@ export function DishForm({
         </div>
         <div className="dish-choice-editor__list">
           {dish.choiceOptions.map((option, index) => (
-            <label key={`${index}-${option}`}>
+            <div className="dish-choice-editor__row" key={index}>
               <span aria-hidden="true" />
-              <input
-                maxLength={40}
-                value={option}
-                onChange={(event) => {
-                  const next = [...dish.choiceOptions];
-                  next[index] = event.target.value.slice(0, 40);
-                  onChange({ choiceOptions: next });
-                }}
-                placeholder={index === 0 ? 'Оригинальный' : 'Острый'}
-              />
+              <label>
+                <span>Вариант</span>
+                <input
+                  aria-label={`Название варианта ${index + 1}`}
+                  maxLength={40}
+                  value={option.name}
+                  onChange={(event) => {
+                    const next = [...dish.choiceOptions];
+                    next[index] = { ...option, name: event.target.value.slice(0, 40) };
+                    onChange({ choiceOptions: next });
+                  }}
+                  placeholder={index === 0 ? 'Средняя' : 'Большая'}
+                />
+              </label>
+              <label className="dish-choice-editor__price">
+                <span>Цена</span>
+                <input
+                  aria-label={`Цена варианта ${index + 1}`}
+                  inputMode="numeric"
+                  min="0"
+                  type="number"
+                  value={option.price || ''}
+                  onChange={(event) => {
+                    const next = [...dish.choiceOptions];
+                    next[index] = { ...option, price: Math.max(0, Number(event.target.value) || 0) };
+                    onChange({ choiceOptions: next });
+                  }}
+                />
+                <b>₽</b>
+              </label>
               <button
                 type="button"
-                aria-label={`Удалить вариант ${option || index + 1}`}
+                aria-label={`Удалить вариант ${option.name || index + 1}`}
                 onClick={() => onChange({ choiceOptions: dish.choiceOptions.filter((_, itemIndex) => itemIndex !== index) })}
               >
                 Удалить
               </button>
-            </label>
+            </div>
           ))}
         </div>
         {dish.choiceOptions.length < 6 && (
           <button
             className="dish-choice-editor__add"
             type="button"
-            onClick={() => onChange({ choiceOptions: [...dish.choiceOptions, ''] })}
+            onClick={() => onChange({ choiceOptions: [...dish.choiceOptions, { name: '', price: dish.price }] })}
           >
             + Добавить вариант
           </button>

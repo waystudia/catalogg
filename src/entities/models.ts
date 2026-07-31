@@ -67,6 +67,13 @@ export type CatalogTag = {
   updated_at?: string;
 };
 
+export type ProductChoiceOption = {
+  name: string;
+  price: number;
+};
+
+export type ProductChoiceOptionInput = string | ProductChoiceOption;
+
 export type Product = {
   id: string;
   title: string;
@@ -90,7 +97,7 @@ export type Product = {
   category_ids?: string[];
   drink_type?: string;
   pair_ids: string[];
-  choice_options?: string[];
+  choice_options?: ProductChoiceOptionInput[];
 };
 
 export type Cabin = {

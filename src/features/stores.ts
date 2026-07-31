@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { CartItem, OrderMode, Product, ThemeSettings } from '../entities/models';
+import { getCartItemTotal } from '../entities/productVariants';
 import { themeSettings } from '../data/catalog';
 import { redirectToClientHome } from '../shared/appNavigation';
 
@@ -179,7 +180,7 @@ export const selectCartCount = (items: CartItem[]) =>
   items.reduce((total, item) => total + item.quantity, 0);
 
 export const selectCartTotal = (items: CartItem[]) =>
-  items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  items.reduce((total, item) => total + getCartItemTotal(item), 0);
 
 export const hasDrinkInCart = (items: CartItem[]) =>
   items.some((item) => item.product.drink_type !== undefined);

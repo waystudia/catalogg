@@ -37,12 +37,18 @@ describe('dish photo conversion', () => {
     assert.deepEqual(next.image_urls, ['cover.jpg', 'side.jpg']);
   });
 
-  it('keeps single-choice variants when a dish is edited', () => {
-    const choices = ['Оригинальный', 'Острый'];
+  it('keeps named prices for variants and upgrades legacy choices', () => {
+    const choices = [
+      { name: 'Средняя', price: 550 },
+      { name: 'Большая', price: 750 }
+    ];
     const dish = productToDish({ ...product, choice_options: choices }, 'food');
 
     assert.deepEqual(dish.choiceOptions, choices);
     assert.deepEqual(dishToProduct(dish, product).choice_options, choices);
+    assert.deepEqual(productToDish({ ...product, choice_options: ['Старая'] }, 'food').choiceOptions, [
+      { name: 'Старая', price: 500 }
+    ]);
   });
 
   it('keeps daily stock separate and makes new dishes unlimited by default', () => {

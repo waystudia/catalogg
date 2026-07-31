@@ -1,6 +1,7 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { cabins, categories, products, restaurant, themeSettings } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, Restaurant, ThemeSettings } from '../entities/models';
+import { normalizeProductChoiceOptions } from '../entities/productVariants';
 import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
 import { settleRestaurantSessionCheck } from './restaurantSession';
@@ -173,23 +174,29 @@ const normalizeRestaurantGallery = (settings: unknown, fallbackUrl?: string | nu
   ).slice(0, 3);
 };
 
-const normalizeProductChoices = (settings: unknown): Record<string, string[]> => {
+const normalizeProductChoices = (settings: unknown): Record<string, ProductChoiceOptionInput[]> => {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
   return Object.fromEntries(
     Object.entries(settings as Record<string, unknown>)
       .map(([productId, value]) => [
         productId,
         Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 6)
+          ? value.filter((item): item is ProductChoiceOptionInput =>
+              typeof item === 'string'
+              || (typeof item === 'object' && item !== null && typeof (item as { name?: unknown }).name === 'string')
+            ).slice(0, 6)
           : []
       ])
-      .filter(([, value]) => (value as string[]).length > 0)
+      .filter(([, value]) => (value as ProductChoiceOptionInput[]).length > 0)
   );
 };
 
 const applyProductChoices = (values: Product[], settings: unknown) => {
   const choices = normalizeProductChoices(settings);
-  return values.map((product) => ({ ...product, choice_options: choices[product.id] ?? [] }));
+  return values.map((product) => ({
+    ...product,
+    choice_options: normalizeProductChoiceOptions(choices[product.id], product.price)
+  }));
 };
 
 const gradientMarkerPrefix = 'gradient:';
@@ -788,7 +795,7 @@ async function saveProductChoices(product: Product) {
       .maybeSingle()
   ) as { settings?: unknown } | null;
   const settings = normalizeProductChoices(current?.settings);
-  const choices = (product.choice_options ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 6);
+  const choices = normalizeProductChoiceOptions(product.choice_options, product.price);
   if (choices.length > 0) settings[product.id] = choices;
   else delete settings[product.id];
   await throwOnError(
@@ -874,9 +881,10 @@ export async function saveProductToSupabase(product: Product) {
       | { id: string }
       | null;
     if (created?.id) {
-      await syncPlatformProductImages(String(created.id), product.image_urls?.length ? product.image_urls : [product.image_url]);
+      const createdProduct = { ...product, id: String(created.id) };
+      await syncPlatformProductImages(createdProduct.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
+      await saveProductChoices(createdProduct);
     }
-    await saveProductChoices(product);
     return;
   }
   const legacyProduct: Record<string, unknown> = { ...product };

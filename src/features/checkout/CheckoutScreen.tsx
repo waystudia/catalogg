@@ -75,6 +75,7 @@ import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { SafeImage } from '../../shared/SafeImage';
 import { loadCatalog } from '../../shared/supabase';
+import { getCartItemPrice } from '../../entities/productVariants';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -408,7 +409,7 @@ export function CheckoutScreen({
     'Здравствуйте! Хочу оформить заказ.',
     '',
     'Заказ:',
-    ...items.map((item, index) => `${index + 1}. ${item.product.title} - ${item.quantity} шт. x ${formatPrice(item.product.price)}`),
+    ...items.map((item, index) => `${index + 1}. ${item.product.title}${item.selected_choice ? ` (${item.selected_choice})` : ''} - ${item.quantity} шт. x ${formatPrice(getCartItemPrice(item))}`),
     '',
     `Итого: ${formatPrice(total)}`,
     '',
@@ -788,6 +789,7 @@ export function CheckoutScreen({
               <div className="checkout-order-card__body">
                 <div className="checkout-order-card__copy">
                   <h3>{item.product.title}</h3>
+                  {item.selected_choice && <small>{item.selected_choice}</small>}
                   <p>{item.product.description}</p>
                 </div>
                 <button
@@ -800,8 +802,8 @@ export function CheckoutScreen({
                 </button>
                 <div className="checkout-order-card__bottom">
                   <div>
-                    <strong>{formatPrice(item.product.price)}</strong>
-                    <span>{item.quantity} × {formatPrice(item.product.price)}</span>
+                    <strong>{formatPrice(getCartItemPrice(item))}</strong>
+                    <span>{item.quantity} × {formatPrice(getCartItemPrice(item))}</span>
                   </div>
                   <div className="checkout-order-card__stepper">
                     <button type="button" onClick={() => decrementCartItem(item.product.id)} aria-label="Уменьшить"><Minus /></button>
@@ -1035,7 +1037,7 @@ export function CheckoutScreen({
                     items: items.map((item) => ({
                       dishId: item.product.id,
                       name: item.product.title,
-                      price: item.product.price,
+                      price: getCartItemPrice(item),
                       quantity: item.quantity
                     }))
                   });

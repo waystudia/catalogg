@@ -65,6 +65,11 @@ import {
   themeSettings as demoThemeSettings
 } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import {
+  getCartItemPrice,
+  getProductChoiceOptions,
+  getProductStartingPrice
+} from '../entities/productVariants';
 import { CheckoutScreen } from '../features/checkout/CheckoutScreen';
 import {
   CategoriesSettings,
@@ -656,6 +661,7 @@ function ProductTile({
   const currentStock = getCurrentStock(product);
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
+  const choiceOptions = getProductChoiceOptions(product);
 
   const captureCartAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
@@ -770,7 +776,10 @@ function ProductTile({
           <p>{soldOut ? 'Закончилось' : product.description}</p>
         </div>
         <div className="product-tile__bottom">
-          <strong>{formatPrice(product.price)}</strong>
+          <strong>
+            {choiceOptions.length > 0 && 'от '}
+            {formatPrice(getProductStartingPrice(product))}
+          </strong>
           <div
             className={quantity > 0 ? 'product-tile__stepper has-quantity' : 'product-tile__stepper'}
             onClick={(event) => event.stopPropagation()}
@@ -801,7 +810,7 @@ function ProductTile({
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
                 const button = event.currentTarget;
-                if ((product.choice_options?.length ?? 0) > 0) {
+                if (choiceOptions.length > 0) {
                   onOpen(product);
                   return;
                 }
@@ -1014,7 +1023,7 @@ function CartSheet({
                       </button>
                     </div>
                     <div className="cart-item-card__bottom">
-                      <strong>{formatPrice(item.product.price)}</strong>
+                      <strong>{formatPrice(getCartItemPrice(item))}</strong>
                       <div className="cart-quantity" aria-label={`Количество ${item.product.title}`}>
                         <button
                           type="button"
@@ -1654,9 +1663,10 @@ function ProductScreen({
   const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
-  const choiceOptions = (product.choice_options ?? []).filter(Boolean);
+  const choiceOptions = getProductChoiceOptions(product);
   const cartChoice = items.find((item) => item.product.id === product.id)?.selected_choice;
-  const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0] ?? '');
+  const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0]?.name ?? '');
+  const selectedPrice = choiceOptions.find((option) => option.name === selectedChoice)?.price ?? product.price;
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
   const hasFactValue = (value: string) => {
@@ -1680,7 +1690,7 @@ function ProductScreen({
       <div className="product-heading">
         <div>
           <h2>{product.title}</h2>
-          <strong>{formatPrice(product.price)}</strong>
+          <strong>{formatPrice(selectedPrice)}</strong>
         </div>
         {product.is_hit && (
           <span className="hit-badge">
@@ -1709,16 +1719,17 @@ function ProductScreen({
         <fieldset className="product-choice-group">
           <legend>Выберите вариант</legend>
           {choiceOptions.map((option) => (
-            <label key={option}>
+            <label key={option.name}>
               <input
                 type="radio"
                 name={`product-choice-${product.id}`}
-                value={option}
-                checked={selectedChoice === option}
-                onChange={() => setSelectedChoice(option)}
+                value={option.name}
+                checked={selectedChoice === option.name}
+                onChange={() => setSelectedChoice(option.name)}
               />
               <span aria-hidden="true" />
-              <strong>{option}</strong>
+              <strong>{option.name}</strong>
+              <small>{formatPrice(option.price)}</small>
             </label>
           ))}
         </fieldset>
@@ -1749,7 +1760,7 @@ function ProductScreen({
       </section>
 
       <button className="primary-wide" type="button" onClick={addProduct} disabled={isLimitedProduct(product) && getCurrentStock(product) <= 0}>
-        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину - ${formatPrice(product.price)}`}
+        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину - ${formatPrice(selectedPrice)}`}
       </button>
       {isFlowProduct && flowAction?.selectedId && (
         <button className="flow-continue-bar flow-continue-bar--inline" type="button" onClick={flowAction.onContinue}>

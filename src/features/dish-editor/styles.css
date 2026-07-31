@@ -626,14 +626,39 @@
     gap: 5px;
   }
 
-  .dish-choice-editor__list label {
-    grid-template-columns: 14px minmax(0, 1fr) auto;
+  .dish-choice-editor__row {
+    grid-template-columns: 12px minmax(0, 1fr) 88px auto;
     gap: 6px;
   }
 
-  .dish-choice-editor__list label > span {
-    width: 14px;
-    height: 14px;
+  .dish-choice-editor__row > span {
+    width: 12px;
+    height: 12px;
+  }
+
+  .dish-choice-editor__row label > span {
+    top: 4px;
+    left: 9px;
+    font-size: 8px;
+  }
+
+  .dish-choice-editor__row label input {
+    min-height: 40px;
+    padding-top: 12px;
+  }
+
+  .dish-choice-editor__row button {
+    max-width: 26px;
+    overflow: hidden;
+    padding: 4px 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .dish-choice-editor__row button::after {
+    color: var(--accent);
+    content: '×';
+    font-size: 22px;
   }
 
   .dish-choice-editor__add {

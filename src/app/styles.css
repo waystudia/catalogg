@@ -2646,19 +2646,50 @@
   gap: 8px;
 }
 
-.dish-choice-editor__list label {
+.dish-choice-editor__row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(110px, 0.45fr) auto;
   align-items: center;
   gap: 10px;
 }
 
-.dish-choice-editor__list label > span,
+.dish-choice-editor__row > span,
 .product-choice-group label > span {
   width: 18px;
   height: 18px;
   border: 2px solid var(--accent);
   border-radius: 50%;
+}
+
+.dish-choice-editor__row label {
+  position: relative;
+  display: block;
+}
+
+.dish-choice-editor__row label > span {
+  position: absolute;
+  top: 5px;
+  left: 12px;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.dish-choice-editor__row label input {
+  width: 100%;
+  padding-top: 12px;
+}
+
+.dish-choice-editor__price input {
+  padding-right: 28px;
+}
+
+.dish-choice-editor__price b {
+  position: absolute;
+  right: 11px;
+  bottom: 11px;
+  color: var(--accent);
 }
 
 .dish-choice-editor__list button,
@@ -2691,11 +2722,17 @@
 
 .product-choice-group label {
   display: grid;
-  grid-template-columns: 0 20px minmax(0, 1fr);
+  grid-template-columns: 0 20px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 42px;
   cursor: pointer;
+}
+
+.product-choice-group label small {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .product-choice-group input {

@@ -48,7 +48,7 @@ const restaurant: Restaurant = {
   lng: null
 };
 
-const renderDishEditor = (editingProduct: Product | null) => {
+const renderDishEditor = (editingProduct: Product | null, onSaveProduct = vi.fn()) => {
   useAdminStore.setState({ editor: 'dish', isPanelOpen: true });
 
   return render(
@@ -61,7 +61,7 @@ const renderDishEditor = (editingProduct: Product | null) => {
         categories={categories}
         products={[product]}
         restaurant={restaurant}
-        onSaveProduct={vi.fn()}
+        onSaveProduct={onSaveProduct}
         onCloseProduct={vi.fn()}
         onUpdateRestaurant={vi.fn()}
         cartCount={0}
@@ -114,6 +114,33 @@ test('labels the primary action as adding a dish in create mode', async () => {
     await expect.element(screen.getByRole('heading', { name: 'Добавить блюдо' })).toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Добавить блюдо' })).toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Сохранить изменения' })).not.toBeInTheDocument();
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});
+
+test('edits a separate name and price for every dish variant', async () => {
+  const onSaveProduct = vi.fn();
+  const pricedProduct: Product = {
+    ...product,
+    choice_options: [{ name: 'Средняя', price: 550 }]
+  };
+
+  try {
+    const screen = await renderDishEditor(pricedProduct, onSaveProduct);
+    const price = screen.getByRole('spinbutton', { name: 'Цена варианта 1' });
+    price.element().scrollIntoView({ block: 'center' });
+
+    await expect.element(screen.getByRole('textbox', { name: 'Название варианта 1' })).toHaveValue('Средняя');
+    await expect.element(price).toHaveValue(550);
+    await screen.getByRole('textbox', { name: 'Название варианта 1' }).fill('Большая');
+    await price.fill('750');
+    await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
+
+    await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
+    expect(onSaveProduct).toHaveBeenCalledWith(expect.objectContaining({
+      choice_options: [{ name: 'Большая', price: 750 }]
+    }));
   } finally {
     useAdminStore.setState({ editor: null, isPanelOpen: false });
   }

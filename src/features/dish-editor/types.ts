@@ -1,4 +1,5 @@
-import type { Product } from '../../entities/models';
+import type { Product, ProductChoiceOption } from '../../entities/models';
+import { normalizeProductChoiceOptions } from '../../entities/productVariants';
 
 export type Dish = {
   id: string;
@@ -14,7 +15,7 @@ export type Dish = {
   serveWith: string;
   images: string[];
   pairIds: string[];
-  choiceOptions: string[];
+  choiceOptions: ProductChoiceOption[];
 };
 
 export function productToDish(product: Product | null, fallbackCategory: string): Dish {
@@ -38,7 +39,7 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     serveWith: product?.serving ?? '',
     images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
     pairIds: product?.pair_ids ?? [],
-    choiceOptions: product?.choice_options ?? []
+    choiceOptions: normalizeProductChoiceOptions(product?.choice_options, product?.price ?? 0)
   };
 }
 

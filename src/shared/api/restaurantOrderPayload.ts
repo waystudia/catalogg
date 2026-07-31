@@ -41,7 +41,9 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
   items.map((item) => ({
     product_id: item.product.id,
     quantity: Math.max(1, item.quantity),
-    options: []
+    options: item.selected_choice
+      ? [{ name: item.selected_choice, product_id: item.product.id }]
+      : []
   }));
 
 export type RestaurantOrderStockIssue = {

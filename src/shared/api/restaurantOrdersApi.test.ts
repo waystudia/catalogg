@@ -80,6 +80,25 @@ describe('public restaurant order payload', () => {
     ]);
   });
 
+  it('sends the selected variant identity so Supabase can resolve its authoritative price', () => {
+    const items: CartItem[] = [{
+      product: product({
+        choice_options: [
+          { name: 'Средняя', price: 520 },
+          { name: 'Большая', price: 740 }
+        ]
+      }),
+      quantity: 2,
+      selected_choice: 'Большая'
+    }];
+
+    assert.deepEqual(buildPublicRestaurantOrderItems(items), [{
+      product_id: 'product-1',
+      quantity: 2,
+      options: [{ name: 'Большая', product_id: 'product-1' }]
+    }]);
+  });
+
   it('uses the legacy public order RPC when cart products have old text ids', () => {
     const items: CartItem[] = [{ product: product({ id: 'zhizhig-galnash' }), quantity: 1 }];
 
