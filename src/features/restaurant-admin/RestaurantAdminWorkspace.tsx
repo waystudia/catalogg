@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -26,6 +27,8 @@ import { buildRestaurantAdminTabPath, type RestaurantAdminTab } from '../../shar
 import { BrandLogo } from '../../shared/BrandLogo';
 import { SafeImage } from '../../shared/SafeImage';
 import { OrderDetailsPanel } from './OrderDetailsPanel';
+import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
+import { calculateRestaurantFinance } from './restaurantFinance';
 import {
   adminOrderStatusFilters, adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
   getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
@@ -99,11 +102,15 @@ export function RestaurantAdminWorkspace({
     const created = new Date(order.createdAt);
     return created.getFullYear() === currentMonth.getFullYear() && created.getMonth() === currentMonth.getMonth();
   });
-  const monthRevenue = monthOrders
-    .filter((order) => !['cancelled', 'canceled'].includes(order.status))
-    .reduce((total, order) => total + order.total, 0);
-  const restaurantDebt = Math.round(monthRevenue * 0.07);
-  const restaurantReceived = Math.max(0, monthRevenue - restaurantDebt);
+  const { data: billingTariff = null } = useQuery({
+    queryKey: ['restaurant-billing-tariff', catalogSlug],
+    queryFn: () => getCurrentRestaurantBillingTariff(catalogSlug),
+    staleTime: 60_000
+  });
+  const {
+    grossRevenue: monthRevenue,
+    platformDebt: restaurantDebt
+  } = calculateRestaurantFinance(monthOrders, billingTariff);
   const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
   const filteredOrders =
     filter === 'all'
@@ -263,7 +270,7 @@ export function RestaurantAdminWorkspace({
               <div>
                 <article>
                   <span>Получено рестораном</span>
-                  <strong>{formatPrice(restaurantReceived)}</strong>
+                  <strong>{formatPrice(monthRevenue)}</strong>
                   <ArrowRight />
                 </article>
                 <article>
@@ -448,7 +455,13 @@ export function RestaurantAdminWorkspace({
 
         {tab === 'scanner' && (
           <section className="restaurant-admin__content">
-            <ScannerPage embedded onBack={() => openTab('home')} />
+            <ScannerPage
+              embedded
+              onBack={() => openTab('home')}
+              onConfirmed={(orderId) => {
+                navigate(`/${catalogSlug}/order/${encodeURIComponent(orderId)}`, { replace: true });
+              }}
+            />
           </section>
         )}
       </div>

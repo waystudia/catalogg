@@ -1613,8 +1613,15 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 }
 
 function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
+  const navigate = useNavigate();
   const qrPayload = buildDriverPickupQrPayload(delivery);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
+
+  useEffect(() => {
+    if (delivery?.pickupQrConfirmed) {
+      navigate('/driver/active', { replace: true });
+    }
+  }, [delivery?.pickupQrConfirmed, navigate]);
 
   return (
     <>

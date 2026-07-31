@@ -2,7 +2,10 @@ import { ArrowLeft, CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-reac
 import jsQR from 'jsqr';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { confirmDeliveryPickupQr } from '../../shared/api/deliveryApi';
+import {
+  confirmDeliveryPickupQr,
+  getRestaurantOrderIdForDelivery
+} from '../../shared/api/deliveryApi';
 import './scanner.css';
 
 type ParsedQr =
@@ -62,7 +65,15 @@ function scanVideoFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement | nul
   return jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' })?.data ?? '';
 }
 
-export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void }) {
+export function ScannerPage({
+  embedded = false,
+  onBack,
+  onConfirmed
+}: {
+  embedded?: boolean;
+  onBack?: () => void;
+  onConfirmed?: (orderId: string) => void;
+}) {
   const navigate = useNavigate();
   const { slug = '' } = useParams();
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -101,6 +112,11 @@ export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; 
           setMessage(confirmed ? 'QR подтверждён. Водитель может забрать заказ' : 'QR не подходит');
           if (confirmed) {
             window.localStorage.setItem('waycatalog-driver-delivery-confirmed', `${parsed.deliveryId}:${Date.now()}`);
+            const orderId = await getRestaurantOrderIdForDelivery(parsed.deliveryId);
+            if (orderId) {
+              if (onConfirmed) onConfirmed(orderId);
+              else navigate(`/${slug || 'mangal'}/order/${encodeURIComponent(orderId)}`, { replace: true });
+            }
           }
         } catch (error) {
           setScanState('error');
@@ -122,7 +138,7 @@ export function ScannerPage({ embedded = false, onBack }: { embedded?: boolean; 
     }
     setScanState('error');
     setMessage('Неправильный QR-код');
-  }, [navigate, slug]);
+  }, [navigate, onConfirmed, slug]);
 
   const retryScan = () => {
     handledQrRef.current = false;

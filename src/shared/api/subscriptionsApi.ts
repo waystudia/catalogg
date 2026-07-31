@@ -61,6 +61,34 @@ const mapBillingSettings = (row: PlatformBillingSettingsRow | null | undefined):
   warningPercent: Number(row?.warning_percent ?? defaultBillingSettings.warningPercent)
 });
 
+export type RestaurantBillingTariff = {
+  tariffType: 'percent' | 'fixed';
+  tariffPercent: number;
+  tariffFixed: number;
+};
+
+export async function getCurrentRestaurantBillingTariff(
+  catalogSlug: string
+): Promise<RestaurantBillingTariff | null> {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc('get_current_restaurant_billing_tariff', {
+    target_catalog_slug: catalogSlug.trim().toLowerCase()
+  });
+  if (error || !data || typeof data !== 'object') return null;
+
+  const row = data as {
+    tariff_type?: unknown;
+    tariff_percent?: unknown;
+    tariff_fixed?: unknown;
+  };
+  return {
+    tariffType: row.tariff_type === 'fixed' ? 'fixed' : 'percent',
+    tariffPercent: Number(row.tariff_percent ?? 0),
+    tariffFixed: Number(row.tariff_fixed ?? 0)
+  };
+}
+
 export async function getSubscriptions(): Promise<SubscriptionRow[]> {
   if (!supabase) return [];
 

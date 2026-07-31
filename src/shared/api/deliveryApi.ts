@@ -1044,6 +1044,16 @@ export async function confirmDeliveryPickupQr(
   return Boolean(retryResult.data);
 }
 
+export async function getRestaurantOrderIdForDelivery(deliveryId: string): Promise<string> {
+  if (!supabase) return deliveryId;
+
+  const { data, error } = await supabase.rpc('get_restaurant_order_id_for_delivery', {
+    target_delivery_id: deliveryId
+  });
+  if (error) throw error;
+  return typeof data === 'string' ? data : '';
+}
+
 export async function confirmDriverPickup(deliveryId: string): Promise<boolean> {
   if (!supabase) return true;
 
