@@ -27,7 +27,7 @@ import {
   WalletCards,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
@@ -1498,6 +1498,10 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const [error, setError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [delivery?.deliveryId]);
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status) : null, [delivery]);
   const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status) : null, [delivery]);

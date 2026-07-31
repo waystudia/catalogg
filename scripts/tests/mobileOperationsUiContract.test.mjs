@@ -104,6 +104,17 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
   });
 
+  it('opens an accepted delivery at the beginning instead of keeping the offer-list scroll position', () => {
+    const activeScreen = driverSource.slice(
+      driverSource.indexOf('function DriverActiveScreen'),
+      driverSource.indexOf('function DriverQrScreen')
+    );
+
+    assert.match(activeScreen, /useLayoutEffect/);
+    assert.match(activeScreen, /window\.scrollTo\(\{\s*top:\s*0,\s*left:\s*0,\s*behavior:\s*'auto'\s*\}\)/s);
+    assert.match(activeScreen, /\[delivery\?\.deliveryId\]/);
+  });
+
   it('shows real driver earnings and platform debt as separate balance values', () => {
     assert.match(deliveryApiSource, /debtAmount/);
     assert.match(deliveryApiSource, /debt_amount/);
