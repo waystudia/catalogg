@@ -4,6 +4,7 @@ import test from 'node:test';
 
 const appSource = await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const appStyles = await readFile(new URL('../../src/app/styles.css', import.meta.url), 'utf8');
+const indexSource = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
 const checkoutSource = await readFile(
   new URL('../../src/features/checkout/CheckoutScreen.tsx', import.meta.url),
   'utf8'
@@ -41,6 +42,21 @@ test('product photos repeat at both edges and normalize after scrolling', () => 
   assert.match(appSource, /\[images\[images\.length - 1\], \.\.\.images, images\[0\]\]/);
   assert.match(appSource, /product-photo-carousel__slide/);
   assert.match(appSource, /scrollBehavior\s*=\s*'auto'/);
+});
+
+test('mobile gestures disable page zoom and keep dish photo swipes horizontal', () => {
+  assert.match(
+    indexSource,
+    /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no"/
+  );
+  assert.match(
+    appStyles,
+    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*pan-x;/
+  );
+  assert.match(
+    appStyles,
+    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*pan-x;/
+  );
 });
 
 test('restaurant footer uses the current WayYaam brand', () => {
