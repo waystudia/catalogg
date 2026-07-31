@@ -530,15 +530,22 @@ export async function hasAdminSession(catalogSlug?: string, knownSession?: Sessi
 export function onAdminSessionChange(callback: (isAdmin: boolean) => void, catalogSlug?: string) {
   if (!supabase) return () => undefined;
 
+  let sessionCheckTimeoutId: ReturnType<typeof setTimeout> | undefined;
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    clearTimeout(sessionCheckTimeoutId);
     if (!session) {
       callback(false);
       return;
     }
-    void hasAdminSession(catalogSlug, session).then(callback).catch(() => callback(false));
+    sessionCheckTimeoutId = setTimeout(() => {
+      void hasAdminSession(catalogSlug, session).then(callback).catch(() => callback(false));
+    }, 0);
   });
 
-  return () => data.subscription.unsubscribe();
+  return () => {
+    clearTimeout(sessionCheckTimeoutId);
+    data.subscription.unsubscribe();
+  };
 }
 
 export async function loadCatalog(catalogSlug?: string) {

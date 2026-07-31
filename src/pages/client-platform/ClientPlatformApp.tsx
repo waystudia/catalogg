@@ -2222,12 +2222,13 @@ function ProfilePage() {
     setIsSigningRestaurant(true);
 
     try {
-      const redirect = await resolveLoginRedirect(restaurantEmail, restaurantPassword);
+      const redirect = await resolveLoginRedirect(
+        restaurantEmail,
+        restaurantPassword,
+        activeRole === 'driver' ? 'driver' : 'restaurant'
+      );
       if (!redirect) {
         throw new Error('Неверный email или пароль.');
-      }
-      if (activeRole === 'driver' && redirect !== '/driver') {
-        throw new Error('Этот аккаунт не является водителем.');
       }
       const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
       rememberPwaResumePath(targetPath);
@@ -2286,15 +2287,24 @@ function ProfilePage() {
       {accountOpen && (
         <section className="profile-account-panel">
           <div className="profile-role-grid">
-            <button className={activeRole === 'client' ? 'is-active' : ''} type="button" onClick={() => setActiveRole('client')}>
+            <button className={activeRole === 'client' ? 'is-active' : ''} type="button" onClick={() => {
+              setRestaurantError('');
+              setActiveRole('client');
+            }}>
               <UserRoundCheck />
               <span>Клиент</span>
             </button>
-            <button className={activeRole === 'restaurant' ? 'is-active' : ''} type="button" onClick={() => setActiveRole('restaurant')}>
+            <button className={activeRole === 'restaurant' ? 'is-active' : ''} type="button" onClick={() => {
+              setRestaurantError('');
+              setActiveRole('restaurant');
+            }}>
               <Building2 />
               <span>Ресторан</span>
             </button>
-            <button className={activeRole === 'driver' ? 'is-active' : ''} type="button" onClick={() => setActiveRole('driver')}>
+            <button className={activeRole === 'driver' ? 'is-active' : ''} type="button" onClick={() => {
+              setRestaurantError('');
+              setActiveRole('driver');
+            }}>
               <Car />
               <span>Водитель</span>
             </button>

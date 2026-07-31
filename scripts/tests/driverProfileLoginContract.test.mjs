@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 describe('driver login from the client profile', () => {
-  it('uses an isolated bounded auth request and preserves the successful driver session', async () => {
+  it('uses an isolated bounded auth request and preserves the successful staff session', async () => {
     const supabase = await read('src/shared/supabase.ts');
     const redirect = await read('src/shared/api/loginRedirectApi.ts');
     const profile = await read('src/pages/client-platform/ClientPlatformApp.tsx');
@@ -21,7 +21,24 @@ describe('driver login from the client profile', () => {
     assert.match(supabase, /supabase\.auth\.setSession/);
     assert.match(redirect, /signInWithPasswordResilient\(email, password\)/);
     assert.match(redirect, /Сервис входа временно отвечает медленно/);
+    assert.match(redirect, /Сервис профилей временно не отвечает/);
+    assert.match(redirect, /PGRST202/i);
+    assert.match(redirect, /expectedRole/);
+    assert.match(redirect, /Это аккаунт водителя\. Выберите «Водитель»/);
+    assert.match(redirect, /Это аккаунт ресторана\. Выберите «Ресторан»/);
+    assert.match(
+      profile,
+      /resolveLoginRedirect\([\s\S]*restaurantEmail,[\s\S]*restaurantPassword,[\s\S]*activeRole === 'driver'/
+    );
     assert.match(profile, /Данные для входа водителю выдаёт администратор платформы/);
     assert.doesNotMatch(profile, /Аккаунт водителя создаёт и выдаёт супер-админ/);
+    assert.doesNotMatch(redirect, /const authenticatedDriverId = await getAuthenticatedDriverId\(\)/);
+  });
+
+  it('defers restaurant role checks outside the auth state callback', async () => {
+    const supabase = await read('src/shared/supabase.ts');
+
+    assert.match(supabase, /onAuthStateChange[\s\S]*setTimeout/);
+    assert.match(supabase, /clearTimeout\(sessionCheckTimeoutId\)/);
   });
 });

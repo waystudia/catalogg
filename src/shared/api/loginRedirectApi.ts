@@ -5,7 +5,57 @@ import {
   supabase
 } from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthScope } from '../supabaseAuthScope';
-import { getAuthenticatedDriverId } from './deliveryApi';
+
+export type StaffLoginRole = 'restaurant' | 'driver';
+
+const PROFILE_CHECK_TIMEOUT_MS = 10_000;
+const PROFILE_SERVICE_ERROR = 'Сервис профилей временно не отвечает. Повторите вход через несколько секунд.';
+
+const isRestaurantRedirect = (redirect: string) =>
+  redirect === '/admin' || /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
+
+export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLoginRole) => {
+  if (!expectedRole) return;
+
+  if (expectedRole === 'driver') {
+    if (redirect === '/driver') return;
+    if (isRestaurantRedirect(redirect)) {
+      throw new Error('Это аккаунт ресторана. Выберите «Ресторан».');
+    }
+    throw new Error('Этот аккаунт не является водителем.');
+  }
+
+  if (isRestaurantRedirect(redirect)) return;
+  if (redirect === '/driver') {
+    throw new Error('Это аккаунт водителя. Выберите «Водитель».');
+  }
+  throw new Error('Этот аккаунт не привязан к ресторану.');
+};
+
+const settleProfileCheck = async <T>(request: PromiseLike<T>) => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(PROFILE_SERVICE_ERROR)), PROFILE_CHECK_TIMEOUT_MS);
+      })
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const isMissingRedirectRpc = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { code?: unknown; message?: unknown };
+  const errorText = `${String(value.code ?? '')} ${String(value.message ?? '')}`.toLowerCase();
+  return (
+    errorText.includes('pgrst202') ||
+    (errorText.includes('resolve_current_login_redirect') &&
+      (errorText.includes('not found') || errorText.includes('could not find')))
+  );
+};
 
 const getClientCatalogSlug = (client: { catalogs?: { slug?: string } | { slug?: string }[] | null } | null) => {
   const catalog = client?.catalogs;
@@ -21,9 +71,6 @@ const metadataRole = (metadata: unknown) => {
 async function resolveSessionRedirectLegacy(user: Session['user'], emailFallback = '') {
   if (!supabase) return null;
   const normalizedEmail = user.email?.trim().toLowerCase() || emailFallback.trim().toLowerCase();
-
-  const authenticatedDriverId = await getAuthenticatedDriverId();
-  if (authenticatedDriverId) return '/driver';
 
   const { data: platformUser } = await supabase
     .from('users')
@@ -84,20 +131,38 @@ export async function resolveSessionRedirect(emailFallback = '', knownSession?: 
   const session = knownSession ?? (await supabase.auth.getSession()).data.session;
   if (!session) return '/';
 
-  const { data: redirect, error } = await supabase.rpc('resolve_current_login_redirect');
+  const { data: redirect, error } = await settleProfileCheck(
+    supabase.rpc('resolve_current_login_redirect')
+  );
   if (!error && typeof redirect === 'string' && redirect.startsWith('/')) return redirect;
 
-  return resolveSessionRedirectLegacy(session.user, emailFallback);
+  if (isMissingRedirectRpc(error)) {
+    return settleProfileCheck(resolveSessionRedirectLegacy(session.user, emailFallback));
+  }
+
+  throw new Error(PROFILE_SERVICE_ERROR);
 }
 
-export async function resolveLoginRedirect(email: string, password: string) {
+export async function resolveLoginRedirect(
+  email: string,
+  password: string,
+  expectedRole?: StaffLoginRole
+) {
   if (!supabase) {
-    return email.trim().toLowerCase() === 'admin' && password.trim() === '1234' ? '/mangal/dashboard' : null;
+    const redirect =
+      email.trim().toLowerCase() === 'admin' && password.trim() === '1234'
+        ? '/mangal/dashboard'
+        : null;
+    if (redirect) assertExpectedLoginRole(redirect, expectedRole);
+    return redirect;
   }
 
   const { data, error } = await signInWithPasswordResilient(email, password);
   if (error) {
     const message = error.message.toLowerCase();
+    if (message.includes('invalid login credentials')) {
+      throw new Error('Неверный email или пароль.');
+    }
     if (
       message.includes('timeout') ||
       message.includes('deadline') ||
@@ -113,6 +178,7 @@ export async function resolveLoginRedirect(email: string, password: string) {
   }
 
   const redirect = await resolveSessionRedirect(email, data.session);
+  if (redirect) assertExpectedLoginRole(redirect, expectedRole);
   if (redirect) {
     preserveSupabaseSessionForRedirect(redirect);
     copySupabaseSessionToScope(getSupabaseAuthScope(redirect));
