@@ -33,6 +33,10 @@ describe('driver dashboard presentation', () => {
 
   it('returns the next operational action for every active delivery stage', () => {
     assert.deepEqual(getDriverNextAction('assigned'), {
+      label: 'Поехать в ресторан',
+      to: '/driver/map'
+    });
+    assert.deepEqual(getDriverNextAction('assigned', true), {
       label: 'Я в ресторане',
       status: 'arrived_to_restaurant'
     });
@@ -66,7 +70,8 @@ describe('driver dashboard presentation', () => {
       'Доставлено'
     ];
 
-    assert.deepEqual(getDriverDeliveryProgress('assigned'), { activeStep: 2, labels });
+    assert.deepEqual(getDriverDeliveryProgress('assigned'), { activeStep: 1, labels });
+    assert.deepEqual(getDriverDeliveryProgress('assigned', true), { activeStep: 2, labels });
     assert.deepEqual(getDriverDeliveryProgress('arrived_to_restaurant'), { activeStep: 2, labels });
     assert.deepEqual(getDriverDeliveryProgress('handed_over'), { activeStep: 3, labels });
     assert.deepEqual(getDriverDeliveryProgress('on_the_way'), { activeStep: 4, labels });

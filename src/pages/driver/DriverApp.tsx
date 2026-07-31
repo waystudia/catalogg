@@ -606,7 +606,7 @@ export function DriverApp() {
       };
     }
 
-    return snapshot.activeDelivery ?? localActiveDelivery;
+    return localActiveDelivery ?? snapshot.activeDelivery;
   }, [localActiveDelivery, snapshot.activeDelivery]);
   const availableDeliveries = snapshot.profile.isOnline
     ? snapshot.availableDeliveries.filter(
@@ -932,7 +932,8 @@ function DriverIncomingOrderPanel({
       await acceptDeliveryOffer(offer.deliveryId);
       acceptLocalOffer(offer, driverId);
       await onRefresh();
-      navigate('/driver/active');
+      navigate('/driver', { replace: true });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     } catch (acceptError) {
       setError(acceptError instanceof Error ? acceptError.message : 'Не удалось принять заказ');
     } finally {
@@ -989,8 +990,12 @@ function DriverCurrentDeliveryPanel({
   const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
   const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
-  const nextAction = getDriverNextAction(offer.status);
-  const progress = getDriverDeliveryProgress(offer.status);
+  const restaurantRouteStorageKey = `driver-restaurant-route-started:${offer.deliveryId}`;
+  const [restaurantRouteStarted, setRestaurantRouteStarted] = useState(
+    () => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
+  );
+  const nextAction = getDriverNextAction(offer.status, restaurantRouteStarted);
+  const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted);
   const qrPayload = buildDriverPickupQrPayload(offer);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
   const waitingForCashConfirmation =
@@ -1036,10 +1041,26 @@ function DriverCurrentDeliveryPanel({
 
   const qrTimerLabel = `${String(Math.floor(qrSecondsLeft / 60)).padStart(2, '0')}:${String(qrSecondsLeft % 60).padStart(2, '0')}`;
 
+  useEffect(() => {
+    setRestaurantRouteStarted(
+      window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
+    );
+  }, [restaurantRouteStorageKey]);
+
+  const openRestaurantRoute = () => {
+    window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');
+    setRestaurantRouteStarted(true);
+    navigate(`/driver/map/${offer.deliveryId}`);
+  };
+
   const advance = async () => {
     if (!nextAction || isUpdating) return;
     if (nextAction.to && !nextAction.status) {
-      navigate(nextAction.to);
+      if (offer.status === 'assigned') {
+        openRestaurantRoute();
+      } else {
+        navigate(nextAction.to);
+      }
       return;
     }
     if (!nextAction.status) return;
@@ -1122,10 +1143,18 @@ function DriverCurrentDeliveryPanel({
       )}
       {error && <small className="driver-incoming-order__error">{error}</small>}
       <div className="driver-current-block__actions">
-        <Link
-          className={`driver-secondary ${offer.status === 'assigned' ? 'driver-secondary--map-hint' : ''}`}
-          to={`/driver/map/${offer.deliveryId}`}
-        ><Navigation />Карта</Link>
+        {offer.status === 'assigned' && !restaurantRouteStarted ? (
+          <button
+            className="driver-secondary driver-secondary--map-hint"
+            type="button"
+            onClick={openRestaurantRoute}
+          ><Navigation />Построить маршрут к ресторану</button>
+        ) : (
+          <Link
+            className="driver-secondary"
+            to={`/driver/map/${offer.deliveryId}`}
+          ><Navigation />Карта</Link>
+        )}
         {offer.clientPhone ? (
           <a className="driver-secondary" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
         ) : (
@@ -1415,7 +1444,8 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
     try {
       await acceptDeliveryOffer(offer.deliveryId);
       acceptLocalOffer(offer, driverId);
-      navigate('/driver/active');
+      navigate('/driver', { replace: true });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     } catch (acceptError) {
       setError(acceptError instanceof Error ? acceptError.message : 'Не удалось принять заказ');
     } finally {
@@ -1663,8 +1693,12 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
   const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
   const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
+  const restaurantRouteStarted = Boolean(
+    delivery?.status === 'assigned' &&
+    window.sessionStorage.getItem(`driver-restaurant-route-started:${delivery.deliveryId}`) === 'true'
+  );
   const progress = delivery && !['waiting_courier', 'waiting_driver'].includes(delivery.status)
-    ? getDriverDeliveryProgress(delivery.status)
+    ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted)
     : null;
   const currentDriverPoint = profile.lastLat !== null && profile.lastLng !== null
     ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }

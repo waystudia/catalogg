@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getDriverDeliveryProgress,
   getDriverGrossEarning,
   getDriverNextAction,
   splitDriverHomeOffers
@@ -25,13 +26,39 @@ describe('driver dashboard presentation', () => {
   });
 
   it.each([
-    ['assigned', { label: 'Я в ресторане', status: 'arrived_to_restaurant' }],
+    ['assigned', { label: 'Поехать в ресторан', to: '/driver/map' }],
     ['arrived_to_restaurant', { label: 'Забрал заказ', status: 'handed_over' }],
     ['handed_over', { label: 'Выехал к клиенту', status: 'on_the_way' }],
     ['on_the_way', { label: 'Я у клиента', status: 'arrived_to_client' }],
     ['arrived_to_client', { label: 'Доставлено', status: 'delivered' }]
   ] as const)('maps %s to its next operational action', (status, action) => {
     expect(getDriverNextAction(status)).toEqual(action);
+  });
+
+  it('offers restaurant arrival only after the restaurant route was opened', () => {
+    expect(getDriverNextAction('assigned', true)).toEqual({
+      label: 'Я в ресторане',
+      status: 'arrived_to_restaurant'
+    });
+  });
+
+  it('keeps an accepted order at stage one until its restaurant route is opened', () => {
+    expect(getDriverDeliveryProgress('assigned').activeStep).toBe(1);
+    expect(getDriverDeliveryProgress('assigned', true).activeStep).toBe(2);
+    expect(getDriverDeliveryProgress('arrived_to_restaurant').activeStep).toBe(2);
+    expect(getDriverDeliveryProgress('handed_over').activeStep).toBe(3);
+    expect(getDriverDeliveryProgress('handed_over', true).activeStep).toBe(3);
+    expect(getDriverDeliveryProgress('on_the_way').activeStep).toBe(4);
+    expect(getDriverDeliveryProgress('arrived_to_client').activeStep).toBe(5);
+    expect(getDriverDeliveryProgress('delivered').activeStep).toBe(6);
+    expect(getDriverDeliveryProgress('assigned').labels).toEqual([
+      'Принял заказ',
+      'Еду в ресторан',
+      'Забрал заказ',
+      'Еду к клиенту',
+      'Я у клиента',
+      'Доставлено'
+    ]);
   });
 
   it.each(['waiting_courier', 'delivered', 'failed'] as const)('does not advance %s', (status) => {

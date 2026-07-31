@@ -120,6 +120,27 @@ describe('mobile operational interfaces', () => {
     assert.match(activeScreen, /\[delivery\?\.deliveryId\]/);
   });
 
+  it('keeps a newly accepted delivery on the driver home screen at stage one', () => {
+    const incomingPanel = driverSource.slice(
+      driverSource.indexOf('function DriverIncomingOrderPanel'),
+      driverSource.indexOf('function DriverCurrentDeliveryPanel')
+    );
+    const currentPanel = driverSource.slice(
+      driverSource.indexOf('function DriverCurrentDeliveryPanel'),
+      driverSource.indexOf('function DriverStat')
+    );
+
+    assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
+    assert.match(incomingPanel, /navigate\('\/driver'/);
+    assert.match(currentPanel, /Построить маршрут к ресторану/);
+    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted\)/);
+    assert.match(currentPanel, /nextAction\.label/);
+    assert.match(
+      driverSource,
+      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted\)/
+    );
+  });
+
   it('shows real driver earnings and platform debt as separate balance values', () => {
     assert.match(deliveryApiSource, /debtAmount/);
     assert.match(deliveryApiSource, /debt_amount/);
