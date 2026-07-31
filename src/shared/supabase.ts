@@ -56,6 +56,79 @@ export const supabase: SupabaseClient | null =
       })
     : null;
 
+const isTransientAuthError = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { status?: unknown; message?: unknown; code?: unknown };
+  const status = Number(value.status ?? 0);
+  const message = `${String(value.code ?? '')} ${String(value.message ?? '')}`.toLowerCase();
+  return (
+    status >= 500 ||
+    message.includes('timeout') ||
+    message.includes('deadline') ||
+    message.includes('failed to fetch') ||
+    message.includes('unexpected_failure')
+  );
+};
+
+export async function signInWithPasswordResilient(email: string, password: string) {
+  if (!config.url || !config.anonKey || !supabase) {
+    return { data: { session: null, user: null }, error: new Error('Supabase не настроен') };
+  }
+
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const loginClient = createClient(config.url, config.anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        persistSession: false
+      },
+      global: {
+        fetch: async (input, init) => {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
+          try {
+            return await fetch(input, { ...init, signal: controller.signal });
+          } finally {
+            window.clearTimeout(timeoutId);
+          }
+        }
+      }
+    });
+
+    try {
+      const result = await loginClient.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      });
+      if (!result.error && result.data.session) {
+        const sessionResult = await supabase.auth.setSession({
+          access_token: result.data.session.access_token,
+          refresh_token: result.data.session.refresh_token
+        });
+        if (sessionResult.error) return sessionResult;
+        return sessionResult;
+      }
+      lastError = result.error;
+      if (!isTransientAuthError(result.error) || attempt === 1) return result;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1) break;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 500));
+  }
+
+  return {
+    data: { session: null, user: null },
+    error: new Error(
+      isTransientAuthError(lastError) || (lastError instanceof DOMException && lastError.name === 'AbortError')
+        ? 'Сервис входа временно отвечает медленно. Повторите вход ещё раз.'
+        : 'Не удалось подключиться к сервису входа.'
+    )
+  };
+}
+
 export const preserveSupabaseSessionForRedirect = (redirect: string) => {
   if (typeof window === 'undefined') return;
   try {

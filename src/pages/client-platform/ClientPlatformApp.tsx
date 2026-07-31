@@ -2347,7 +2347,7 @@ function ProfilePage() {
                 <span>Пароль</span>
                 <input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />
               </label>
-              <small className="form-muted">Аккаунт водителя создаёт и выдаёт супер-админ.</small>
+              <small className="form-muted">Данные для входа водителю выдаёт администратор платформы.</small>
               {restaurantError && <small className="form-error">{restaurantError}</small>}
               <button className="wide-action" type="submit" disabled={isSigningRestaurant}>
                 <Car />

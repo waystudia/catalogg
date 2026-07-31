@@ -1,5 +1,9 @@
 import type { Session } from '@supabase/supabase-js';
-import { preserveSupabaseSessionForRedirect, supabase } from '../supabase';
+import {
+  preserveSupabaseSessionForRedirect,
+  signInWithPasswordResilient,
+  supabase
+} from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthScope } from '../supabaseAuthScope';
 import { getAuthenticatedDriverId } from './deliveryApi';
 
@@ -91,11 +95,20 @@ export async function resolveLoginRedirect(email: string, password: string) {
     return email.trim().toLowerCase() === 'admin' && password.trim() === '1234' ? '/mangal/dashboard' : null;
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password
-  });
-  if (error) throw new Error(error.message);
+  const { data, error } = await signInWithPasswordResilient(email, password);
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (
+      message.includes('timeout') ||
+      message.includes('deadline') ||
+      message.includes('fetch') ||
+      message.includes('temporarily') ||
+      message.includes('медленно')
+    ) {
+      throw new Error('Сервис входа временно отвечает медленно. Нажмите «Войти» ещё раз.');
+    }
+    throw new Error(error.message);
+  }
 
   const redirect = await resolveSessionRedirect(email, data.session);
   if (redirect) {
