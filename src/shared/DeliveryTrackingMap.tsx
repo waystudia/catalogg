@@ -23,6 +23,7 @@ import {
   coordinatesToMapPoint,
   getMapCenter,
   getMapZoomForPoints,
+  getNearestEquivalentAngle,
   mapPointToCoordinates,
   rotateMapDelta,
   rotateMapPoint,
@@ -189,7 +190,8 @@ export function DeliveryTrackingMap({
     return client ? calculateBearing(driver, client) : 0;
   }, [client, driver, effectiveRoutePoints]);
   const driverHeading = movementHeading ?? routeHeading;
-  const mapRotation = (followDriverHeading && driver ? -driverHeading : 0) + manualRotation;
+  const automaticMapRotation = followDriverHeading && driver ? -driverHeading : 0;
+  const mapRotation = automaticMapRotation + manualRotation;
   const selectedPoint =
     selectedPointKind === 'restaurant'
       ? restaurantPoint
@@ -393,7 +395,12 @@ export function DeliveryTrackingMap({
 
   const centerOnDriver = () => {
     userAdjustedViewRef.current = false;
-    setManualRotation(0);
+    setManualRotation((currentManualRotation) =>
+      getNearestEquivalentAngle(
+        automaticMapRotation + currentManualRotation,
+        automaticMapRotation
+      ) - automaticMapRotation
+    );
     if (driver) {
       setCenter({ lat: driver.lat, lng: driver.lng });
       setMapZoom(17);
@@ -405,7 +412,12 @@ export function DeliveryTrackingMap({
 
   const alignMapToCompass = () => {
     userAdjustedViewRef.current = true;
-    setManualRotation(followDriverHeading && driver ? driverHeading : 0);
+    setManualRotation((currentManualRotation) =>
+      getNearestEquivalentAngle(
+        automaticMapRotation + currentManualRotation,
+        0
+      ) - automaticMapRotation
+    );
   };
 
   const toggleAudioGuidance = () => {
@@ -617,16 +629,25 @@ export function DeliveryTrackingMap({
         {roadRoute && (
           <aside className="delivery-tracking-map__navigation" aria-label="Следующая подсказка маршрута">
             <ManeuverIcon instruction={roadRoute.nextManeuver?.instruction} />
-            <span>
-              <small>
-                {roadRoute.nextManeuver
-                  ? `Через ${formatManeuverDistance(roadRoute.nextManeuver.distanceM)}`
-                  : 'До следующей точки'}
-              </small>
-              <strong>
-                {roadRoute.nextManeuver?.instruction ?? 'Продолжайте по маршруту'}
-              </strong>
-            </span>
+            {navigationMode ? (
+              <>
+                <small>
+                  {roadRoute.nextManeuver
+                    ? formatManeuverDistance(roadRoute.nextManeuver.distanceM)
+                    : 'Далее'}
+                </small>
+                <em>{roadRoute.nextManeuver?.street ?? 'Продолжайте по маршруту'}</em>
+              </>
+            ) : (
+              <span>
+                <small>
+                  {roadRoute.nextManeuver
+                    ? `Через ${formatManeuverDistance(roadRoute.nextManeuver.distanceM)}`
+                    : 'До следующей точки'}
+                </small>
+                <strong>{roadRoute.nextManeuver?.instruction ?? 'Продолжайте по маршруту'}</strong>
+              </span>
+            )}
             {!navigationMode && (
               <b>{formatRouteDistance(roadRoute.distanceM)}<small>{formatRouteDuration(roadRoute.durationS)}</small></b>
             )}

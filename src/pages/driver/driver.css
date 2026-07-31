@@ -94,7 +94,7 @@
   bottom: auto;
   left: 14px;
   width: 104px;
-  min-height: 92px;
+  min-height: 74px;
   grid-template-columns: 22px minmax(0, 1fr);
   align-content: center;
   gap: 6px;
@@ -110,10 +110,29 @@
   height: 21px;
 }
 
+.driver-phone--map .delivery-tracking-map__navigation > small {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .driver-phone--map .delivery-tracking-map__navigation > span strong {
   display: -webkit-box;
   overflow: hidden;
   font-size: 10px;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation > em {
+  display: -webkit-box;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #fff;
+  font-size: 8px;
+  font-style: normal;
+  line-height: 1.15;
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1106,6 +1125,14 @@
 .driver-current-block__actions svg {
   width: 17px;
   height: 17px;
+}
+
+.driver-current-block--details {
+  margin-top: 12px;
+}
+
+.driver-current-block--details .driver-action-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .driver-secondary--map-hint {

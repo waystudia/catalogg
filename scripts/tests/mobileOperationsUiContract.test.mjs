@@ -179,6 +179,11 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
     assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*10[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*min-height:\s*7[0-9]px/s);
+    assert.match(mapSource, /getNearestEquivalentAngle/);
+    assert.match(mapSource, /roadRoute\.nextManeuver\?\.street/);
+    assert.match(driverSource, /aria-label=\{`Текущая доставка \$\{delivery\.orderNumber\}`\}/);
+    assert.match(driverSource, /driver-order-panel driver-current-block driver-current-block--details/);
     assert.match(driverCss, /\.driver-map-sheet__actions\s*\{[^}]*min-height:\s*3[6-9]px/s);
     assert.match(driverCss, /\.driver-map-sheet__yandex,[\s\S]*min-height:\s*3[6-9]px/s);
     assert.match(driverCss, /\.driver-map-sheet[\s\S]*height:\s*2[0-9]dvh/);

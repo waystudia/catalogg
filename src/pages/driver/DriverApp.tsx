@@ -1542,7 +1542,7 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   );
 }
 
-function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
+export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const navigate = useNavigate();
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
@@ -1622,8 +1622,40 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
         </span>
         <ChevronRight />
       </Link>
-      <section className="driver-order-panel">
-        <h2>{delivery.restaurantName}</h2>
+      <section
+        className="driver-order-panel driver-current-block driver-current-block--details"
+        aria-label={`Текущая доставка ${delivery.orderNumber}`}
+      >
+        <div className="driver-current-block__accepted">
+          <strong>✓ ЗАКАЗ ПРИНЯТ</strong>
+        </div>
+        <header>
+          <span>
+            <strong>{delivery.orderNumber}</strong>
+            <small>Доставка · {delivery.itemsCount} поз.</small>
+          </span>
+          <span>
+            <small>Осталось ≈ {delivery.routeEtaMin} мин</small>
+          </span>
+        </header>
+        <p>
+          <Home />
+          <span>
+            <small>Точка А</small>
+            <strong>{delivery.restaurantName} · {formatDriverDeliveryAddress(delivery.restaurantAddress)}</strong>
+          </span>
+        </p>
+        <p>
+          <MapPin />
+          <span>
+            <small>Точка Б</small>
+            <strong>{displayDeliveryAddress}</strong>
+          </span>
+        </p>
+        <div className="driver-current-block__summary">
+          <span>Ваш заработок</span>
+          <strong>{formatPrice(delivery.deliveryFee)}</strong>
+        </div>
         {progress && (
           <ol className="driver-delivery-progress" aria-label="Статус доставки">
             {progress.labels.map((label, index) => {
@@ -1637,7 +1669,6 @@ function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
             })}
           </ol>
         )}
-        <DriverRouteLine icon={<MapPin />} label="Адрес клиента" value={displayDeliveryAddress} />
         {delivery.clientName && <DriverRouteLine icon={<User />} label="Клиент" value={delivery.clientName} />}
         {delivery.clientPhone && <DriverRouteLine icon={<Phone />} label="Телефон" value={delivery.clientPhone} />}
         {delivery.deliveryComment && <DriverRouteLine icon={<ShieldCheck />} label="Комментарий" value={delivery.deliveryComment} />}

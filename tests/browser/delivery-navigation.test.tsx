@@ -1,7 +1,9 @@
 import { expect, test, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
-import { DriverYandexNavigationActions } from '../../src/pages/driver/DriverApp';
+import { DriverActiveScreen, DriverYandexNavigationActions } from '../../src/pages/driver/DriverApp';
+import type { DeliveryOffer } from '../../src/shared/api/deliveryApi';
 
 const restaurant = {
   lat: 43.322,
@@ -78,7 +80,10 @@ test('keeps navigation controls compact and separates compass from driver follow
   );
 
   await expect.element(screen.getByRole('img', { name: 'Поворот направо' })).toBeVisible();
-  await expect.element(screen.getByText('Через 332 м')).toBeVisible();
+  await expect.element(screen.getByText('332 м', { exact: true })).toBeVisible();
+  await expect.element(screen.getByText('Через 332 м')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('улица Бамат-Гирей-Хаджи')).toBeVisible();
+  await expect.element(screen.getByText('Поверните направо')).not.toBeInTheDocument();
   await expect.element(screen.getByText('32,2 км')).not.toBeInTheDocument();
   await expect.element(screen.getByText('39 мин')).not.toBeInTheDocument();
   const clientMarker = screen.getByRole('button', { name: 'Клиент: Клиент' });
@@ -107,6 +112,53 @@ test('keeps navigation controls compact and separates compass from driver follow
   await screen.getByRole('button', { name: 'Включить голосовые подсказки' }).click();
   await expect.element(screen.getByRole('button', { name: 'Выключить голосовые подсказки' })).toHaveAttribute('aria-pressed', 'true');
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
+});
+
+test('shows an assigned order detail in the same accepted-delivery card used on the home screen', async () => {
+  const delivery: DeliveryOffer = {
+    deliveryId: 'delivery-1',
+    orderId: 'order-1',
+    orderNumber: 'M6714',
+    createdAt: '2026-07-31T10:00:00.000Z',
+    itemsCount: 3,
+    orderTotal: 1760,
+    paymentLabel: 'Наличными',
+    restaurantLogoUrl: '',
+    routeEtaMin: 20,
+    paymentMethod: 'cash',
+    restaurantPaymentConfirmed: true,
+    pickupQrConfirmed: false,
+    restaurantName: 'Мангал',
+    restaurantAddress: 'ул. Центральная, 12',
+    deliveryAddress: 'Цоци-Юрт, ул. Ленина, 1',
+    deliveryFee: 200,
+    distanceKm: 32.2,
+    status: 'assigned',
+    isAssignedToViewer: true,
+    itemsVisible: true,
+    routeToRestaurantUrl: 'https://yandex.ru/maps/?rtext=~43.322,45.705',
+    routeToClientUrl: 'https://yandex.ru/maps/?rtext=~43.318123,45.698456',
+    restaurantLat: restaurant.lat,
+    restaurantLng: restaurant.lng,
+    deliveryLat: client.lat,
+    deliveryLng: client.lng,
+    clientName: 'дукхвах',
+    clientPhone: '+7 (928) 886-54-70',
+    pickupQrToken: 'token'
+  };
+  const screen = await render(
+    <MemoryRouter>
+      <DriverActiveScreen delivery={delivery} />
+    </MemoryRouter>
+  );
+
+  const card = screen.getByRole('region', { name: 'Текущая доставка M6714' });
+  await expect.element(card).toHaveClass(/driver-current-block/);
+  await expect.element(card.getByText('✓ ЗАКАЗ ПРИНЯТ')).toBeVisible();
+  await expect.element(card.getByText('Точка А')).toBeVisible();
+  await expect.element(card.getByText('Точка Б')).toBeVisible();
+  await expect.element(card.getByText('Ваш заработок')).toBeVisible();
+  await expect.element(card.getByText('200 ₽')).toBeVisible();
 });
 
 test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {

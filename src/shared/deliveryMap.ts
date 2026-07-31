@@ -41,6 +41,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 export const normalizeBearing = (value: number) => ((value % 360) + 360) % 360;
 
+export const getNearestEquivalentAngle = (current: number, target: number) => {
+  const shortestDelta = ((target - current + 540) % 360) - 180;
+  return current + shortestDelta;
+};
+
 export const calculateBearing = (from: DeliveryMapCoordinates, to: DeliveryMapCoordinates) => {
   const fromLat = (from.lat * Math.PI) / 180;
   const toLat = (to.lat * Math.PI) / 180;

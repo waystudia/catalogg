@@ -6,6 +6,7 @@ import {
   calculateBearing,
   getMapCenter,
   getMapZoomForPoints,
+  getNearestEquivalentAngle,
   mapPointToCoordinates,
   coordinatesToMapPoint,
   rotateMapDelta,
@@ -62,6 +63,13 @@ describe('delivery map picker geometry', () => {
     const delta = rotateMapDelta({ x: 0, y: 10 }, -90);
 
     assert.deepEqual({ x: Math.round(delta.x), y: Math.round(delta.y) }, { x: 10, y: 0 });
+  });
+
+  it('chooses the shortest clockwise or counter-clockwise turn to an equivalent angle', () => {
+    assert.equal(getNearestEquivalentAngle(350, 0), 360);
+    assert.equal(getNearestEquivalentAngle(-350, 0), -360);
+    assert.equal(getNearestEquivalentAngle(170, -170), 190);
+    assert.equal(getNearestEquivalentAngle(-170, 170), -190);
   });
 
   it('clamps dragged markers inside the map viewport', () => {
