@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 
 import { clientsClaim, skipWaiting } from 'workbox-core';
+import { ExpirationPlugin } from 'workbox-expiration';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
@@ -22,6 +23,20 @@ registerRoute(
 );
 
 precacheAndRoute(self.__WB_MANIFEST);
+
+registerRoute(
+  ({ url, request }) => request.destination === 'image' && (
+    url.hostname === 'tile.openstreetmap.org' || url.hostname.endsWith('arcgisonline.com')
+  ),
+  new CacheFirst({
+    cacheName: 'catalog-map-tiles',
+    plugins: [new ExpirationPlugin({
+      maxEntries: 600,
+      maxAgeSeconds: 30 * 24 * 60 * 60,
+      purgeOnQuotaError: true
+    })]
+  })
+);
 
 registerRoute(
   ({ request }) => request.destination === 'image',

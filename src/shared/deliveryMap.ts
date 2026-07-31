@@ -58,6 +58,30 @@ export const calculateBearing = (from: DeliveryMapCoordinates, to: DeliveryMapCo
   return normalizeBearing((Math.atan2(y, x) * 180) / Math.PI);
 };
 
+export const getNavigationFollowCenter = (
+  driver: DeliveryMapCoordinates,
+  heading: number,
+  lookAheadDistanceM = 100
+): DeliveryMapCoordinates => {
+  const angularDistance = lookAheadDistanceM / 6_371_000;
+  const bearing = (heading * Math.PI) / 180;
+  const latitude = (driver.lat * Math.PI) / 180;
+  const longitude = (driver.lng * Math.PI) / 180;
+  const nextLatitude = Math.asin(
+    Math.sin(latitude) * Math.cos(angularDistance) +
+    Math.cos(latitude) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const nextLongitude = longitude + Math.atan2(
+    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitude),
+    Math.cos(angularDistance) - Math.sin(latitude) * Math.sin(nextLatitude)
+  );
+
+  return {
+    lat: (nextLatitude * 180) / Math.PI,
+    lng: normalizeLng((nextLongitude * 180) / Math.PI)
+  };
+};
+
 export const rotateMapPoint = (
   point: DeliveryMapPoint,
   angleDeg: number,

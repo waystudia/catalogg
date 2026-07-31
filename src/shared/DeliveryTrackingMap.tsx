@@ -23,6 +23,7 @@ import {
   coordinatesToMapPoint,
   getMapCenter,
   getMapZoomForPoints,
+  getNavigationFollowCenter,
   getNearestEquivalentAngle,
   mapPointToCoordinates,
   rotateMapDelta,
@@ -31,7 +32,7 @@ import {
   type DeliveryMapStyle
 } from './deliveryMap';
 import { searchDeliveryLocations, type DeliveryLocationSearchResult } from './deliveryGeocoder';
-import { loadRoadRoute, type RoadRoute } from './deliveryNavigation';
+import { getRoadRouteProgress, loadRoadRoute, type RoadRoute } from './deliveryNavigation';
 import './delivery-tracking-map.css';
 
 type TrackingPoint = DeliveryMapCoordinates & {
@@ -60,7 +61,6 @@ export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 const mapSize = 640;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
-const minimumAutoFollowMoveM = 12;
 const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1
@@ -99,17 +99,18 @@ export function DeliveryTrackingMap({
   const wheelDeltaRef = useRef(0);
   const routeRequestIdRef = useRef(0);
   const userAdjustedViewRef = useRef(false);
-  const lastAutoFollowCenterRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastDriverHeadingPointRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
   const lastSpokenManeuverRef = useRef('');
+  const automaticRotationRef = useRef(0);
+  const routeProgressRef = useRef<{ key: string; traveledDistanceM: number; updatedAt: number } | null>(null);
   const zoomAnimationFrameRef = useRef<number | null>(null);
   const mapZoomRef = useRef(0);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [mapStyle, setMapStyle] = useState<DeliveryMapStyle>(initialStyle);
-  const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
+  const [loadedRoadRoute, setLoadedRoadRoute] = useState<RoadRoute | null>(null);
   const [selectedPointKind, setSelectedPointKind] = useState<'restaurant' | 'driver' | 'client' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ReadonlyArray<DeliveryLocationSearchResult>>([]);
@@ -129,7 +130,10 @@ export function DeliveryTrackingMap({
   const routePointKey = (routePoints ?? baseRoutePoints)
     .map((point) => `${point.lat},${point.lng}`)
     .join('|');
-  const roadRouteRequestKey = formatRoutePointKey(routePoints ?? baseRoutePoints);
+  const requestedRoutePoints = routePoints ?? baseRoutePoints;
+  const roadRouteRequestKey = navigationMode && requestedRoutePoints.length >= 2
+    ? formatRoutePointKey(requestedRoutePoints.slice(-1))
+    : formatRoutePointKey(requestedRoutePoints);
   const effectiveRoutePoints = useMemo<ReadonlyArray<DeliveryMapCoordinates>>(
     () => routePointKey.split('|').filter(Boolean).map((pair) => {
       const [lat, lng] = pair.split(',').map(Number);
@@ -183,19 +187,12 @@ export function DeliveryTrackingMap({
 
   useEffect(() => () => cancelZoomAnimation(), []);
   useEffect(() => {
-    onRouteSummaryChange?.(roadRoute
-      ? { distanceM: roadRoute.distanceM, durationS: roadRoute.durationS }
-      : null);
-  }, [onRouteSummaryChange, roadRoute]);
-
-  useEffect(() => {
     if (lastResetViewKeyRef.current === resetViewKey) return;
     lastResetViewKeyRef.current = resetViewKey;
     setCenter(followDriverHeading && driver ? { lat: driver.lat, lng: driver.lng } : defaultCenter);
     setMapZoom(followDriverHeading && driver ? 17 : defaultMapZoom);
     setSelectedPointKind(null);
     setManualRotation(0);
-    lastAutoFollowCenterRef.current = driver ? { lat: driver.lat, lng: driver.lng } : null;
     userAdjustedViewRef.current = false;
   }, [defaultCenter, defaultMapZoom, driver, followDriverHeading, resetViewKey]);
   const tiles = useMemo(
@@ -210,9 +207,52 @@ export function DeliveryTrackingMap({
     () => client ? { ...client, ...coordinatesToMapPoint(client, center, mapZoom, mapSize, { clampToViewport: false }) } : null,
     [center, mapZoom, client]
   );
+  const routeProgress = useMemo(() => {
+    if (!navigationMode || !loadedRoadRoute || !driver) return null;
+    const previous = routeProgressRef.current?.key === roadRouteRequestKey
+      ? routeProgressRef.current
+      : null;
+    const elapsedSeconds = previous ? Math.max(0, (Date.now() - previous.updatedAt) / 1_000) : 0;
+    return getRoadRouteProgress({
+      route: loadedRoadRoute,
+      position: driver,
+      minimumTraveledDistanceM: previous?.traveledDistanceM ?? 0,
+      maximumTraveledDistanceM: previous
+        ? previous.traveledDistanceM + Math.max(40, elapsedSeconds * 55)
+        : loadedRoadRoute.distanceM
+    });
+  }, [driver, loadedRoadRoute, navigationMode, roadRouteRequestKey]);
+  useEffect(() => {
+    if (!routeProgress) return;
+    routeProgressRef.current = {
+      key: roadRouteRequestKey,
+      traveledDistanceM: routeProgress.traveledDistanceM,
+      updatedAt: Date.now()
+    };
+  }, [roadRouteRequestKey, routeProgress]);
+  const roadRoute = useMemo<RoadRoute | null>(() => {
+    if (!loadedRoadRoute || !routeProgress) return loadedRoadRoute;
+    return {
+      ...loadedRoadRoute,
+      distanceM: routeProgress.remainingDistanceM,
+      durationS: routeProgress.remainingDurationS,
+      nextManeuver: routeProgress.nextManeuver
+    };
+  }, [loadedRoadRoute, routeProgress]);
+  useEffect(() => {
+    onRouteSummaryChange?.(roadRoute
+      ? { distanceM: roadRoute.distanceM, durationS: roadRoute.durationS }
+      : null);
+  }, [onRouteSummaryChange, roadRoute]);
+  const displayedDriver = useMemo(() => {
+    if (!driver || !routeProgress?.isOnRoute) return driver;
+    return { ...driver, ...routeProgress.snappedPosition };
+  }, [driver, routeProgress]);
   const driverPoint = useMemo(
-    () => driver ? { ...driver, ...coordinatesToMapPoint(driver, center, mapZoom, mapSize, { clampToViewport: false }) } : null,
-    [center, mapZoom, driver]
+    () => displayedDriver
+      ? { ...displayedDriver, ...coordinatesToMapPoint(displayedDriver, center, mapZoom, mapSize, { clampToViewport: false }) }
+      : null,
+    [center, displayedDriver, mapZoom]
   );
   const routeHeading = useMemo(() => {
     if (!driver) return 0;
@@ -222,8 +262,11 @@ export function DeliveryTrackingMap({
     if (routeTarget) return calculateBearing(driver, routeTarget);
     return client ? calculateBearing(driver, client) : 0;
   }, [client, driver, effectiveRoutePoints]);
-  const driverHeading = movementHeading ?? routeHeading;
-  const automaticMapRotation = followDriverHeading && driver ? -driverHeading : 0;
+  const driverHeading = routeProgress?.heading ?? (navigationMode ? routeHeading : movementHeading ?? routeHeading);
+  const automaticMapRotation = followDriverHeading && driver
+    ? getNearestEquivalentAngle(automaticRotationRef.current, -driverHeading)
+    : 0;
+  automaticRotationRef.current = automaticMapRotation;
   const mapRotation = automaticMapRotation + manualRotation;
   const selectedPoint =
     selectedPointKind === 'restaurant'
@@ -241,33 +284,33 @@ export function DeliveryTrackingMap({
     [center, effectiveRoutePoints, mapZoom]
   );
   const projectedRoadRoute = useMemo(
-    () => roadRoute?.geometry.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
-    [center, fallbackRoutePoints, mapZoom, roadRoute]
+    () => loadedRoadRoute?.geometry.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
+    [center, fallbackRoutePoints, loadedRoadRoute, mapZoom]
   );
 
   useEffect(() => {
     const currentRoutePoints = latestRoutePointsRef.current;
     if (currentRoutePoints.length < 2) {
-      setRoadRoute(null);
+      setLoadedRoadRoute(null);
       return undefined;
     }
 
     let active = true;
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
-    setRoadRoute(null);
+    if (!navigationMode) setLoadedRoadRoute(null);
     void loadRoute(currentRoutePoints)
       .then((route) => {
-        if (active && requestId === routeRequestIdRef.current) setRoadRoute(route);
+        if (active && requestId === routeRequestIdRef.current) setLoadedRoadRoute(route);
       })
       .catch(() => {
-        if (active && requestId === routeRequestIdRef.current) setRoadRoute(null);
+        if (active && requestId === routeRequestIdRef.current) setLoadedRoadRoute(null);
       });
 
     return () => {
       active = false;
     };
-  }, [roadRouteRequestKey, loadRoute]);
+  }, [navigationMode, roadRouteRequestKey, loadRoute]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -281,14 +324,11 @@ export function DeliveryTrackingMap({
   }, []);
 
   useEffect(() => {
-    if (!followDriverHeading || !driver || userAdjustedViewRef.current) return;
-    const nextCenter = { lat: driver.lat, lng: driver.lng };
-    const lastCenter = lastAutoFollowCenterRef.current;
-    if (lastCenter && getApproximateDistanceM(lastCenter, nextCenter) < minimumAutoFollowMoveM) return;
-    lastAutoFollowCenterRef.current = nextCenter;
-    setCenter({ lat: driver.lat, lng: driver.lng });
+    if (!followDriverHeading || !displayedDriver || userAdjustedViewRef.current) return;
+    const nextDriverPosition = { lat: displayedDriver.lat, lng: displayedDriver.lng };
+    setCenter(getNavigationFollowCenter(nextDriverPosition, driverHeading));
     setMapZoom((zoom) => Math.max(16, zoom));
-  }, [driver, followDriverHeading]);
+  }, [displayedDriver, driverHeading, followDriverHeading]);
 
   useEffect(() => {
     if (!driver) {
@@ -434,8 +474,9 @@ export function DeliveryTrackingMap({
         automaticMapRotation
       ) - automaticMapRotation
     );
-    if (driver) {
-      setCenter({ lat: driver.lat, lng: driver.lng });
+    if (displayedDriver) {
+      const driverPosition = { lat: displayedDriver.lat, lng: displayedDriver.lng };
+      setCenter(getNavigationFollowCenter(driverPosition, driverHeading));
       animateMapZoom(17);
       return;
     }

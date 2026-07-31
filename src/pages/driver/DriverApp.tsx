@@ -1789,7 +1789,7 @@ export function DriverRouteLegProgress({
 function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
   const navigate = useNavigate();
   const [routeRefreshKey, setRouteRefreshKey] = useState(0);
-  const [routeSummary, setRouteSummary] = useState<DeliveryRouteSummary | null>(null);
+  const [routeSummaryState, setRouteSummary] = useState<{ key: string; summary: DeliveryRouteSummary } | null>(null);
   const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetPointerStartRef = useRef<number | null>(null);
@@ -1841,12 +1841,17 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
         })
     : [];
   const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
-    setRouteSummary(summary);
+    setRouteSummary((current) => {
+      if (!summary) return null;
+      if (current?.key === routeLegKey && current.summary.distanceM < summary.distanceM) return current;
+      return { key: routeLegKey, summary };
+    });
     if (!summary) return;
     setRouteTotal((current) => current?.key === routeLegKey
       ? current
       : { key: routeLegKey, distanceM: summary.distanceM });
   }, [routeLegKey]);
+  const routeSummary = routeSummaryState?.key === routeLegKey ? routeSummaryState.summary : null;
   const remainingDistanceM = routeSummary?.distanceM ?? (delivery?.distanceKm ?? 0) * 1_000;
   const remainingDurationS = routeSummary?.durationS ?? (delivery?.routeEtaMin ?? 0) * 60;
   const routeTotalDistanceM = routeTotal?.key === routeLegKey
@@ -1858,7 +1863,15 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
       <header className="driver-map-topbar">
         <button type="button" onClick={() => navigate(-1)} aria-label="Назад"><ArrowLeft /></button>
         <span><i aria-hidden="true" />Вы на маршруте</span>
-        <button type="button" onClick={() => setRouteRefreshKey((key) => key + 1)} aria-label="Обновить маршрут"><RefreshCw /></button>
+        <button
+          type="button"
+          onClick={() => {
+            setRouteSummary(null);
+            setRouteTotal(null);
+            setRouteRefreshKey((key) => key + 1);
+          }}
+          aria-label="Обновить маршрут"
+        ><RefreshCw /></button>
       </header>
       <div className="driver-map-canvas">
         {delivery && completeMapData ? (

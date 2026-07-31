@@ -6,6 +6,7 @@ import {
   calculateBearing,
   getMapCenter,
   getMapZoomForPoints,
+  getNavigationFollowCenter,
   getNearestEquivalentAngle,
   mapPointToCoordinates,
   coordinatesToMapPoint,
@@ -13,7 +14,12 @@ import {
   rotateMapPoint,
   type DeliveryMapPoint
 } from './deliveryMap';
-import { buildRoadRouteRequestUrl, parseRoadRoutePayload } from './deliveryNavigation';
+import {
+  buildRoadRouteRequestUrl,
+  getRoadRouteProgress,
+  parseRoadRoutePayload,
+  type RoadRoute
+} from './deliveryNavigation';
 
 describe('delivery map picker geometry', () => {
   it('centers a tracking map on all available delivery points', () => {
@@ -70,6 +76,17 @@ describe('delivery map picker geometry', () => {
     assert.equal(getNearestEquivalentAngle(-350, 0), -360);
     assert.equal(getNearestEquivalentAngle(170, -170), 190);
     assert.equal(getNearestEquivalentAngle(-170, 170), -190);
+  });
+
+  it('keeps the followed driver centered horizontally in the lower map area with road visible ahead', () => {
+    const driver = { lat: 43.3181235, lng: 45.6987654 };
+    for (const heading of [0, 90, 180, 270]) {
+      const center = getNavigationFollowCenter(driver, heading, 100);
+      const projected = coordinatesToMapPoint(driver, center, 17, 640, { clampToViewport: false });
+      const rotated = rotateMapPoint(projected, -heading, { x: 320, y: 320 });
+      assert.equal(Math.abs(rotated.x - 320) < 1, true);
+      assert.equal(rotated.y > 380 && rotated.y < 450, true);
+    }
   });
 
   it('clamps dragged markers inside the map viewport', () => {
@@ -179,6 +196,79 @@ describe('delivery map picker geometry', () => {
         }
       }
     );
+  });
+
+  it('measures the next turn from the preceding road step instead of the road after the turn', () => {
+    const result = parseRoadRoutePayload({
+      code: 'Ok',
+      routes: [{
+        distance: 1370,
+        duration: 130,
+        geometry: {
+          type: 'LineString',
+          coordinates: [[45, 43], [45.001, 43], [45.01, 43]]
+        },
+        legs: [{
+          steps: [
+            { distance: 70, duration: 10, name: 'Стартовая улица', maneuver: { type: 'depart' } },
+            { distance: 1300, duration: 120, name: 'Улица после поворота', maneuver: { type: 'turn', modifier: 'right' } }
+          ]
+        }]
+      }]
+    });
+
+    assert.equal(result.success, true);
+    if (!result.success) return;
+    assert.deepEqual(result.data.nextManeuver, {
+      distanceM: 70,
+      instruction: 'Поверните направо',
+      street: 'Улица после поворота'
+    });
+  });
+
+  it('snaps noisy GPS to the road and reports monotonic remaining route data', () => {
+    const route: RoadRoute = {
+      distanceM: 1000,
+      durationS: 600,
+      geometry: [{ lat: 43, lng: 45 }, { lat: 43, lng: 45.01 }],
+      maneuvers: [
+        { distanceFromStartM: 250, instruction: 'Поверните налево', street: 'Первая улица' },
+        { distanceFromStartM: 700, instruction: 'Поверните направо', street: 'Вторая улица' }
+      ]
+    };
+
+    const midpoint = getRoadRouteProgress({ route, position: { lat: 43, lng: 45.005 } });
+    assert.equal(Math.round(midpoint.traveledDistanceM), 500);
+    assert.equal(Math.round(midpoint.remainingDistanceM), 500);
+    assert.equal(Math.round(midpoint.remainingDurationS), 300);
+    assert.equal(Math.round(midpoint.nextManeuver?.distanceM ?? 0), 200);
+    assert.equal(Number(midpoint.snappedPosition.lng.toFixed(5)), 45.005);
+
+    const jitteredBack = getRoadRouteProgress({
+      route,
+      position: { lat: 43, lng: 45.0048 },
+      minimumTraveledDistanceM: 600
+    });
+    assert.equal(Math.round(jitteredBack.traveledDistanceM), 600);
+    assert.equal(Math.round(jitteredBack.remainingDistanceM), 400);
+    assert.equal(Math.round(jitteredBack.nextManeuver?.distanceM ?? 0), 100);
+  });
+
+  it('ignores a GPS point far away from the road instead of moving progress backwards or sideways', () => {
+    const route: RoadRoute = {
+      distanceM: 1000,
+      durationS: 600,
+      geometry: [{ lat: 43, lng: 45 }, { lat: 43, lng: 45.01 }]
+    };
+    const progress = getRoadRouteProgress({
+      route,
+      position: { lat: 43.01, lng: 45.005 },
+      minimumTraveledDistanceM: 400
+    });
+
+    assert.equal(progress.isOnRoute, false);
+    assert.equal(Math.round(progress.traveledDistanceM), 400);
+    assert.equal(Math.round(progress.remainingDistanceM), 600);
   });
 
   it('rejects empty and malformed road-route responses', () => {
