@@ -105,7 +105,7 @@ export function DishEditorPage({
           Отмена
         </button>
         <button className="dish-save" type="button" onClick={() => void save()}>
-          Сохранить изменения
+          {product ? 'Сохранить изменения' : 'Добавить блюдо'}
         </button>
       </footer>
     </div>
