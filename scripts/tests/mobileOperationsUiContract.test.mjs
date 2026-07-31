@@ -166,15 +166,8 @@ describe('mobile operational interfaces', () => {
     assert.match(mapSource, /Включить голосовые подсказки/);
     assert.match(mapSource, /--map-counter-rotation/);
     assert.match(mapSource, /onRouteSummaryChange/);
-    assert.match(driverSource, /driver-map-sheet__metrics/);
+    assert.match(driverSource, /driver-map-sheet__leg-metrics/);
     assert.match(driverSource, /routeSummary\?\.distanceM/);
-    assert.doesNotMatch(
-      driverSource.slice(
-        driverSource.indexOf('<header className="driver-map-sheet__order">'),
-        driverSource.indexOf('<div className="driver-map-sheet__route">')
-      ),
-      /Осталось/
-    );
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
     assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
     assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
@@ -182,6 +175,11 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*min-height:\s*7[0-9]px/s);
     assert.match(mapSource, /getNearestEquivalentAngle/);
     assert.match(mapSource, /roadRoute\.nextManeuver\?\.street/);
+    assert.match(mapSource, /requestAnimationFrame/);
+    assert.match(driverSource, /DriverRouteLegProgress/);
+    assert.match(driverSource, /routeTotalDistanceM/);
+    assert.match(driverSource, /activeLeg=\{activeLeg\}/);
+    assert.match(driverCss, /\.driver-map-sheet__leg-progress/);
     assert.match(driverSource, /aria-label=\{`Текущая доставка \$\{delivery\.orderNumber\}`\}/);
     assert.match(driverSource, /driver-order-panel driver-current-block driver-current-block--details/);
     assert.match(driverCss, /\.driver-map-sheet__actions\s*\{[^}]*min-height:\s*3[6-9]px/s);

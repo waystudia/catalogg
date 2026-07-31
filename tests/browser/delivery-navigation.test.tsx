@@ -2,7 +2,11 @@ import { expect, test, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
-import { DriverActiveScreen, DriverYandexNavigationActions } from '../../src/pages/driver/DriverApp';
+import {
+  DriverActiveScreen,
+  DriverRouteLegProgress,
+  DriverYandexNavigationActions
+} from '../../src/pages/driver/DriverApp';
 import type { DeliveryOffer } from '../../src/shared/api/deliveryApi';
 
 const restaurant = {
@@ -66,17 +70,21 @@ test('keeps navigation controls compact and separates compass from driver follow
     }
   }));
   const screen = await render(
-    <DeliveryTrackingMap
-      restaurant={restaurant}
-      client={client}
-      driver={{ ...restaurant, label: 'Моё местоположение' }}
-      routePoints={[restaurant, client]}
-      loadRoute={loadRoute}
-      initialStyle="satellite"
-      navigationMode
-      followDriverHeading
-      onRouteSummaryChange={onRouteSummaryChange}
-    />
+    <main className="driver-app">
+      <section className="driver-phone--map">
+        <DeliveryTrackingMap
+          restaurant={restaurant}
+          client={client}
+          driver={{ ...restaurant, label: 'Моё местоположение' }}
+          routePoints={[restaurant, client]}
+          loadRoute={loadRoute}
+          initialStyle="satellite"
+          navigationMode
+          followDriverHeading
+          onRouteSummaryChange={onRouteSummaryChange}
+        />
+      </section>
+    </main>
   );
 
   await expect.element(screen.getByRole('img', { name: 'Поворот направо' })).toBeVisible();
@@ -106,12 +114,72 @@ test('keeps navigation controls compact and separates compass from driver follow
   await expect.element(screen.getByRole('button', { name: 'Следить за водителем' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Включить голосовые подсказки' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Определить местоположение' })).not.toBeInTheDocument();
+  const maneuver = screen.getByLabelText('Следующая подсказка маршрута').element();
+  const maneuverIcon = screen.getByRole('img', { name: 'Поворот направо' }).element();
+  const maneuverDistance = screen.getByText('332 м', { exact: true }).element();
+  const maneuverStreet = screen.getByText('улица Бамат-Гирей-Хаджи').element();
+  expect(Math.abs(maneuverIcon.getBoundingClientRect().top - maneuverDistance.getBoundingClientRect().top)).toBeLessThan(3);
+  expect(maneuverStreet.getBoundingClientRect().left).toBeLessThanOrEqual(maneuverIcon.getBoundingClientRect().left + 1);
+  expect(maneuverStreet.getBoundingClientRect().right).toBeGreaterThanOrEqual(maneuverDistance.getBoundingClientRect().right - 1);
+  expect(getComputedStyle(maneuverIcon).color).toBe('rgb(255, 255, 255)');
+  expect(getComputedStyle(maneuverDistance).fontWeight).toBe('900');
+  expect(getComputedStyle(maneuverStreet).fontWeight).toBe('800');
+  expect(maneuver.getBoundingClientRect().height).toBeLessThanOrEqual(80);
 
   await screen.getByRole('button', { name: 'Переключить на схему' }).click();
   await expect.element(screen.getByRole('button', { name: 'Переключить на спутник' })).toBeVisible();
   await screen.getByRole('button', { name: 'Включить голосовые подсказки' }).click();
   await expect.element(screen.getByRole('button', { name: 'Выключить голосовые подсказки' })).toHaveAttribute('aria-pressed', 'true');
+  const mapCanvas = maneuver.closest<HTMLElement>('.delivery-tracking-map__canvas');
+  const getMapZoom = () => Number.parseFloat(mapCanvas?.dataset.mapZoom ?? '0');
+  expect(getMapZoom()).toBeGreaterThan(0);
+  await screen.getByRole('button', { name: 'Отдалить' }).click();
+  await screen.getByRole('button', { name: 'Отдалить' }).click();
+  const zoomedOutLevel = getMapZoom();
+  await screen.getByRole('button', { name: 'Следить за водителем' }).click();
+  await new Promise((resolve) => window.setTimeout(resolve, 100));
+  const midAnimationLevel = getMapZoom();
+  await new Promise((resolve) => window.setTimeout(resolve, 650));
+  const followedLevel = getMapZoom();
+  expect(midAnimationLevel).toBeGreaterThan(zoomedOutLevel);
+  expect(midAnimationLevel).toBeLessThan(followedLevel);
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
+});
+
+test('shows route progress for the current restaurant or client leg', async () => {
+  const restaurantLeg = await render(
+    <DriverRouteLegProgress
+      activeLeg="restaurant"
+      restaurantName="Мангал"
+      clientName="дукхвах"
+      totalDistanceM={5_000}
+      remainingDistanceM={3_000}
+      remainingDurationS={600}
+    />
+  );
+
+  await expect.element(restaurantLeg.getByText('Моё местоположение')).toBeVisible();
+  await expect.element(restaurantLeg.getByText('Мангал')).toBeVisible();
+  await expect.element(restaurantLeg.getByText('Всего 5,0 км')).toBeVisible();
+  await expect.element(restaurantLeg.getByText('Осталось 3,0 км')).toBeVisible();
+  await expect.element(restaurantLeg.getByText('≈ 10 мин')).toBeVisible();
+  await expect.element(restaurantLeg.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40');
+  await cleanup();
+
+  const clientLeg = await render(
+    <DriverRouteLegProgress
+      activeLeg="client"
+      restaurantName="Мангал"
+      clientName="дукхвах"
+      totalDistanceM={8_000}
+      remainingDistanceM={2_000}
+      remainingDurationS={240}
+    />
+  );
+
+  await expect.element(clientLeg.getByText('Мангал')).toBeVisible();
+  await expect.element(clientLeg.getByText('дукхвах')).toBeVisible();
+  await expect.element(clientLeg.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
 });
 
 test('shows an assigned order detail in the same accepted-delivery card used on the home screen', async () => {

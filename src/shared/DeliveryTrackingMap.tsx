@@ -104,6 +104,8 @@ export function DeliveryTrackingMap({
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
   const lastSpokenManeuverRef = useRef('');
+  const zoomAnimationFrameRef = useRef<number | null>(null);
+  const mapZoomRef = useRef(0);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [mapStyle, setMapStyle] = useState<DeliveryMapStyle>(initialStyle);
@@ -149,6 +151,37 @@ export function DeliveryTrackingMap({
   const [center, setCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(defaultMapZoom);
   const [manualRotation, setManualRotation] = useState(0);
+  mapZoomRef.current = mapZoom;
+
+  const cancelZoomAnimation = () => {
+    if (zoomAnimationFrameRef.current === null) return;
+    window.cancelAnimationFrame(zoomAnimationFrameRef.current);
+    zoomAnimationFrameRef.current = null;
+  };
+
+  const animateMapZoom = (targetZoom: number) => {
+    cancelZoomAnimation();
+    const startZoom = mapZoomRef.current;
+    const startedAt = performance.now();
+    const durationMs = 520;
+
+    const tick = (now: number) => {
+      const elapsed = Math.min(1, (now - startedAt) / durationMs);
+      const eased = 1 - ((1 - elapsed) ** 3);
+      const nextZoom = startZoom + ((targetZoom - startZoom) * eased);
+      mapZoomRef.current = nextZoom;
+      setMapZoom(nextZoom);
+      if (elapsed < 1) {
+        zoomAnimationFrameRef.current = window.requestAnimationFrame(tick);
+      } else {
+        zoomAnimationFrameRef.current = null;
+      }
+    };
+
+    zoomAnimationFrameRef.current = window.requestAnimationFrame(tick);
+  };
+
+  useEffect(() => () => cancelZoomAnimation(), []);
   useEffect(() => {
     onRouteSummaryChange?.(roadRoute
       ? { distanceM: roadRoute.distanceM, durationS: roadRoute.durationS }
@@ -403,11 +436,11 @@ export function DeliveryTrackingMap({
     );
     if (driver) {
       setCenter({ lat: driver.lat, lng: driver.lng });
-      setMapZoom(17);
+      animateMapZoom(17);
       return;
     }
     setCenter(defaultCenter);
-    setMapZoom(defaultMapZoom);
+    animateMapZoom(defaultMapZoom);
   };
 
   const alignMapToCompass = () => {
@@ -470,6 +503,7 @@ export function DeliveryTrackingMap({
       )}
       <div
         className={isDragging ? 'delivery-tracking-map__canvas is-dragging' : 'delivery-tracking-map__canvas'}
+        data-map-zoom={mapZoom.toFixed(3)}
         ref={canvasRef}
         onPointerDown={(event) => {
           if ((event.target as HTMLElement).closest('button, input')) return;
@@ -594,8 +628,8 @@ export function DeliveryTrackingMap({
               aria-label={mapStyle === 'satellite' ? 'Переключить на схему' : 'Переключить на спутник'}
             ><Layers3 /></button>
           )}
-          <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
-          <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
+          <button type="button" onClick={() => { cancelZoomAnimation(); userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
+          <button type="button" onClick={() => { cancelZoomAnimation(); userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
           {navigationMode && (
             <button
               type="button"

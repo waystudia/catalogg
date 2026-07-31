@@ -29,7 +29,7 @@ import {
   X
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { useDriverStore } from '../../features/driver/store';
@@ -1720,13 +1720,64 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   );
 }
 
+export function DriverRouteLegProgress({
+  activeLeg,
+  restaurantName,
+  clientName,
+  totalDistanceM,
+  remainingDistanceM,
+  remainingDurationS
+}: {
+  activeLeg: 'restaurant' | 'client';
+  restaurantName: string;
+  clientName: string;
+  totalDistanceM: number;
+  remainingDistanceM: number;
+  remainingDurationS: number;
+}) {
+  const safeTotalDistanceM = Math.max(1, totalDistanceM, remainingDistanceM);
+  const safeRemainingDistanceM = Math.min(safeTotalDistanceM, Math.max(0, remainingDistanceM));
+  const completedPercent = Math.round(((safeTotalDistanceM - safeRemainingDistanceM) / safeTotalDistanceM) * 100);
+  const origin = activeLeg === 'client' ? restaurantName : 'Моё местоположение';
+  const destination = activeLeg === 'client' ? clientName : restaurantName;
+
+  return (
+    <section className="driver-map-sheet__leg" aria-label={`Маршрут: ${origin} — ${destination}`}>
+      <div className="driver-map-sheet__leg-points">
+        <span><Navigation /><small>Откуда</small><strong>{origin}</strong></span>
+        <i aria-hidden="true">→</i>
+        <span><MapPin /><small>Куда</small><strong>{destination}</strong></span>
+      </div>
+      <div
+        className="driver-map-sheet__leg-progress"
+        role="progressbar"
+        aria-label="Пройдено по маршруту"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={completedPercent}
+        style={{ '--driver-route-progress': `${completedPercent}%` } as CSSProperties}
+      >
+        <i aria-hidden="true" />
+      </div>
+      <div className="driver-map-sheet__leg-metrics">
+        <span>Всего {formatDriverMapDistance(safeTotalDistanceM)}</span>
+        <span>Осталось {formatDriverMapDistance(safeRemainingDistanceM)}</span>
+        <span><Clock3 />≈ {Math.max(1, Math.round(remainingDurationS / 60))} мин</span>
+      </div>
+    </section>
+  );
+}
+
 function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
   const navigate = useNavigate();
   const [routeRefreshKey, setRouteRefreshKey] = useState(0);
   const [routeSummary, setRouteSummary] = useState<DeliveryRouteSummary | null>(null);
+  const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
+  const activeLeg = navigationStage?.activeLeg ?? 'restaurant';
+  const routeLegKey = `${delivery?.deliveryId ?? 'none'}:${activeLeg}`;
   const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
   const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
@@ -1771,6 +1822,18 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
           client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
         })
     : [];
+  const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
+    setRouteSummary(summary);
+    if (!summary) return;
+    setRouteTotal((current) => current?.key === routeLegKey
+      ? current
+      : { key: routeLegKey, distanceM: summary.distanceM });
+  }, [routeLegKey]);
+  const remainingDistanceM = routeSummary?.distanceM ?? (delivery?.distanceKm ?? 0) * 1_000;
+  const remainingDurationS = routeSummary?.durationS ?? (delivery?.routeEtaMin ?? 0) * 60;
+  const routeTotalDistanceM = routeTotal?.key === routeLegKey
+    ? Math.max(routeTotal.distanceM, remainingDistanceM)
+    : remainingDistanceM;
 
   return (
     <div className="driver-map-screen" data-sheet-expanded={sheetExpanded}>
@@ -1797,7 +1860,7 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
               routePoints={currentRoutePoints}
               followDriverHeading={currentDriverPoint !== null}
               driver={currentDriverPoint}
-              onRouteSummaryChange={setRouteSummary}
+              onRouteSummaryChange={handleRouteSummaryChange}
             />
         ) : delivery ? (
           <DriverMapUnavailable tall message={getDriverMapUnavailableMessage(mapData)} />
@@ -1809,7 +1872,7 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
             navigationMode
             driver={currentDriverPoint}
             followDriverHeading={currentDriverPoint !== null}
-            onRouteSummaryChange={setRouteSummary}
+            onRouteSummaryChange={handleRouteSummaryChange}
           />
         )}
       </div>
@@ -1842,17 +1905,14 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
                 <strong>{delivery.orderNumber}</strong>
               </span>
             </header>
-            <div className="driver-map-sheet__route">
-              <Home />
-              <span><small>Точка А</small><strong>{delivery.restaurantName}</strong></span>
-              <i aria-hidden="true">↓</i>
-              <MapPin />
-              <span><small>Точка Б</small><strong>{delivery.clientName || 'Клиент'}</strong></span>
-            </div>
-          <div className="driver-map-sheet__metrics" aria-label="Осталось по маршруту">
-            <span><Navigation />{formatDriverMapDistance(routeSummary?.distanceM ?? delivery.distanceKm * 1_000)}</span>
-            <span><Clock3 />≈ {Math.max(1, Math.round((routeSummary?.durationS ?? delivery.routeEtaMin * 60) / 60))} мин</span>
-          </div>
+            <DriverRouteLegProgress
+              activeLeg={activeLeg}
+              restaurantName={delivery.restaurantName}
+              clientName={delivery.clientName || 'Клиент'}
+              totalDistanceM={routeTotalDistanceM}
+              remainingDistanceM={remainingDistanceM}
+              remainingDurationS={remainingDurationS}
+            />
           {progress && (
             <ol className="driver-delivery-progress" aria-label="Статус доставки">
               {progress.labels.map((label, index) => {
