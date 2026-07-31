@@ -119,6 +119,7 @@ import {
   restoreRestaurantOrderNotificationSubscription
 } from '../../shared/restaurantOrderNotifications';
 import { redirectToClientHome } from '../../shared/appNavigation';
+import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
   createClientSchema,
   createSlug,
@@ -289,12 +290,10 @@ function navigateToRoute(route: PlatformRoute, setRoute: (route: PlatformRoute) 
 
 function PlatformSidebar({
   route,
-  onNavigate,
-  onSignOut
+  onNavigate
 }: {
   route: PlatformRoute;
   onNavigate: (route: PlatformRoute) => void;
-  onSignOut: () => void;
 }) {
   return (
     <aside className="platform-sidebar">
@@ -321,22 +320,16 @@ function PlatformSidebar({
           </button>
         ))}
       </nav>
-      <button className="platform-sidebar__logout" type="button" onClick={onSignOut}>
-        <LogOut />
-        <span>Выйти</span>
-      </button>
     </aside>
   );
 }
 
 function PlatformMobileNav({
   route,
-  onNavigate,
-  onSignOut
+  onNavigate
 }: {
   route: PlatformRoute;
   onNavigate: (route: PlatformRoute) => void;
-  onSignOut: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreItems = navItems.filter((item) => !mobilePrimaryRoutes.includes(item.route));
@@ -367,10 +360,6 @@ function PlatformMobileNav({
                 {label}
               </button>
             ))}
-            <button type="button" onClick={onSignOut}>
-              <LogOut />
-              Выйти
-            </button>
           </div>
         </div>
       )}
@@ -2654,7 +2643,7 @@ const createContentBlock = (type: PlatformContentBlockType): PlatformContentBloc
   label: ''
 });
 
-function PlatformSettingsPage() {
+function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
@@ -2837,6 +2826,10 @@ function PlatformSettingsPage() {
           </button>
         ))}
       </section>
+      <button className="platform-sidebar__logout" type="button" onClick={onSignOut}>
+        <LogOut />
+        <span>Выйти</span>
+      </button>
     </main>
   );
 }
@@ -3316,6 +3309,10 @@ function PlatformAdminContent() {
     queryKey: ['platform-admin-session'],
     queryFn: () => getPlatformAdminAccess()
   });
+  const signOutWithConfirmation = useCallback(() => {
+    if (!confirmRoleSignOut('суперадминистратора')) return;
+    void signOutPlatformAdmin().then(() => redirectToClientHome());
+  }, []);
   const templatesQuery = useQuery({
     queryKey: ['platform-templates'],
     queryFn: getTemplateOptions,
@@ -3394,10 +3391,10 @@ function PlatformAdminContent() {
       return <SubscriptionsPage />;
     }
     if (route === 'settings') {
-      return <PlatformSettingsPage />;
+      return <PlatformSettingsPage onSignOut={signOutWithConfirmation} />;
     }
     return <PlaceholderPage route={route} />;
-  }, [route, templatesQuery.data]);
+  }, [route, signOutWithConfirmation, templatesQuery.data]);
 
   if (platformAdminQuery.isLoading) {
     return <main className="platform-state platform-state--full">Проверяем права доступа...</main>;
@@ -3411,11 +3408,7 @@ function PlatformAdminContent() {
     return (
       <ForbiddenState
         email={platformAdminQuery.data.email}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
+        onSignOut={signOutWithConfirmation}
       />
     );
   }
@@ -3426,11 +3419,6 @@ function PlatformAdminContent() {
       <PlatformSidebar
         route={route}
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
       />
       <section className="platform-workspace">
         <header className="platform-topbar">
@@ -3460,11 +3448,6 @@ function PlatformAdminContent() {
       <PlatformMobileNav
         route={route}
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
       />
       {(createOpen || editingClient) && (
         <div

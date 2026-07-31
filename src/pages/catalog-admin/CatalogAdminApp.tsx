@@ -10,6 +10,7 @@ import {
 } from '../../shared/api/catalogAdminApi';
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { privacyPolicyIntro, privacyPolicySections, privacyPolicyTitle } from '../../shared/privacyPolicy';
+import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
 import './catalog-admin.css';
 
@@ -283,6 +284,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
         <CatalogForbidden
           email={access.email}
           onSignOut={() => {
+            if (!confirmRoleSignOut('заведения')) return;
             void signOutCatalogAdmin().then(() => {
               redirectToClientHome();
             });
@@ -296,6 +298,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
         access={access}
         onRefresh={() => void refresh()}
         onSignOut={() => {
+          if (!confirmRoleSignOut('заведения')) return;
           void signOutCatalogAdmin().then(() => {
             redirectToClientHome();
           });

@@ -21,7 +21,6 @@ import {
   Home,
   IceCreamBowl,
   Instagram,
-  LogOut,
   MapPin,
   MessageCircle,
   Milk,
@@ -163,6 +162,7 @@ import {
   type PhotoQualitySettings
 } from '../shared/photoQuality';
 import { getBusinessTerms } from '../shared/businessTerminology';
+import { getRestaurantCatalogBackTarget } from '../shared/roleSessionSafety';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1864,7 +1864,6 @@ function UpsellReminder({
 
 function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'; onAdd: () => void; onSettings: () => void }) {
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const logout = useAuthStore((state) => state.logout);
 
   if (!isAdmin) {
     return null;
@@ -1877,9 +1876,6 @@ function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'
       </button>
       <button className={active === 'settings' ? 'is-active' : ''} type="button" onClick={onSettings}>
         <Settings /> Настройки
-      </button>
-      <button type="button" onClick={logout} aria-label="Выйти">
-        <LogOut /> Выход
       </button>
     </nav>
   );
@@ -2887,7 +2883,7 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => navigate('/')}
+              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin }))}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}

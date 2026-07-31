@@ -526,10 +526,6 @@ export function RestaurantAdminShell({
             <small>{catalogData.restaurant.subtitle || access.catalog?.businessType || 'restaurant'}</small>
           </div>
         </div>
-        <button className="restaurant-admin-nav__item" type="button" onClick={onSignOut}>
-          <LogOut />
-          <span>Выход</span>
-        </button>
       </aside>
 
       <div className="restaurant-admin-main">
@@ -635,6 +631,7 @@ export function RestaurantAdminShell({
               onSectionChange={setSettingsSection}
               onPaymentChange={updatePaymentSetting}
               onQrChange={onQrChange}
+              onSignOut={onSignOut}
             />
           )}
         </section>
@@ -1165,7 +1162,8 @@ function SettingsPage({
   publicUrl,
   onSectionChange,
   onPaymentChange,
-  onQrChange
+  onQrChange,
+  onSignOut
 }: {
   section: SettingsSection;
   restaurant: Restaurant;
@@ -1177,6 +1175,7 @@ function SettingsPage({
   onSectionChange: (section: SettingsSection) => void;
   onPaymentChange: <K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) => void;
   onQrChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSignOut: () => void;
 }) {
   if (section === 'payments') {
     return (
@@ -1222,6 +1221,10 @@ function SettingsPage({
           <span><strong>{card.title}</strong><small>{card.text}</small></span>
         </button>
       ))}
+      <button type="button" data-danger onClick={onSignOut}>
+        <LogOut />
+        <span><strong>Выйти</strong><small>Завершить текущую сессию</small></span>
+      </button>
     </section>
   );
 }

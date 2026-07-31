@@ -79,6 +79,7 @@ import {
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
+import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -730,10 +731,11 @@ export function DriverApp() {
 
 function DriverHeader({ title, action }: { title: string; action?: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <header className="driver-header">
-      <button type="button" onClick={() => navigate(-1)} aria-label="Назад">
+      <button type="button" onClick={() => navigate(getDriverBackTarget(location.pathname))} aria-label="Назад">
         <ArrowLeft />
       </button>
       <h1>{title}</h1>
@@ -2266,6 +2268,7 @@ function DriverSettingsScreen({ profile, onProfileSaved }: { profile: DriverProf
         <button
           type="button"
           onClick={async () => {
+            if (!confirmRoleSignOut('водителя')) return;
             clearLocalActiveDelivery();
             await signOutDriver();
             redirectToClientHome();

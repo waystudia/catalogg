@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowRight, Bell, ClipboardList, CreditCard, Home, Info, LogOut, Package,
+  ArrowRight, Bell, ClipboardList, CreditCard, Home, Info, Package,
   Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Utensils
 } from 'lucide-react';
 import type { Category, Product, Restaurant } from '../../entities/models';
@@ -30,6 +30,7 @@ import { OrderDetailsPanel } from './OrderDetailsPanel';
 import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
 import { calculateRestaurantFinance } from './restaurantFinance';
 import { getBusinessTerms } from '../../shared/businessTerminology';
+import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
   adminOrderStatusFilters, adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
   getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
@@ -232,7 +233,6 @@ export function RestaurantAdminWorkspace({
           <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
         </nav>
-        <button className="restaurant-admin-sidebar__exit" type="button" onClick={logout}><LogOut />Выход</button>
       </aside>
 
       <div className="restaurant-admin__workspace">
@@ -446,7 +446,9 @@ export function RestaurantAdminWorkspace({
                 onPayments={() => onOpenScreen('settings-payments')}
                 onImport={() => onOpenScreen('settings-backup')}
                 onDelivery={() => setSettingsView('delivery')}
-                onLogout={logout}
+                onLogout={() => {
+                  if (confirmRoleSignOut('заведения')) void logout();
+                }}
               />
             ) : (
               <DeliverySettingsCard
