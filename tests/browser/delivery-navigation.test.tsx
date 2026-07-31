@@ -51,6 +51,42 @@ test('switches between street and labeled satellite maps and shows a routed summ
   expect(loadRoute).toHaveBeenCalledOnce();
 });
 
+test('keeps navigation controls compact and separates compass from driver follow mode', async () => {
+  const loadRoute = vi.fn(async () => ({
+    distanceM: 32_200,
+    durationS: 2_340,
+    geometry: [restaurant, client],
+    nextManeuver: {
+      distanceM: 332,
+      instruction: 'Поверните направо',
+      street: 'улица Бамат-Гирей-Хаджи'
+    }
+  }));
+  const screen = await render(
+    <DeliveryTrackingMap
+      restaurant={restaurant}
+      client={client}
+      driver={{ ...restaurant, label: 'Моё местоположение' }}
+      routePoints={[restaurant, client]}
+      loadRoute={loadRoute}
+      initialStyle="satellite"
+      navigationMode
+      followDriverHeading
+    />
+  );
+
+  await expect.element(screen.getByRole('button', { name: 'Переключить на схему' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Выровнять карту по компасу' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Следить за водителем' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Включить голосовые подсказки' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Определить местоположение' })).not.toBeInTheDocument();
+
+  await screen.getByRole('button', { name: 'Переключить на схему' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Переключить на спутник' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Включить голосовые подсказки' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Выключить голосовые подсказки' })).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {
   const assignedScreen = await render(
     <DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />

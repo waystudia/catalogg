@@ -1,4 +1,16 @@
-import { Home, Layers3, LocateFixed, MapPin, Minus, Navigation, Plus, Search } from 'lucide-react';
+import {
+  Compass,
+  Home,
+  Layers3,
+  LocateFixed,
+  MapPin,
+  Minus,
+  Navigation,
+  Plus,
+  Search,
+  Volume2,
+  VolumeX
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent, ReactNode } from 'react';
 import {
@@ -82,6 +94,7 @@ export function DeliveryTrackingMap({
   const lastDriverHeadingPointRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
+  const lastSpokenManeuverRef = useRef('');
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [mapStyle, setMapStyle] = useState<DeliveryMapStyle>(initialStyle);
@@ -92,6 +105,7 @@ export function DeliveryTrackingMap({
   const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [movementHeading, setMovementHeading] = useState<number | null>(null);
+  const [audioGuidanceEnabled, setAudioGuidanceEnabled] = useState(false);
   const baseRoutePoints = useMemo(
     () => [restaurant, client].filter((point): point is TrackingPoint => Boolean(point)),
     [client, restaurant]
@@ -246,6 +260,33 @@ export function DeliveryTrackingMap({
     lastDriverHeadingPointRef.current = nextPoint;
   }, [driver]);
 
+  useEffect(() => {
+    if (!navigationMode || !audioGuidanceEnabled || !roadRoute?.nextManeuver) return undefined;
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return undefined;
+
+    const maneuver = roadRoute.nextManeuver;
+    const speechKey = `${Math.round(maneuver.distanceM)}:${maneuver.instruction}:${maneuver.street ?? ''}`;
+    if (lastSpokenManeuverRef.current === speechKey) return undefined;
+    lastSpokenManeuverRef.current = speechKey;
+
+    const utterance = new SpeechSynthesisUtterance(
+      `Через ${formatManeuverDistance(maneuver.distanceM)}. ${maneuver.instruction}.${maneuver.street ? ` ${maneuver.street}.` : ''}`
+    );
+    utterance.lang = 'ru-RU';
+    utterance.rate = 0.95;
+    utterance.pitch = 1.08;
+    const russianVoices = window.speechSynthesis.getVoices().filter((voice) =>
+      voice.lang.toLowerCase().startsWith('ru')
+    );
+    utterance.voice = russianVoices.find((voice) =>
+      /female|alena|alyona|milena|irina|katya|елена|алёна|милена|ирина|google русский/i.test(voice.name)
+    ) ?? russianVoices[0] ?? null;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+
+    return () => window.speechSynthesis.cancel();
+  }, [audioGuidanceEnabled, navigationMode, roadRoute]);
+
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
     userAdjustedViewRef.current = true;
@@ -346,6 +387,19 @@ export function DeliveryTrackingMap({
     }
     setCenter(defaultCenter);
     setMapZoom(defaultMapZoom);
+  };
+
+  const alignMapToCompass = () => {
+    userAdjustedViewRef.current = true;
+    setManualRotation(followDriverHeading && driver ? driverHeading : 0);
+  };
+
+  const toggleAudioGuidance = () => {
+    setAudioGuidanceEnabled((enabled) => {
+      if (enabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (enabled) lastSpokenManeuverRef.current = '';
+      return !enabled;
+    });
   };
 
   return (
@@ -495,15 +549,38 @@ export function DeliveryTrackingMap({
           )}
         </div>
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
+          {navigationMode && (
+            <button
+              type="button"
+              onClick={() => setMapStyle((style) => style === 'satellite' ? 'street' : 'satellite')}
+              aria-label={mapStyle === 'satellite' ? 'Переключить на схему' : 'Переключить на спутник'}
+            ><Layers3 /></button>
+          )}
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => { userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
-          <button type="button" onClick={centerOnDriver} aria-label="Определить местоположение" title="Определить местоположение">
-            {navigationMode ? <LocateFixed /> : <Navigation />}
-          </button>
+          {navigationMode && (
+            <button
+              type="button"
+              onClick={toggleAudioGuidance}
+              aria-label={audioGuidanceEnabled ? 'Выключить голосовые подсказки' : 'Включить голосовые подсказки'}
+              aria-pressed={audioGuidanceEnabled}
+            >
+              {audioGuidanceEnabled ? <Volume2 /> : <VolumeX />}
+            </button>
+          )}
           {!navigationMode && (
-            <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
+            <>
+              <button type="button" onClick={centerOnDriver} aria-label="Определить местоположение" title="Определить местоположение"><Navigation /></button>
+              <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
+            </>
           )}
         </div>
+        {navigationMode && (
+          <div className="delivery-tracking-map__navigation-bottom-controls" aria-label="Ориентация карты" onPointerDown={(event) => event.stopPropagation()}>
+            <button type="button" onClick={alignMapToCompass} aria-label="Выровнять карту по компасу"><Compass /></button>
+            <button type="button" onClick={centerOnDriver} aria-label="Следить за водителем"><Navigation /></button>
+          </div>
+        )}
         {!navigationMode && (
           <div className="delivery-tracking-map__layers" aria-label="Слой карты" onPointerDown={(event) => event.stopPropagation()}>
             <Layers3 aria-hidden="true" />
@@ -534,11 +611,13 @@ export function DeliveryTrackingMap({
             : '© OpenStreetMap contributors'}
         </small>
       </div>
-      <div className="delivery-tracking-map__legend">
-        {restaurant && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--restaurant" />{restaurant.label}</span>}
-        {driver && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--driver" />{driver.label}</span>}
-        {client && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--client" />{client.label}</span>}
-      </div>
+      {!navigationMode && (
+        <div className="delivery-tracking-map__legend">
+          {restaurant && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--restaurant" />{restaurant.label}</span>}
+          {driver && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--driver" />{driver.label}</span>}
+          {client && <span><i className="delivery-tracking-map__dot delivery-tracking-map__dot--client" />{client.label}</span>}
+        </div>
+      )}
     </section>
   );
 }

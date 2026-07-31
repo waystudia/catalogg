@@ -120,6 +120,6 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.doesNotMatch(mapScreen, /updateDeliveryProgress/);
     assert.match(driverCss, /\.driver-phone--map\s*\{[\s\S]*height:\s*100dvh/);
     assert.match(driverCss, /\.driver-map-sheet/);
-    assert.match(driverCss, /height:\s*32dvh/);
+    assert.match(driverCss, /height:\s*28dvh/);
   });
 });

@@ -150,12 +150,22 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /Долг платформе/);
   });
 
-  it('keeps navigation metrics on the map and limits navigation mode to three right-side controls', () => {
+  it('keeps navigation metrics on the map and limits navigation mode to four right-side controls', () => {
     assert.match(mapSource, /delivery-tracking-map__navigation/);
     assert.match(mapSource, /Через/);
     assert.match(mapSource, /navigationMode/);
     assert.match(mapSource, /!navigationMode &&/);
     assert.match(mapCss, /\.delivery-tracking-map__controls button\s*\{[^}]*width:\s*3[0-4]px/s);
     assert.match(mapCss, /\.delivery-tracking-map__attribution\s*\{[^}]*font-size:\s*[5-7]px/s);
+  });
+
+  it('uses a compact navigator layout without the map legend', () => {
+    assert.match(mapSource, /!navigationMode[\s\S]*delivery-tracking-map__legend/);
+    assert.match(mapSource, /Выровнять карту по компасу/);
+    assert.match(mapSource, /Следить за водителем/);
+    assert.match(mapSource, /Включить голосовые подсказки/);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation[\s\S]*width:\s*12[0-9]px/);
+    assert.match(driverCss, /\.driver-map-sheet[\s\S]*height:\s*2[0-9]dvh/);
   });
 });

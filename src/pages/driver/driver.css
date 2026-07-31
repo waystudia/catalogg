@@ -51,7 +51,7 @@
   inset: 0;
 }
 
-.driver-phone--map .driver-tracking-map {
+.driver-phone--map .delivery-tracking-map {
   display: flex;
   width: 100%;
   height: 100%;
@@ -61,44 +61,89 @@
   border-radius: 0;
 }
 
-.driver-phone--map .driver-tracking-map__canvas {
+.driver-phone--map .delivery-tracking-map__canvas {
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
 }
 
-.driver-phone--map .driver-tracking-map__legend {
+.driver-phone--map .delivery-tracking-map__legend {
   display: none;
 }
 
 .driver-phone--map .delivery-tracking-map__controls {
-  top: 92px;
+  top: 82px;
   right: 14px;
-  gap: 8px;
+  gap: 7px;
 }
 
 .driver-phone--map .delivery-tracking-map__controls button {
-  width: 46px;
-  height: 46px;
+  width: 42px;
+  height: 42px;
   border: 0;
-  border-radius: 15px;
+  border-radius: 14px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
 }
 
 .driver-phone--map .delivery-tracking-map__navigation {
-  top: 92px;
-  right: 74px;
+  top: 82px;
+  right: auto;
   bottom: auto;
   left: 14px;
-  width: min(230px, calc(100% - 96px));
+  width: 128px;
+  min-height: 128px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-content: center;
+  gap: 6px;
   border: 0;
   border-radius: 18px;
+  padding: 10px;
   background: linear-gradient(135deg, #6d4aff, #4f2de1);
   color: #fff;
 }
 
+.driver-phone--map .delivery-tracking-map__navigation > svg {
+  width: 26px;
+  height: 26px;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation > span strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 11px;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation > span em {
+  display: none;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation > b {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  text-align: left;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation > b small {
+  display: inline;
+  margin: 0 0 0 7px;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation-bottom-controls {
+  right: 14px;
+  bottom: calc(28dvh + 12px);
+  left: 14px;
+}
+
+.driver-phone--map .delivery-tracking-map__navigation-bottom-controls button {
+  width: 44px;
+  height: 44px;
+}
+
 .driver-phone--map .delivery-tracking-map__attribution {
-  bottom: calc(32dvh + 5px);
+  bottom: calc(28dvh + 5px);
 }
 
 .driver-map-topbar {
@@ -115,20 +160,20 @@
 
 .driver-map-topbar > button {
   display: grid;
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   place-items: center;
   border: 0;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
+  border-radius: 14px;
+  background: #ffffff;
   color: #111827;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
   pointer-events: auto;
 }
 
 .driver-map-topbar > button svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .driver-map-topbar > span {
@@ -160,8 +205,8 @@
   left: 0;
   z-index: 12;
   display: grid;
-  height: 32dvh;
-  min-height: 196px;
+  height: 28dvh;
+  min-height: 170px;
   max-height: 58dvh;
   gap: 7px;
   overflow: hidden;
