@@ -35,7 +35,7 @@ export function DesignEditor({
   }
 
   return (
-    <div className="modal-backdrop">
+    <div className={editor === 'dish' ? 'modal-backdrop modal-backdrop--dish-editor' : 'modal-backdrop'}>
       <section className={editor === 'dish' ? 'design-editor design-editor--dish' : 'design-editor'}>
         {editor === 'dish' ? (
           <DishEditorPage

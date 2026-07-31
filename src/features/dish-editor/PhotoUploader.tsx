@@ -32,7 +32,7 @@ export function PhotoUploader({
         <h3>Фотографии блюда</h3>
         <span>{images.length}/3</span>
       </div>
-      <small>Рекомендуемое соотношение: 4:3, например 1200 x 900 px. Важное держите по центру.</small>
+      <small>До 3 фото · формат 4:3 · важное по центру.</small>
       <div className="dish-photos">
         {images.map((image, index) => (
           <article
