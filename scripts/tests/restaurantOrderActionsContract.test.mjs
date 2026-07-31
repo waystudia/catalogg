@@ -86,6 +86,11 @@ describe('restaurant order action contract', () => {
     assert.match(api, /drivers\(name, phone, vehicle_info, car_number, photo_url,/);
     assert.match(api, /selectRelevantDelivery/);
     assert.match(api, /rpc\('get_restaurant_assigned_drivers'/);
+    assert.match(api, /deliveryId: driver\.delivery_id \?\? order\.deliveryId/);
+    assert.match(api, /restaurantPaymentConfirmedAt:/);
+    assert.match(panel, /Выдача заказа/);
+    assert.match(panel, /Ожидает QR водителя/);
+    assert.doesNotMatch(panel, /Код подтверждения/);
     assert.match(api, /from\('drivers'\)/);
     assert.match(api, /if \(!driverId \|\| order\.driverName\) return order/);
     assert.match(api, /formatPublicOrderNumber\(row\.id, restaurantNameOrSlug\)/);

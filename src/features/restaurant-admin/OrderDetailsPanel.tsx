@@ -152,7 +152,6 @@ export function OrderDetailsPanel({
   const driverAtRestaurant = order.deliveryStatus === 'arrived_to_restaurant';
   const cashHandover =
     orderPaymentMethod === 'cash' &&
-    Boolean(order.deliveryId) &&
     Boolean(order.driverName) &&
     !orderIsFinished;
   const cashPaymentConfirmed = Boolean(order.restaurantPaymentConfirmedAt);
@@ -391,8 +390,16 @@ export function OrderDetailsPanel({
             <ArrowRight aria-hidden="true" />
           </button>
           <article>
-            <span>{order.verificationCode ? 'Код подтверждения' : 'Подтверждение доставки'}</span>
-            <strong>{order.verificationCode ?? (order.qrToken ? 'QR включен' : 'Не требуется')}</strong>
+            <span>Выдача заказа</span>
+            <strong>
+              {order.fulfillmentType !== 'delivery'
+                ? 'Без QR'
+                : pickupQrConfirmed
+                  ? 'QR подтверждён'
+                  : order.driverName
+                    ? 'Ожидает QR водителя'
+                    : 'После назначения водителя'}
+            </strong>
           </article>
         </section>
 
@@ -422,7 +429,11 @@ export function OrderDetailsPanel({
                 <p data-complete="true">Оплата и QR подтверждены. Водитель может нажать «Забрал заказ».</p>
               )
             ) : orderPaymentMethod === 'cash' ? (
-              <p>Подтверждение появится после назначения водителя на заказ.</p>
+              <p>
+                {order.driverName
+                  ? 'Обновляем данные назначенной доставки. Нажмите «Обновить» и откройте оплату снова.'
+                  : 'Подтверждение появится после назначения водителя на заказ.'}
+              </p>
             ) : (
               <div className="admin-order-payment-panel__actions">
                 <button type="button" onClick={() => updatePaymentStatus('awaiting')}>Ожидает подтверждения</button>

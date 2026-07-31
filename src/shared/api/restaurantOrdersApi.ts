@@ -264,6 +264,11 @@ type OrderDeliveryRow = NonNullable<OrderRow['deliveries']>[number];
 type DriverLookupRow = {
   order_id?: string;
   id: string;
+  delivery_id?: string | null;
+  delivery_status?: DeliveryStatus | 'waiting_driver' | null;
+  delivery_updated_at?: string | null;
+  pickup_qr_confirmed_at?: string | null;
+  restaurant_payment_confirmed_at?: string | null;
   name: string | null;
   phone: string | null;
   vehicle_info: string | null;
@@ -509,6 +514,15 @@ const hydrateRestaurantOrderDriver = (order: RestaurantOrder, driver: DriverLook
 
   return {
     ...order,
+    deliveryId: driver.delivery_id ?? order.deliveryId,
+    deliveryStatus:
+      driver.delivery_status === 'waiting_driver'
+        ? 'waiting_courier'
+        : driver.delivery_status ?? order.deliveryStatus,
+    deliveryUpdatedAt: driver.delivery_updated_at ?? order.deliveryUpdatedAt,
+    pickupQrConfirmedAt: driver.pickup_qr_confirmed_at ?? order.pickupQrConfirmedAt,
+    restaurantPaymentConfirmedAt:
+      driver.restaurant_payment_confirmed_at ?? order.restaurantPaymentConfirmedAt,
     driverName: driver.name ?? order.driverName,
     driverPhone: driver.phone ?? order.driverPhone,
     driverVehicleInfo: driver.vehicle_info ?? order.driverVehicleInfo,
