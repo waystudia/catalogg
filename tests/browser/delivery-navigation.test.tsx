@@ -121,6 +121,12 @@ test('keeps navigation controls compact and separates compass from driver follow
   await expect.element(screen.getByRole('button', { name: 'Следить за водителем' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Включить голосовые подсказки' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Определить местоположение' })).not.toBeInTheDocument();
+  const scaleReadout = screen.getByLabelText('Масштаб карты');
+  await expect.element(scaleReadout).toBeVisible();
+  const initialScaleReadout = scaleReadout.element().textContent;
+  await screen.getByRole('button', { name: 'Приблизить' }).click();
+  expect(scaleReadout.element().textContent).not.toBe(initialScaleReadout);
+  await screen.getByRole('button', { name: 'Отдалить' }).click();
   const maneuver = screen.getByLabelText('Следующая подсказка маршрута').element();
   const maneuverIcon = screen.getByRole('img', { name: 'Поворот направо' }).element();
   const maneuverDistance = screen.getByText('332 м', { exact: true }).element();

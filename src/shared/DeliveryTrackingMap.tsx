@@ -68,6 +68,7 @@ export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 const mapSize = 640;
 const maximumInteractiveMapZoom = 20;
 const driverFollowMapZoom = 16;
+const webMercatorMetersPerPixel = 156_543.03392;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
 const maximumOnRouteDistanceM = 15;
@@ -79,6 +80,11 @@ const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-
 }).format(distanceM / 1000)} км`;
 
 const formatRouteDuration = (durationS: number) => `${Math.max(1, Math.round(durationS / 60))} мин`;
+const formatMapViewportWidth = (latitude: number, zoom: number) => {
+  const widthM = webMercatorMetersPerPixel * Math.cos((latitude * Math.PI) / 180) * mapSize / (2 ** zoom);
+  if (widthM >= 1_000) return `${(widthM / 1_000).toFixed(widthM >= 10_000 ? 0 : 1)} км`;
+  return `${Math.max(10, Math.round(widthM / 10) * 10)} м`;
+};
 const formatManeuverDistance = (distanceM: number) => distanceM < 1_000
   ? `${Math.max(1, Math.round(distanceM))} м`
   : formatRouteDistance(distanceM);
@@ -181,6 +187,7 @@ export function DeliveryTrackingMap({
   const [mapZoom, setMapZoom] = useState(defaultMapZoom);
   const [manualRotation, setManualRotation] = useState(0);
   mapZoomRef.current = mapZoom;
+  const mapScaleLabel = `${mapZoom.toFixed(1)} · ${formatMapViewportWidth(center.lat, mapZoom)}`;
 
   const cancelZoomAnimation = () => {
     if (zoomAnimationFrameRef.current === null) return;
@@ -779,6 +786,9 @@ export function DeliveryTrackingMap({
           )}
           <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.min(maximumInteractiveMapZoom, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
+          <output className="delivery-tracking-map__scale-readout" aria-label="Масштаб карты" aria-live="polite">
+            {mapScaleLabel}
+          </output>
           {navigationMode && (
             <button
               type="button"
