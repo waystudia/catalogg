@@ -94,6 +94,11 @@ const categoryIconOptions = [
   { id: 'sauce', label: 'Соусы', Icon: Soup },
   { id: 'salad', label: 'Салаты', Icon: Salad }
 ];
+const isSauceCategory = (category: Category) => {
+  const text = `${category.name} ${category.slug ?? ''} ${category.icon}`.toLocaleLowerCase('ru');
+  return text.includes('соус') || text.includes('sauce');
+};
+const isDrinkOrSauceCategory = (category: Category) => category.kind === 'drink' || isSauceCategory(category);
 
 export function CategoriesSettings({
   categories,
@@ -276,6 +281,7 @@ export function CategoriesSettings({
     return (
       <CategoryEditScreen
         category={mode === 'edit' ? editingCategory : undefined}
+        categories={categories}
         mode={mode}
         tags={tags}
         sortIndex={mode === 'edit' && editingCategory ? categories.findIndex((item) => item.id === editingCategory.id) : categories.length}
@@ -437,6 +443,7 @@ export function TagsSettingsScreen({
 
 function CategoryEditScreen({
   category,
+  categories,
   mode,
   tags,
   sortIndex,
@@ -445,6 +452,7 @@ function CategoryEditScreen({
   onSave
 }: {
   category?: Category;
+  categories: Category[];
   mode: 'edit' | 'add';
   tags: CatalogTag[];
   sortIndex: number;
@@ -459,6 +467,12 @@ function CategoryEditScreen({
   }, [category, mode]);
 
   const selectedTags = tags.slice(0, mode === 'edit' ? 2 : 0);
+  const activeAdditionalCategories = categories.filter((item) => item.showInOrderFlow === true);
+  const selectedDrinkOrSauceCategories = activeAdditionalCategories.filter(isDrinkOrSauceCategory);
+  const currentCategorySelected = draft.showInOrderFlow === true;
+  const currentCategoryIsDrinkOrSauce = isDrinkOrSauceCategory(draft);
+  const shouldWarnAboutMissingUpsellCategories = currentCategorySelected && selectedDrinkOrSauceCategories.length === 0;
+  const additionalCategorySummary = selectedDrinkOrSauceCategories.map((item) => item.name).join(', ');
 
   return (
     <main className="settings-screen category-edit-screen">
@@ -587,6 +601,18 @@ function CategoryEditScreen({
             />
             Дополнительное
           </label>
+          {currentCategorySelected && (
+            <div className={shouldWarnAboutMissingUpsellCategories ? 'category-settings-tip category-settings-tip--warning' : 'category-settings-tip category-settings-tip--success'}>
+              <Info />
+              <span>
+                {shouldWarnAboutMissingUpsellCategories
+                  ? 'Категория отмечена как дополнительная, но среди дополнительных пока нет напитков или соусов. Панель допродажи клиенту не покажет эти группы, пока вы не отметите хотя бы одну такую категорию.'
+                  : currentCategoryIsDrinkOrSauce
+                    ? `Эта категория будет участвовать в панели допродажи. Сейчас выбраны: ${additionalCategorySummary}.`
+                    : `Панель допродажи активна. Сейчас в ней участвуют категории: ${additionalCategorySummary}.`}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="category-edit-field">

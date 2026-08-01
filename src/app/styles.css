@@ -10003,6 +10003,23 @@ a {
   accent-color: #ff6b00;
 }
 
+.category-edit-field .category-settings-tip {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.category-edit-field .category-settings-tip--success {
+  background: #e9f7eb;
+  color: #21843a;
+}
+
+.category-edit-field .category-settings-tip--warning {
+  background: #fff1e5;
+  color: #d66a00;
+}
+
 .category-edit-tags span {
   display: inline-flex;
   max-width: 100%;
