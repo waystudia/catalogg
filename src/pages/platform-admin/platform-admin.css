@@ -966,7 +966,8 @@
 }
 
 .platform-template-create button,
-.platform-template-card a {
+.platform-template-card a,
+.platform-template-card__actions button {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -981,9 +982,22 @@
 }
 
 .platform-template-create button svg,
-.platform-template-card a svg {
+.platform-template-card a svg,
+.platform-template-card__actions button svg {
   width: 18px;
   height: 18px;
+}
+
+.platform-template-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.platform-template-card__actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .platform-template-list {

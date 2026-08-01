@@ -36,6 +36,7 @@ import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import type { CreateDriverResult, PlatformDriver, PlatformDriverActivity } from '../../shared/api/platformTypes';
 import { downloadCsv, downloadXlsx } from '../../shared/exportTable';
 import { copyText } from '../../shared/platformUrls';
+import { legalDocuments } from '../../shared/legalDocuments';
 import './platform-drivers.css';
 
 type DriverFilter = 'all' | 'online' | 'offline' | 'debt';
@@ -114,6 +115,7 @@ function DriverForm({
   const [password, setPassword] = useState(driver ? '' : generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [consentConfirmed, setConsentConfirmed] = useState(Boolean(driver));
   const assignmentsQuery = useQuery({
     queryKey: ['driver-restaurant-assignments', driver?.id],
     queryFn: () => getDriverRestaurantAssignments(driver?.id ?? ''),
@@ -129,6 +131,10 @@ function DriverForm({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!driver && !consentConfirmed) {
+      toast.error('Подтвердите получение согласия и акцепта оферты водителем');
+      return;
+    }
     setSaving(true);
     try {
       if (driver) {
@@ -263,10 +269,16 @@ function DriverForm({
             <button type="button" onClick={() => void copyText(password).then(() => toast.success('Пароль скопирован'))} disabled={!password} aria-label="Копировать пароль"><Copy /></button>
           </span>
         </label>
+        {!driver && (
+          <label className="legal-checkbox platform-driver-form__wide">
+            <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} required />
+            <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на данные и геолокацию</a>. На первом входе действие должно быть зафиксировано сервером.</span>
+          </label>
+        )}
       </div>
       <footer>
         <button type="button" onClick={onClose}>Отмена</button>
-        <button type="submit" disabled={saving}><Check />{saving ? 'Сохраняем…' : 'Сохранить'}</button>
+        <button type="submit" disabled={saving || (!driver && !consentConfirmed)}><Check />{saving ? 'Сохраняем…' : 'Сохранить'}</button>
       </footer>
     </form>
   );

@@ -16,7 +16,7 @@ type Subscription = {
 };
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('WEB_PUSH_ALLOWED_ORIGIN')?.trim() || 'https://wayyaam.ru',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
@@ -61,7 +61,10 @@ Deno.serve(async (request) => {
   if (request.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405);
 
   const webhookSecret = Deno.env.get('WEB_PUSH_WEBHOOK_SECRET')?.trim();
-  if (webhookSecret && request.headers.get('x-webhook-secret') !== webhookSecret) {
+  if (!webhookSecret) {
+    return jsonResponse({ error: 'Web Push webhook secret is not configured.' }, 503);
+  }
+  if (request.headers.get('x-webhook-secret') !== webhookSecret) {
     return jsonResponse({ error: 'Invalid webhook secret' }, 401);
   }
 

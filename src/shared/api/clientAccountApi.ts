@@ -1,5 +1,6 @@
 import type { ClientProfile } from '../../features/client-platform/types';
 import { supabase } from '../supabase';
+import { LEGAL_VERSION } from '../legalDocuments';
 
 const clientSessionStorageKey = 'waycatalog-client-session';
 
@@ -58,7 +59,40 @@ const clearClientSessionToken = () => {
 export const buildClientAuthPath = (returnTo: string) =>
   `/profile?clientAuth=1&returnTo=${encodeURIComponent(returnTo)}`;
 
-export async function registerClientAccount(input: ClientProfile & { password: string }) {
+type ClientRegistrationLegalChoices = {
+  acceptedAgreement: boolean;
+  acceptedPersonalData: boolean;
+  acceptedAdvertising: boolean;
+};
+
+// SHA-256 values bind the evidence record to the exact published HTML for version 1.0.
+const legalDocumentHashes = {
+  user_agreement: '2aa03ebab49c8240d99f49c6ab3a4bb70e199bfe7a1afde4688d4a0d5a194a48',
+  client_consent: '582d9449295f5b3dfb786d00cd5fa9781057b31fc99e9fdf24c491129640b4de',
+  advertising_consent: '8b9026b9d5f2c9598c16f7785efb714face8862108e1e58f6a778ad202d7487e'
+} as const;
+
+const recordRegistrationLegalChoices = async (token: string, choices: ClientRegistrationLegalChoices) => {
+  if (!supabase) return;
+  const records = [
+    ['user_agreement', choices.acceptedAgreement],
+    ['client_consent', choices.acceptedPersonalData],
+    ['advertising_consent', choices.acceptedAdvertising]
+  ] as const;
+  for (const [code, granted] of records) {
+    const { error } = await supabase.rpc('record_client_legal_consent', {
+      client_session_token: token,
+      target_document_code: code,
+      target_document_version: LEGAL_VERSION,
+      target_document_sha256: legalDocumentHashes[code],
+      target_granted: granted,
+      target_source: 'client_registration'
+    });
+    if (error) throw new Error('Аккаунт создан, но юридическое подтверждение не записано. Обратитесь в поддержку до оформления заказа.');
+  }
+};
+
+export async function registerClientAccount(input: ClientProfile & { password: string } & ClientRegistrationLegalChoices) {
   if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
   const { data, error } = await supabase.rpc('register_client_account', {
     client_name: input.name.trim(),
@@ -70,6 +104,7 @@ export async function registerClientAccount(input: ClientProfile & { password: s
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось создать клиентскую сессию.');
   saveClientSessionToken(token);
+  await recordRegistrationLegalChoices(token, input);
   return session;
 }
 

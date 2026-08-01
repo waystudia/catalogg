@@ -61,6 +61,21 @@ describe('public restaurant order payload', () => {
     );
   });
 
+  it('checks the combined stock of differently configured cart lines', () => {
+    const configuredProduct = product({ id: 'coffee', is_unlimited: false, stock_count: 3 });
+    const cart: CartItem[] = [
+      { product: configuredProduct, quantity: 2, selected_choice: '300 мл' },
+      { product: configuredProduct, quantity: 2, selected_choice: '400 мл' }
+    ];
+
+    assert.deepEqual(findRestaurantOrderStockIssues(cart, [configuredProduct]), [{
+      productId: 'coffee',
+      title: 'Жижиг-галнаш',
+      requested: 4,
+      available: 3
+    }]);
+  });
+
   it('translates a database stock race into a useful customer message', () => {
     assert.equal(
       getRestaurantOrderCreationErrorMessage(new Error('Legacy product stock is not enough')),

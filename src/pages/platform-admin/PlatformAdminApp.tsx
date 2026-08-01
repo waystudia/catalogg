@@ -66,6 +66,7 @@ import {
   updateClient
 } from '../../shared/api/clientsApi';
 import { createDriver, getDrivers, updateDriverProfile, updateDriverServiceSettlements } from '../../shared/api/driversApi';
+import { legalDocuments } from '../../shared/legalDocuments';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import {
   getDeliveryPriceRequests,
@@ -111,7 +112,7 @@ import { PlatformGeographyPage } from '../../features/platform-admin-geography/P
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
-import { createRestaurantTemplate, getTemplateOptions } from '../../shared/api/templatesApi';
+import { createRestaurantTemplate, getTemplateOptions, publishCoffeeTemplateAssets } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
   getRestaurantOrderNotificationPermission,
@@ -124,6 +125,7 @@ import {
   createClientSchema,
   createSlug,
   generateSecurePassword,
+  normalizeSlugInput,
   type CreateClientFormValues
 } from '../../shared/validation/clientCredentials';
 import './platform-admin.css';
@@ -921,6 +923,8 @@ function CreateClientForm({
       password: generateSecurePassword(),
       templateVersionId: firstTemplate?.templateVersionId ?? '',
       businessType: 'restaurant',
+      templateType: 'restaurant',
+      seedDemoMenu: false,
       planId: 'trial',
       subscriptionStatus: 'trial',
       status: 'active',
@@ -933,21 +937,33 @@ function CreateClientForm({
   const password = watch('password');
   const slug = watch('slug');
   const templateVersionId = watch('templateVersionId');
+  const businessType = watch('businessType');
   const adminConsentConfirmed = watch('adminConsentConfirmed');
+  const selectedTemplate = templates.find((template) => template.templateVersionId === templateVersionId);
+
+  const [lastAutoSlug, setLastAutoSlug] = useState('');
+  useEffect(() => {
+    if ((!slug || slug === lastAutoSlug) && name) {
+      const nextSlug = createSlug(name);
+      setValue('slug', nextSlug, { shouldValidate: true });
+      setLastAutoSlug(nextSlug);
+    }
+  }, [lastAutoSlug, name, setValue, slug]);
 
   useEffect(() => {
-    if (!slug && name) {
-      setValue('slug', createSlug(name), { shouldValidate: true });
+    setValue('templateType', businessType, { shouldValidate: true });
+    if (businessType !== 'coffee_shop') setValue('seedDemoMenu', false);
+    const compatibleTemplate = templates.find((template) => template.businessType === businessType);
+    if (compatibleTemplate && selectedTemplate?.businessType !== businessType) {
+      setValue('templateVersionId', compatibleTemplate.templateVersionId, { shouldValidate: true });
     }
-  }, [name, setValue, slug]);
+  }, [businessType, selectedTemplate?.businessType, setValue, templates]);
 
   useEffect(() => {
     if (!templateVersionId && firstTemplate) {
       setValue('templateVersionId', firstTemplate.templateVersionId, { shouldValidate: true });
     }
   }, [firstTemplate, setValue, templateVersionId]);
-
-  const selectedTemplate = templates.find((template) => template.templateVersionId === templateVersionId);
 
   const onSubmit = handleSubmit(async (values) => {
     if (!values.adminConsentConfirmed) {
@@ -968,6 +984,8 @@ function CreateClientForm({
         password: values.password,
         templateVersionId: values.templateVersionId,
         businessType: values.businessType,
+        templateType: values.templateType,
+        seedDemoMenu: values.seedDemoMenu,
         planId: values.planId,
         subscriptionEndsAt: values.subscriptionEndsAt,
         status: values.status,
@@ -1012,9 +1030,9 @@ function CreateClientForm({
             </label>
             <label>
               <span>
-                Slug (для ссылки) <b>*</b>
+                Адрес каталога <b>*</b>
               </span>
-              <input {...register('slug')} placeholder="my-restaurant" aria-invalid={Boolean(errors.slug)} />
+              <input {...register('slug', { onBlur: (event) => setValue('slug', normalizeSlugInput(event.target.value), { shouldValidate: true }) })} placeholder="my-coffee-shop" aria-invalid={Boolean(errors.slug)} />
               <em>Будет доступно по ссылке: {getCatalogPublicUrl(slug || 'your-slug')}</em>
               {errors.slug && <small>{errors.slug.message}</small>}
             </label>
@@ -1105,6 +1123,14 @@ function CreateClientForm({
               <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
               {errors.businessType && <small>{errors.businessType.message}</small>}
             </label>
+            <input type="hidden" {...register('templateType')} />
+            {businessType === 'coffee_shop' && (
+              <label className="client-form__disabled-option">
+                <input {...register('seedDemoMenu')} type="checkbox" />
+                <span>Заполнить демонстрационным меню</span>
+                <em>Добавим категории, позиции, описания, цены, модификаторы и сгенерированные изображения кофейни.</em>
+              </label>
+            )}
             <label>
               Имя владельца
               <input {...register('ownerName')} placeholder="Имя владельца" />
@@ -1233,6 +1259,10 @@ function EditClientForm({
 
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (businessType !== client.businessType) {
+      const nextType = businessType === 'coffee_shop' ? 'Кофейня' : 'Ресторан';
+      if (!window.confirm(`Изменить тип заведения на «${nextType}»? Существующие категории и позиции сохранятся.`)) return;
+    }
     setIsSubmitting(true);
     try {
       await updateClient({
@@ -1244,6 +1274,7 @@ function EditClientForm({
         primaryCity,
         serviceSettlements: parseSettlementsInput(serviceSettlementsText),
         businessType,
+        templateType: businessType,
         password: password || undefined,
         status,
         planId,
@@ -1595,18 +1626,22 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [lastAutoSlug, setLastAutoSlug] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [publishingTemplateId, setPublishingTemplateId] = useState('');
 
   useEffect(() => {
-    if (!slug && name) {
-      setSlug(createSlug(name));
+    if ((!slug || slug === lastAutoSlug) && name) {
+      const nextSlug = createSlug(name);
+      setSlug(nextSlug);
+      setLastAutoSlug(nextSlug);
     }
-  }, [name, slug]);
+  }, [lastAutoSlug, name, slug]);
 
   const onCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim() || !slug.trim()) {
-      toast.error('Укажите название и slug шаблона');
+      toast.error('Укажите название и адрес шаблона');
       return;
     }
 
@@ -1620,6 +1655,7 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
       toast.success('Шаблон создан');
       setName('');
       setSlug('');
+      setLastAutoSlug('');
       void queryClient.invalidateQueries({ queryKey: ['platform-templates'] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось создать шаблон');
@@ -1633,7 +1669,7 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
       <header className="platform-page-head">
         <div>
           <h1>Шаблоны</h1>
-          <p>Создавайте ресторанные шаблоны и настраивайте их как обычные каталоги</p>
+          <p>Создавайте шаблоны заведений и настраивайте их как обычные каталоги</p>
         </div>
       </header>
 
@@ -1648,11 +1684,12 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
           />
         </label>
         <label>
-          Slug шаблона
+          Адрес шаблона
           <input
             value={slug}
             onChange={(event) => setSlug(event.target.value)}
-            placeholder="shashlik-base"
+            onBlur={(event) => setSlug(normalizeSlugInput(event.target.value))}
+            placeholder="coffee-shop"
             required
           />
         </label>
@@ -1678,12 +1715,34 @@ function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
               <p>{template.description}</p>
               {template.templateCatalogSlug && <small>#/{template.templateCatalogSlug}</small>}
             </div>
-            {template.templateCatalogSlug && (
-              <a href={getCatalogAdminUrl(template.templateCatalogSlug)}>
-                <Settings />
-                Настроить
-              </a>
-            )}
+            <div className="platform-template-card__actions">
+              {template.businessType === 'coffee_shop' && template.isCatalogTemplate && (
+                <button
+                  type="button"
+                  disabled={publishingTemplateId === template.templateVersionId}
+                  onClick={async () => {
+                    setPublishingTemplateId(template.templateVersionId);
+                    try {
+                      const count = await publishCoffeeTemplateAssets(template.templateVersionId);
+                      toast.success(`Опубликовано фотографий: ${count}`);
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : 'Не удалось опубликовать фотографии');
+                    } finally {
+                      setPublishingTemplateId('');
+                    }
+                  }}
+                >
+                  <Upload />
+                  {publishingTemplateId === template.templateVersionId ? 'Публикуем...' : 'Опубликовать фото'}
+                </button>
+              )}
+              {template.templateCatalogSlug && (
+                <a href={getCatalogAdminUrl(template.templateCatalogSlug)}>
+                  <Settings />
+                  Настроить
+                </a>
+              )}
+            </div>
           </article>
         ))}
       </section>
@@ -1705,12 +1764,17 @@ export function LegacyDriversPage() {
   const [password, setPassword] = useState(generateSecurePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [driverConsentConfirmed, setDriverConsentConfirmed] = useState(false);
   const [success, setSuccess] = useState<CreateDriverSuccess | null>(null);
 
   const driverLoginUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/driver`;
 
   const createNewDriver = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!driverConsentConfirmed) {
+      toast.error('Нужно подтвердить получение отдельного согласия и акцепта оферты водителем');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const serviceSettlements = parseSettlementsInput(serviceSettlementsText);
@@ -1735,6 +1799,7 @@ export function LegacyDriversPage() {
       setServiceSettlementsText('');
       setVehicleInfo('');
       setCarNumber('');
+      setDriverConsentConfirmed(false);
       setPassword(generateSecurePassword());
       toast.success('Водитель создан');
       void queryClient.invalidateQueries({ queryKey: ['platform-drivers'] });
@@ -1856,8 +1921,12 @@ export function LegacyDriversPage() {
             </span>
           </label>
         </section>
+        <label className="legal-checkbox">
+          <input type="checkbox" checked={driverConsentConfirmed} onChange={(event) => setDriverConsentConfirmed(event.target.checked)} required />
+          <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных и геолокацию</a>. Подтверждение администратора не заменяет серверную фиксацию действия водителя.</span>
+        </label>
         <footer className="client-form-footer">
-          <button type="submit" disabled={isSubmitting}>
+          <button type="submit" disabled={isSubmitting || !driverConsentConfirmed}>
             <Plus />
             {isSubmitting ? 'Создаём...' : 'Создать водителя'}
           </button>

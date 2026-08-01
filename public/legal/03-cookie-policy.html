@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Политика cookies и локального хранения - WayYaam</title>
+<style>
+:root{--ink:#17212b;--muted:#5c6873;--brand:#16856b;--line:#dbe5e1;--paper:#fff;--warn:#fff5dc}
+*{box-sizing:border-box} body{margin:0;background:#f4f7f6;color:var(--ink);font:16px/1.6 Arial,sans-serif}
+article{max-width:900px;margin:32px auto;padding:48px 56px;background:var(--paper);box-shadow:0 8px 30px #183a3020;border-radius:16px}
+h1{font-size:32px;line-height:1.2;margin:0 0 24px;color:#0d5f4d} h2{font-size:21px;margin:32px 0 12px;color:#126b57}
+p{margin:8px 0} aside{padding:14px 16px;background:var(--warn);border-left:4px solid #d99b15;margin:20px 0}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:16px 0} th,td{border:1px solid var(--line);padding:8px;vertical-align:top} th{background:#edf7f3;text-align:left}
+a{color:#096b58} code{background:#eef2f1;padding:1px 4px;border-radius:4px} footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:700px){article{margin:0;padding:28px 18px;border-radius:0}h1{font-size:26px}table{display:block;overflow:auto}}
+@media print{body{background:#fff}article{max-width:none;margin:0;padding:0;box-shadow:none}}
+</style></head><body><article><h1>Политика cookies и локального хранения</h1>
+<p><strong>Сервис:</strong> WayYaam, wayyaam.ru</p>
+<p><strong>Редакция:</strong> 1.0 от 31 июля 2026 года</p>
+<p><strong>Статус:</strong> Публичный документ</p>
+<p><strong>Оператор:</strong> Абдулкадыров Дук-Ваха Магомедович, адрес: ул. Т. Л. Алиева, 69 [УКАЗАТЬ ИНДЕКС, НАСЕЛЁННЫЙ ПУНКТ, РЕГИОН], email: studiacatalog@outlook.com</p>
+<aside>Рабочий проект. До публикации необходимо удалить все метки <code>[ЗАПОЛНИТЬ]</code>, подтвердить российскую инфраструктуру и получить проверку российского юриста.</aside>
+<h2>1. Что используется</h2>
+<p>Cookies - небольшие записи браузера. Фактический код преимущественно использует localStorage, sessionStorage, IndexedDB и Cache Storage; правила настоящей Политики охватывают все эти технологии.</p>
+<h2>2. Категории</h2>
+<table><thead><tr><th>Категория</th><th>Примеры</th><th>Основание/управление</th></tr></thead><tbody>
+<tr><td>Строго необходимые</td><td>авторизация, безопасность, корзина, маршрут возврата, PWA</td><td>необходимы для запрошенной функции; отключение ломает её</td></tr>
+<tr><td>Предпочтения</td><td>город, избранное, сохранённый адрес, интерфейс</td><td>выбор пользователя; можно очистить</td></tr>
+<tr><td>Offline/cache</td><td>страницы, изображения, карты</td><td>работоспособность PWA; должен исключать персональные фото/QR</td></tr>
+<tr><td>Аналитические</td><td>будущие события посещения и ошибок</td><td>выключены по умолчанию; только после «Разрешить аналитику»</td></tr>
+<tr><td>Рекламные</td><td>будущая атрибуция/профилирование</td><td>не используются без отдельного решения и согласия</td></tr>
+</tbody></table>
+<h2>3. Фактические ключи</h2>
+<p>Сохраняются scoped Supabase auth tokens, <code>waycatalog-client-session</code>, профиль/адрес/координаты/корзина/черновик/заказы, платёжные настройки ресторана, служебные флаги; IndexedDB <code>mangal-admin/dish-drafts</code>; caches <code>catalog-pages</code>, <code>catalog-images</code>, <code>catalog-map-tiles</code>. Прежние технические имена WayCatalog сохраняются до миграции бренда.</p>
+<h2>4. Сроки и выбор</h2>
+<p>Сессия клиента рассчитана не более чем на 30 дней; конкретные TTL остальных ключей должны быть реализованы согласно Политике обработки. Баннер сохраняет версию выбора и время. Отказ от аналитики не блокирует базовый сервис. Выбор можно изменить через «Настройки cookies» или очистку данных сайта в браузере.</p>
+<h2>5. Третьи стороны</h2>
+<p>Карта, push, хостинг и внешние изображения могут получать IP, user-agent и параметры запроса. До запуска внешний список должен быть приведён в соответствие фактической российской архитектуре. Подключение аналитики требует обновления таблицы провайдеров, целей, сроков и стран до отправки первого события.</p>
+<h2>6. Контакты</h2>
+<p>Запрос об устройстве или очистке данных: <code>{EMAIL}</code>. Инструкции браузера дополняют, но не заменяют серверное удаление аккаунта.</p><footer>WayYaam · редакция 1.0 от 31 июля 2026 года · studiacatalog@outlook.com</footer></article></body></html>

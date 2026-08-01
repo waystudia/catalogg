@@ -36,15 +36,18 @@ const transliteration: Record<string, string> = {
   я: 'ya'
 };
 
-export function createSlug(value: string): string {
+export function normalizeSlugInput(value: string): string {
   return value
     .toLowerCase()
     .trim()
     .replace(/[а-яё]/g, (char) => transliteration[char] ?? '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 63);
+    .slice(0, 63)
+    .replace(/-+$/g, '');
 }
+
+export const createSlug = normalizeSlugInput;
 
 export function isStrongPassword(value: string) {
   return (
@@ -105,6 +108,8 @@ export const createClientSchema = z.object({
   password: z.string().refine(isStrongPassword, 'Минимум 10 символов: A-z, цифра и спецсимвол'),
   templateVersionId: z.string().uuid('Выберите шаблон'),
   businessType: z.enum(['restaurant', 'coffee_shop']),
+  templateType: z.enum(['restaurant', 'coffee_shop']),
+  seedDemoMenu: z.boolean().default(false),
   planId: z.string().optional(),
   subscriptionEndsAt: z.string().optional(),
   status: z.enum(['active', 'inactive', 'blocked', 'pending']).default('active'),

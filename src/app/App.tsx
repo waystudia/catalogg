@@ -63,7 +63,8 @@ import {
   restaurant as demoRestaurant,
   themeSettings as demoThemeSettings
 } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import type { Cabin, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
+import { buildCartLineId, getCartLineId, getSelectedModifierDetails } from '../entities/productModifiers';
 import {
   getCartItemPrice,
   getProductChoiceOptions,
@@ -1009,17 +1010,21 @@ function CartSheet({
         {!isLoading && count > 0 && (
           <>
             <div className="cart-sheet__list">
-              {items.map((item) => (
-                <article className="cart-item-card" key={item.product.id}>
+              {items.map((item) => {
+                const lineId = getCartLineId(item);
+                const modifierLabel = getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`).join(' · ');
+                return (
+                <article className="cart-item-card" key={lineId}>
                   <SafeImage src={item.product.image_url} alt={item.product.title} />
                   <div className="cart-item-card__content">
                     <div className="cart-item-card__top">
                       <div>
                         <h3>{item.product.title}</h3>
                         {item.selected_choice && <small className="cart-item-card__choice">{item.selected_choice}</small>}
+                        {modifierLabel && <small className="cart-item-card__choice">{modifierLabel}</small>}
                         <p>{item.product.description}</p>
                       </div>
-                      <button className="cart-item-card__remove" type="button" onClick={() => remove(item.product.id)} aria-label={`Удалить ${item.product.title}`}>
+                      <button className="cart-item-card__remove" type="button" onClick={() => remove(lineId)} aria-label={`Удалить ${item.product.title}`}>
                         <Trash2 />
                       </button>
                     </div>
@@ -1029,7 +1034,7 @@ function CartSheet({
                         <button
                           type="button"
                           onClick={() => {
-                            decrement(item.product.id);
+                            decrement(lineId);
                             playCartSound('remove');
                           }}
                           aria-label="Уменьшить"
@@ -1037,14 +1042,14 @@ function CartSheet({
                           <Minus />
                         </button>
                         <span>{item.quantity}</span>
-                        <button type="button" onClick={() => add(item.product)} aria-label="Увеличить">
+                        <button type="button" onClick={() => add(item.product, item.selected_choice, item.selected_modifiers)} aria-label="Увеличить">
                           <Plus />
                         </button>
                       </div>
                     </div>
                   </div>
                 </article>
-              ))}
+              );})}
             </div>
 
             <section className="cart-summary">
@@ -1664,11 +1669,19 @@ function ProductScreen({
   const add = useCartStore((state) => state.add);
   const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
-  const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
   const choiceOptions = getProductChoiceOptions(product);
   const cartChoice = items.find((item) => item.product.id === product.id)?.selected_choice;
   const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0]?.name ?? '');
-  const selectedPrice = choiceOptions.find((option) => option.name === selectedChoice)?.price ?? product.price;
+  const [selectedModifiers, setSelectedModifiers] = useState<SelectedProductModifier[]>(() =>
+    (product.modifier_groups ?? []).filter((group) => group.isActive !== false).flatMap((group) => group.options
+      .filter((option) => option.isDefault && option.isActive !== false)
+      .slice(0, group.maxSelected)
+      .map((option) => ({ groupId: group.id, optionId: option.id })))
+  );
+  const configuredItem = { product, quantity: 1, selected_choice: selectedChoice || undefined, selected_modifiers: selectedModifiers };
+  const selectedPrice = getCartItemPrice(configuredItem);
+  const selectedLineId = buildCartLineId(product.id, selectedChoice || undefined, selectedModifiers);
+  const quantity = items.find((item) => getCartLineId(item) === selectedLineId)?.quantity ?? 0;
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
   const hasFactValue = (value: string) => {
@@ -1680,7 +1693,7 @@ function ProductScreen({
   const hasServing = hasFactValue(product.serving);
 
   const addProduct = () => {
-    add(product, selectedChoice || undefined);
+    add(product, selectedChoice || undefined, selectedModifiers);
     if (isFlowProduct) {
       flowAction?.onProductAdd(product);
     }
@@ -1737,11 +1750,39 @@ function ProductScreen({
         </fieldset>
       )}
 
+      {(product.modifier_groups ?? []).filter((group) => group.isActive !== false).map((group) => (
+        <fieldset className="product-choice-group" key={group.id}>
+          <legend>{group.name}{group.required ? ' *' : ''}</legend>
+          {group.options.filter((option) => option.isActive !== false).map((option) => {
+            const checked = selectedModifiers.some((value) => value.groupId === group.id && value.optionId === option.id);
+            return (
+              <label key={option.id}>
+                <input
+                  type={group.maxSelected > 1 ? 'checkbox' : 'radio'}
+                  name={`product-modifier-${product.id}-${group.id}`}
+                  checked={checked}
+                  onChange={() => setSelectedModifiers((current) => {
+                    const withoutGroup = current.filter((value) => value.groupId !== group.id);
+                    if (group.maxSelected === 1) return [...withoutGroup, { groupId: group.id, optionId: option.id }];
+                    if (checked) return current.filter((value) => !(value.groupId === group.id && value.optionId === option.id));
+                    const inGroup = current.filter((value) => value.groupId === group.id);
+                    return inGroup.length >= group.maxSelected ? current : [...current, { groupId: group.id, optionId: option.id }];
+                  })}
+                />
+                <span aria-hidden="true" />
+                <strong>{option.name}</strong>
+                <small>{option.priceDelta > 0 ? `+${formatPrice(option.priceDelta)}` : 'Без доплаты'}</small>
+              </label>
+            );
+          })}
+        </fieldset>
+      ))}
+
       <div className="quantity">
         <button
           type="button"
           onClick={() => {
-            decrement(product.id);
+            decrement(selectedLineId);
             playCartSound('remove');
           }}
           aria-label="Уменьшить"

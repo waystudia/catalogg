@@ -97,14 +97,15 @@ test('customer contacts are required once for hall, takeaway, and delivery befor
   assert.match(checkoutSource, /customerPhone:\s*clientPhone\.trim\(\)/);
 });
 
-test('order submission stays disabled until both customer name and phone are valid', () => {
+test('order submission stays disabled until contacts and both legal consents are valid', () => {
   assert.match(
     checkoutSource,
     /const isCheckoutContactValid = clientName\.trim\(\)\.length > 0 && isValidRussianClientPhone\(clientPhone\)/
   );
   assert.match(
     checkoutSource,
-    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid\}/
+    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !acceptedOrderData \|\| !acceptedOrderTransfer\}/
   );
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
+  assert.match(checkoutSource, /if \(!acceptedOrderData \|\| !acceptedOrderTransfer\)/);
 });

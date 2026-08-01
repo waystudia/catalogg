@@ -1,4 +1,5 @@
 import type { CartItem, Product, ProductChoiceOption, ProductChoiceOptionInput } from './models';
+import { getCartItemPrice as getConfiguredCartItemPrice, getCartItemTotal as getConfiguredCartItemTotal } from './productModifiers';
 
 const validPriceOr = (value: unknown, fallback: number) =>
   Number.isFinite(value) && (value as number) > 0 ? value as number : fallback;
@@ -31,8 +32,6 @@ export const getProductStartingPrice = (product: Product) => {
   return choices.length > 0 ? Math.min(...choices.map((choice) => choice.price)) : product.price;
 };
 
-export const getCartItemPrice = (item: CartItem) =>
-  getProductChoiceOptions(item.product).find((choice) => choice.name === item.selected_choice)?.price
-  ?? item.product.price;
+export const getCartItemPrice = (item: CartItem) => getConfiguredCartItemPrice(item);
 
-export const getCartItemTotal = (item: CartItem) => getCartItemPrice(item) * item.quantity;
+export const getCartItemTotal = (item: CartItem) => getConfiguredCartItemTotal(item);

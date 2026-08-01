@@ -75,6 +75,29 @@ export type ProductChoiceOption = {
 
 export type ProductChoiceOptionInput = string | ProductChoiceOption;
 
+export type ProductModifierOption = {
+  id: string;
+  name: string;
+  priceDelta: number;
+  isDefault: boolean;
+  isActive?: boolean;
+};
+
+export type ProductModifierGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  minSelected: number;
+  maxSelected: number;
+  isActive?: boolean;
+  options: ProductModifierOption[];
+};
+
+export type SelectedProductModifier = {
+  groupId: string;
+  optionId: string;
+};
+
 export type Product = {
   id: string;
   title: string;
@@ -99,6 +122,7 @@ export type Product = {
   drink_type?: string;
   pair_ids: string[];
   choice_options?: ProductChoiceOptionInput[];
+  modifier_groups?: ProductModifierGroup[];
 };
 
 export type Cabin = {
@@ -113,4 +137,6 @@ export type CartItem = {
   product: Product;
   quantity: number;
   selected_choice?: string;
+  selected_modifiers?: SelectedProductModifier[];
+  line_id?: string;
 };

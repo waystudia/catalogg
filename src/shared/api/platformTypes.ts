@@ -213,6 +213,8 @@ export type CreateClientPayload = {
   password: string;
   templateVersionId: string;
   businessType: BusinessType;
+  templateType: BusinessType;
+  seedDemoMenu?: boolean;
   planId?: string;
   subscriptionEndsAt?: string;
   status?: ClientStatus;
@@ -341,6 +343,8 @@ export type UpdateClientPayload = {
   primaryCity?: string;
   serviceSettlements?: string[];
   businessType?: BusinessType;
+  templateType?: BusinessType;
+  seedDemoMenu?: boolean;
   password?: string;
   status?: ClientStatus;
   planId?: string;

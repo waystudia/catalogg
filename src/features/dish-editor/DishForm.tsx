@@ -3,11 +3,36 @@ import { CategorySelector } from './CategorySelector';
 import { PhotoUploader } from './PhotoUploader';
 import { QuantityInput } from './QuantityInput';
 import { TagsSelector } from './TagsSelector';
-import type { Category, Product } from '../../entities/models';
+import type { Category, Product, ProductModifierGroup } from '../../entities/models';
 import type { Dish } from './types';
 import type { BusinessType } from '../../shared/businessTerminology';
 
 const serveOptions = ['с луком', 'с соусом', 'с гарниром', 'без добавок'];
+
+const coffeeModifierPresets: Record<string, string[]> = {
+  'Объём': ['200 мл', '300 мл', '400 мл'],
+  'Температура': ['Горячий', 'Тёплый', 'Холодный'],
+  'Молоко': ['Обычное', 'Безлактозное', 'Кокосовое', 'Миндальное', 'Овсяное'],
+  'Сироп': ['Без сиропа', 'Карамель', 'Ваниль', 'Фундук', 'Кокос', 'Шоколад', 'Банан', 'Фисташка'],
+  'Дополнительно': ['Дополнительный шот эспрессо', 'Взбитые сливки', 'Маршмеллоу', 'Корица', 'Какао', 'Лёд'],
+  'Сахар': ['Без сахара', '1 порция', '2 порции', '3 порции']
+};
+
+const makeModifierGroup = (name: string): ProductModifierGroup => ({
+  id: crypto.randomUUID(),
+  name,
+  required: name === 'Объём',
+  minSelected: name === 'Объём' ? 1 : 0,
+  maxSelected: name === 'Дополнительно' ? 6 : 1,
+  isActive: true,
+  options: (coffeeModifierPresets[name] ?? ['Новый вариант']).map((optionName, index) => ({
+    id: crypto.randomUUID(),
+    name: optionName,
+    priceDelta: 0,
+    isDefault: index === 0,
+    isActive: true
+  }))
+});
 
 function NumericInput({
   value,
@@ -114,6 +139,86 @@ export function DishForm({
         </label>
         <small>{dish.description.length}/500</small>
       </section>
+
+      {businessType === 'coffee_shop' && (
+        <section className="dish-section dish-choice-editor dish-modifier-editor">
+          <div>
+            <h3>Варианты напитка</h3>
+            <small>Группы можно менять, скрывать или удалить. Доплата прибавляется к базовой цене.</small>
+          </div>
+          {dish.modifierGroups.map((group, groupIndex) => (
+            <div className="dish-modifier-editor__group" key={group.id}>
+              <div className="dish-modifier-editor__head">
+                <input
+                  aria-label={`Название группы ${groupIndex + 1}`}
+                  value={group.name}
+                  onChange={(event) => {
+                    const next = [...dish.modifierGroups];
+                    next[groupIndex] = { ...group, name: event.target.value.slice(0, 40) };
+                    onChange({ modifierGroups: next });
+                  }}
+                />
+                <label><input type="checkbox" checked={group.required} onChange={(event) => {
+                  const next = [...dish.modifierGroups];
+                  next[groupIndex] = { ...group, required: event.target.checked, minSelected: event.target.checked ? 1 : 0 };
+                  onChange({ modifierGroups: next });
+                }} /> Обязательный выбор</label>
+                <label><input type="checkbox" checked={group.maxSelected > 1} onChange={(event) => {
+                  const next = [...dish.modifierGroups];
+                  next[groupIndex] = { ...group, maxSelected: event.target.checked ? Math.max(2, group.options.length) : 1 };
+                  onChange({ modifierGroups: next });
+                }} /> Несколько вариантов</label>
+                <label><input type="checkbox" checked={group.isActive !== false} onChange={(event) => {
+                  const next = [...dish.modifierGroups];
+                  next[groupIndex] = { ...group, isActive: event.target.checked };
+                  onChange({ modifierGroups: next });
+                }} /> Показывать</label>
+                <button type="button" onClick={() => onChange({ modifierGroups: dish.modifierGroups.filter((_, index) => index !== groupIndex) })}>Удалить группу</button>
+              </div>
+              {group.options.map((option, optionIndex) => (
+                <div className="dish-choice-editor__row" key={option.id}>
+                  <label><span>Вариант</span><input value={option.name} onChange={(event) => {
+                    const next = [...dish.modifierGroups];
+                    const options = [...group.options];
+                    options[optionIndex] = { ...option, name: event.target.value.slice(0, 50) };
+                    next[groupIndex] = { ...group, options };
+                    onChange({ modifierGroups: next });
+                  }} /></label>
+                  <label className="dish-choice-editor__price"><span>Доплата</span><input type="number" min="0" value={option.priceDelta || ''} onChange={(event) => {
+                    const next = [...dish.modifierGroups];
+                    const options = [...group.options];
+                    options[optionIndex] = { ...option, priceDelta: Math.max(0, Number(event.target.value) || 0) };
+                    next[groupIndex] = { ...group, options };
+                    onChange({ modifierGroups: next });
+                  }} /><b>₽</b></label>
+                  <label><input type="checkbox" checked={option.isActive !== false} onChange={(event) => {
+                    const next = [...dish.modifierGroups];
+                    const options = [...group.options];
+                    options[optionIndex] = { ...option, isActive: event.target.checked };
+                    next[groupIndex] = { ...group, options };
+                    onChange({ modifierGroups: next });
+                  }} /> Видим</label>
+                  <button type="button" onClick={() => {
+                    const next = [...dish.modifierGroups];
+                    next[groupIndex] = { ...group, options: group.options.filter((_, index) => index !== optionIndex) };
+                    onChange({ modifierGroups: next });
+                  }}>Удалить</button>
+                </div>
+              ))}
+              <button className="dish-choice-editor__add" type="button" onClick={() => {
+                const next = [...dish.modifierGroups];
+                next[groupIndex] = { ...group, options: [...group.options, { id: crypto.randomUUID(), name: '', priceDelta: 0, isDefault: false, isActive: true }] };
+                onChange({ modifierGroups: next });
+              }}>+ Добавить вариант</button>
+            </div>
+          ))}
+          <div className="dish-modifier-editor__presets">
+            {Object.keys(coffeeModifierPresets).filter((name) => !dish.modifierGroups.some((group) => group.name === name)).map((name) => (
+              <button type="button" key={name} onClick={() => onChange({ modifierGroups: [...dish.modifierGroups, makeModifierGroup(name)] })}>+ {name}</button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="dish-section">
         <label>
