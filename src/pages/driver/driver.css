@@ -316,6 +316,12 @@
   column-gap: 4px;
 }
 
+.driver-map-sheet__leg-points > span:last-child {
+  width: max-content;
+  max-width: 100%;
+  justify-self: end;
+}
+
 .driver-map-sheet__leg-points svg {
   grid-row: 1 / 3;
   align-self: center;
@@ -378,6 +384,29 @@
   box-shadow: 0 0 0 1px #5b3df4;
   transform: translate(-50%, -50%);
 }
+
+.driver-map-sheet__leg-progress-endpoint {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #d8dce5;
+  box-shadow: 0 0 0 1px #98a2b3;
+  transform: translate(-50%, -50%);
+}
+
+.driver-map-sheet__leg-progress-endpoint--start {
+  left: 0;
+  background: #5b3df4;
+  box-shadow: 0 0 0 1px #5b3df4;
+}
+
+.driver-map-sheet__leg-progress-endpoint--end { left: 100%; }
+
+.driver-map-sheet__leg-progress > i { z-index: 2; }
 
 .driver-map-sheet__leg-metrics {
   display: grid;

@@ -207,7 +207,20 @@ test('shows route progress for the current restaurant or client leg', async () =
   await expect.element(restaurantLeg.getByText('Всего 5,0 км')).toBeVisible();
   await expect.element(restaurantLeg.getByText('Осталось 3,0 км')).toBeVisible();
   await expect.element(restaurantLeg.getByText('≈ 10 мин')).toBeVisible();
-  await expect.element(restaurantLeg.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40');
+  const restaurantProgress = restaurantLeg.getByRole('progressbar');
+  await expect.element(restaurantProgress).toHaveAttribute('aria-valuenow', '40');
+  const progressElement = restaurantProgress.element();
+  const progressBounds = progressElement.getBoundingClientRect();
+  const endpointDots = progressElement.querySelectorAll('.driver-map-sheet__leg-progress-endpoint');
+  expect(endpointDots).toHaveLength(2);
+  const startDotBounds = endpointDots[0].getBoundingClientRect();
+  const endDotBounds = endpointDots[1].getBoundingClientRect();
+  expect(Math.abs((startDotBounds.left + startDotBounds.width / 2) - progressBounds.left)).toBeLessThan(1);
+  expect(Math.abs((endDotBounds.left + endDotBounds.width / 2) - progressBounds.right)).toBeLessThan(1);
+  const routePointBlocks = progressElement.closest('.driver-map-sheet__leg')?.querySelectorAll('.driver-map-sheet__leg-points > span');
+  expect(routePointBlocks).not.toBeUndefined();
+  expect(routePointBlocks).toHaveLength(2);
+  expect(Math.abs(routePointBlocks![1].getBoundingClientRect().right - progressBounds.right)).toBeLessThan(3);
   await cleanup();
 
   const clientLeg = await render(

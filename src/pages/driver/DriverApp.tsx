@@ -1790,6 +1790,8 @@ export function DriverRouteLegProgress({
         aria-valuenow={completedPercent}
         style={{ '--driver-route-progress': `${completedPercent}%` } as CSSProperties}
       >
+        <span className="driver-map-sheet__leg-progress-endpoint driver-map-sheet__leg-progress-endpoint--start" aria-hidden="true" />
+        <span className="driver-map-sheet__leg-progress-endpoint driver-map-sheet__leg-progress-endpoint--end" aria-hidden="true" />
         <i aria-hidden="true" />
       </div>
       <div className="driver-map-sheet__leg-metrics">
