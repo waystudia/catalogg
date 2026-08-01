@@ -1,7 +1,7 @@
 .delivery-tracking-map {
   position: relative;
   width: min(100%, 640px);
-  overflow: hidden;
+  overflow: clip;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   background: #eef2f1;
@@ -86,7 +86,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  overflow: hidden;
+  overflow: clip;
   background: #e5e7eb;
   cursor: grab;
   touch-action: none;
@@ -175,7 +175,7 @@
   position: absolute;
   width: 256px;
   height: 256px;
-  transition: left 520ms cubic-bezier(.2, .8, .2, 1), top 520ms cubic-bezier(.2, .8, .2, 1);
+  transition: none;
 }
 
 .delivery-tracking-map__tile img {

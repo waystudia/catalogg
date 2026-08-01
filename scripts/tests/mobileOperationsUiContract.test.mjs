@@ -171,8 +171,12 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
     assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
     assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*10[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*11[0-9]px/s);
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*min-height:\s*7[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*overflow:\s*hidden;[^}]*padding:\s*1[0-4]px/s);
+    assert.match(mapCss, /\.delivery-tracking-map__tile\s*\{[^}]*transition:\s*none;/s);
+    assert.match(mapCss, /\.delivery-tracking-map__canvas\s*\{[^}]*overflow:\s*clip;/s);
+    assert.match(mapSource, /getNavigationLookAheadDistanceM\(mapZoomRef\.current\)/);
     assert.match(mapSource, /getNearestEquivalentAngle/);
     assert.match(mapSource, /roadRoute\.nextManeuver\?\.street/);
     assert.match(mapSource, /requestAnimationFrame/);

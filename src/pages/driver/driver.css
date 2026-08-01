@@ -93,15 +93,16 @@
   right: auto;
   bottom: auto;
   left: 14px;
-  width: 104px;
+  width: 118px;
   min-height: 74px;
-  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-content: center;
   align-items: start;
   gap: 6px;
   border: 0;
   border-radius: 18px;
-  padding: 8px;
+  overflow: hidden;
+  padding: 12px;
   background: linear-gradient(135deg, #6d4aff, #4f2de1);
   color: #fff;
 }
