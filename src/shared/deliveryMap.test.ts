@@ -17,6 +17,8 @@ import {
 } from './deliveryMap';
 import {
   buildRoadRouteRequestUrl,
+  getManeuverAnnouncementStage,
+  getRemainingRoadRouteGeometry,
   getRoadRouteProgress,
   parseRoadRoutePayload,
   type RoadRoute
@@ -292,6 +294,28 @@ describe('delivery map picker geometry', () => {
     assert.equal(progress.isOnRoute, false);
     assert.equal(Math.round(progress.traveledDistanceM), 400);
     assert.equal(Math.round(progress.remainingDistanceM), 600);
+  });
+
+  it('draws only the untraveled route from the snapped driver position', () => {
+    const route: RoadRoute = {
+      distanceM: 1000,
+      durationS: 600,
+      geometry: [{ lat: 43, lng: 45 }, { lat: 43, lng: 45.005 }, { lat: 43, lng: 45.01 }]
+    };
+
+    const remaining = getRemainingRoadRouteGeometry(route, 600);
+    assert.equal(remaining.length, 2);
+    assert.equal(Number(remaining[0].lng.toFixed(4)), 45.006);
+    assert.deepEqual(remaining.at(-1), { lat: 43, lng: 45.01 });
+  });
+
+  it('announces a maneuver only at the 300 m, 50 m, and turn stages', () => {
+    assert.equal(getManeuverAnnouncementStage(301), null);
+    assert.equal(getManeuverAnnouncementStage(300), '300m');
+    assert.equal(getManeuverAnnouncementStage(51), '300m');
+    assert.equal(getManeuverAnnouncementStage(50), '50m');
+    assert.equal(getManeuverAnnouncementStage(16), '50m');
+    assert.equal(getManeuverAnnouncementStage(15), 'turn');
   });
 
   it('rejects empty and malformed road-route responses', () => {

@@ -1858,14 +1858,10 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
         })
     : [];
   const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
-    setRouteSummary((current) => {
-      if (!summary) return null;
-      if (current?.key === routeLegKey && current.summary.distanceM < summary.distanceM) return current;
-      return { key: routeLegKey, summary };
-    });
+    setRouteSummary(summary ? { key: routeLegKey, summary } : null);
     if (!summary) return;
     setRouteTotal((current) => current?.key === routeLegKey
-      ? current
+      ? { ...current, distanceM: Math.max(current.distanceM, summary.distanceM) }
       : { key: routeLegKey, distanceM: summary.distanceM });
   }, [routeLegKey]);
   const routeSummary = routeSummaryState?.key === routeLegKey ? routeSummaryState.summary : null;

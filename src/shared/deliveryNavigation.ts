@@ -129,6 +129,51 @@ const getCoordinateAtGeometryDistance = (
   return { coordinates: geometry[0], heading: 0 };
 };
 
+export const getRemainingRoadRouteGeometry = (
+  route: RoadRoute,
+  traveledDistanceM: number
+): ReadonlyArray<DeliveryMapCoordinates> => {
+  if (route.geometry.length < 2 || traveledDistanceM <= 0) return route.geometry;
+
+  const segmentLengthsM = route.geometry
+    .slice(0, -1)
+    .map((point, index) => distanceM(point, route.geometry[index + 1]));
+  const geometryDistanceM = segmentLengthsM.reduce((sum, value) => sum + value, 0);
+  if (geometryDistanceM === 0) return route.geometry.slice(-1);
+
+  const targetGeometryDistanceM = geometryDistanceM * clamp(
+    traveledDistanceM / Math.max(route.distanceM, 1),
+    0,
+    1
+  );
+  let elapsedGeometryM = 0;
+
+  for (let index = 0; index < segmentLengthsM.length; index += 1) {
+    const segmentDistanceM = segmentLengthsM[index];
+    if (elapsedGeometryM + segmentDistanceM >= targetGeometryDistanceM) {
+      const fraction = segmentDistanceM === 0
+        ? 0
+        : (targetGeometryDistanceM - elapsedGeometryM) / segmentDistanceM;
+      return [
+        interpolateCoordinates(route.geometry[index], route.geometry[index + 1], fraction),
+        ...route.geometry.slice(index + 1)
+      ];
+    }
+    elapsedGeometryM += segmentDistanceM;
+  }
+
+  return route.geometry.slice(-1);
+};
+
+export type ManeuverAnnouncementStage = '300m' | '50m' | 'turn';
+
+export const getManeuverAnnouncementStage = (distanceToManeuverM: number): ManeuverAnnouncementStage | null => {
+  if (distanceToManeuverM <= 15) return 'turn';
+  if (distanceToManeuverM <= 50) return '50m';
+  if (distanceToManeuverM <= 300) return '300m';
+  return null;
+};
+
 type GetRoadRouteProgressInput = {
   readonly route: RoadRoute;
   readonly position: DeliveryMapCoordinates;

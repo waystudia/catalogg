@@ -33,7 +33,13 @@ import {
   type DeliveryMapStyle
 } from './deliveryMap';
 import { searchDeliveryLocations, type DeliveryLocationSearchResult } from './deliveryGeocoder';
-import { getRoadRouteProgress, loadRoadRoute, type RoadRoute } from './deliveryNavigation';
+import {
+  getManeuverAnnouncementStage,
+  getRemainingRoadRouteGeometry,
+  getRoadRouteProgress,
+  loadRoadRoute,
+  type RoadRoute
+} from './deliveryNavigation';
 import './delivery-tracking-map.css';
 
 type TrackingPoint = DeliveryMapCoordinates & {
@@ -64,6 +70,9 @@ const maximumInteractiveMapZoom = 20;
 const driverFollowMapZoom = 16;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
+const maximumOnRouteDistanceM = 15;
+const offRouteReadingsBeforeReroute = 2;
+const minimumRerouteIntervalMs = 12_000;
 const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
   minimumFractionDigits: 1,
   maximumFractionDigits: 1
@@ -105,9 +114,12 @@ export function DeliveryTrackingMap({
   const lastDriverHeadingPointRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
-  const lastSpokenManeuverRef = useRef('');
+  const spokenManeuverStagesRef = useRef<Set<string>>(new Set());
+  const spokenRouteKeyRef = useRef('');
   const automaticRotationRef = useRef(0);
   const routeProgressRef = useRef<{ key: string; traveledDistanceM: number; updatedAt: number } | null>(null);
+  const offRouteReadingsRef = useRef(0);
+  const lastRerouteAtRef = useRef(0);
   const zoomAnimationFrameRef = useRef<number | null>(null);
   const mapZoomRef = useRef(0);
   const [scale, setScale] = useState(1);
@@ -121,6 +133,7 @@ export function DeliveryTrackingMap({
   const [isSearching, setIsSearching] = useState(false);
   const [movementHeading, setMovementHeading] = useState<number | null>(null);
   const [audioGuidanceEnabled, setAudioGuidanceEnabled] = useState(false);
+  const [routeRevision, setRouteRevision] = useState(0);
   const baseRoutePoints = useMemo(
     () => [restaurant, client].filter((point): point is TrackingPoint => Boolean(point)),
     [client, restaurant]
@@ -134,9 +147,12 @@ export function DeliveryTrackingMap({
     .map((point) => `${point.lat},${point.lng}`)
     .join('|');
   const requestedRoutePoints = routePoints ?? baseRoutePoints;
-  const roadRouteRequestKey = navigationMode && requestedRoutePoints.length >= 2
+  const roadRouteDestinationKey = navigationMode && requestedRoutePoints.length >= 2
     ? formatRoutePointKey(requestedRoutePoints.slice(-1))
     : formatRoutePointKey(requestedRoutePoints);
+  const roadRouteRequestKey = navigationMode
+    ? `${roadRouteDestinationKey}:revision-${routeRevision}`
+    : roadRouteDestinationKey;
   const effectiveRoutePoints = useMemo<ReadonlyArray<DeliveryMapCoordinates>>(
     () => routePointKey.split('|').filter(Boolean).map((pair) => {
       const [lat, lng] = pair.split(',').map(Number);
@@ -145,6 +161,12 @@ export function DeliveryTrackingMap({
     [routePointKey]
   );
   latestRoutePointsRef.current = effectiveRoutePoints;
+  const canAutomaticallyReroute = Boolean(
+    navigationMode &&
+    driver &&
+    effectiveRoutePoints.length >= 2 &&
+    getApproximateDistanceM(driver, effectiveRoutePoints[0]) <= 25
+  );
   const mapAnchorPoints = useMemo(
     () => [
       ...(restaurant ? [{ lat: restaurant.lat, lng: restaurant.lng }] : []),
@@ -222,7 +244,8 @@ export function DeliveryTrackingMap({
       minimumTraveledDistanceM: previous?.traveledDistanceM ?? 0,
       maximumTraveledDistanceM: previous
         ? previous.traveledDistanceM + Math.max(40, elapsedSeconds * 55)
-        : loadedRoadRoute.distanceM
+        : loadedRoadRoute.distanceM,
+      maximumSnapDistanceM: maximumOnRouteDistanceM
     });
   }, [driver, loadedRoadRoute, navigationMode, roadRouteRequestKey]);
   useEffect(() => {
@@ -265,7 +288,9 @@ export function DeliveryTrackingMap({
     if (routeTarget) return calculateBearing(driver, routeTarget);
     return client ? calculateBearing(driver, client) : 0;
   }, [client, driver, effectiveRoutePoints]);
-  const driverHeading = routeProgress?.heading ?? (navigationMode ? routeHeading : movementHeading ?? routeHeading);
+  const driverHeading = movementHeading ?? routeProgress?.heading ?? routeHeading;
+  const isDrivingAgainstRoute = movementHeading !== null && routeProgress !== null &&
+    Math.abs(((movementHeading - routeProgress.heading + 540) % 360) - 180) >= 110;
   const automaticMapRotation = followDriverHeading && driver
     ? getNearestEquivalentAngle(automaticRotationRef.current, -driverHeading)
     : 0;
@@ -286,13 +311,19 @@ export function DeliveryTrackingMap({
     () => effectiveRoutePoints.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })),
     [center, effectiveRoutePoints, mapZoom]
   );
+  const visibleRoadRouteGeometry = useMemo(() => {
+    if (!loadedRoadRoute) return null;
+    if (!navigationMode || !routeProgress?.isOnRoute) return loadedRoadRoute.geometry;
+    return getRemainingRoadRouteGeometry(loadedRoadRoute, routeProgress.traveledDistanceM);
+  }, [loadedRoadRoute, navigationMode, routeProgress]);
   const projectedRoadRoute = useMemo(
-    () => loadedRoadRoute?.geometry.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
-    [center, fallbackRoutePoints, loadedRoadRoute, mapZoom]
+    () => visibleRoadRouteGeometry?.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
+    [center, fallbackRoutePoints, mapZoom, visibleRoadRouteGeometry]
   );
 
   useEffect(() => {
-    const currentRoutePoints = latestRoutePointsRef.current;
+    const configuredRoutePoints = latestRoutePointsRef.current;
+    const currentRoutePoints = configuredRoutePoints;
     if (currentRoutePoints.length < 2) {
       setLoadedRoadRoute(null);
       return undefined;
@@ -301,7 +332,8 @@ export function DeliveryTrackingMap({
     let active = true;
     const requestId = routeRequestIdRef.current + 1;
     routeRequestIdRef.current = requestId;
-    if (!navigationMode) setLoadedRoadRoute(null);
+    setLoadedRoadRoute(null);
+    routeProgressRef.current = null;
     void loadRoute(currentRoutePoints)
       .then((route) => {
         if (active && requestId === routeRequestIdRef.current) setLoadedRoadRoute(route);
@@ -314,6 +346,31 @@ export function DeliveryTrackingMap({
       active = false;
     };
   }, [navigationMode, roadRouteRequestKey, loadRoute]);
+
+  useEffect(() => {
+    offRouteReadingsRef.current = 0;
+  }, [roadRouteDestinationKey]);
+
+  useEffect(() => {
+    if (!canAutomaticallyReroute || !driver || !loadedRoadRoute || !routeProgress) return;
+    if (routeProgress.isOnRoute && !isDrivingAgainstRoute) {
+      offRouteReadingsRef.current = 0;
+      return;
+    }
+
+    offRouteReadingsRef.current += 1;
+    const now = Date.now();
+    if (
+      offRouteReadingsRef.current < offRouteReadingsBeforeReroute ||
+      now - lastRerouteAtRef.current < minimumRerouteIntervalMs
+    ) return;
+
+    offRouteReadingsRef.current = 0;
+    lastRerouteAtRef.current = now;
+    routeProgressRef.current = null;
+    spokenManeuverStagesRef.current.clear();
+    setRouteRevision((revision) => revision + 1);
+  }, [canAutomaticallyReroute, driver, isDrivingAgainstRoute, loadedRoadRoute, routeProgress]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -361,12 +418,26 @@ export function DeliveryTrackingMap({
     if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return undefined;
 
     const maneuver = roadRoute.nextManeuver;
-    const speechKey = `${Math.round(maneuver.distanceM)}:${maneuver.instruction}:${maneuver.street ?? ''}`;
-    if (lastSpokenManeuverRef.current === speechKey) return undefined;
-    lastSpokenManeuverRef.current = speechKey;
+    const announcementStage = getManeuverAnnouncementStage(maneuver.distanceM);
+    if (!announcementStage) return undefined;
+    if (spokenRouteKeyRef.current !== roadRouteRequestKey) {
+      spokenRouteKeyRef.current = roadRouteRequestKey;
+      spokenManeuverStagesRef.current.clear();
+    }
+    const maneuverDistanceFromStartM = (routeProgress?.traveledDistanceM ?? 0) + maneuver.distanceM;
+    const maneuverKey = `${Math.round(maneuverDistanceFromStartM / 5) * 5}:${maneuver.instruction}:${maneuver.street ?? ''}`;
+    const speechKey = `${maneuverKey}:${announcementStage}`;
+    if (spokenManeuverStagesRef.current.has(speechKey)) return undefined;
+    spokenManeuverStagesRef.current.add(speechKey);
+
+    const distancePrefix = announcementStage === 'turn'
+      ? ''
+      : announcementStage === '50m'
+        ? 'Через 50 метров. '
+        : 'Через 300 метров. ';
 
     const utterance = new SpeechSynthesisUtterance(
-      `Через ${formatManeuverDistance(maneuver.distanceM)}. ${maneuver.instruction}.${maneuver.street ? ` ${maneuver.street}.` : ''}`
+      `${distancePrefix}${maneuver.instruction}.${maneuver.street ? ` ${maneuver.street}.` : ''}`
     );
     utterance.lang = 'ru-RU';
     utterance.rate = 0.95;
@@ -381,7 +452,7 @@ export function DeliveryTrackingMap({
     window.speechSynthesis.speak(utterance);
 
     return () => window.speechSynthesis.cancel();
-  }, [audioGuidanceEnabled, navigationMode, roadRoute]);
+  }, [audioGuidanceEnabled, navigationMode, roadRoute, roadRouteRequestKey, routeProgress]);
 
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
@@ -513,7 +584,10 @@ export function DeliveryTrackingMap({
   const toggleAudioGuidance = () => {
     setAudioGuidanceEnabled((enabled) => {
       if (enabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-      if (enabled) lastSpokenManeuverRef.current = '';
+      if (enabled) {
+        spokenManeuverStagesRef.current.clear();
+        spokenRouteKeyRef.current = '';
+      }
       return !enabled;
     });
   };
