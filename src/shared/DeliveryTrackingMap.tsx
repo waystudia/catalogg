@@ -711,6 +711,7 @@ export function DeliveryTrackingMap({
               className="delivery-tracking-map__route"
               data-testid="delivery-road-route"
               viewBox={`0 0 ${mapSize} ${mapSize}`}
+              overflow="visible"
               aria-hidden="true"
             >
               <polyline
