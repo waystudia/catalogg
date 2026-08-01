@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { loadAsphaltPreferredRoadRoute } from '../../src/shared/asphaltRoadRouting';
 import {
+  findClosestAsphaltRoadPoint,
   getAsphaltRoadCandidates,
   normalizeAsphaltRoadPoints,
   type AsphaltRoadCorridor
@@ -18,6 +19,7 @@ const asphaltPoints = [
 
 const corridor = (points = asphaltPoints): AsphaltRoadCorridor => ({
   id: 'road-1',
+  groupName: 'Грозный',
   name: 'Главная асфальтовая дорога',
   points,
   createdAt: '2026-08-01T00:00:00.000Z',
@@ -45,6 +47,24 @@ describe('asphalt road corridors', () => {
     expect(candidates).toHaveLength(1);
     expect(candidates[0].points[0]).toEqual(asphaltPoints[0]);
     expect(candidates[0].points.at(-1)).toEqual(asphaltPoints.at(-1));
+  });
+
+  it('snaps a branch point to the nearest saved asphalt segment', () => {
+    const snap = findClosestAsphaltRoadPoint(
+      { lat: 43.3101, lng: 45.69 },
+      [corridor([{ lat: 43.31, lng: 45.68 }, { lat: 43.31, lng: 45.70 }])]
+    );
+
+    expect(snap?.corridorId).toBe('road-1');
+    expect(snap?.distanceM).toBeLessThan(12);
+    expect(snap?.point.lat).toBeCloseTo(43.31, 5);
+  });
+
+  it('does not snap to a distant saved asphalt segment', () => {
+    expect(findClosestAsphaltRoadPoint(
+      { lat: 43.32, lng: 45.69 },
+      [corridor([{ lat: 43.31, lng: 45.68 }, { lat: 43.31, lng: 45.70 }])]
+    )).toBeNull();
   });
 
   it('prefers a reasonable route through confirmed asphalt', async () => {

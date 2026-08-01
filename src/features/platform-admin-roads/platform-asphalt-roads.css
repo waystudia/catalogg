@@ -70,7 +70,13 @@
 .asphalt-road-editor__steps li[data-complete='true'] { background: #ecfdf3; color: #067647; }
 .asphalt-road-editor__steps li[data-complete='true'] b { background: #12b76a; }
 
-.asphalt-road-editor__name { display: grid; gap: 6px; margin-bottom: 12px; }
+.asphalt-road-editor__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.asphalt-road-editor__name { display: grid; gap: 6px; }
 .asphalt-road-editor__name span { color: #344054; font-size: 13px; font-weight: 800; }
 .asphalt-road-editor__name input {
   width: 100%;
@@ -164,6 +170,25 @@
 .asphalt-road-list__icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #ecfdf3; color: #079455; }
 .asphalt-road-list__icon svg { width: 21px; height: 21px; }
 .asphalt-road-list button.is-danger { width: 42px; padding: 0; background: #fef3f2; color: #d92d20; }
+.asphalt-road-group + .asphalt-road-group { border-top: 10px solid #f2f4f7; }
+.asphalt-road-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--platform-border);
+  background: #f8fafc;
+}
+.asphalt-road-group > header > div { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.asphalt-road-group > header > div > svg { width: 22px; flex: 0 0 auto; color: #16a34a; }
+.asphalt-road-group > header span,
+.asphalt-road-group > header strong,
+.asphalt-road-group > header small { display: block; }
+.asphalt-road-group > header span { min-width: 0; }
+.asphalt-road-group > header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asphalt-road-group > header small { margin-top: 2px; color: var(--platform-muted); font-size: 11px; }
+.asphalt-road-group > header button { flex: 0 0 auto; background: #ecfdf3; color: #067647; }
 .asphalt-road-list__empty { display: grid; justify-items: center; gap: 8px; padding: 38px 20px; color: var(--platform-muted); text-align: center; }
 .asphalt-road-list__empty > svg { width: 38px; height: 38px; color: #12b76a; }
 .asphalt-road-list__empty strong { color: #101828; font-size: 18px; }
@@ -174,6 +199,7 @@
   .platform-asphalt-roads-page .platform-page-head h1 { font-size: 27px; }
   .platform-asphalt-roads-page .platform-page-head button { min-height: 40px; padding: 0 12px; font-size: 12px; }
   .asphalt-road-editor { padding: 12px; }
+  .asphalt-road-editor__fields { grid-template-columns: 1fr; gap: 9px; }
   .asphalt-road-editor > header strong { font-size: 18px; }
   .asphalt-road-editor__steps li { justify-content: center; padding: 8px 4px; }
   .asphalt-road-editor__steps li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -184,4 +210,6 @@
   .asphalt-road-list article > button:not(.is-danger) { grid-column: 2 / 3; justify-self: start; min-height: 34px; padding: 0 10px; }
   .asphalt-road-list article > button.is-danger { grid-column: 3; grid-row: 1 / span 2; }
   .asphalt-road-list__icon { width: 38px; height: 38px; }
+  .asphalt-road-group > header { align-items: flex-start; padding: 11px 12px; }
+  .asphalt-road-group > header button { min-height: 34px; padding: 0 9px; font-size: 11px; }
 }

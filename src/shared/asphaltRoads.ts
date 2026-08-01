@@ -2,10 +2,17 @@ import type { DeliveryMapCoordinates } from './deliveryMap';
 
 export type AsphaltRoadCorridor = {
   readonly id: string;
+  readonly groupName: string;
   readonly name: string;
   readonly points: ReadonlyArray<DeliveryMapCoordinates>;
   readonly createdAt: string;
   readonly updatedAt: string;
+};
+
+export type AsphaltRoadSnap = {
+  readonly point: DeliveryMapCoordinates;
+  readonly distanceM: number;
+  readonly corridorId: string;
 };
 
 export type AsphaltRoadCandidate = {
@@ -49,6 +56,47 @@ export const normalizeAsphaltRoadPoints = (points: ReadonlyArray<DeliveryMapCoor
     .filter((point, index, values) => index === 0 ||
       getCoordinateDistanceM(values[index - 1], point) >= 2)
     .slice(0, 100);
+
+export const findClosestAsphaltRoadPoint = (
+  point: DeliveryMapCoordinates,
+  corridors: ReadonlyArray<AsphaltRoadCorridor>,
+  maximumDistanceM = 35
+): AsphaltRoadSnap | null => {
+  const metersPerLongitudeDegree = 111_320 * Math.cos(toRadians(point.lat));
+  let closest: AsphaltRoadSnap | null = null;
+
+  for (const corridor of corridors) {
+    const points = normalizeAsphaltRoadPoints(corridor.points);
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+      const startX = (start.lng - point.lng) * metersPerLongitudeDegree;
+      const startY = (start.lat - point.lat) * 111_320;
+      const endX = (end.lng - point.lng) * metersPerLongitudeDegree;
+      const endY = (end.lat - point.lat) * 111_320;
+      const segmentX = endX - startX;
+      const segmentY = endY - startY;
+      const segmentLengthSquared = (segmentX ** 2) + (segmentY ** 2);
+      const position = segmentLengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, -((startX * segmentX) + (startY * segmentY)) / segmentLengthSquared));
+      const nearestX = startX + (segmentX * position);
+      const nearestY = startY + (segmentY * position);
+      const distanceM = Math.hypot(nearestX, nearestY);
+      if (distanceM > maximumDistanceM || (closest && distanceM >= closest.distanceM)) continue;
+      closest = {
+        corridorId: corridor.id,
+        distanceM,
+        point: {
+          lat: point.lat + (nearestY / 111_320),
+          lng: point.lng + (nearestX / metersPerLongitudeDegree)
+        }
+      };
+    }
+  }
+
+  return closest;
+};
 
 export const getAsphaltRoadCandidates = (
   routePoints: ReadonlyArray<DeliveryMapCoordinates>,

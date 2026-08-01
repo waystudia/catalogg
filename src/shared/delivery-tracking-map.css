@@ -49,6 +49,32 @@
   font-weight: 900;
 }
 
+.delivery-tracking-map__locate:disabled,
+.delivery-tracking-map__controls button:disabled { opacity: .55; }
+
+.delivery-tracking-map.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: #111827;
+}
+
+.delivery-tracking-map.is-fullscreen .delivery-tracking-map__canvas {
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  aspect-ratio: auto;
+}
+
 .delivery-tracking-map__locate {
   display: grid;
   width: 38px;
@@ -232,6 +258,12 @@
   transition: opacity 220ms ease;
 }
 
+.delivery-tracking-map__route .delivery-tracking-map__saved-roads polyline {
+  stroke: #16a34a;
+  stroke-width: 12;
+  opacity: .72;
+}
+
 .delivery-tracking-map__editor-point {
   position: absolute;
   z-index: 4;
@@ -252,6 +284,19 @@
 
 .delivery-tracking-map__editor-point[data-kind='start'] { background: #22c55e; color: #ffffff; }
 .delivery-tracking-map__editor-point[data-kind='end'] { background: #ef4444; color: #ffffff; }
+
+.delivery-tracking-map__current-location {
+  position: absolute;
+  z-index: 4;
+  width: 16px;
+  height: 16px;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 0 0 8px rgb(37 99 235 / 20%), 0 5px 14px rgb(15 23 42 / 24%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
 
 .delivery-tracking-map__marker {
   position: absolute;

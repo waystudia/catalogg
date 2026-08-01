@@ -78,6 +78,55 @@ test('adds an asphalt editor point with a map tap', async () => {
   expect(onMapClick).toHaveBeenCalledOnce();
 });
 
+test('locates the asphalt editor and opens its map fullscreen', async () => {
+  const onMapClick = vi.fn();
+  const originalGeolocation = navigator.geolocation;
+  const getCurrentPosition = vi.fn((success: PositionCallback) => success({
+    coords: {
+      latitude: 43.32,
+      longitude: 45.70,
+      accuracy: 5,
+      altitude: null,
+      altitudeAccuracy: null,
+      heading: null,
+      speed: null
+    },
+    timestamp: Date.now()
+  } as GeolocationPosition));
+  Object.defineProperty(navigator, 'geolocation', {
+    configurable: true,
+    value: { getCurrentPosition }
+  });
+
+  try {
+    const screen = await render(
+      <DeliveryTrackingMap enableSearch enableFullscreen preferAsphaltRoads={false} onMapClick={onMapClick} />
+    );
+    await screen.getByRole('button', { name: 'Моё местоположение' }).click();
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    await expect.element(screen.getByText('Карта перемещена к вашему местоположению.')).toBeVisible();
+
+    const fullscreenButton = screen.getByRole('button', { name: 'Открыть карту на весь экран' });
+    await fullscreenButton.click();
+    await expect.element(screen.getByRole('button', { name: 'Закрыть полноэкранную карту' })).toBeVisible();
+    await screen.getByLabelText('Поле разметки дороги').click();
+    expect(onMapClick).toHaveBeenCalledOnce();
+  } finally {
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: originalGeolocation });
+  }
+});
+
+test('shows saved asphalt roads as branch references', async () => {
+  const screen = await render(
+    <DeliveryTrackingMap
+      editorReferenceRoutes={[[restaurant, client]]}
+      preferAsphaltRoads={false}
+    />
+  );
+
+  await expect.element(screen.getByTestId('saved-asphalt-road')).toHaveAttribute('points');
+});
+
 test('keeps navigation controls compact and separates compass from driver follow mode', async () => {
   const onRouteSummaryChange = vi.fn();
   const loadRoute = vi.fn(async () => ({

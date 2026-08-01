@@ -8,6 +8,7 @@ import type { DeliveryMapCoordinates } from '../deliveryMap';
 
 type AsphaltRoadCorridorRow = {
   id: string;
+  group_name?: string | null;
   name: string;
   points: unknown;
   created_at: string;
@@ -26,6 +27,7 @@ const mapRow = (row: AsphaltRoadCorridorRow): AsphaltRoadCorridor | null => {
   if (!parsedPoints.success) return null;
   return {
     id: row.id,
+    groupName: row.group_name?.trim() || 'Без группы',
     name: row.name,
     points: parsedPoints.data,
     createdAt: row.created_at,
@@ -53,6 +55,7 @@ const writeLocalCorridors = (corridors: ReadonlyArray<AsphaltRoadCorridor>) => {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(localStorageKey, JSON.stringify(corridors.map((corridor) => ({
     id: corridor.id,
+    group_name: corridor.groupName,
     name: corridor.name,
     points: corridor.points,
     created_at: corridor.createdAt,
@@ -64,7 +67,7 @@ export async function getAsphaltRoadCorridors(): Promise<AsphaltRoadCorridor[]> 
   if (!supabase) return readLocalCorridors();
   const { data, error } = await supabase
     .from('asphalt_road_corridors')
-    .select('id, name, points, created_at, updated_at')
+    .select('id, group_name, name, points, created_at, updated_at')
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return ((data ?? []) as AsphaltRoadCorridorRow[])
@@ -74,12 +77,15 @@ export async function getAsphaltRoadCorridors(): Promise<AsphaltRoadCorridor[]> 
 
 export async function saveAsphaltRoadCorridor(input: {
   readonly id?: string;
+  readonly groupName: string;
   readonly name: string;
   readonly points: ReadonlyArray<DeliveryMapCoordinates>;
 }): Promise<void> {
   const name = input.name.trim();
+  const groupName = input.groupName.trim();
   const points = normalizeAsphaltRoadPoints(input.points);
   if (!name) throw new Error('Введите название участка.');
+  if (!groupName) throw new Error('Введите село, город или название группы.');
   if (points.length < 2) throw new Error('Укажите начало и конец асфальтового участка.');
 
   const now = new Date().toISOString();
@@ -88,6 +94,7 @@ export async function saveAsphaltRoadCorridor(input: {
     const existing = input.id ? corridors.find((corridor) => corridor.id === input.id) : null;
     const next: AsphaltRoadCorridor = {
       id: input.id ?? crypto.randomUUID(),
+      groupName,
       name,
       points,
       createdAt: existing?.createdAt ?? now,
@@ -97,7 +104,7 @@ export async function saveAsphaltRoadCorridor(input: {
     return;
   }
 
-  const payload = { name, points, updated_at: now };
+  const payload = { group_name: groupName, name, points, updated_at: now };
   const result = input.id
     ? await supabase.from('asphalt_road_corridors').update(payload).eq('id', input.id)
     : await supabase.from('asphalt_road_corridors').insert(payload);

@@ -7,7 +7,9 @@ import {
   Layers3,
   LocateFixed,
   MapPin,
+  Maximize2,
   Minus,
+  Minimize2,
   Navigation,
   Plus,
   RotateCcw,
@@ -59,8 +61,10 @@ type DeliveryTrackingMapProps = {
   loadRoute?: (points: ReadonlyArray<DeliveryMapCoordinates>) => Promise<RoadRoute>;
   preferAsphaltRoads?: boolean;
   editorPoints?: ReadonlyArray<DeliveryMapCoordinates>;
+  editorReferenceRoutes?: ReadonlyArray<ReadonlyArray<DeliveryMapCoordinates>>;
   onMapClick?: (point: DeliveryMapCoordinates) => void;
   enableSearch?: boolean;
+  enableFullscreen?: boolean;
   searchLocations?: (query: string) => Promise<ReadonlyArray<DeliveryLocationSearchResult>>;
   followDriverHeading?: boolean;
   navigationMode?: boolean;
@@ -112,8 +116,10 @@ export function DeliveryTrackingMap({
   loadRoute,
   preferAsphaltRoads = true,
   editorPoints = [],
+  editorReferenceRoutes = [],
   onMapClick,
   enableSearch = false,
+  enableFullscreen = false,
   searchLocations = searchDeliveryLocations,
   followDriverHeading = false,
   navigationMode = false,
@@ -139,6 +145,7 @@ export function DeliveryTrackingMap({
   const mapZoomRef = useRef(0);
   const mapTapRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [scale, setScale] = useState(1);
+  const [sceneOffset, setSceneOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [mapStyle, setMapStyle] = useState<DeliveryMapStyle>(initialStyle);
   const [loadedRoadRoute, setLoadedRoadRoute] = useState<RoadRoute | null>(null);
@@ -147,6 +154,9 @@ export function DeliveryTrackingMap({
   const [searchResults, setSearchResults] = useState<ReadonlyArray<DeliveryLocationSearchResult>>([]);
   const [searchMessage, setSearchMessage] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locatedPosition, setLocatedPosition] = useState<DeliveryMapCoordinates | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [movementHeading, setMovementHeading] = useState<number | null>(null);
   const [audioGuidanceEnabled, setAudioGuidanceEnabled] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
@@ -353,6 +363,27 @@ export function DeliveryTrackingMap({
     () => editorPoints.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })),
     [center, editorPoints, mapZoom]
   );
+  const projectedEditorReferenceRoutes = useMemo(
+    () => editorReferenceRoutes.map((route) => route.map((point) =>
+      coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })
+    )),
+    [center, editorReferenceRoutes, mapZoom]
+  );
+  const projectedLocatedPosition = useMemo(
+    () => locatedPosition
+      ? coordinatesToMapPoint(locatedPosition, center, mapZoom, mapSize, { clampToViewport: false })
+      : null,
+    [center, locatedPosition, mapZoom]
+  );
+
+  useEffect(() => {
+    if (!isFullscreen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullscreen]);
 
   useEffect(() => {
     const configuredRoutePoints = latestRoutePointsRef.current;
@@ -409,12 +440,21 @@ export function DeliveryTrackingMap({
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    const updateScale = () => setScale(Math.min(1, canvas.clientWidth / mapSize));
+    const updateScale = () => {
+      const nextScale = isFullscreen
+        ? Math.max(canvas.clientWidth, canvas.clientHeight) / mapSize
+        : Math.min(1, canvas.clientWidth / mapSize);
+      setScale(nextScale);
+      setSceneOffset({
+        x: (canvas.clientWidth - (mapSize * nextScale)) / 2,
+        y: (canvas.clientHeight - (mapSize * nextScale)) / 2
+      });
+    };
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, []);
+  }, [isFullscreen]);
 
   useEffect(() => {
     if (!followDriverHeading || !displayedDriver || userAdjustedViewRef.current) return;
@@ -517,8 +557,8 @@ export function DeliveryTrackingMap({
     if (onMapClick && tap && !tap.moved && activePointersRef.current.size === 1) {
       const bounds = event.currentTarget.getBoundingClientRect();
       const scaledPoint = {
-        x: (event.clientX - bounds.left) / scale,
-        y: (event.clientY - bounds.top) / scale
+        x: (event.clientX - bounds.left - sceneOffset.x) / scale,
+        y: (event.clientY - bounds.top - sceneOffset.y) / scale
       };
       const unrotatedPoint = rotateMapPoint(
         scaledPoint,
@@ -619,6 +659,38 @@ export function DeliveryTrackingMap({
     animateMapZoom(defaultMapZoom);
   };
 
+  const locateCurrentPosition = () => {
+    if (displayedDriver) {
+      centerOnDriver();
+      return;
+    }
+    if (!navigator.geolocation) {
+      setSearchMessage('Геолокация недоступна в этом браузере.');
+      return;
+    }
+    setIsLocating(true);
+    setSearchMessage('Определяем местоположение...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        userAdjustedViewRef.current = true;
+        const nextPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setLocatedPosition(nextPosition);
+        setCenter(nextPosition);
+        setSearchResults([]);
+        setSearchMessage('Карта перемещена к вашему местоположению.');
+        animateMapZoom(Math.max(17, mapZoomRef.current));
+        setIsLocating(false);
+      },
+      (error) => {
+        setSearchMessage(error.code === error.PERMISSION_DENIED
+          ? 'Разрешите доступ к геопозиции в настройках браузера.'
+          : 'Не удалось определить местоположение. Попробуйте ещё раз.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 15_000 }
+    );
+  };
+
   const alignMapToCompass = () => {
     userAdjustedViewRef.current = true;
     setManualRotation((currentManualRotation) =>
@@ -641,7 +713,7 @@ export function DeliveryTrackingMap({
   };
 
   return (
-    <section className={`delivery-tracking-map ${className}`.trim()} aria-label="Карта доставки">
+    <section className={`delivery-tracking-map ${className}${isFullscreen ? ' is-fullscreen' : ''}`.trim()} aria-label="Карта доставки">
       {enableSearch && (
         <div className="delivery-tracking-map__search-wrap">
           <form
@@ -664,7 +736,7 @@ export function DeliveryTrackingMap({
               {isSearching ? 'Ищем...' : 'Найти'}
             </button>
           </form>
-          <button className="delivery-tracking-map__locate" type="button" onClick={centerOnDriver} aria-label="Моё местоположение">
+          <button className="delivery-tracking-map__locate" type="button" onClick={locateCurrentPosition} disabled={isLocating} aria-label="Моё местоположение">
             <LocateFixed />
           </button>
           {(searchResults.length > 0 || searchMessage) && (
@@ -738,7 +810,10 @@ export function DeliveryTrackingMap({
           setMapZoom((value) => Math.min(maximumInteractiveMapZoom, Math.max(10, value + direction * 0.5)));
         }}
       >
-        <div className="delivery-tracking-map__scene" style={{ transform: `scale(${scale})` }}>
+        <div
+          className="delivery-tracking-map__scene"
+          style={{ transform: `translate(${sceneOffset.x}px, ${sceneOffset.y}px) scale(${scale})` }}
+        >
           <div className="delivery-tracking-map__rotator" style={{ transform: `rotate(${mapRotation}deg)` }}>
             {fallbackTiles.map((tile) => (
               <span className="delivery-tracking-map__tile delivery-tracking-map__tile--fallback" key={`fallback-${tile.key}`} style={{ left: tile.x, top: tile.y, width: tile.size, height: tile.size }}>
@@ -763,6 +838,15 @@ export function DeliveryTrackingMap({
               overflow="visible"
               aria-hidden="true"
             >
+              <g className="delivery-tracking-map__saved-roads">
+                {projectedEditorReferenceRoutes.map((route, index) => (
+                  <polyline
+                    data-testid="saved-asphalt-road"
+                    key={index}
+                    points={route.map((point) => `${point.x},${point.y}`).join(' ')}
+                  />
+                ))}
+              </g>
               <polyline
                 points={projectedRoadRoute
                   .map((point) => `${point.x},${point.y}`)
@@ -780,6 +864,13 @@ export function DeliveryTrackingMap({
                 {index + 1}
               </span>
             ))}
+            {projectedLocatedPosition && (
+              <span
+                className="delivery-tracking-map__current-location"
+                style={{ left: projectedLocatedPosition.x, top: projectedLocatedPosition.y }}
+                aria-hidden="true"
+              />
+            )}
             {restaurantPoint && restaurant && (
               <TrackingMarker
                 point={restaurantPoint}
@@ -830,6 +921,14 @@ export function DeliveryTrackingMap({
           )}
         </div>
         <div className="delivery-tracking-map__controls" aria-label="Управление картой" onPointerDown={(event) => event.stopPropagation()}>
+          {enableFullscreen && (
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((value) => !value)}
+              aria-label={isFullscreen ? 'Закрыть полноэкранную карту' : 'Открыть карту на весь экран'}
+              aria-pressed={isFullscreen}
+            >{isFullscreen ? <Minimize2 /> : <Maximize2 />}</button>
+          )}
           {navigationMode && (
             <button
               type="button"
@@ -854,7 +953,7 @@ export function DeliveryTrackingMap({
           )}
           {!navigationMode && (
             <>
-              <button type="button" onClick={centerOnDriver} aria-label="Определить местоположение" title="Определить местоположение"><Navigation /></button>
+              <button type="button" onClick={locateCurrentPosition} disabled={isLocating} aria-label="Определить местоположение" title="Определить местоположение"><Navigation /></button>
               <button type="button" onClick={() => { userAdjustedViewRef.current = true; setManualRotation(0); setCenter(defaultCenter); setMapZoom(defaultMapZoom); }} aria-label="Показать все точки"><LocateFixed /></button>
             </>
           )}
