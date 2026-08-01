@@ -11,7 +11,10 @@ export function useCatalogCategoryObserver(
   const pendingCategoryRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const elements = Array.from(sectionRefs.current.values());
+    const sections = sectionRefs.current;
+    if (!sections) return undefined;
+
+    const elements = Array.from(sections.values());
     if (elements.length === 0) return undefined;
 
     const observer = new IntersectionObserver(

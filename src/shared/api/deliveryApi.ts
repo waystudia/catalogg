@@ -271,6 +271,7 @@ const demoOrder = (overrides: Partial<OrderLifecycleSnapshot> = {}): OrderLifecy
 const demoOffers: readonly DeliveryOffer[] = [
   {
     ...buildDriverDeliveryView({ order: demoOrder(), assignment: null, viewerDriverId: demoDriverId }),
+    businessType: 'restaurant',
     deliveryId: 'delivery-demo-1',
     orderNumber: 'R2347',
     createdAt: new Date().toISOString(),
@@ -296,6 +297,7 @@ const demoOffers: readonly DeliveryOffer[] = [
       assignment: null,
       viewerDriverId: demoDriverId
     }),
+    businessType: 'restaurant',
     deliveryId: 'delivery-demo-2',
     orderNumber: 'M2346',
     createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),

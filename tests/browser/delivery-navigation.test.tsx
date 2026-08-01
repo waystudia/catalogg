@@ -224,6 +224,7 @@ test('shows route progress for the current restaurant or client leg', async () =
 
 test('shows an assigned order detail in the same accepted-delivery card used on the home screen', async () => {
   const delivery: DeliveryOffer = {
+    businessType: 'restaurant',
     deliveryId: 'delivery-1',
     orderId: 'order-1',
     orderNumber: 'M6714',
