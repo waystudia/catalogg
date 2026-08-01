@@ -94,7 +94,7 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.doesNotMatch(activeScreen, /<DeliveryTrackingMap/);
     assert.match(driverApp, /Открыть карту маршрута/);
     assert.match(driverApp, /driver-phone--map/);
-    assert.match(mapSource, /const driverFollowMapZoom = 16/);
+    assert.match(mapSource, /const driverFollowMapZoom = 17\.5/);
     assert.match(mapSource, /animateMapZoom\(driverFollowMapZoom\)/);
     assert.match(mapSource, /requestAnimationFrame/);
     assert.match(mapSource, /aria-label="Определить местоположение"/);

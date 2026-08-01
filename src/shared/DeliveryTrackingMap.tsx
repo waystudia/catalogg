@@ -67,7 +67,7 @@ export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 
 const mapSize = 640;
 const maximumInteractiveMapZoom = 20;
-const driverFollowMapZoom = 16;
+const driverFollowMapZoom = 17.5;
 const webMercatorMetersPerPixel = 156_543.03392;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;

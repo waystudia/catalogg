@@ -156,7 +156,7 @@ test('keeps navigation controls compact and separates compass from driver follow
   const followedLevel = getMapZoom();
   expect(midAnimationLevel).toBeLessThan(zoomedInLevel);
   expect(midAnimationLevel).toBeGreaterThan(followedLevel);
-  expect(followedLevel).toBeCloseTo(16, 2);
+  expect(followedLevel).toBeCloseTo(17.5, 2);
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
 });
 
