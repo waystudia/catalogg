@@ -224,6 +224,16 @@ export function DeliveryTrackingMap({
     () => buildMapTileGrid({ center, zoom: mapZoom, mapSize, style: mapStyle }),
     [center, mapStyle, mapZoom]
   );
+  const fallbackTiles = useMemo(
+    () => buildMapTileGrid({
+      center,
+      zoom: mapZoom,
+      mapSize,
+      style: mapStyle,
+      sourceZoom: Math.max(0, Math.floor(mapZoom) - 1)
+    }),
+    [center, mapStyle, mapZoom]
+  );
   const restaurantPoint = useMemo(
     () => restaurant ? { ...restaurant, ...coordinatesToMapPoint(restaurant, center, mapZoom, mapSize, { clampToViewport: false }) } : null,
     [center, mapZoom, restaurant]
@@ -681,6 +691,14 @@ export function DeliveryTrackingMap({
       >
         <div className="delivery-tracking-map__scene" style={{ transform: `scale(${scale})` }}>
           <div className="delivery-tracking-map__rotator" style={{ transform: `rotate(${mapRotation}deg)` }}>
+            {fallbackTiles.map((tile) => (
+              <span className="delivery-tracking-map__tile delivery-tracking-map__tile--fallback" key={`fallback-${tile.key}`} style={{ left: tile.x, top: tile.y, width: tile.size, height: tile.size }}>
+                <img src={tile.url} alt="" aria-hidden="true" draggable={false} loading="eager" decoding="async" />
+                {tile.overlayUrls.map((url) => (
+                  <img className="delivery-tracking-map__tile-overlay" key={url} src={url} alt="" aria-hidden="true" draggable={false} loading="eager" decoding="async" />
+                ))}
+              </span>
+            ))}
             {tiles.map((tile) => (
               <span className="delivery-tracking-map__tile" key={tile.key} style={{ left: tile.x, top: tile.y, width: tile.size, height: tile.size }}>
                 <img src={tile.url} alt="" aria-hidden="true" draggable={false} loading="eager" decoding="async" />

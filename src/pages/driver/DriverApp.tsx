@@ -1805,6 +1805,7 @@ export function DriverRouteLegProgress({
 
 function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [routeRefreshKey, setRouteRefreshKey] = useState(0);
   const [routeSummaryState, setRouteSummary] = useState<{ key: string; summary: DeliveryRouteSummary } | null>(null);
   const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
@@ -1874,7 +1875,11 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
   return (
     <div className="driver-map-screen" data-sheet-expanded={sheetExpanded}>
       <header className="driver-map-topbar">
-        <button type="button" onClick={() => navigate(-1)} aria-label="Назад"><ArrowLeft /></button>
+        <button
+          type="button"
+          onClick={() => navigate(getDriverBackTarget(location.pathname), { replace: true })}
+          aria-label="Выйти из карты"
+        ><ArrowLeft /></button>
         <span><i aria-hidden="true" />Вы на маршруте</span>
         <button
           type="button"

@@ -173,10 +173,13 @@
 
 .delivery-tracking-map__tile {
   position: absolute;
+  z-index: 1;
   width: 256px;
   height: 256px;
   transition: none;
 }
+
+.delivery-tracking-map__tile--fallback { z-index: 0; }
 
 .delivery-tracking-map__tile img {
   position: absolute;
@@ -187,7 +190,7 @@
   user-select: none;
 }
 
-.delivery-tracking-map__tile > img:first-child { background: #cbd5e1; }
+.delivery-tracking-map__tile > img:first-child { background: transparent; }
 
 .delivery-tracking-map__tile-overlay { z-index: 1; }
 
