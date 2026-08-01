@@ -169,19 +169,23 @@ test('keeps a wide upright restaurant destination label the same size while zoom
   );
 
   const restaurantMarker = screen.getByRole('button', { name: 'Ресторан: Мангал' });
+  const clientMarker = screen.getByRole('button', { name: 'Клиент: Клиент' });
   await expect.element(restaurantMarker.getByText('Мангал')).toBeVisible();
   await expect.element(restaurantMarker.getByText('Ресторан')).toBeVisible();
-  const readMarkerSize = () => {
-    const style = getComputedStyle(restaurantMarker.element());
+  expect(clientMarker.element().querySelector('strong')?.textContent).toBe('Клиент');
+  expect(clientMarker.element().querySelector('small')?.textContent).toBe('Клиент');
+  const readMarkerSize = (marker: HTMLElement) => {
+    const style = getComputedStyle(marker);
     return { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) };
   };
-  const initialSize = readMarkerSize();
+  const initialSize = readMarkerSize(restaurantMarker.element());
   expect(initialSize.width).toBeGreaterThanOrEqual(80);
   expect(initialSize.height).toBeGreaterThanOrEqual(40);
+  expect(readMarkerSize(clientMarker.element())).toEqual(initialSize);
 
   await screen.getByRole('button', { name: 'Отдалить' }).click();
   await screen.getByRole('button', { name: 'Отдалить' }).click();
-  const zoomedOutSize = readMarkerSize();
+  const zoomedOutSize = readMarkerSize(restaurantMarker.element());
   expect(zoomedOutSize.width).toBe(initialSize.width);
   expect(zoomedOutSize.height).toBe(initialSize.height);
 });

@@ -817,10 +817,10 @@ function TrackingMarker({
       onClick={onSelect}
     >
       {icon}
-      {kind === 'restaurant' && (
+      {kind !== 'driver' && (
         <span className="delivery-tracking-map__marker-label">
-          <strong>{point.label}</strong>
-          <small>Ресторан</small>
+          <strong>{kind === 'restaurant' ? point.label : 'Клиент'}</strong>
+          <small>{kind === 'restaurant' ? 'Ресторан' : point.label}</small>
         </span>
       )}
     </button>
