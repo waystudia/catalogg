@@ -64,6 +64,20 @@ test('switches between street and labeled satellite maps and shows a routed summ
   expect(loadRoute).toHaveBeenCalledOnce();
 });
 
+test('adds an asphalt editor point with a map tap', async () => {
+  const onMapClick = vi.fn();
+  const screen = await render(
+    <DeliveryTrackingMap
+      routePoints={[]}
+      editorPoints={[]}
+      preferAsphaltRoads={false}
+      onMapClick={onMapClick}
+    />
+  );
+  await screen.getByLabelText('Поле разметки дороги').click();
+  expect(onMapClick).toHaveBeenCalledOnce();
+});
+
 test('keeps navigation controls compact and separates compass from driver follow mode', async () => {
   const onRouteSummaryChange = vi.fn();
   const loadRoute = vi.fn(async () => ({

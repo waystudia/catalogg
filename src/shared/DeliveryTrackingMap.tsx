@@ -32,6 +32,7 @@ import {
   type DeliveryMapCoordinates,
   type DeliveryMapStyle
 } from './deliveryMap';
+import { loadAsphaltPreferredRoadRoute } from './asphaltRoadRouting';
 import { searchDeliveryLocations, type DeliveryLocationSearchResult } from './deliveryGeocoder';
 import {
   getManeuverAnnouncementStage,
@@ -56,6 +57,9 @@ type DeliveryTrackingMapProps = {
   initialStyle?: DeliveryMapStyle;
   routePoints?: ReadonlyArray<DeliveryMapCoordinates>;
   loadRoute?: (points: ReadonlyArray<DeliveryMapCoordinates>) => Promise<RoadRoute>;
+  preferAsphaltRoads?: boolean;
+  editorPoints?: ReadonlyArray<DeliveryMapCoordinates>;
+  onMapClick?: (point: DeliveryMapCoordinates) => void;
   enableSearch?: boolean;
   searchLocations?: (query: string) => Promise<ReadonlyArray<DeliveryLocationSearchResult>>;
   followDriverHeading?: boolean;
@@ -69,7 +73,9 @@ const mapSize = 640;
 const maximumInteractiveMapZoom = 20;
 const driverFollowMapZoom = 17.5;
 const webMercatorMetersPerPixel = 156_543.03392;
-const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
+const standardRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
+const asphaltPreferredRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) =>
+  loadAsphaltPreferredRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
 const maximumOnRouteDistanceM = 15;
 const offRouteReadingsBeforeReroute = 2;
@@ -103,7 +109,10 @@ export function DeliveryTrackingMap({
   className = '',
   initialStyle = 'street',
   routePoints,
-  loadRoute = defaultRouteLoader,
+  loadRoute,
+  preferAsphaltRoads = true,
+  editorPoints = [],
+  onMapClick,
   enableSearch = false,
   searchLocations = searchDeliveryLocations,
   followDriverHeading = false,
@@ -128,6 +137,7 @@ export function DeliveryTrackingMap({
   const lastRerouteAtRef = useRef(0);
   const zoomAnimationFrameRef = useRef<number | null>(null);
   const mapZoomRef = useRef(0);
+  const mapTapRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [mapStyle, setMapStyle] = useState<DeliveryMapStyle>(initialStyle);
@@ -144,14 +154,14 @@ export function DeliveryTrackingMap({
     () => [restaurant, client].filter((point): point is TrackingPoint => Boolean(point)),
     [client, restaurant]
   );
+  const routePointKey = (routePoints ?? baseRoutePoints)
+    .map((point) => `${point.lat},${point.lng}`)
+    .join('|');
   const resetViewKey = baseRoutePoints.length > 0
     ? formatRoutePointKey(baseRoutePoints)
     : driver
       ? 'driver-only'
-      : 'empty';
-  const routePointKey = (routePoints ?? baseRoutePoints)
-    .map((point) => `${point.lat},${point.lng}`)
-    .join('|');
+      : routePointKey || 'empty';
   const requestedRoutePoints = routePoints ?? baseRoutePoints;
   const roadRouteDestinationKey = navigationMode && requestedRoutePoints.length >= 2
     ? formatRoutePointKey(requestedRoutePoints.slice(-1))
@@ -166,6 +176,7 @@ export function DeliveryTrackingMap({
     }),
     [routePointKey]
   );
+  const routeLoader = loadRoute ?? (preferAsphaltRoads ? asphaltPreferredRouteLoader : standardRouteLoader);
   latestRoutePointsRef.current = effectiveRoutePoints;
   const canAutomaticallyReroute = Boolean(
     navigationMode &&
@@ -177,9 +188,10 @@ export function DeliveryTrackingMap({
     () => [
       ...(restaurant ? [{ lat: restaurant.lat, lng: restaurant.lng }] : []),
       ...(client ? [{ lat: client.lat, lng: client.lng }] : []),
-      ...(driver ? [{ lat: driver.lat, lng: driver.lng }] : [])
+      ...(driver ? [{ lat: driver.lat, lng: driver.lng }] : []),
+      ...(!restaurant && !client && !driver ? effectiveRoutePoints : [])
     ],
-    [client, driver, restaurant]
+    [client, driver, effectiveRoutePoints, restaurant]
   );
   const defaultCenter = useMemo(() => getMapCenter(mapAnchorPoints), [mapAnchorPoints]);
   const defaultMapZoom = useMemo(() => getMapZoomForPoints(mapAnchorPoints), [mapAnchorPoints]);
@@ -337,6 +349,10 @@ export function DeliveryTrackingMap({
     () => visibleRoadRouteGeometry?.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })) ?? fallbackRoutePoints,
     [center, fallbackRoutePoints, mapZoom, visibleRoadRouteGeometry]
   );
+  const projectedEditorPoints = useMemo(
+    () => editorPoints.map((point) => coordinatesToMapPoint(point, center, mapZoom, mapSize, { clampToViewport: false })),
+    [center, editorPoints, mapZoom]
+  );
 
   useEffect(() => {
     const configuredRoutePoints = latestRoutePointsRef.current;
@@ -351,7 +367,7 @@ export function DeliveryTrackingMap({
     routeRequestIdRef.current = requestId;
     setLoadedRoadRoute(null);
     routeProgressRef.current = null;
-    void loadRoute(currentRoutePoints)
+    void routeLoader(currentRoutePoints)
       .then((route) => {
         if (active && requestId === routeRequestIdRef.current) setLoadedRoadRoute(route);
       })
@@ -362,7 +378,7 @@ export function DeliveryTrackingMap({
     return () => {
       active = false;
     };
-  }, [navigationMode, roadRouteRequestKey, loadRoute]);
+  }, [navigationMode, roadRouteRequestKey, routeLoader]);
 
   useEffect(() => {
     offRouteReadingsRef.current = 0;
@@ -497,6 +513,21 @@ export function DeliveryTrackingMap({
   };
 
   const releasePointer = (event: PointerEvent<HTMLDivElement>) => {
+    const tap = mapTapRef.current;
+    if (onMapClick && tap && !tap.moved && activePointersRef.current.size === 1) {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const scaledPoint = {
+        x: (event.clientX - bounds.left) / scale,
+        y: (event.clientY - bounds.top) / scale
+      };
+      const unrotatedPoint = rotateMapPoint(
+        scaledPoint,
+        -mapRotation,
+        { x: mapSize / 2, y: mapSize / 2 }
+      );
+      onMapClick(mapPointToCoordinates(unrotatedPoint, center, mapZoom, mapSize));
+    }
+    mapTapRef.current = null;
     activePointersRef.current.delete(event.pointerId);
     if (activePointersRef.current.size === 0) {
       endDrag();
@@ -650,15 +681,20 @@ export function DeliveryTrackingMap({
         </div>
       )}
       <div
-        className={isDragging ? 'delivery-tracking-map__canvas is-dragging' : 'delivery-tracking-map__canvas'}
+        className={`delivery-tracking-map__canvas${isDragging ? ' is-dragging' : ''}${onMapClick ? ' is-editing' : ''}`}
         data-map-zoom={mapZoom.toFixed(3)}
+        aria-label={onMapClick ? 'Поле разметки дороги' : undefined}
         ref={canvasRef}
         onPointerDown={(event) => {
           if ((event.target as HTMLElement).closest('button, input')) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
           trackPointer(event);
+          if (activePointersRef.current.size === 1) {
+            mapTapRef.current = { x: event.clientX, y: event.clientY, moved: false };
+          }
           if (activePointersRef.current.size === 2) {
+            if (mapTapRef.current) mapTapRef.current.moved = true;
             const distance = getPinchDistance();
             const angle = getPinchAngle();
             if (distance !== null && angle !== null) {
@@ -673,6 +709,12 @@ export function DeliveryTrackingMap({
         }}
         onPointerMove={(event) => {
           if (activePointersRef.current.has(event.pointerId)) trackPointer(event);
+          if (mapTapRef.current && Math.hypot(
+            event.clientX - mapTapRef.current.x,
+            event.clientY - mapTapRef.current.y
+          ) > 7) {
+            mapTapRef.current.moved = true;
+          }
           const pinchStart = pinchStartRef.current;
           const pinchDistance = getPinchDistance();
           const pinchAngle = getPinchAngle();
@@ -727,6 +769,17 @@ export function DeliveryTrackingMap({
                   .join(' ')}
               />
             </svg>
+            {projectedEditorPoints.map((point, index) => (
+              <span
+                className="delivery-tracking-map__editor-point"
+                data-kind={index === 0 ? 'start' : index === projectedEditorPoints.length - 1 ? 'end' : 'middle'}
+                key={`${editorPoints[index]?.lat}-${editorPoints[index]?.lng}-${index}`}
+                style={{ left: point.x, top: point.y }}
+                aria-hidden="true"
+              >
+                {index + 1}
+              </span>
+            ))}
             {restaurantPoint && restaurant && (
               <TrackingMarker
                 point={restaurantPoint}

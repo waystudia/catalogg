@@ -32,6 +32,7 @@ import {
   Phone,
   Plus,
   RefreshCcw,
+  Route,
   Search,
   Save,
   Settings,
@@ -113,6 +114,7 @@ import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformU
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
 import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
+import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -136,6 +138,7 @@ type PlatformRoute =
   | 'clients'
   | 'client-signups'
   | 'settlements'
+  | 'roads'
   | 'drivers'
   | 'catalogs'
   | 'templates'
@@ -175,6 +178,7 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
   { route: 'client-signups', label: 'Пользователи', detail: 'Клиенты приложения', Icon: UserRound },
   { route: 'analytics', label: 'Статистика', detail: 'Аудитория и заказы', Icon: BarChart3 },
   { route: 'settlements', label: 'География', detail: 'Сёла и заявки', Icon: MapPin },
+  { route: 'roads', label: 'Асфальт', detail: 'Хорошие дороги', Icon: Route },
   { route: 'drivers', label: 'Водители', detail: 'Доступы и статусы', Icon: Truck },
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
   { route: 'templates', label: 'Шаблоны', detail: 'Управление шаблонами', Icon: LayoutTemplate },
@@ -245,6 +249,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   if (path.includes('/admin/client-signups')) return 'client-signups';
   if (path.includes('/admin/analytics')) return 'analytics';
   if (path.includes('/admin/settlements')) return 'settlements';
+  if (path.includes('/admin/roads')) return 'roads';
   if (path.includes('/admin/drivers')) return 'drivers';
   if (path.includes('/admin/templates')) return 'templates';
   if (path.includes('/admin/import-export')) return 'import-export';
@@ -3322,6 +3327,9 @@ function PlatformAdminContent() {
     }
     if (route === 'settlements') {
       return <PlatformGeographyPage />;
+    }
+    if (route === 'roads') {
+      return <PlatformAsphaltRoadsPage />;
     }
     if (route === 'drivers') {
       return <PlatformDriversPage />;

@@ -93,6 +93,7 @@
 }
 
 .delivery-tracking-map__canvas.is-dragging { cursor: grabbing; }
+.delivery-tracking-map__canvas.is-editing:not(.is-dragging) { cursor: crosshair; }
 
 .delivery-tracking-map__scene {
   position: absolute;
@@ -230,6 +231,27 @@
   vector-effect: non-scaling-stroke;
   transition: opacity 220ms ease;
 }
+
+.delivery-tracking-map__editor-point {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #111827;
+  box-shadow: 0 5px 14px rgb(15 23 42 / 28%);
+  font-size: 11px;
+  font-weight: 950;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.delivery-tracking-map__editor-point[data-kind='start'] { background: #22c55e; color: #ffffff; }
+.delivery-tracking-map__editor-point[data-kind='end'] { background: #ef4444; color: #ffffff; }
 
 .delivery-tracking-map__marker {
   position: absolute;
