@@ -60,6 +60,7 @@ type DeliveryTrackingMapProps = {
 export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 
 const mapSize = 640;
+const maximumInteractiveMapZoom = 20;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
 const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
@@ -581,7 +582,7 @@ export function DeliveryTrackingMap({
           if (pinchStart && pinchDistance !== null && pinchAngle !== null) {
             event.preventDefault();
             const nextZoom = pinchStart.zoom + Math.log2(pinchDistance / pinchStart.distance) * 0.72;
-            setMapZoom(Math.min(18, Math.max(10, nextZoom)));
+            setMapZoom(Math.min(maximumInteractiveMapZoom, Math.max(10, nextZoom)));
             setManualRotation(pinchStart.rotation + pinchAngle - pinchStart.angle);
             return;
           }
@@ -595,7 +596,7 @@ export function DeliveryTrackingMap({
           if (Math.abs(wheelDeltaRef.current) < 160) return;
           const direction = wheelDeltaRef.current < 0 ? 1 : -1;
           wheelDeltaRef.current = 0;
-          setMapZoom((value) => Math.min(18, Math.max(10, value + direction * 0.5)));
+          setMapZoom((value) => Math.min(maximumInteractiveMapZoom, Math.max(10, value + direction * 0.5)));
         }}
       >
         <div className="delivery-tracking-map__scene" style={{ transform: `scale(${scale})` }}>
@@ -677,7 +678,7 @@ export function DeliveryTrackingMap({
               aria-label={mapStyle === 'satellite' ? 'Переключить на схему' : 'Переключить на спутник'}
             ><Layers3 /></button>
           )}
-          <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
+          <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.min(maximumInteractiveMapZoom, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
           <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
           {navigationMode && (
             <button

@@ -263,7 +263,8 @@ export const buildMapTileGrid = ({
   mapSize,
   style
 }: BuildMapTileGridInput): DeliveryMapTile[] => {
-  const tileZoom = Math.max(0, Math.floor(zoom));
+  const maximumSourceZoom = style === 'satellite' ? 17 : 19;
+  const tileZoom = Math.max(0, Math.min(maximumSourceZoom, Math.floor(zoom)));
   const zoomScale = 2 ** (zoom - tileZoom);
   const centerPixelAtTileZoom = latLngToWorldPixel(center, tileZoom);
   const centerPixel = {

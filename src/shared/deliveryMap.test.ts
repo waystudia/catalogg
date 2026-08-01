@@ -164,6 +164,22 @@ describe('delivery map picker geometry', () => {
     assert.equal(Math.max(...tiles.map((tile) => tile.y + (tile.size ?? 256))) > 320, true);
   });
 
+  it('overzooms the last available satellite tiles instead of requesting unavailable imagery', () => {
+    const tiles = buildMapTileGrid({
+      center: { lat: 43.3181235, lng: 45.6987654 },
+      zoom: 20,
+      mapSize: 320,
+      style: 'satellite'
+    });
+
+    assert.equal(tiles.length > 0, true);
+    assert.equal(
+      tiles.every((tile) => tile.url.includes('/World_Imagery/MapServer/tile/17/')),
+      true
+    );
+    assert.equal(Math.min(...tiles.map((tile) => tile.size ?? 0)) > 1_000, true);
+  });
+
   it('builds a road-route request with longitude before latitude', () => {
     assert.equal(
       buildRoadRouteRequestUrl({
