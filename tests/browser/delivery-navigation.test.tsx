@@ -138,16 +138,17 @@ test('keeps navigation controls compact and separates compass from driver follow
   const mapCanvas = maneuver.closest<HTMLElement>('.delivery-tracking-map__canvas');
   const getMapZoom = () => Number.parseFloat(mapCanvas?.dataset.mapZoom ?? '0');
   expect(getMapZoom()).toBeGreaterThan(0);
-  await screen.getByRole('button', { name: 'Отдалить' }).click();
-  await screen.getByRole('button', { name: 'Отдалить' }).click();
-  const zoomedOutLevel = getMapZoom();
+  await screen.getByRole('button', { name: 'Приблизить' }).click();
+  await screen.getByRole('button', { name: 'Приблизить' }).click();
+  const zoomedInLevel = getMapZoom();
   await screen.getByRole('button', { name: 'Следить за водителем' }).click();
   await new Promise((resolve) => window.setTimeout(resolve, 100));
   const midAnimationLevel = getMapZoom();
   await new Promise((resolve) => window.setTimeout(resolve, 650));
   const followedLevel = getMapZoom();
-  expect(midAnimationLevel).toBeGreaterThan(zoomedOutLevel);
-  expect(midAnimationLevel).toBeLessThan(followedLevel);
+  expect(midAnimationLevel).toBeLessThan(zoomedInLevel);
+  expect(midAnimationLevel).toBeGreaterThan(followedLevel);
+  expect(followedLevel).toBeCloseTo(16, 2);
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
 });
 

@@ -61,6 +61,7 @@ export type DeliveryRouteSummary = Pick<RoadRoute, 'distanceM' | 'durationS'>;
 
 const mapSize = 640;
 const maximumInteractiveMapZoom = 20;
+const driverFollowMapZoom = 16;
 const defaultRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const minimumDriverHeadingMoveM = 10;
 const formatRouteDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
@@ -192,7 +193,7 @@ export function DeliveryTrackingMap({
     if (lastResetViewKeyRef.current === resetViewKey) return;
     lastResetViewKeyRef.current = resetViewKey;
     setCenter(followDriverHeading && driver ? { lat: driver.lat, lng: driver.lng } : defaultCenter);
-    setMapZoom(followDriverHeading && driver ? 17 : defaultMapZoom);
+    setMapZoom(followDriverHeading && driver ? driverFollowMapZoom : defaultMapZoom);
     setSelectedPointKind(null);
     setManualRotation(0);
     userAdjustedViewRef.current = false;
@@ -490,9 +491,9 @@ export function DeliveryTrackingMap({
       setCenter(getNavigationFollowCenter(
         driverPosition,
         driverHeading,
-        getNavigationLookAheadDistanceM(17)
+        getNavigationLookAheadDistanceM(driverFollowMapZoom)
       ));
-      animateMapZoom(17);
+      animateMapZoom(driverFollowMapZoom);
       return;
     }
     setCenter(defaultCenter);
