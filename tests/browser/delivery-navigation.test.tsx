@@ -174,7 +174,7 @@ test('keeps a wide upright restaurant destination label the same size while zoom
   await expect.element(restaurantMarker.getByText('Ресторан')).toBeVisible();
   expect(clientMarker.element().querySelector('strong')?.textContent).toBe('Клиент');
   expect(clientMarker.element().querySelector('small')?.textContent).toBe('Клиент');
-  const readMarkerSize = (marker: HTMLElement) => {
+  const readMarkerSize = (marker: Element) => {
     const style = getComputedStyle(marker);
     return { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) };
   };
