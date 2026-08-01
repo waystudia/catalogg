@@ -385,6 +385,7 @@ export function DeliveryTrackingMap({
   const startDrag = (event: PointerEvent<HTMLDivElement>) => {
     if ((event.target as HTMLElement).closest('button')) return;
     userAdjustedViewRef.current = true;
+    setSelectedPointKind(null);
     event.currentTarget.setPointerCapture(event.pointerId);
     dragStartRef.current = { x: event.clientX, y: event.clientY, center, zoom: mapZoom, rotation: mapRotation };
     setIsDragging(true);
@@ -466,6 +467,10 @@ export function DeliveryTrackingMap({
   };
 
   const focusPoint = (kind: 'restaurant' | 'driver' | 'client', point: TrackingPoint) => {
+    if (selectedPointKind === kind) {
+      setSelectedPointKind(null);
+      return;
+    }
     userAdjustedViewRef.current = true;
     setSelectedPointKind(kind);
     setCenter({ lat: point.lat, lng: point.lng });
