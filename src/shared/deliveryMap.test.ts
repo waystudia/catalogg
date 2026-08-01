@@ -7,6 +7,7 @@ import {
   getMapCenter,
   getMapZoomForPoints,
   getNavigationFollowCenter,
+  getNavigationLookAheadDistanceM,
   getNearestEquivalentAngle,
   mapPointToCoordinates,
   coordinatesToMapPoint,
@@ -87,6 +88,12 @@ describe('delivery map picker geometry', () => {
       assert.equal(Math.abs(rotated.x - 320) < 1, true);
       assert.equal(rotated.y > 380 && rotated.y < 450, true);
     }
+  });
+
+  it('keeps the driver screen anchor stable when navigation zoom changes', () => {
+    assert.equal(getNavigationLookAheadDistanceM(17), 100);
+    assert.equal(getNavigationLookAheadDistanceM(16), 200);
+    assert.equal(getNavigationLookAheadDistanceM(18), 50);
   });
 
   it('clamps dragged markers inside the map viewport', () => {

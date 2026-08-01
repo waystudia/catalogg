@@ -66,6 +66,7 @@ import {
   updateClient
 } from '../../shared/api/clientsApi';
 import { createDriver, getDrivers, updateDriverProfile, updateDriverServiceSettlements } from '../../shared/api/driversApi';
+import { legalDocuments } from '../../shared/legalDocuments';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import {
   getDeliveryPriceRequests,
@@ -111,7 +112,8 @@ import { PlatformGeographyPage } from '../../features/platform-admin-geography/P
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
-import { createRestaurantTemplate, getTemplateOptions } from '../../shared/api/templatesApi';
+import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
+import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
   getRestaurantOrderNotificationPermission,
@@ -119,10 +121,12 @@ import {
   restoreRestaurantOrderNotificationSubscription
 } from '../../shared/restaurantOrderNotifications';
 import { redirectToClientHome } from '../../shared/appNavigation';
+import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
   createClientSchema,
   createSlug,
   generateSecurePassword,
+  normalizeSlugInput,
   type CreateClientFormValues
 } from '../../shared/validation/clientCredentials';
 import './platform-admin.css';
@@ -192,7 +196,8 @@ const statusLabels: Record<PlatformClient['status'], string> = {
 
 const businessTypeLabels: Record<string, string> = {
   restaurant: 'Ресторан',
-  cafe: 'Кафе',
+  coffee_shop: 'Кофейня',
+  cafe: 'Кофейня',
   salon: 'Салон красоты',
   barbershop: 'Барбершоп',
   shop: 'Магазин',
@@ -288,12 +293,10 @@ function navigateToRoute(route: PlatformRoute, setRoute: (route: PlatformRoute) 
 
 function PlatformSidebar({
   route,
-  onNavigate,
-  onSignOut
+  onNavigate
 }: {
   route: PlatformRoute;
   onNavigate: (route: PlatformRoute) => void;
-  onSignOut: () => void;
 }) {
   return (
     <aside className="platform-sidebar">
@@ -320,22 +323,16 @@ function PlatformSidebar({
           </button>
         ))}
       </nav>
-      <button className="platform-sidebar__logout" type="button" onClick={onSignOut}>
-        <LogOut />
-        <span>Выйти</span>
-      </button>
     </aside>
   );
 }
 
 function PlatformMobileNav({
   route,
-  onNavigate,
-  onSignOut
+  onNavigate
 }: {
   route: PlatformRoute;
   onNavigate: (route: PlatformRoute) => void;
-  onSignOut: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreItems = navItems.filter((item) => !mobilePrimaryRoutes.includes(item.route));
@@ -366,10 +363,6 @@ function PlatformMobileNav({
                 {label}
               </button>
             ))}
-            <button type="button" onClick={onSignOut}>
-              <LogOut />
-              Выйти
-            </button>
           </div>
         </div>
       )}
@@ -440,7 +433,7 @@ function RestaurantRevenueSummary({ stats }: { stats?: PlatformStats }) {
   return (
     <section className="restaurant-revenue-summary">
       <header>
-        <h2>Рестораны по выручке</h2>
+        <h2>Заведения по выручке</h2>
         <strong>{formatMoney(stats?.monthlyRevenue ?? 0)}</strong>
       </header>
       <div>
@@ -930,7 +923,9 @@ function CreateClientForm({
       serviceSettlementsText: '',
       password: generateSecurePassword(),
       templateVersionId: firstTemplate?.templateVersionId ?? '',
-      businessType: firstTemplate?.businessType ?? 'restaurant',
+      businessType: 'restaurant',
+      templateType: 'restaurant',
+      seedDemoMenu: false,
       planId: 'trial',
       subscriptionStatus: 'trial',
       status: 'active',
@@ -943,22 +938,33 @@ function CreateClientForm({
   const password = watch('password');
   const slug = watch('slug');
   const templateVersionId = watch('templateVersionId');
+  const businessType = watch('businessType');
   const adminConsentConfirmed = watch('adminConsentConfirmed');
+  const selectedTemplate = templates.find((template) => template.templateVersionId === templateVersionId);
+
+  const [lastAutoSlug, setLastAutoSlug] = useState('');
+  useEffect(() => {
+    if ((!slug || slug === lastAutoSlug) && name) {
+      const nextSlug = createSlug(name);
+      setValue('slug', nextSlug, { shouldValidate: true });
+      setLastAutoSlug(nextSlug);
+    }
+  }, [lastAutoSlug, name, setValue, slug]);
 
   useEffect(() => {
-    if (!slug && name) {
-      setValue('slug', createSlug(name), { shouldValidate: true });
+    setValue('templateType', businessType, { shouldValidate: true });
+    if (businessType !== 'coffee_shop') setValue('seedDemoMenu', false);
+    const compatibleTemplate = templates.find((template) => template.businessType === businessType);
+    if (compatibleTemplate && selectedTemplate?.businessType !== businessType) {
+      setValue('templateVersionId', compatibleTemplate.templateVersionId, { shouldValidate: true });
     }
-  }, [name, setValue, slug]);
+  }, [businessType, selectedTemplate?.businessType, setValue, templates]);
 
   useEffect(() => {
     if (!templateVersionId && firstTemplate) {
       setValue('templateVersionId', firstTemplate.templateVersionId, { shouldValidate: true });
-      setValue('businessType', firstTemplate.businessType);
     }
   }, [firstTemplate, setValue, templateVersionId]);
-
-  const selectedTemplate = templates.find((template) => template.templateVersionId === templateVersionId);
 
   const onSubmit = handleSubmit(async (values) => {
     if (!values.adminConsentConfirmed) {
@@ -979,6 +985,8 @@ function CreateClientForm({
         password: values.password,
         templateVersionId: values.templateVersionId,
         businessType: values.businessType,
+        templateType: values.templateType,
+        seedDemoMenu: values.seedDemoMenu,
         planId: values.planId,
         subscriptionEndsAt: values.subscriptionEndsAt,
         status: values.status,
@@ -1023,9 +1031,9 @@ function CreateClientForm({
             </label>
             <label>
               <span>
-                Slug (для ссылки) <b>*</b>
+                Адрес каталога <b>*</b>
               </span>
-              <input {...register('slug')} placeholder="my-restaurant" aria-invalid={Boolean(errors.slug)} />
+              <input {...register('slug', { onBlur: (event) => setValue('slug', normalizeSlugInput(event.target.value), { shouldValidate: true }) })} placeholder="my-coffee-shop" aria-invalid={Boolean(errors.slug)} />
               <em>Будет доступно по ссылке: {getCatalogPublicUrl(slug || 'your-slug')}</em>
               {errors.slug && <small>{errors.slug.message}</small>}
             </label>
@@ -1091,11 +1099,6 @@ function CreateClientForm({
               <select
                 {...register('templateVersionId')}
                 aria-invalid={Boolean(errors.templateVersionId)}
-                onChange={(event) => {
-                  const template = templates.find((item) => item.templateVersionId === event.target.value);
-                  setValue('templateVersionId', event.target.value, { shouldValidate: true });
-                  setValue('businessType', template?.businessType ?? 'restaurant');
-                }}
               >
                 {templates.map((template) => (
                   <option value={template.templateVersionId} key={template.templateVersionId}>
@@ -1110,6 +1113,25 @@ function CreateClientForm({
               )}
               {errors.templateVersionId && <small>{errors.templateVersionId.message}</small>}
             </label>
+            <label>
+              <span>
+                Тип заведения <b>*</b>
+              </span>
+              <select {...register('businessType')} aria-invalid={Boolean(errors.businessType)}>
+                <option value="restaurant">🍽 Ресторан</option>
+                <option value="coffee_shop">☕ Кофейня</option>
+              </select>
+              <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
+              {errors.businessType && <small>{errors.businessType.message}</small>}
+            </label>
+            <input type="hidden" {...register('templateType')} />
+            {businessType === 'coffee_shop' && (
+              <label className="client-form__disabled-option">
+                <input {...register('seedDemoMenu')} type="checkbox" />
+                <span>Заполнить демонстрационным меню</span>
+                <em>Добавим категории, позиции, описания, цены, модификаторы и сгенерированные изображения кофейни.</em>
+              </label>
+            )}
             <label>
               Имя владельца
               <input {...register('ownerName')} placeholder="Имя владельца" />
@@ -1224,6 +1246,7 @@ function EditClientForm({
   const [phone, setPhone] = useState(client.phone);
   const [primaryCity, setPrimaryCity] = useState(client.primaryCity);
   const [serviceSettlementsText, setServiceSettlementsText] = useState(formatSettlementsInput(client.serviceSettlements));
+  const [businessType, setBusinessType] = useState(client.businessType);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState(client.status);
@@ -1237,6 +1260,10 @@ function EditClientForm({
 
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (businessType !== client.businessType) {
+      const nextType = businessType === 'coffee_shop' ? 'Кофейня' : 'Ресторан';
+      if (!window.confirm(`Изменить тип заведения на «${nextType}»? Существующие категории и позиции сохранятся.`)) return;
+    }
     setIsSubmitting(true);
     try {
       await updateClient({
@@ -1247,6 +1274,8 @@ function EditClientForm({
         phone,
         primaryCity,
         serviceSettlements: parseSettlementsInput(serviceSettlementsText),
+        businessType,
+        templateType: businessType,
         password: password || undefined,
         status,
         planId,
@@ -1277,6 +1306,14 @@ function EditClientForm({
         <section className="client-form-section">
           <h3>Данные клиента</h3>
           <div className="client-form-grid">
+            <label>
+              Тип заведения
+              <select value={businessType} onChange={(event) => setBusinessType(event.target.value as PlatformClient['businessType'])}>
+                <option value="restaurant">🍽 Ресторан</option>
+                <option value="coffee_shop">☕ Кофейня</option>
+              </select>
+              <em>Тексты интерфейса обновятся автоматически, данные сохранятся.</em>
+            </label>
             <label>
               Название клиента
               <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
@@ -1586,106 +1623,6 @@ function ClientsPage({
   );
 }
 
-function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!slug && name) {
-      setSlug(createSlug(name));
-    }
-  }, [name, slug]);
-
-  const onCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!name.trim() || !slug.trim()) {
-      toast.error('Укажите название и slug шаблона');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await createRestaurantTemplate({
-        name: name.trim(),
-        slug: slug.trim().toLowerCase(),
-        templateName: slug.trim().toLowerCase()
-      });
-      toast.success('Шаблон создан');
-      setName('');
-      setSlug('');
-      void queryClient.invalidateQueries({ queryKey: ['platform-templates'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось создать шаблон');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <main className="platform-page">
-      <header className="platform-page-head">
-        <div>
-          <h1>Шаблоны</h1>
-          <p>Создавайте ресторанные шаблоны и настраивайте их как обычные каталоги</p>
-        </div>
-      </header>
-
-      <form className="platform-template-create" onSubmit={onCreateTemplate}>
-        <label>
-          Название шаблона
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Шаблон: Шашлычная"
-            required
-          />
-        </label>
-        <label>
-          Slug шаблона
-          <input
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            placeholder="shashlik-base"
-            required
-          />
-        </label>
-        <button type="submit" disabled={isSubmitting}>
-          <Plus />
-          {isSubmitting ? 'Создаём...' : 'Создать шаблон'}
-        </button>
-      </form>
-
-      <section className="platform-template-list">
-        {templates.length === 0 && (
-          <div className="platform-placeholder">
-            <LayoutTemplate />
-            <h2>Шаблонов пока нет</h2>
-            <p>Создайте первый шаблон, затем откройте его админку и наполните каталог.</p>
-          </div>
-        )}
-        {templates.map((template) => (
-          <article className="platform-template-card" key={template.templateVersionId}>
-            <div>
-              <span className="platform-template-badge">TEMPLATE</span>
-              <h2>{template.templateName}</h2>
-              <p>{template.description}</p>
-              {template.templateCatalogSlug && <small>#/{template.templateCatalogSlug}</small>}
-            </div>
-            {template.templateCatalogSlug && (
-              <a href={getCatalogAdminUrl(template.templateCatalogSlug)}>
-                <Settings />
-                Настроить
-              </a>
-            )}
-          </article>
-        ))}
-      </section>
-    </main>
-  );
-}
-
 export function LegacyDriversPage() {
   const queryClient = useQueryClient();
   const driversQuery = useQuery({ queryKey: ['platform-drivers'], queryFn: getDrivers });
@@ -1700,12 +1637,17 @@ export function LegacyDriversPage() {
   const [password, setPassword] = useState(generateSecurePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [driverConsentConfirmed, setDriverConsentConfirmed] = useState(false);
   const [success, setSuccess] = useState<CreateDriverSuccess | null>(null);
 
   const driverLoginUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/driver`;
 
   const createNewDriver = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!driverConsentConfirmed) {
+      toast.error('Нужно подтвердить получение отдельного согласия и акцепта оферты водителем');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const serviceSettlements = parseSettlementsInput(serviceSettlementsText);
@@ -1730,6 +1672,7 @@ export function LegacyDriversPage() {
       setServiceSettlementsText('');
       setVehicleInfo('');
       setCarNumber('');
+      setDriverConsentConfirmed(false);
       setPassword(generateSecurePassword());
       toast.success('Водитель создан');
       void queryClient.invalidateQueries({ queryKey: ['platform-drivers'] });
@@ -1851,8 +1794,12 @@ export function LegacyDriversPage() {
             </span>
           </label>
         </section>
+        <label className="legal-checkbox">
+          <input type="checkbox" checked={driverConsentConfirmed} onChange={(event) => setDriverConsentConfirmed(event.target.checked)} required />
+          <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных и геолокацию</a>. Подтверждение администратора не заменяет серверную фиксацию действия водителя.</span>
+        </label>
         <footer className="client-form-footer">
-          <button type="submit" disabled={isSubmitting}>
+          <button type="submit" disabled={isSubmitting || !driverConsentConfirmed}>
             <Plus />
             {isSubmitting ? 'Создаём...' : 'Создать водителя'}
           </button>
@@ -2638,7 +2585,7 @@ const createContentBlock = (type: PlatformContentBlockType): PlatformContentBloc
   label: ''
 });
 
-function PlatformSettingsPage() {
+function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
@@ -2821,6 +2768,10 @@ function PlatformSettingsPage() {
           </button>
         ))}
       </section>
+      <button className="platform-sidebar__logout" type="button" onClick={onSignOut}>
+        <LogOut />
+        <span>Выйти</span>
+      </button>
     </main>
   );
 }
@@ -3300,6 +3251,10 @@ function PlatformAdminContent() {
     queryKey: ['platform-admin-session'],
     queryFn: () => getPlatformAdminAccess()
   });
+  const signOutWithConfirmation = useCallback(() => {
+    if (!confirmRoleSignOut('суперадминистратора')) return;
+    void signOutPlatformAdmin().then(() => redirectToClientHome());
+  }, []);
   const templatesQuery = useQuery({
     queryKey: ['platform-templates'],
     queryFn: getTemplateOptions,
@@ -3357,7 +3312,7 @@ function PlatformAdminContent() {
       );
     }
     if (route === 'templates') {
-      return <TemplatesPage templates={templatesQuery.data ?? []} />;
+      return <PlatformTemplatesPage templates={templatesQuery.data ?? []} />;
     }
     if (route === 'client-signups') {
       return <PlatformUsersPage />;
@@ -3378,10 +3333,10 @@ function PlatformAdminContent() {
       return <SubscriptionsPage />;
     }
     if (route === 'settings') {
-      return <PlatformSettingsPage />;
+      return <PlatformSettingsPage onSignOut={signOutWithConfirmation} />;
     }
     return <PlaceholderPage route={route} />;
-  }, [route, templatesQuery.data]);
+  }, [route, signOutWithConfirmation, templatesQuery.data]);
 
   if (platformAdminQuery.isLoading) {
     return <main className="platform-state platform-state--full">Проверяем права доступа...</main>;
@@ -3395,11 +3350,7 @@ function PlatformAdminContent() {
     return (
       <ForbiddenState
         email={platformAdminQuery.data.email}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
+        onSignOut={signOutWithConfirmation}
       />
     );
   }
@@ -3410,11 +3361,6 @@ function PlatformAdminContent() {
       <PlatformSidebar
         route={route}
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
       />
       <section className="platform-workspace">
         <header className="platform-topbar">
@@ -3444,11 +3390,6 @@ function PlatformAdminContent() {
       <PlatformMobileNav
         route={route}
         onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
-        onSignOut={() => {
-          void signOutPlatformAdmin().then(() => {
-            redirectToClientHome();
-          });
-        }}
       />
       {(createOpen || editingClient) && (
         <div

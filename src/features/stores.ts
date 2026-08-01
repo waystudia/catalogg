@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { CartItem, OrderMode, Product, ThemeSettings } from '../entities/models';
+import type { CartItem, OrderMode, Product, SelectedProductModifier, ThemeSettings } from '../entities/models';
+import { getCartItemTotal } from '../entities/productVariants';
+import { buildCartLineId, getCartLineId } from '../entities/productModifiers';
 import { themeSettings } from '../data/catalog';
 import { redirectToClientHome } from '../shared/appNavigation';
 
 type CartStore = {
   items: CartItem[];
   updatedAt: number | null;
-  add: (product: Product, selectedChoice?: string) => void;
-  remove: (productId: string) => void;
-  decrement: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  add: (product: Product, selectedChoice?: string, selectedModifiers?: SelectedProductModifier[]) => void;
+  remove: (lineIdOrProductId: string) => void;
+  decrement: (lineIdOrProductId: string) => void;
+  updateQuantity: (lineIdOrProductId: string, quantity: number) => void;
   clear: () => void;
 };
 
@@ -59,51 +61,60 @@ export const useCartStore = create<CartStore>()(
     (set) => ({
       items: [],
       updatedAt: null,
-      add: (product, selectedChoice) =>
+      add: (product, selectedChoice, selectedModifiers = []) =>
         set((state) => {
-          if (product.stock_count <= 0) {
+          if (!product.is_unlimited && product.stock_count <= 0) {
             return state;
           }
 
-          const existing = state.items.find((item) => item.product.id === product.id);
+          const lineId = buildCartLineId(product.id, selectedChoice, selectedModifiers);
+          const existing = state.items.find((item) => getCartLineId(item) === lineId);
 
           if (existing) {
             return {
               updatedAt: touchCart(),
               items: state.items.map((item) =>
-                item.product.id === product.id
-                  ? { ...item, quantity: item.quantity + 1, selected_choice: selectedChoice ?? item.selected_choice }
+                getCartLineId(item) === lineId
+                  ? { ...item, quantity: item.quantity + 1 }
                   : item
               )
             };
           }
 
           return {
-            items: [...state.items, { product, quantity: 1, selected_choice: selectedChoice }],
+            items: [...state.items, {
+              product,
+              quantity: 1,
+              selected_choice: selectedChoice,
+              selected_modifiers: selectedModifiers,
+              line_id: lineId
+            }],
             updatedAt: touchCart()
           };
         }),
-      remove: (productId) =>
+      remove: (lineIdOrProductId) =>
         set((state) => {
-          const items = state.items.filter((item) => item.product.id !== productId);
+          const items = state.items.filter((item) => getCartLineId(item) !== lineIdOrProductId && item.product.id !== lineIdOrProductId);
           return { items, updatedAt: items.length > 0 ? touchCart() : null };
         }),
-      decrement: (productId) =>
+      decrement: (lineIdOrProductId) =>
         set((state) => {
           const items = state.items
             .map((item) =>
-              item.product.id === productId ? { ...item, quantity: item.quantity - 1 } : item
+              getCartLineId(item) === lineIdOrProductId || item.product.id === lineIdOrProductId
+                ? { ...item, quantity: item.quantity - 1 }
+                : item
             )
             .filter((item) => item.quantity > 0);
           return { items, updatedAt: items.length > 0 ? touchCart() : null };
         }),
-      updateQuantity: (productId, quantity) =>
+      updateQuantity: (lineIdOrProductId, quantity) =>
         set((state) => {
           const items =
             quantity <= 0
-              ? state.items.filter((item) => item.product.id !== productId)
+              ? state.items.filter((item) => getCartLineId(item) !== lineIdOrProductId && item.product.id !== lineIdOrProductId)
               : state.items.map((item) =>
-                  item.product.id === productId ? { ...item, quantity } : item
+                  getCartLineId(item) === lineIdOrProductId || item.product.id === lineIdOrProductId ? { ...item, quantity } : item
                 );
           return { items, updatedAt: items.length > 0 ? touchCart() : null };
         }),
@@ -179,13 +190,13 @@ export const selectCartCount = (items: CartItem[]) =>
   items.reduce((total, item) => total + item.quantity, 0);
 
 export const selectCartTotal = (items: CartItem[]) =>
-  items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  items.reduce((total, item) => total + getCartItemTotal(item), 0);
 
 export const hasDrinkInCart = (items: CartItem[]) =>
   items.some((item) => item.product.drink_type !== undefined);
 
 export const isSauceProduct = (product: Product) => {
-  const text = [product.id, product.title, product.description, product.category_id]
+  const text = [product.id, product.title, product.category_id, ...(product.category_ids ?? [])]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();

@@ -44,6 +44,7 @@ export type Restaurant = {
   mapLink: string;
   lat: number | null;
   lng: number | null;
+  business_type?: import('../shared/businessTerminology').BusinessType;
 };
 
 export type Category = {
@@ -65,6 +66,36 @@ export type CatalogTag = {
   color: string;
   created_at?: string;
   updated_at?: string;
+};
+
+export type ProductChoiceOption = {
+  name: string;
+  price: number;
+};
+
+export type ProductChoiceOptionInput = string | ProductChoiceOption;
+
+export type ProductModifierOption = {
+  id: string;
+  name: string;
+  priceDelta: number;
+  isDefault: boolean;
+  isActive?: boolean;
+};
+
+export type ProductModifierGroup = {
+  id: string;
+  name: string;
+  required: boolean;
+  minSelected: number;
+  maxSelected: number;
+  isActive?: boolean;
+  options: ProductModifierOption[];
+};
+
+export type SelectedProductModifier = {
+  groupId: string;
+  optionId: string;
 };
 
 export type Product = {
@@ -90,7 +121,8 @@ export type Product = {
   category_ids?: string[];
   drink_type?: string;
   pair_ids: string[];
-  choice_options?: string[];
+  choice_options?: ProductChoiceOptionInput[];
+  modifier_groups?: ProductModifierGroup[];
 };
 
 export type Cabin = {
@@ -105,4 +137,6 @@ export type CartItem = {
   product: Product;
   quantity: number;
   selected_choice?: string;
+  selected_modifiers?: SelectedProductModifier[];
+  line_id?: string;
 };

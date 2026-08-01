@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
+import { LegalSurface } from './shared/LegalSurface';
 import {
   CatalogAdminRoute,
   PwaHomeRoute,
@@ -110,6 +111,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
           <Route path="/:slug" element={<RestaurantPublicRoute />} />
         </Routes>
+        <LegalSurface />
       </Suspense>
     </HashRouter>
   </React.StrictMode>

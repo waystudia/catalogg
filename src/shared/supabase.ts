@@ -1,6 +1,8 @@
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
 import { cabins, categories, products, restaurant, themeSettings } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, ProductModifierGroup, Restaurant, ThemeSettings } from '../entities/models';
+import { normalizeProductChoiceOptions } from '../entities/productVariants';
+import { normalizeProductModifierGroups } from '../entities/productModifiers';
 import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
 import { settleRestaurantSessionCheck } from './restaurantSession';
@@ -173,23 +175,29 @@ const normalizeRestaurantGallery = (settings: unknown, fallbackUrl?: string | nu
   ).slice(0, 3);
 };
 
-const normalizeProductChoices = (settings: unknown): Record<string, string[]> => {
+const normalizeProductChoices = (settings: unknown): Record<string, ProductChoiceOptionInput[]> => {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return {};
   return Object.fromEntries(
     Object.entries(settings as Record<string, unknown>)
       .map(([productId, value]) => [
         productId,
         Array.isArray(value)
-          ? value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 6)
+          ? value.filter((item): item is ProductChoiceOptionInput =>
+              typeof item === 'string'
+              || (typeof item === 'object' && item !== null && typeof (item as { name?: unknown }).name === 'string')
+            ).slice(0, 6)
           : []
       ])
-      .filter(([, value]) => (value as string[]).length > 0)
+      .filter(([, value]) => (value as ProductChoiceOptionInput[]).length > 0)
   );
 };
 
 const applyProductChoices = (values: Product[], settings: unknown) => {
   const choices = normalizeProductChoices(settings);
-  return values.map((product) => ({ ...product, choice_options: choices[product.id] ?? [] }));
+  return values.map((product) => ({
+    ...product,
+    choice_options: normalizeProductChoiceOptions(choices[product.id], product.price)
+  }));
 };
 
 const gradientMarkerPrefix = 'gradient:';
@@ -248,6 +256,7 @@ type PlatformCatalogRow = {
   instagram_url: string | null;
   address: string | null;
   map_url: string | null;
+  business_type: string | null;
 };
 
 type PlatformRestaurantLocationRow = {
@@ -290,6 +299,52 @@ type PlatformProductImageRow = {
   sort_order: number;
 };
 
+type PlatformProductModifierGroupRow = {
+  id: string;
+  product_id: string;
+  name: string;
+  required: boolean;
+  min_selected: number;
+  max_selected: number;
+  is_active: boolean;
+};
+
+type PlatformProductModifierOptionRow = {
+  id: string;
+  group_id: string;
+  name: string;
+  price_delta: number;
+  is_default: boolean;
+  is_active: boolean;
+};
+
+const applyProductModifiers = (
+  values: Product[],
+  groupRows: PlatformProductModifierGroupRow[],
+  optionRows: PlatformProductModifierOptionRow[]
+) => values.map((product) => ({
+  ...product,
+  modifier_groups: normalizeProductModifierGroups(groupRows
+    .filter((group) => group.product_id === product.id)
+    .map((group): ProductModifierGroup => ({
+      id: group.id,
+      name: group.name,
+      required: group.required,
+      minSelected: group.min_selected,
+      maxSelected: group.max_selected,
+      isActive: group.is_active,
+      options: optionRows
+        .filter((option) => option.group_id === group.id)
+        .map((option) => ({
+          id: option.id,
+          name: option.name,
+          priceDelta: Number(option.price_delta),
+          isDefault: option.is_default,
+          isActive: option.is_active
+        }))
+    })))
+}));
+
 type PlatformCabinRow = {
   id: string;
   title: string;
@@ -310,7 +365,8 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   whatsapp: value.whatsapp ?? '',
   instagram_url: value.instagram_url ?? '',
   address: value.address ?? '',
-  mapLink: value.map_url ?? ''
+  mapLink: value.map_url ?? '',
+  business_type: value.business_type === 'coffee_shop' ? 'coffee_shop' : 'restaurant'
 });
 
 const withRestaurantLocation = (
@@ -568,7 +624,7 @@ export async function loadCatalog(catalogSlug?: string) {
   if (!isLegacyCatalog(normalizedSlug)) {
     const catalogResult = await supabase
       .from('catalogs')
-      .select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url')
+      .select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url, business_type')
       .eq('slug', normalizedSlug)
       .maybeSingle();
 
@@ -598,6 +654,8 @@ export async function loadCatalog(catalogSlug?: string) {
       photoQualityResult,
       restaurantGalleryResult,
       productChoicesResult,
+      productModifierGroupsResult,
+      productModifierOptionsResult,
       restaurantLocation
     ] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
@@ -636,6 +694,16 @@ export async function loadCatalog(catalogSlug?: string) {
         .eq('catalog_id', catalog.id)
         .eq('key', 'product-choices')
         .maybeSingle(),
+      supabase
+        .from('product_option_groups')
+        .select('id, product_id, name, required, min_selected, max_selected, is_active')
+        .eq('catalog_id', catalog.id)
+        .order('sort_order'),
+      supabase
+        .from('product_options')
+        .select('id, group_id, name, price_delta, is_default, is_active')
+        .eq('catalog_id', catalog.id)
+        .order('sort_order'),
       getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string[]>();
@@ -652,11 +720,15 @@ export async function loadCatalog(catalogSlug?: string) {
         )
       },
       categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
-      products: applyProductChoices(
-        ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
-          mapPlatformProduct(product, productImages.get(product.id) ?? [])
+      products: applyProductModifiers(
+        applyProductChoices(
+          ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
+            mapPlatformProduct(product, productImages.get(product.id) ?? [])
+          ),
+          productChoicesResult.data?.settings
         ),
-        productChoicesResult.data?.settings
+        (productModifierGroupsResult.data ?? []) as PlatformProductModifierGroupRow[],
+        (productModifierOptionsResult.data ?? []) as PlatformProductModifierOptionRow[]
       ),
       cabins: ((cabinsResult.data ?? []) as PlatformCabinRow[]).map(mapPlatformCabin),
       tags: (tagsResult.data ?? []) as CatalogTag[],
@@ -788,7 +860,7 @@ async function saveProductChoices(product: Product) {
       .maybeSingle()
   ) as { settings?: unknown } | null;
   const settings = normalizeProductChoices(current?.settings);
-  const choices = (product.choice_options ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 6);
+  const choices = normalizeProductChoiceOptions(product.choice_options, product.price);
   if (choices.length > 0) settings[product.id] = choices;
   else delete settings[product.id];
   await throwOnError(
@@ -804,6 +876,39 @@ async function saveProductChoices(product: Product) {
       { onConflict: 'catalog_id,key' }
     )
   );
+}
+
+async function saveProductModifiers(product: Product) {
+  if (!supabase || !activePlatformCatalogId || !uuidPattern.test(product.id)) return;
+  const groups = normalizeProductModifierGroups(product.modifier_groups);
+  await throwOnError(
+    supabase.from('product_option_groups').delete().eq('catalog_id', activePlatformCatalogId).eq('product_id', product.id)
+  );
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+    const group = groups[groupIndex];
+    const groupId = uuidPattern.test(group.id) ? group.id : crypto.randomUUID();
+    await throwOnError(supabase.from('product_option_groups').insert({
+      id: groupId,
+      catalog_id: activePlatformCatalogId,
+      product_id: product.id,
+      name: group.name,
+      required: group.required,
+      min_selected: group.minSelected,
+      max_selected: group.maxSelected,
+      is_active: group.isActive !== false,
+      sort_order: groupIndex
+    }));
+    await throwOnError(supabase.from('product_options').insert(group.options.map((option, optionIndex) => ({
+      id: uuidPattern.test(option.id) ? option.id : crypto.randomUUID(),
+      catalog_id: activePlatformCatalogId,
+      group_id: groupId,
+      name: option.name,
+      price_delta: option.priceDelta,
+      is_default: option.isDefault,
+      is_active: option.isActive !== false,
+      sort_order: optionIndex
+    }))));
+  }
 }
 
 const categoryMeta = (value: Category) =>
@@ -868,15 +973,18 @@ export async function saveProductToSupabase(product: Product) {
       await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));
       await syncPlatformProductImages(product.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
       await saveProductChoices(product);
+      await saveProductModifiers(product);
       return;
     }
     const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
       | { id: string }
       | null;
     if (created?.id) {
-      await syncPlatformProductImages(String(created.id), product.image_urls?.length ? product.image_urls : [product.image_url]);
+      const createdProduct = { ...product, id: String(created.id) };
+      await syncPlatformProductImages(createdProduct.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
+      await saveProductChoices(createdProduct);
+      await saveProductModifiers(createdProduct);
     }
-    await saveProductChoices(product);
     return;
   }
   const legacyProduct: Record<string, unknown> = { ...product };

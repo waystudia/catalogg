@@ -93,7 +93,7 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /driver-current-block__accepted/);
     assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
     assert.match(driverSource, /driver-inline-qr/);
-    assert.match(driverSource, /Показать QR ресторану/);
+    assert.match(driverSource, /Показать QR: \{terms\.placeDative\}/);
     assert.match(driverSource, /Профиль загружается/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
@@ -132,12 +132,12 @@ describe('mobile operational interfaces', () => {
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /Построить маршрут к ресторану/);
-    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted\)/);
+    assert.match(currentPanel, /Построить маршрут: \{terms\.placeDative\}/);
+    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted,\s*offer\.businessType\)/);
     assert.match(currentPanel, /nextAction\.label/);
     assert.match(
       driverSource,
-      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted\)/
+      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted,\s*delivery\.businessType\)/
     );
   });
 
@@ -171,8 +171,12 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
     assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
     assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*10[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*11[0-9]px/s);
     assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*min-height:\s*7[0-9]px/s);
+    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*overflow:\s*hidden;[^}]*padding:\s*1[0-4]px/s);
+    assert.match(mapCss, /\.delivery-tracking-map__tile\s*\{[^}]*transition:\s*none;/s);
+    assert.match(mapCss, /\.delivery-tracking-map__canvas\s*\{[^}]*overflow:\s*clip;/s);
+    assert.match(mapSource, /getNavigationLookAheadDistanceM\(mapZoomRef\.current\)/);
     assert.match(mapSource, /getNearestEquivalentAngle/);
     assert.match(mapSource, /roadRoute\.nextManeuver\?\.street/);
     assert.match(mapSource, /requestAnimationFrame/);

@@ -11,6 +11,8 @@ type CreateClientPayload = {
   password: string;
   templateVersionId: string;
   businessType: string;
+  templateType: 'restaurant' | 'coffee_shop';
+  seedDemoMenu?: boolean;
   planId?: string;
   subscriptionEndsAt?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
@@ -66,6 +68,8 @@ const assertPayload = (payload: CreateClientPayload) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new Error('Email is invalid.');
   if (!isStrongPassword(payload.password)) throw new Error('Password is too weak.');
   if (!payload.templateVersionId) throw new Error('Template is required.');
+  if (!['restaurant', 'coffee_shop'].includes(payload.businessType)) throw new Error('Business type is invalid.');
+  if (!['restaurant', 'coffee_shop'].includes(payload.templateType)) throw new Error('Template type is invalid.');
   if (!payload.adminConsentConfirmed) throw new Error('Client consent confirmation is required.');
 };
 
@@ -123,7 +127,7 @@ Deno.serve(async (request) => {
         adminClient.from('catalogs').select('id').eq('slug', payload.slug).maybeSingle(),
         adminClient
           .from('catalogs')
-          .select('id, template_version_id, is_template')
+          .select('id, template_version_id, is_template, business_type')
           .eq('id', payload.templateVersionId)
           .eq('is_template', true)
           .maybeSingle()
@@ -135,6 +139,9 @@ Deno.serve(async (request) => {
     if (existingClientByEmail) throw new Error('Email already exists.');
     if (existingCatalogBySlug) throw new Error('Slug already exists.');
     if (!templateCatalog) throw new Error('Template catalog is not available.');
+    if ((templateCatalog as { business_type?: string }).business_type !== payload.templateType) {
+      throw new Error('Template type does not match the selected template.');
+    }
 
     const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
       email: payload.email,
@@ -181,11 +188,18 @@ Deno.serve(async (request) => {
       const nextCatalogStatus = payload.status === 'inactive' || payload.status === 'blocked' ? 'draft' : 'published';
       const { data: catalog, error: catalogFetchError } = await adminClient
         .from('catalogs')
-        .update({ status: nextCatalogStatus })
+        .update({ status: nextCatalogStatus, business_type: payload.businessType, template_type: payload.templateType })
         .eq('id', catalogId)
         .select('id, slug')
         .single();
       if (catalogFetchError || !catalog) throw catalogFetchError ?? new Error('Could not load created catalog.');
+
+      if (payload.templateType === 'coffee_shop' && payload.seedDemoMenu !== true) {
+        const { error: productCleanupError } = await adminClient.from('products').delete().eq('catalog_id', catalog.id);
+        if (productCleanupError) throw productCleanupError;
+        const { error: categoryCleanupError } = await adminClient.from('categories').delete().eq('catalog_id', catalog.id);
+        if (categoryCleanupError) throw categoryCleanupError;
+      }
 
       const { error: memberError } = await adminClient.from('catalog_members').insert({
         catalog_id: catalog.id,
@@ -213,6 +227,8 @@ Deno.serve(async (request) => {
           owner_user_id: ownerUserId,
           catalog_id: catalog.id,
           company_name: payload.name,
+          business_type: payload.businessType,
+          template_type: payload.templateType,
           owner_name: payload.ownerName ?? '',
           email: payload.email,
           phone: payload.phone ?? '',

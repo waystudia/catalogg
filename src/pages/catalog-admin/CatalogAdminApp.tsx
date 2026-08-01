@@ -9,7 +9,8 @@ import {
   type CatalogAdminAccess
 } from '../../shared/api/catalogAdminApi';
 import { redirectToClientHome } from '../../shared/appNavigation';
-import { privacyPolicyIntro, privacyPolicySections, privacyPolicyTitle } from '../../shared/privacyPolicy';
+import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
+import { legalDocuments } from '../../shared/legalDocuments';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
 import './catalog-admin.css';
 
@@ -147,6 +148,7 @@ function ConsentModal({
 }) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [acceptedOffer, setAcceptedOffer] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -165,7 +167,7 @@ function ConsentModal({
   };
 
   const onConfirm = async () => {
-    if (!accepted || !scrolledToBottom) return;
+    if (!accepted || !acceptedOffer || !scrolledToBottom) return;
 
     setIsSubmitting(true);
     try {
@@ -187,28 +189,18 @@ function ConsentModal({
         </span>
         <h2 id="consent-title">Обработка персональных данных</h2>
         <p>
-          Для использования системы WayCatalog необходимо подтвердить согласие на обработку персональных данных.
+          Для использования WayYaam представитель заведения отдельно принимает оферту и согласие на обработку данных.
         </p>
         <p>Пожалуйста, ознакомьтесь с политикой ниже:</p>
 
         <div className="consent-modal__scroll" ref={scrollRef} onScroll={onScroll} tabIndex={0}>
-          <h3>{privacyPolicyTitle}</h3>
-          <p>{privacyPolicyIntro}</p>
-          {privacyPolicySections.map((section) => (
-            <section key={section.title}>
-              <h4>{section.title}</h4>
-              {section.paragraphs?.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
-              {section.items && (
-                <ul>
-                  {section.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
+          <h3>Документы для заведения</h3>
+          <p>Оферта определяет условия кабинета, заказов, контента, расчётов, защиты клиентских данных и удаления ресторана.</p>
+          <p>Отдельное согласие представителя охватывает его ФИО, телефон, email, полномочия, договорные и платёжные сведения.</p>
+          <p><a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">Открыть оферту для ресторанов</a></p>
+          <p><a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">Открыть согласие представителя ресторана</a></p>
+          <p><a href={legalDocuments.policy} target="_blank" rel="noreferrer">Открыть политику обработки персональных данных</a></p>
+          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Подтверждение относится к редакции 1.0 от 31 июля 2026 года.</p>
         </div>
 
         <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
@@ -218,10 +210,20 @@ function ConsentModal({
             disabled={!scrolledToBottom}
             onChange={(event) => setAccepted(event.target.checked)}
           />
-          <span>Я ознакомился и согласен с обработкой персональных данных</span>
+          <span>Даю отдельное согласие представителя ресторана на обработку персональных данных</span>
         </label>
 
-        <button type="button" disabled={!accepted || !scrolledToBottom || isSubmitting} onClick={onConfirm}>
+        <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
+          <input
+            type="checkbox"
+            checked={acceptedOffer}
+            disabled={!scrolledToBottom}
+            onChange={(event) => setAcceptedOffer(event.target.checked)}
+          />
+          <span>Принимаю оферту для ресторанов и подтверждаю права на загружаемые материалы</span>
+        </label>
+
+        <button type="button" disabled={!accepted || !acceptedOffer || !scrolledToBottom || isSubmitting} onClick={onConfirm}>
           {isSubmitting ? 'Подтверждаем...' : 'Подтвердить'}
         </button>
       </section>
@@ -283,6 +285,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
         <CatalogForbidden
           email={access.email}
           onSignOut={() => {
+            if (!confirmRoleSignOut('заведения')) return;
             void signOutCatalogAdmin().then(() => {
               redirectToClientHome();
             });
@@ -296,6 +299,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
         access={access}
         onRefresh={() => void refresh()}
         onSignOut={() => {
+          if (!confirmRoleSignOut('заведения')) return;
           void signOutCatalogAdmin().then(() => {
             redirectToClientHome();
           });

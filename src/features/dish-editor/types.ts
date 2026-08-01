@@ -1,4 +1,5 @@
-import type { Product } from '../../entities/models';
+import type { Product, ProductChoiceOption, ProductModifierGroup } from '../../entities/models';
+import { normalizeProductChoiceOptions } from '../../entities/productVariants';
 
 export type Dish = {
   id: string;
@@ -14,7 +15,8 @@ export type Dish = {
   serveWith: string;
   images: string[];
   pairIds: string[];
-  choiceOptions: string[];
+  choiceOptions: ProductChoiceOption[];
+  modifierGroups: ProductModifierGroup[];
 };
 
 export function productToDish(product: Product | null, fallbackCategory: string): Dish {
@@ -38,7 +40,8 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     serveWith: product?.serving ?? '',
     images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
     pairIds: product?.pair_ids ?? [],
-    choiceOptions: product?.choice_options ?? []
+    choiceOptions: normalizeProductChoiceOptions(product?.choice_options, product?.price ?? 0),
+    modifierGroups: product?.modifier_groups ?? []
   };
 }
 
@@ -66,6 +69,7 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     category_ids: dish.categories,
     drink_type: current?.drink_type,
     pair_ids: dish.pairIds,
-    choice_options: dish.choiceOptions
+    choice_options: dish.choiceOptions,
+    modifier_groups: dish.modifierGroups
   };
 }

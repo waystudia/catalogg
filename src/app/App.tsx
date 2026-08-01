@@ -21,7 +21,6 @@ import {
   Home,
   IceCreamBowl,
   Instagram,
-  LogOut,
   MapPin,
   MessageCircle,
   Milk,
@@ -57,6 +56,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
+import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
 import {
   cabins as demoCabins,
   categories as demoCategories,
@@ -64,7 +64,14 @@ import {
   restaurant as demoRestaurant,
   themeSettings as demoThemeSettings
 } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import type { Cabin, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
+import { buildCartLineId, getCartLineId, getSelectedModifierDetails } from '../entities/productModifiers';
+import { isPublicMenuCategory } from '../entities/publicCategoryVisibility';
+import {
+  getCartItemPrice,
+  getProductChoiceOptions,
+  getProductStartingPrice
+} from '../entities/productVariants';
 import { CheckoutScreen } from '../features/checkout/CheckoutScreen';
 import {
   CategoriesSettings,
@@ -157,6 +164,8 @@ import {
   getPhotoQualityFilter,
   type PhotoQualitySettings
 } from '../shared/photoQuality';
+import { getBusinessTerms } from '../shared/businessTerminology';
+import { getRestaurantCatalogBackTarget } from '../shared/roleSessionSafety';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -390,7 +399,6 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
   const displayedImages = images.length > 1
     ? [images[images.length - 1], ...images, images[0]]
     : (images.length ? images : ['']);
-
   useEffect(() => {
     setActiveIndex(0);
     setDisplayedIndex(images.length > 1 ? 1 : 0);
@@ -416,7 +424,7 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
   return (
     <>
       <div
-        className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
+        className={`${hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}${images.length > 1 ? ' product-photo-carousel--swipeable' : ''}`}
         data-active-image={images[activeIndex] ?? product.image_url}
         role={hero ? 'button' : undefined}
         tabIndex={hero ? 0 : undefined}
@@ -436,10 +444,12 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
           }
         }}
         onTouchStart={(event) => {
+          if (images.length < 2) return;
           touchStartX.current = event.touches[0]?.clientX ?? null;
           didSwipe.current = false;
         }}
         onTouchEnd={(event) => {
+          if (images.length < 2) return;
           if (touchStartX.current === null) return;
           const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
           touchStartX.current = null;
@@ -656,6 +666,7 @@ function ProductTile({
   const currentStock = getCurrentStock(product);
   const soldOut = isLimitedProduct(product) && currentStock <= 0;
   const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
+  const choiceOptions = getProductChoiceOptions(product);
 
   const captureCartAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
@@ -770,7 +781,10 @@ function ProductTile({
           <p>{soldOut ? 'Закончилось' : product.description}</p>
         </div>
         <div className="product-tile__bottom">
-          <strong>{formatPrice(product.price)}</strong>
+          <strong>
+            {choiceOptions.length > 0 && 'от '}
+            {formatPrice(getProductStartingPrice(product))}
+          </strong>
           <div
             className={quantity > 0 ? 'product-tile__stepper has-quantity' : 'product-tile__stepper'}
             onClick={(event) => event.stopPropagation()}
@@ -801,7 +815,7 @@ function ProductTile({
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
                 const button = event.currentTarget;
-                if ((product.choice_options?.length ?? 0) > 0) {
+                if (choiceOptions.length > 0) {
                   onOpen(product);
                   return;
                 }
@@ -999,27 +1013,31 @@ function CartSheet({
         {!isLoading && count > 0 && (
           <>
             <div className="cart-sheet__list">
-              {items.map((item) => (
-                <article className="cart-item-card" key={item.product.id}>
+              {items.map((item) => {
+                const lineId = getCartLineId(item);
+                const modifierLabel = getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`).join(' · ');
+                return (
+                <article className="cart-item-card" key={lineId}>
                   <SafeImage src={item.product.image_url} alt={item.product.title} />
                   <div className="cart-item-card__content">
                     <div className="cart-item-card__top">
                       <div>
                         <h3>{item.product.title}</h3>
                         {item.selected_choice && <small className="cart-item-card__choice">{item.selected_choice}</small>}
+                        {modifierLabel && <small className="cart-item-card__choice">{modifierLabel}</small>}
                         <p>{item.product.description}</p>
                       </div>
-                      <button className="cart-item-card__remove" type="button" onClick={() => remove(item.product.id)} aria-label={`Удалить ${item.product.title}`}>
+                      <button className="cart-item-card__remove" type="button" onClick={() => remove(lineId)} aria-label={`Удалить ${item.product.title}`}>
                         <Trash2 />
                       </button>
                     </div>
                     <div className="cart-item-card__bottom">
-                      <strong>{formatPrice(item.product.price)}</strong>
+                      <strong>{formatPrice(getCartItemPrice(item))}</strong>
                       <div className="cart-quantity" aria-label={`Количество ${item.product.title}`}>
                         <button
                           type="button"
                           onClick={() => {
-                            decrement(item.product.id);
+                            decrement(lineId);
                             playCartSound('remove');
                           }}
                           aria-label="Уменьшить"
@@ -1027,14 +1045,14 @@ function CartSheet({
                           <Minus />
                         </button>
                         <span>{item.quantity}</span>
-                        <button type="button" onClick={() => add(item.product)} aria-label="Увеличить">
+                        <button type="button" onClick={() => add(item.product, item.selected_choice, item.selected_modifiers)} aria-label="Увеличить">
                           <Plus />
                         </button>
                       </div>
                     </div>
                   </div>
                 </article>
-              ))}
+              );})}
             </div>
 
             <section className="cart-summary">
@@ -1093,7 +1111,7 @@ function HomeScreen({
   const [active, setActive] = useState('all');
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
-  const featuredCategories = categories.filter((category) => category.showOnHome !== false);
+  const featuredCategories = categories.filter((category) => category.showOnHome !== false && isPublicMenuCategory(category));
   const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
   const openRestaurantMap = () => {
@@ -1107,7 +1125,7 @@ function HomeScreen({
   return (
     <main className="screen">
       <CategoryPills
-        categories={categories.filter((category) => category.kind !== 'space').slice(0, 5)}
+        categories={categories.filter(isPublicMenuCategory).slice(0, 5)}
         active={active}
         onSelect={(id) => {
           setActive(id);
@@ -1310,6 +1328,7 @@ function CatalogScreen({
   onStockChange: (productId: string, stockCount: number) => void;
   flowAction?: FlowAction;
 }) {
+  const terms = getBusinessTerms(restaurant?.business_type);
   const [active, setActive] = useState(initialCategory);
   const [query, setQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -1336,7 +1355,7 @@ function CatalogScreen({
   const hits = visibleProducts.filter((product) => (product.is_hit || product.is_popular) && queryMatches(product));
   const sauces = visibleProducts.filter((product) => isSauceProduct(product) && queryMatches(product));
   const realSections = categories
-    .filter((category) => category.kind !== 'space')
+    .filter(isPublicMenuCategory)
     .map((category) => ({
       id: category.id,
       title: category.name,
@@ -1372,24 +1391,9 @@ function CatalogScreen({
     return () => window.cancelAnimationFrame(frame);
   }, [initialCategory, sections.length]);
 
-  useEffect(() => {
-    const elements = Array.from(sectionRefs.current.values());
-    if (elements.length === 0) return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top);
-        const next = visible[0]?.target.getAttribute('data-catalog-section');
-        if (next) setActive(next);
-      },
-      { rootMargin: '-84px 0px -62% 0px', threshold: [0, 0.01] }
-    );
-
-    elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [normalizedQuery, sections.length]);
+  const lockCategoryUntilVisible = useCatalogCategoryObserver(
+    sectionRefs, normalizedQuery, sections.length, setActive
+  );
 
   useEffect(() => {
     const pill = pillRefs.current.get(active);
@@ -1414,8 +1418,9 @@ function CatalogScreen({
   }, []);
 
   const scrollToSection = (id: string) => {
-    setActive(id);
     const target = sectionRefs.current.get(id);
+    lockCategoryUntilVisible(id, target);
+    setActive(id);
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -1435,7 +1440,7 @@ function CatalogScreen({
               </div>
             </section>
             {(preparationLabel || freeDeliveryLabel) && (
-              <section className="restaurant-menu-highlights" aria-label="Информация о ресторане">
+              <section className="restaurant-menu-highlights" aria-label={`Информация о заведении: ${terms.place}`}>
                 <span><Star /> <strong>5.0</strong></span>
                 {preparationLabel && <span title={`Готовка ${preparationLabel}`}><Timer /> <strong>{preparationLabel}</strong></span>}
                 {freeDeliveryLabel && <span title={`Бесплатная доставка ${freeDeliveryLabel}`}><Truck /> <strong>{freeDeliveryLabel}</strong></span>}
@@ -1495,7 +1500,7 @@ function CatalogScreen({
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Найти блюдо во всём меню"
+            placeholder={`Найти ${terms.itemLower} во всём меню`}
           />
           {query && <button type="button" onClick={() => setQuery('')} aria-label="Очистить поиск"><X /></button>}
         </label>
@@ -1653,10 +1658,19 @@ function ProductScreen({
   const add = useCartStore((state) => state.add);
   const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
-  const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
-  const choiceOptions = (product.choice_options ?? []).filter(Boolean);
+  const choiceOptions = getProductChoiceOptions(product);
   const cartChoice = items.find((item) => item.product.id === product.id)?.selected_choice;
-  const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0] ?? '');
+  const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0]?.name ?? '');
+  const [selectedModifiers, setSelectedModifiers] = useState<SelectedProductModifier[]>(() =>
+    (product.modifier_groups ?? []).filter((group) => group.isActive !== false).flatMap((group) => group.options
+      .filter((option) => option.isDefault && option.isActive !== false)
+      .slice(0, group.maxSelected)
+      .map((option) => ({ groupId: group.id, optionId: option.id })))
+  );
+  const configuredItem = { product, quantity: 1, selected_choice: selectedChoice || undefined, selected_modifiers: selectedModifiers };
+  const selectedPrice = getCartItemPrice(configuredItem);
+  const selectedLineId = buildCartLineId(product.id, selectedChoice || undefined, selectedModifiers);
+  const quantity = items.find((item) => getCartLineId(item) === selectedLineId)?.quantity ?? 0;
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
   const hasFactValue = (value: string) => {
@@ -1668,7 +1682,7 @@ function ProductScreen({
   const hasServing = hasFactValue(product.serving);
 
   const addProduct = () => {
-    add(product, selectedChoice || undefined);
+    add(product, selectedChoice || undefined, selectedModifiers);
     if (isFlowProduct) {
       flowAction?.onProductAdd(product);
     }
@@ -1680,7 +1694,7 @@ function ProductScreen({
       <div className="product-heading">
         <div>
           <h2>{product.title}</h2>
-          <strong>{formatPrice(product.price)}</strong>
+          <strong>{formatPrice(selectedPrice)}</strong>
         </div>
         {product.is_hit && (
           <span className="hit-badge">
@@ -1709,26 +1723,55 @@ function ProductScreen({
         <fieldset className="product-choice-group">
           <legend>Выберите вариант</legend>
           {choiceOptions.map((option) => (
-            <label key={option}>
+            <label key={option.name}>
               <input
                 type="radio"
                 name={`product-choice-${product.id}`}
-                value={option}
-                checked={selectedChoice === option}
-                onChange={() => setSelectedChoice(option)}
+                value={option.name}
+                checked={selectedChoice === option.name}
+                onChange={() => setSelectedChoice(option.name)}
               />
               <span aria-hidden="true" />
-              <strong>{option}</strong>
+              <strong>{option.name}</strong>
+              <small>{formatPrice(option.price)}</small>
             </label>
           ))}
         </fieldset>
       )}
 
+      {(product.modifier_groups ?? []).filter((group) => group.isActive !== false).map((group) => (
+        <fieldset className="product-choice-group" key={group.id}>
+          <legend>{group.name}{group.required ? ' *' : ''}</legend>
+          {group.options.filter((option) => option.isActive !== false).map((option) => {
+            const checked = selectedModifiers.some((value) => value.groupId === group.id && value.optionId === option.id);
+            return (
+              <label key={option.id}>
+                <input
+                  type={group.maxSelected > 1 ? 'checkbox' : 'radio'}
+                  name={`product-modifier-${product.id}-${group.id}`}
+                  checked={checked}
+                  onChange={() => setSelectedModifiers((current) => {
+                    const withoutGroup = current.filter((value) => value.groupId !== group.id);
+                    if (group.maxSelected === 1) return [...withoutGroup, { groupId: group.id, optionId: option.id }];
+                    if (checked) return current.filter((value) => !(value.groupId === group.id && value.optionId === option.id));
+                    const inGroup = current.filter((value) => value.groupId === group.id);
+                    return inGroup.length >= group.maxSelected ? current : [...current, { groupId: group.id, optionId: option.id }];
+                  })}
+                />
+                <span aria-hidden="true" />
+                <strong>{option.name}</strong>
+                <small>{option.priceDelta > 0 ? `+${formatPrice(option.priceDelta)}` : 'Без доплаты'}</small>
+              </label>
+            );
+          })}
+        </fieldset>
+      ))}
+
       <div className="quantity">
         <button
           type="button"
           onClick={() => {
-            decrement(product.id);
+            decrement(selectedLineId);
             playCartSound('remove');
           }}
           aria-label="Уменьшить"
@@ -1749,7 +1792,7 @@ function ProductScreen({
       </section>
 
       <button className="primary-wide" type="button" onClick={addProduct} disabled={isLimitedProduct(product) && getCurrentStock(product) <= 0}>
-        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину - ${formatPrice(product.price)}`}
+        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину - ${formatPrice(selectedPrice)}`}
       </button>
       {isFlowProduct && flowAction?.selectedId && (
         <button className="flow-continue-bar flow-continue-bar--inline" type="button" onClick={flowAction.onContinue}>
@@ -1851,7 +1894,6 @@ function UpsellReminder({
 
 function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'; onAdd: () => void; onSettings: () => void }) {
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const logout = useAuthStore((state) => state.logout);
 
   if (!isAdmin) {
     return null;
@@ -1864,9 +1906,6 @@ function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'
       </button>
       <button className={active === 'settings' ? 'is-active' : ''} type="button" onClick={onSettings}>
         <Settings /> Настройки
-      </button>
-      <button type="button" onClick={logout} aria-label="Выйти">
-        <LogOut /> Выход
       </button>
     </nav>
   );
@@ -2874,7 +2913,7 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => navigate('/')}
+              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin }))}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}

@@ -17,6 +17,7 @@ import type {
   UpdateClientResult
 } from './platformTypes';
 import { summarizePlatformStats, type PlatformOrderStatsRow } from './platformStats';
+import { normalizeBusinessType } from '../businessTerminology';
 
 const demoClients: PlatformClient[] = [
   {
@@ -61,7 +62,7 @@ const demoClients: PlatformClient[] = [
     templateName: 'Restaurant Modern',
     templateKey: 'restaurant-modern',
     templateVersion: 2,
-    businessType: 'cafe',
+    businessType: 'coffee_shop',
     logoUrl: '',
     createdAt: new Date().toISOString()
   },
@@ -84,7 +85,7 @@ const demoClients: PlatformClient[] = [
     templateName: 'Menswear Premium',
     templateKey: 'menswear-premium',
     templateVersion: 1,
-    businessType: 'fitness',
+    businessType: 'restaurant',
     logoUrl: '',
     createdAt: new Date().toISOString()
   }
@@ -120,6 +121,7 @@ type ClientRow = {
   subscription_status: PlatformClient['subscriptionStatus'];
   subscription_ends_at: string | null;
   created_at: string;
+  business_type: string | null;
   catalogs?: {
     id?: string;
     name?: string;
@@ -230,7 +232,7 @@ const mapClient = (row: ClientRow): PlatformClient => ({
   templateName: row.catalogs?.template_versions?.templates?.name ?? 'Template',
   templateKey: row.catalogs?.template_versions?.templates?.key ?? 'restaurant-modern',
   templateVersion: row.catalogs?.template_versions?.version ?? 1,
-  businessType: row.catalogs?.template_versions?.templates?.business_type ?? 'restaurant',
+  businessType: normalizeBusinessType(row.business_type),
   logoUrl: row.catalogs?.logo_url ?? '',
   createdAt: row.created_at
 });
@@ -317,7 +319,7 @@ export async function getClients(params: ClientListParams): Promise<{ data: Plat
   let query = supabase
     .from('clients')
     .select(
-      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
+      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -353,7 +355,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       .limit(1000),
     supabase
       .from('catalogs')
-      .select('id, name, slug, status, logo_url, created_at')
+      .select('id, name, slug, status, logo_url, business_type, is_template, created_at')
       .order('created_at', { ascending: false })
   ]);
   const fallbackOrdersResult = ordersResult.error
@@ -367,9 +369,11 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     slug: string;
     status: PlatformClient['catalogStatus'];
     logo_url: string | null;
+    business_type: string | null;
+    is_template: boolean | null;
     created_at: string;
   }>)
-    .filter((catalog) => !knownCatalogIds.has(catalog.id))
+    .filter((catalog) => catalog.is_template !== true && !knownCatalogIds.has(catalog.id))
     .map((catalog) => ({
       id: '',
       companyName: catalog.name,
@@ -389,7 +393,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       templateName: 'Не привязан к клиенту',
       templateKey: 'unlinked',
       templateVersion: 1,
-      businessType: 'restaurant',
+      businessType: normalizeBusinessType(catalog.business_type),
       logoUrl: catalog.logo_url ?? '',
       createdAt: catalog.created_at
     }));

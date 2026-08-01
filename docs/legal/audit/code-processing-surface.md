@@ -1,0 +1,1179 @@
+# Линейный реестр поверхностей обработки данных
+
+Автоматический срез исходников WayYaam на 31 июля 2026 года. Он дополняет правовой аудит точными файлами и строками; совпадение не всегда означает обработку персональных данных, но ни одна найденная точка не должна исключаться без ручной классификации.
+
+Проверено файлов: **215**.
+
+## Маршруты приложения (18)
+
+- `src/main.tsx:95` - `<Route path="/" element={<PwaHomeRoute />} />`
+- `src/main.tsx:96` - `<Route path="/city" element={<ClientPlatformApp />} />`
+- `src/main.tsx:97` - `<Route path="/categories" element={<ClientPlatformApp />} />`
+- `src/main.tsx:98` - `<Route path="/restaurants" element={<ClientPlatformApp />} />`
+- `src/main.tsx:99` - `<Route path="/cart" element={<ClientPlatformApp />} />`
+- `src/main.tsx:100` - `<Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />`
+- `src/main.tsx:101` - `<Route path="/profile/*" element={<ClientPlatformApp />} />`
+- `src/main.tsx:102` - `<Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />`
+- `src/main.tsx:103` - `<Route path="/login" element={<LoginPage />} />`
+- `src/main.tsx:104` - `<Route path="/privacy" element={<PrivacyPage />} />`
+- `src/main.tsx:105` - `<Route path="/scanner" element={<ScannerPage />} />`
+- `src/main.tsx:106` - `<Route path="/:slug/scanner" element={<ScannerPage />} />`
+- `src/main.tsx:107` - `<Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />`
+- `src/main.tsx:108` - `<Route path="/admin/payments" element={<PaymentsPage />} />`
+- `src/main.tsx:109` - `<Route path="/admin/*" element={<PlatformAdminApp />} />`
+- `src/main.tsx:110` - `<Route path="/driver/*" element={<DriverApp />} />`
+- `src/main.tsx:111` - `<Route path="/:slug/*" element={<RestaurantPublicRoute />} />`
+- `src/main.tsx:112` - `<Route path="/:slug" element={<RestaurantPublicRoute />} />`
+
+## HTML-формы (32)
+
+- `src/features/auth/LoginModal.tsx:36` - `<form className="login-modal" onSubmit={submit}>`
+- `src/features/dish-editor/DishForm.tsx:73` - `<form className="dish-form" onSubmit={submit}>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:192` - `<form className="platform-driver-form" onSubmit={submit}>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:222` - `<form className="platform-geography-add" onSubmit={(event) => { event.preventDefault(); void addSettlement(); }}>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:271` - `<form onSubmit={(event) => void saveTariff(event)}>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:236` - `<form onSubmit={(event) => void addUser(event)}>`
+- `src/features/restaurant-settings/ProfileSettings.tsx:151` - `<form className="settings-form-card" onSubmit={submit}>`
+- `src/pages/catalog-admin/CatalogAdminApp.tsx:54` - `<form className="catalog-admin-login__card" onSubmit={onSubmit}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:897` - `<form className="other-settlement-form" onSubmit={(event) => void submitOtherSettlement(event)}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1403` - `<form className="restaurant-flow" onSubmit={submit}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2398` - `<form className="profile-inline-form" onSubmit={submitClientProfile}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2487` - `<form className="profile-inline-form" onSubmit={submitStaffLogin}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2505` - `<form className="profile-inline-form" onSubmit={submitStaffLogin}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2676` - `<form className="order-review-form" onSubmit={(event) => void submitReview(event, order)}>`
+- `src/pages/driver/DriverApp.tsx:2193` - `<form className="driver-settings-form" onSubmit={saveProfile}>`
+- `src/pages/driver/DriverApp.tsx:2230` - `<form className="driver-settings-form" onSubmit={saveSettlements}>`
+- `src/pages/driver/DriverApp.tsx:2235` - `<form className="driver-settings-form" onSubmit={savePassword}>`
+- `src/pages/login/LoginPage.tsx:37` - `<form className="login-page__card" onSubmit={submit}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1014` - `<form className="client-form" onSubmit={onSubmit}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1277` - `<form className="client-form" onSubmit={handleEditSubmit}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1636` - `<form className="platform-template-create" onSubmit={onCreateTemplate}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1786` - `<form className="client-form driver-create-panel" onSubmit={createNewDriver}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1966` - `<form className="driver-admin-card driver-admin-card--edit" onSubmit={saveDriver}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2273` - `<form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveBilling(); }}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2302` - `<form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveBilling(); }}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2315` - `<form className="platform-detail-form" onSubmit={(event) => { event.preventDefault(); void saveCustomTariff(); }}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2341` - `<form className="platform-detail-form platform-detail-form--route" onSubmit={saveRoutePrice}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2916` - `<form className="platform-content-form" onSubmit={save}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3181` - `<form className="platform-support-form" onSubmit={save}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3240` - `<form className="platform-login__card" onSubmit={onSubmit}>`
+- `src/shared/DeliveryMapPicker.tsx:150` - `<form`
+- `src/shared/DeliveryTrackingMap.tsx:509` - `<form`
+
+## Поля ввода и загрузки (313)
+
+- `src/app/App.tsx:1503` - `<input`
+- `src/app/App.tsx:1723` - `<input`
+- `src/features/auth/LoginModal.tsx:40` - `<input name="email" type="email" placeholder="admin@example.com" autoCapitalize="none" autoComplete="email" required />`
+- `src/features/auth/LoginModal.tsx:44` - `<input name="password" type="password" autoComplete="current-password" required />`
+- `src/features/checkout/CheckoutScreen.tsx:587` - `<select`
+- `src/features/checkout/CheckoutScreen.tsx:611` - `<input`
+- `src/features/checkout/CheckoutScreen.tsx:625` - `<input`
+- `src/features/checkout/CheckoutScreen.tsx:638` - `<textarea`
+- `src/features/checkout/CheckoutScreen.tsx:715` - `<input`
+- `src/features/checkout/CheckoutScreen.tsx:729` - `<input`
+- `src/features/checkout/CheckoutScreen.tsx:835` - `<textarea`
+- `src/features/checkout/CheckoutScreen.tsx:851` - `<input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />`
+- `src/features/checkout/CheckoutScreen.tsx:855` - `<input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />`
+- `src/features/design-settings/DesignEditor.tsx:94` - `<input type="range" min="8" max="34" value={theme.card_radius} onChange={(event) => updateTheme({ card_radius: Number(event.target.value) })} />`
+- `src/features/design-settings/DesignEditor.tsx:98` - `<input type="range" min="8" max="28" value={theme.button_radius} onChange={(event) => updateTheme({ button_radius: Number(event.target.value) })} />`
+- `src/features/design-settings/DesignEditor.tsx:102` - `<input value={theme.background_image_url} onChange={(event) => updateTheme({ background_image_url: event.target.value, background_type: event.target.value ? 'image' : 'color' })} placeholder="https://..." />`
+- `src/features/design-settings/DesignEditor.tsx:106` - `<select value={theme.button_style} onChange={(event) => updateTheme({ button_style: event.target.value as ThemeSettings['button_style'] })}>`
+- `src/features/design-settings/DesignEditor.tsx:116` - `<input value={restaurant.name} onChange={(event) => onUpdateRestaurant({ name: event.target.value })} />`
+- `src/features/design-settings/DesignEditor.tsx:120` - `<input value={restaurant.whatsapp} onChange={(event) => onUpdateRestaurant({ whatsapp: event.target.value.replace(/\D/g, '') })} placeholder="79990000000" />`
+- `src/features/design-settings/DesignEditor.tsx:124` - `<input value={restaurant.instagram_url} onChange={(event) => onUpdateRestaurant({ instagram_url: event.target.value })} placeholder="https://instagram.com/..." />`
+- `src/features/design-settings/DesignEditor.tsx:128` - `<input value={restaurant.address} onChange={(event) => onUpdateRestaurant({ address: event.target.value })} />`
+- `src/features/design-settings/DesignEditor.tsx:132` - `<input value={restaurant.mapLink ?? ''} onChange={(event) => onUpdateRestaurant({ mapLink: event.target.value })} placeholder="https://yandex.ru/maps/..." />`
+- `src/features/design-settings/PhotoQualitySettingsScreen.tsx:82` - `<select value={selectedProduct?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} aria-label="Выбрать блюдо">`
+- `src/features/design-settings/PhotoQualitySettingsScreen.tsx:109` - `<input`
+- `src/features/design-settings/ThemeControls.tsx:38` - `<input type="color" value={normalizedValue} onChange={(event) => updateColor(event.target.value)} aria-label={label} />`
+- `src/features/design-settings/ThemeControls.tsx:41` - `<input`
+- `src/features/design-settings/ThemeSettingsScreen.tsx:31` - `<input type="file" accept="image/*" onChange={(event) => void updateBackgroundImage(event.target.files?.[0])} />`
+- `src/features/design-settings/ThemeSettingsScreen.tsx:51` - `<input type="range" min="0" max="24" value={Math.min(theme.card_radius, 24)} onChange={(event) => onChange({ card_radius: Number(event.target.value), button_radius: Math.max(8, Number(event.target.value) - 2) })} />`
+- `src/features/dish-editor/DishForm.tsx:30` - `<input`
+- `src/features/dish-editor/DishForm.tsx:81` - `<input`
+- `src/features/dish-editor/DishForm.tsx:105` - `<textarea`
+- `src/features/dish-editor/DishForm.tsx:118` - `<input`
+- `src/features/dish-editor/DishForm.tsx:139` - `<input`
+- `src/features/dish-editor/DishForm.tsx:165` - `<input`
+- `src/features/dish-editor/DishForm.tsx:179` - `<input`
+- `src/features/dish-editor/DishForm.tsx:249` - `<input`
+- `src/features/dish-editor/PhotoUploader.tsx:66` - `<input type="file" accept="image/*" multiple onChange={(event) => void addFiles(event.target.files)} />`
+- `src/features/dish-editor/QuantityInput.tsx:24` - `<input`
+- `src/features/dish-editor/QuantityInput.tsx:87` - `<input`
+- `src/features/platform-admin-contests/PlatformContestsPage.tsx:94` - `<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, телефон, ресторан или город" />`
+- `src/features/platform-admin-contests/PlatformContestsPage.tsx:164` - `<select value={selectedPromotionId} onChange={(event) => setSelectedPromotionId(event.target.value)}>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:194` - `<label>Имя<input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} /></label>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:195` - `{!driver && <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>}`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:196` - `<label>Телефон<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" /></label>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:198` - `<select value={cityName} onChange={(event) => setCityName(event.target.value)}>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:203` - `<label>Автомобиль<input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Lada Granta" /></label>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:204` - `<label>Госномер<input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="А123ВС 95" /></label>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:206` - `<select value={maxActiveDeliveries} onChange={(event) => setMaxActiveDeliveries(Number(event.target.value))}>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:211` - `<select`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:229` - `<input`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:242` - `<input`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:258` - `<input`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:274` - `<input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} required />`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:438` - `<label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск водителя, телефона…" /></label>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:454` - `<select value={cityFilter} onChange={(event) => setCityFilter(event.target.value)}>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:223` - `<input value={settlementName} onChange={(event) => setSettlementName(event.target.value)} placeholder="Село или город" required />`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:224` - `<input value={cityName} onChange={(event) => setCityName(event.target.value)} placeholder="Район (необязательно)" />`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:228` - `<label className="platform-geography-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск населённого пункта" /></label>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:272` - `<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Откуда" required />`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:273` - `<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Куда" required />`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:274` - `<input value={priceAmount} onChange={(event) => setPriceAmount(event.target.value)} type="number" min="0" placeholder="Цена" required />`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:187` - `<label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, телефон или email" /></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:197` - `<label>Населённый пункт<select value={settlement} onChange={(event) => setSettlement(event.target.value)}><option value="all">Все</option>{directory?.settlements.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:198` - `<label>Ресторан<select value={restaurantId} onChange={(event) => setRestaurantId(event.target.value)}><option value="all">Все</option>{directory?.restaurants.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:199` - `<label>Заказы<select value={orderState} onChange={(event) => setOrderState(event.target.value)}><option value="all">Все</option><option value="with-orders">Есть заказы</option><option value="without-orders">Нет заказов</option></select></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:200` - `<label>Последний заказ<select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">За всё время</option><option value="30">30 дней</option><option value="90">90 дней</option><option value="365">Год</option></select></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:201` - `<label>Сумма от<input type="number" min="0" value={minimumSpent} onChange={(event) => setMinimumSpent(event.target.value)} /></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:202` - `<label>Сумма до<input type="number" min="0" value={maximumSpent} onChange={(event) => setMaximumSpent(event.target.value)} /></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:237` - `<label>Имя<input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Имя пользователя" required /></label>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:238` - `<label>Телефон<input value={newPhone} onChange={(event) => setNewPhone(event.target.value)} placeholder="+7 (___) ___-__-__" inputMode="tel" required /></label>`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:377` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:385` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:394` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:477` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:478` - `type="file"`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:495` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:496` - `type="file"`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:515` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:526` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:575` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:583` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:617` - `<input value={sortIndex < 0 ? 0 : sortIndex} readOnly aria-label="Порядок сортировки" />`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:623` - `<textarea placeholder="Описание категории" />`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:680` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:681` - `type="file"`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:698` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:699` - `type="file"`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:718` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:727` - `<input`
+- `src/features/restaurant-settings/CatalogTaxonomySettings.tsx:770` - `<input value={sortIndex < 0 ? 0 : sortIndex} readOnly aria-label="Порядок сортировки" />`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:147` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} /><span><strong>Свой курьер</strong><small>Назначать водителей ресторана.</small></span></la`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:152` - `<input`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:182` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.use_platform_drivers} onChange={(event) => setBoolean('use_platform_drivers', event.target.checked)} /><span><strong>Водители платформы</strong><small>Передавать доставку курьерам Way`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:183` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.fallback_to_platform_drivers} onChange={(event) => setBoolean('fallback_to_platform_drivers', event.target.checked)} /><span><strong>Передавать после таймера</strong><small>Искать вод`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:184` - `<label>Ожидание своего курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:189` - `<label>Минимальный заказ, ₽<input value={draft.minimum_order_amount} inputMode="numeric" onChange={(event) => setNumber('minimum_order_amount', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:190` - `<label>Бесплатная доставка от, ₽<input value={draft.free_delivery_from} inputMode="numeric" onChange={(event) => setNumber('free_delivery_from', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:191` - `<label>Время приготовления, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:192` - `<label>Радиус доставки, км<input value={draft.delivery_radius_km} inputMode="decimal" onChange={(event) => setNumber('delivery_radius_km', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:193` - `<label>Ожидание курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:200` - `<select`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:211` - `<select value={draft.primary_city} onChange={(event) => setText('primary_city', event.target.value)}>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:237` - `<input type="checkbox" checked={draft.qr_required} onChange={(event) => setBoolean('qr_required', event.target.checked)} />`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:254` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} /><span><strong>Заказы в зале</strong><small>Столики и кабинки.</small></span></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:255` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} /><span><strong>Самовывоз</strong><small>Получение в ресторане.</small></span></label>`
+- `src/features/restaurant-settings/DeliverySettingsCard.tsx:256` - `<label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_delivery} onChange={(event) => setBoolean('enable_delivery', event.target.checked)} /><span><strong>Доставка</strong><small>Доставка по адресу клиента.</small></span></label>`
+- `src/features/restaurant-settings/OperationsSettings.tsx:75` - `<input`
+- `src/features/restaurant-settings/OperationsSettings.tsx:138` - `<input`
+- `src/features/restaurant-settings/OperationsSettings.tsx:139` - `type="file"`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:44` - `<input type="checkbox" checked={draft.transferEnabled} onChange={(event) => setField('transferEnabled', event.target.checked)} />`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:49` - `<select value={draft.requisiteType} onChange={(event) => setField('requisiteType', event.target.value as RestaurantPaymentSettings['requisiteType'])}>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:55` - `<label>Номер для перевода<input value={draft.transferNumber} onChange={(event) => setField('transferNumber', event.target.value)} /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:56` - `<label>Банк<input value={draft.bankName} onChange={(event) => setField('bankName', event.target.value)} placeholder="Сбер, Тинькофф..." /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:58` - `<label>Фамилия<input value={draft.lastName} onChange={(event) => setField('lastName', event.target.value)} /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:59` - `<label>Имя<input value={draft.firstName} onChange={(event) => setField('firstName', event.target.value)} /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:60` - `<label>Отчество<input value={draft.middleName} onChange={(event) => setField('middleName', event.target.value)} /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:62` - `<label>Отображаемое имя<input value={draft.displayName} onChange={(event) => setField('displayName', event.target.value)} placeholder="ФИО, которое увидит клиент" /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:63` - `<label>Комментарий к оплате<textarea value={draft.comment} onChange={(event) => setField('comment', event.target.value)} /></label>`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:65` - `<input type="checkbox" checked={draft.allowCash} onChange={(event) => setField('allowCash', event.target.checked)} />`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:69` - `<input type="checkbox" checked={draft.requireConfirmation} onChange={(event) => setField('requireConfirmation', event.target.checked)} />`
+- `src/features/restaurant-settings/PaymentSettingsCard.tsx:75` - `<input type="file" accept="image/*" onChange={uploadQr} />`
+- `src/features/restaurant-settings/ProfileSettings.tsx:156` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:157` - `type="file"`
+- `src/features/restaurant-settings/ProfileSettings.tsx:163` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:180` - `<textarea`
+- `src/features/restaurant-settings/ProfileSettings.tsx:193` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:194` - `type="file"`
+- `src/features/restaurant-settings/ProfileSettings.tsx:214` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:223` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:232` - `<input value={draft.address} onChange={(event) => setDraft({ ...draft, address: event.target.value })} />`
+- `src/features/restaurant-settings/ProfileSettings.tsx:236` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:256` - `<input`
+- `src/features/restaurant-settings/ProfileSettings.tsx:265` - `<input`
+- `src/pages/Home.tsx:26` - `<input style={styles.searchInput} type="search" placeholder="Найти ресторан или категорию" />`
+- `src/pages/catalog-admin/CatalogAdminApp.tsx:62` - `<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />`
+- `src/pages/catalog-admin/CatalogAdminApp.tsx:66` - `<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required />`
+- `src/pages/catalog-admin/CatalogAdminApp.tsx:206` - `<input`
+- `src/pages/catalog-admin/CatalogAdminApp.tsx:216` - `<input`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:544` - `<select aria-label="Ресторан" value={slug} onChange={() => toast.info('Переключение ресторанов будет подключено к доступам пользователя')}>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:828` - `<label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск блюд..." /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:829` - `<select value={categoryFilter} onChange={(event) => onCategoryFilterChange(event.target.value)}>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:893` - `<label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск заказа по номеру, имени или телефону" /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1147` - `<label>Норма на день<input type="number" value={current} onChange={(event) => setDraft(product, Number(event.target.value))} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1286` - `return <div className="ra-toggle-grid">{labels.map((label) => <label key={label}><input type="checkbox" defaultChecked />{label}</label>)}</div>;`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1305` - `<label><input type="checkbox" checked={settings.enabled} onChange={(event) => onChange('enabled', event.target.checked)} />Включить оплату переводом</label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1307` - `<label>Тип реквизита<select value={settings.requisiteType} onChange={(event) => onChange('requisiteType', event.target.value as PaymentSettings['requisiteType'])}><option value="phone">Номер телефона</option><option value="card">Номер карты</option><option val`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1308` - `<label>Номер для перевода<input value={settings.transferNumber} onChange={(event) => onChange('transferNumber', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1309` - `<label>Банк / способ оплаты<input value={settings.bankName} onChange={(event) => onChange('bankName', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1310` - `<label>Фамилия<input value={settings.lastName} onChange={(event) => onChange('lastName', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1311` - `<label>Имя<input value={settings.firstName} onChange={(event) => onChange('firstName', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1312` - `<label>Отчество<input value={settings.middleName} onChange={(event) => onChange('middleName', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1313` - `<label>Отображаемое полное имя<input value={settings.displayName} onChange={(event) => onChange('displayName', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1314` - `<label>Комментарий к оплате<input value={settings.comment} onChange={(event) => onChange('comment', event.target.value)} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1316` - `<label className="ra-upload-box"><ImagePlus />Загрузить или заменить QR<input type="file" accept="image/*" onChange={onQrChange} /></label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1318` - `<label><input type="checkbox" checked={settings.allowCash} onChange={(event) => onChange('allowCash', event.target.checked)} />Разрешить наличные</label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1319` - `<label><input type="checkbox" checked={settings.allowTransfer} onChange={(event) => onChange('allowTransfer', event.target.checked)} />Разрешить перевод</label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1320` - `<label><input type="checkbox" checked={settings.requireConfirmation} onChange={(event) => onChange('requireConfirmation', event.target.checked)} />Требовать подтверждение рестораном</label>`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1322` - `<label>Текст подсказки клиенту<textarea value={settings.clientHint} onChange={(event) => onChange('clientHint', event.target.value)} /></label>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:841` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:898` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:958` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1440` - `<select`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1457` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1466` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1690` - `<input value={newAddress} onChange={(event) => setNewAddress(event.target.value)} placeholder="Улица, дом, квартира" />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1695` - `<input value={draft.deliveryEntrance} onChange={(event) => updateDraft(restaurant.slug, { deliveryEntrance: event.target.value })} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1699` - `<input value={draft.deliveryFloor} onChange={(event) => updateDraft(restaurant.slug, { deliveryFloor: event.target.value })} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1703` - `<input value={draft.deliveryApartment} onChange={(event) => updateDraft(restaurant.slug, { deliveryApartment: event.target.value })} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1707` - `<input value={draft.deliveryIntercomCode} onChange={(event) => updateDraft(restaurant.slug, { deliveryIntercomCode: event.target.value })} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1712` - `<input value={draft.deliveryLandmark} onChange={(event) => updateDraft(restaurant.slug, { deliveryLandmark: event.target.value })} placeholder="Например: вход со двора" />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1736` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1746` - `<textarea`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1950` - `<input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1954` - `<input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2424` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2435` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2447` - `<input type="checkbox" checked={acceptedClientAgreement} onChange={(event) => setAcceptedClientAgreement(event.target.checked)} required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2451` - `<input type="checkbox" checked={acceptedClientConsent} onChange={(event) => setAcceptedClientConsent(event.target.checked)} required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2455` - `<input type="checkbox" checked={acceptedAdvertising} onChange={(event) => setAcceptedAdvertising(event.target.checked)} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2463` - `<input`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2490` - `<input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2494` - `<input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2508` - `<input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2512` - `<input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2679` - `<select value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))}>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2689` - `<textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} rows={3} />`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2795` - `<input value={addressLine} onChange={(event) => setAddressLine(event.target.value)} placeholder="Улица, дом, квартира" />`
+- `src/pages/driver/DriverApp.tsx:1541` - `<label>Предложить свою цену<input type="number" min="0" step="1" value={requestedAmount} onChange={(event) => setRequestedAmount(event.target.value)} /></label>`
+- `src/pages/driver/DriverApp.tsx:1542` - `<input value={priceComment} onChange={(event) => setPriceComment(event.target.value)} placeholder="Комментарий для супер-админа" />`
+- `src/pages/driver/DriverApp.tsx:2196` - `<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />`
+- `src/pages/driver/DriverApp.tsx:2200` - `<input value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" inputMode="tel" />`
+- `src/pages/driver/DriverApp.tsx:2204` - `<input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Марка и модель" />`
+- `src/pages/driver/DriverApp.tsx:2208` - `<input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="A123BC 95" />`
+- `src/pages/driver/DriverApp.tsx:2212` - `<input value={payoutDetails} onChange={(event) => setPayoutDetails(event.target.value)} placeholder="Карта / счёт" />`
+- `src/pages/driver/DriverApp.tsx:2216` - `<select`
+- `src/pages/driver/DriverApp.tsx:2238` - `<input`
+- `src/pages/login/LoginPage.tsx:43` - `<input value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />`
+- `src/pages/login/LoginPage.tsx:47` - `<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required />`
+- `src/pages/payments/PaymentsPage.tsx:177` - `<select value={selectedCatalogId} onChange={(event) => setSelectedCatalogId(event.target.value)}>`
+- `src/pages/payments/PaymentsPage.tsx:189` - `<input`
+- `src/pages/payments/PaymentsPage.tsx:205` - `<select value={settings.requisiteType} onChange={(event) => setField('requisiteType', event.target.value as RestaurantPaymentSettings['requisiteType'])}>`
+- `src/pages/payments/PaymentsPage.tsx:217` - `<input`
+- `src/pages/payments/PaymentsPage.tsx:228` - `<input list="payment-banks" value={settings.bankName} onChange={(event) => setField('bankName', event.target.value)} placeholder="Сбер, Тинькофф, Альфа-Банк..." />`
+- `src/pages/payments/PaymentsPage.tsx:235` - `<label>Фамилия<input value={settings.lastName} onChange={(event) => setNameField('lastName', event.target.value)} /></label>`
+- `src/pages/payments/PaymentsPage.tsx:236` - `<label>Имя<input value={settings.firstName} onChange={(event) => setNameField('firstName', event.target.value)} /></label>`
+- `src/pages/payments/PaymentsPage.tsx:237` - `<label>Отчество<input value={settings.middleName} onChange={(event) => setNameField('middleName', event.target.value)} /></label>`
+- `src/pages/payments/PaymentsPage.tsx:241` - `<input value={settings.displayName} onChange={(event) => setField('displayName', event.target.value)} placeholder="ФИО, которое увидит клиент при оплате" />`
+- `src/pages/payments/PaymentsPage.tsx:245` - `<textarea value={settings.comment} onChange={(event) => setField('comment', event.target.value)} />`
+- `src/pages/payments/PaymentsPage.tsx:250` - `<input type="checkbox" checked={settings.allowCash} onChange={(event) => setField('allowCash', event.target.checked)} />`
+- `src/pages/payments/PaymentsPage.tsx:255` - `<input type="checkbox" checked={settings.requireConfirmation} onChange={(event) => setField('requireConfirmation', event.target.checked)} />`
+- `src/pages/payments/PaymentsPage.tsx:275` - `<input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={onFileChange} hidden />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:831` - `<input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Поиск клиентов..." />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:833` - `<select value={status} onChange={(event) => onStatus(event.target.value)} aria-label="Фильтр статуса">`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:840` - `<select value={templateId} onChange={(event) => onTemplate(event.target.value)} aria-label="Фильтр шаблона">`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:848` - `<select value={payment} onChange={(event) => onPayment(event.target.value)} aria-label="Фильтр оплаты">`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:881` - `<select value={pageSize} onChange={(event) => onPageSize(Number(event.target.value))}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1022` - `<input {...register('name')} placeholder="Например: Мой ресторан" aria-invalid={Boolean(errors.name)} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1029` - `<input {...register('slug')} placeholder="my-restaurant" aria-invalid={Boolean(errors.slug)} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1037` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1051` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1092` - `<select`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1116` - `<input {...register('ownerName')} placeholder="Имя владельца" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1126` - `<input {...register('phone')} placeholder="+7 999 000-00-00" inputMode="tel" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1130` - `<input {...register('primaryCity')} placeholder="Например: Грозный" list="client-city-options" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1139` - `<select {...register('planId')}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1149` - `<select {...register('subscriptionStatus')}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1157` - `<input {...register('subscriptionEndsAt')} type="date" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1163` - `<select {...register('status')}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1171` - `<textarea`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1184` - `<input {...register('adminConsentConfirmed')} type="checkbox" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1193` - `<input {...register('sendEmail')} type="checkbox" disabled />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1283` - `<input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1287` - `<input value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1291` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1301` - `<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1305` - `<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} list="edit-client-city-options" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1313` - `<textarea`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1329` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1365` - `<select value={status} onChange={(event) => setStatus(event.target.value as PlatformClient['status'])}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1380` - `<select value={planId} onChange={(event) => setPlanId(event.target.value)}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1388` - `<select`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1401` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1639` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1648` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1798` - `<input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1802` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1812` - `<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1816` - `<input value={cityName} onChange={(event) => setCityName(event.target.value)} placeholder="Грозный" list="driver-city-options" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1820` - `<select`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1832` - `<input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Hyundai Solaris" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1836` - `<input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="A123BC 95" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1842` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1862` - `<input type="checkbox" checked={driverConsentConfirmed} onChange={(event) => setDriverConsentConfirmed(event.target.checked)} required />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1970` - `<input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1974` - `<input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1978` - `<select value={cityName} onChange={(event) => setCityName(event.target.value)}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1985` - `<input value={vehicleInfo} onChange={(event) => setVehicleInfo(event.target.value)} placeholder="Hyundai Solaris" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1989` - `<input value={carNumber} onChange={(event) => setCarNumber(event.target.value)} placeholder="A123BC 95" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:1993` - `<select`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2006` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2274` - `<label>Комиссия с клиента, ₽<input type="number" min="0" value={billing.clientFee} onChange={(event) => setBilling({ ...billing, clientFee: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2276` - `<select value={billing.restaurantTariffType} onChange={(event) => setBilling({ ...billing, restaurantTariffType: event.target.value as 'percent' | 'fixed' })}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2282` - `? <label>Тариф ресторана, %<input type="number" min="0" value={billing.restaurantCommission} onChange={(event) => setBilling({ ...billing, restaurantCommission: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2283` - `: <label>Тариф ресторана, ₽<input type="number" min="0" value={billing.restaurantFixedFee} onChange={(event) => setBilling({ ...billing, restaurantFixedFee: Number(event.target.value) })} /></label>}`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2285` - `<select value={billing.driverTariffType} onChange={(event) => setBilling({ ...billing, driverTariffType: event.target.value as 'percent' | 'fixed' })}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2291` - `? <label>Тариф водителя, %<input type="number" min="0" value={billing.driverTariff} onChange={(event) => setBilling({ ...billing, driverTariff: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2292` - `: <label>Тариф водителя, ₽<input type="number" min="0" value={billing.driverFixedFee} onChange={(event) => setBilling({ ...billing, driverFixedFee: Number(event.target.value) })} /></label>}`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2303` - `<label>Лимит ресторана, ₽<input type="number" min="0" value={billing.restaurantLimit} onChange={(event) => setBilling({ ...billing, restaurantLimit: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2304` - `<label>Лимит водителя, ₽<input type="number" min="0" value={billing.driverLimit} onChange={(event) => setBilling({ ...billing, driverLimit: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2305` - `<label>Предупредить на, %<input type="number" min="1" max="100" value={billing.warningPercent} onChange={(event) => setBilling({ ...billing, warningPercent: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2317` - `<select value={billing.customSubject} onChange={(event) => setBilling({ ...billing, customSubject: event.target.value })}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2324` - `<select value={billing.customTariffType} onChange={(event) => setBilling({ ...billing, customTariffType: event.target.value as 'percent' | 'fixed' })}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2330` - `? <label>Тариф, %<input type="number" min="0" value={billing.customTariff} onChange={(event) => setBilling({ ...billing, customTariff: Number(event.target.value) })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2331` - `: <label>Тариф, ₽<input type="number" min="0" value={billing.customTariffFixed} onChange={(event) => setBilling({ ...billing, customTariffFixed: Number(event.target.value) })} /></label>}`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2342` - `<label>Откуда<input value={fromSettlement} onChange={(event) => setFromSettlement(event.target.value)} placeholder="Цоци-Юрт" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2343` - `<label>Куда<input value={toSettlement} onChange={(event) => setToSettlement(event.target.value)} placeholder="Курчалой" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2344` - `<label>Цена, ₽<input type="number" min="0" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2566` - `<select value={activeContestId} onChange={(event) => setSelectedContestId(event.target.value)}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2572` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2918` - `<select value={kind} onChange={(event) => setKind(event.target.value as PlatformBannerAdmin['kind'])}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2925` - `<label>Название<input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Внутреннее название материала" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2926` - `<label>Заголовок<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2927` - `<label className="is-wide">Краткий текст<textarea value={subtitle} onChange={(event) => setSubtitle(event.target.value)} required rows={3} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2930` - `<input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" onChange={(event) => void uploadMedia(event.target.files?.[0])} disabled={isUploading} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2940` - `<label>Текст кнопки<input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} placeholder="Подробнее" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2942` - `<select value={contentPosition} onChange={(event) => setContentPosition(event.target.value as PlatformBannerAdmin['contentPosition'])}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2955` - `<select value={buttonPosition} onChange={(event) => setButtonPosition(event.target.value as PlatformBannerAdmin['buttonPosition'])}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2968` - `<select value={pageId} onChange={(event) => setPageId(event.target.value)} required>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2981` - `<label>Начало показа<input type="date" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2982` - `<label>Окончание показа<input type="date" min={startsAt || undefined} value={endsAt} onChange={(event) => setEndsAt(event.target.value)} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2983` - `<label>Порядок показа<input type="number" min="0" value={sortOrder} onChange={(event) => setSortOrder(Number(event.target.value))} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2984` - `<label>Цвет фона<input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value)} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2985` - `<label className="platform-toggle-field is-wide"><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /><span>Материал активен</span></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3055` - `<label>Название страницы<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Конкурс на iPhone" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3057` - `<input value={slug} onChange={(event) => setSlug(normalizeContentSlug(event.target.value))} placeholder="contest-1" />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3061` - `<select value={status} onChange={(event) => setStatus(event.target.value as PlatformContentPage['status'])}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3074` - `<select value={newBlockType} onChange={(event) => setNewBlockType(event.target.value as PlatformContentBlockType)}>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3091` - `<textarea value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} rows={block.type === 'text' ? 5 : 2} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3096` - `<label>URL медиа<textarea value={block.url} onChange={(event) => updateBlock(block.id, { url: event.target.value })} rows={block.type === 'gallery' ? 4 : 2} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3098` - `<input type="file" accept={block.type === 'video' ? 'video/*' : 'image/*'} multiple={block.type === 'gallery'} onChange={(event) => void uploadBlockMedia(block, event.target.files)} />`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3101` - `<label>Подпись<input value={block.content} onChange={(event) => updateBlock(block.id, { content: event.target.value })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3105` - `<label>Ссылка<input value={block.url} onChange={(event) => updateBlock(block.id, { url: event.target.value })} placeholder="https://..." /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3108` - `<label>Текст действия<input value={block.label} onChange={(event) => updateBlock(block.id, { label: event.target.value })} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3182` - `<label><MessageCircle />WhatsApp<input value={support.supportWhatsapp} onChange={(event) => setSupport({ ...support, supportWhatsapp: event.target.value })} placeholder="79990000000" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3183` - `<label><Phone />Телефон<input value={support.supportPhone} onChange={(event) => setSupport({ ...support, supportPhone: event.target.value })} placeholder="+7 999 000-00-00" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3184` - `<label><Mail />E-mail<input type="email" value={support.supportEmail} onChange={(event) => setSupport({ ...support, supportEmail: event.target.value })} placeholder="support@example.ru" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3185` - `<label><MessageCircle />Telegram<input value={support.supportTelegram} onChange={(event) => setSupport({ ...support, supportTelegram: event.target.value })} placeholder="@waycatalog" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3186` - `<label className="is-wide">Время работы<input value={support.supportHours} onChange={(event) => setSupport({ ...support, supportHours: event.target.value })} placeholder="Ежедневно, 09:00–21:00" /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3187` - `<label className="is-wide">Текст обращения / подсказки<textarea value={support.supportHint} onChange={(event) => setSupport({ ...support, supportHint: event.target.value })} rows={4} /></label>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3248` - `<input`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3259` - `<input`
+- `src/shared/DeliveryMapPicker.tsx:159` - `<input`
+- `src/shared/DeliveryTrackingMap.tsx:518` - `<input`
+
+## Supabase таблицы (232)
+
+- `src/shared/api/auditApi.ts:8` - `.from('audit_logs')`
+- `src/shared/api/catalogAdminApi.ts:72` - `.from('catalogs')`
+- `src/shared/api/catalogAdminApi.ts:130` - `.from('catalog_members')`
+- `src/shared/api/catalogAdminApi.ts:136` - `.from('clients')`
+- `src/shared/api/clientPlatformApi.ts:324` - `const { error } = await supabase.from('client_signups').insert({`
+- `src/shared/api/clientPlatformApi.ts:344` - `const { error } = await supabase.from('client_reviews').insert({`
+- `src/shared/api/clientPlatformApi.ts:442` - `.from('catalogs')`
+- `src/shared/api/clientPlatformApi.ts:501` - `.from('orders')`
+- `src/shared/api/clientPlatformApi.ts:653` - `.from('catalogs')`
+- `src/shared/api/clientPlatformApi.ts:698` - `.from('categories')`
+- `src/shared/api/clientPlatformApi.ts:703` - `.from('products')`
+- `src/shared/api/clientPlatformApi.ts:709` - `.from('product_images')`
+- `src/shared/api/clientPlatformApi.ts:713` - `supabase.from('catalog_theme_settings').select('catalog_id, settings').in('catalog_id', catalogIds),`
+- `src/shared/api/clientPlatformApi.ts:715` - `.from('catalog_sections')`
+- `src/shared/api/clientPlatformApi.ts:720` - `.from('restaurant_delivery_settings')`
+- `src/shared/api/clientPlatformApi.ts:724` - `.from('restaurant_payments')`
+- `src/shared/api/clientPlatformApi.ts:728` - `.from('restaurants')`
+- `src/shared/api/clientPlatformApi.ts:732` - `.from('platform_banners')`
+- `src/shared/api/clientPlatformApi.ts:737` - `.from('platform_content_pages')`
+- `src/shared/api/clientPlatformApi.ts:742` - `.from('platform_settings')`
+- `src/shared/api/clientPlatformApi.ts:747` - `.from('delivery_settlements')`
+- `src/shared/api/clientPlatformApi.ts:752` - `supabase.from('restaurant').select('id, banner_url')`
+- `src/shared/api/clientPlatformApi.ts:765` - `.from('platform_banners')`
+- `src/shared/api/clientPlatformApi.ts:771` - `? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()`
+- `src/shared/api/clientPlatformApi.ts:793` - `.from('category')`
+- `src/shared/api/clientPlatformApi.ts:798` - `.from('product')`
+- `src/shared/api/clientsApi.ts:318` - `.from('clients')`
+- `src/shared/api/clientsApi.ts:351` - `.from('orders')`
+- `src/shared/api/clientsApi.ts:355` - `.from('catalogs')`
+- `src/shared/api/clientsApi.ts:360` - `? await supabase.from('orders').select('catalog_id, total, status').limit(1000)`
+- `src/shared/api/clientsApi.ts:435` - `.from('orders')`
+- `src/shared/api/clientsApi.ts:479` - `.from('client_signups')`
+- `src/shared/api/clientsApi.ts:487` - `.from('profiles')`
+- `src/shared/api/clientsApi.ts:565` - `.from('orders')`
+- `src/shared/api/clientsApi.ts:683` - `.from('client_signups')`
+- `src/shared/api/clientsApi.ts:693` - `const { error } = await supabase.from('client_signups').delete().eq('id', id);`
+- `src/shared/api/clientsApi.ts:709` - `.from('platform_settings')`
+- `src/shared/api/clientsApi.ts:714` - `? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()`
+- `src/shared/api/clientsApi.ts:747` - `const { error } = await supabase.from('platform_settings').upsert(payload);`
+- `src/shared/api/clientsApi.ts:749` - `const { error: legacyError } = await supabase.from('platform_settings').upsert({`
+- `src/shared/api/clientsApi.ts:780` - `.from('platform_banners')`
+- `src/shared/api/clientsApi.ts:785` - `.from('platform_banners')`
+- `src/shared/api/clientsApi.ts:813` - `? supabase.from('platform_banners').update(payload).eq('id', banner.id)`
+- `src/shared/api/clientsApi.ts:814` - `: supabase.from('platform_banners').insert(payload);`
+- `src/shared/api/clientsApi.ts:830` - `? supabase.from('platform_banners').update(legacyPayload).eq('id', banner.id)`
+- `src/shared/api/clientsApi.ts:831` - `: supabase.from('platform_banners').insert(legacyPayload);`
+- `src/shared/api/clientsApi.ts:851` - `const bucket = supabase.storage.from('platform-banner-media');`
+- `src/shared/api/clientsApi.ts:863` - `const { error } = await supabase.from('platform_banners').delete().eq('id', id);`
+- `src/shared/api/clientsApi.ts:885` - `.from('orders')`
+- `src/shared/api/deliveryApi.ts:594` - `.from('users')`
+- `src/shared/api/deliveryApi.ts:610` - `.from('drivers')`
+- `src/shared/api/deliveryApi.ts:665` - `.from('earnings')`
+- `src/shared/api/deliveryApi.ts:689` - `.from('orders')`
+- `src/shared/api/deliveryApi.ts:709` - `.from('catalogs')`
+- `src/shared/api/deliveryApi.ts:718` - `.from('restaurants')`
+- `src/shared/api/deliveryApi.ts:733` - `.from('restaurants')`
+- `src/shared/api/deliveryApi.ts:860` - `.from('drivers')`
+- `src/shared/api/deliveryApi.ts:1011` - `.from('catalogs')`
+- `src/shared/api/deliveryApi.ts:1018` - `.from('orders')`
+- `src/shared/api/deliveryApi.ts:1028` - `.from('deliveries')`
+- `src/shared/api/deliveryPricingApi.ts:58` - `.from('delivery_pricing_rules')`
+- `src/shared/api/deliveryPricingApi.ts:88` - `const { error } = await supabase.from('delivery_pricing_rules').upsert({`
+- `src/shared/api/deliveryPricingApi.ts:101` - `.from('delivery_price_requests')`
+- `src/shared/api/driversApi.ts:106` - `.from('drivers')`
+- `src/shared/api/driversApi.ts:115` - `.from('drivers')`
+- `src/shared/api/driversApi.ts:134` - `supabase.from('deliveries').select('driver_id, status').not('driver_id', 'is', null).limit(5000),`
+- `src/shared/api/driversApi.ts:135` - `supabase.from('earnings').select('driver_id, amount, net_amount').limit(5000)`
+- `src/shared/api/driversApi.ts:196` - `.from('drivers')`
+- `src/shared/api/driversApi.ts:230` - `.from('drivers')`
+- `src/shared/api/driversApi.ts:242` - `.from('users')`
+- `src/shared/api/driversApi.ts:262` - `.from('restaurants')`
+- `src/shared/api/driversApi.ts:266` - `.from('restaurant_couriers')`
+- `src/shared/api/driversApi.ts:309` - `.from('restaurant_couriers')`
+- `src/shared/api/driversApi.ts:315` - `const insertResult = await supabase.from('restaurant_couriers').insert(`
+- `src/shared/api/loginRedirectApi.ts:76` - `.from('users')`
+- `src/shared/api/loginRedirectApi.ts:84` - `.from('users')`
+- `src/shared/api/loginRedirectApi.ts:94` - `.from('clients')`
+- `src/shared/api/loginRedirectApi.ts:104` - `.from('clients')`
+- `src/shared/api/loginRedirectApi.ts:114` - `.from('catalog_members')`
+- `src/shared/api/platformContentApi.ts:40` - `.from('platform_content_pages')`
+- `src/shared/api/platformContentApi.ts:47` - `supabase.from('platform_banners').select('page_id').not('page_id', 'is', null)`
+- `src/shared/api/platformContentApi.ts:74` - `.from('platform_content_pages')`
+- `src/shared/api/platformContentApi.ts:92` - `? await supabase.from('platform_content_pages').update(payload).eq('id', input.id)`
+- `src/shared/api/platformContentApi.ts:93` - `: await supabase.from('platform_content_pages').insert(payload);`
+- `src/shared/api/platformContentApi.ts:102` - `const { error } = await supabase.from('platform_content_pages').delete().eq('id', page.id);`
+- `src/shared/api/restaurantOrderPayload.ts:279` - `.from('orders')`
+- `src/shared/api/restaurantOrdersApi.ts:702` - `const { data, error } = await supabase.from('catalogs').select('id').eq('slug', normalizedSlug).maybeSingle();`
+- `src/shared/api/restaurantOrdersApi.ts:770` - `.from('orders')`
+- `src/shared/api/restaurantOrdersApi.ts:807` - `.from('drivers')`
+- `src/shared/api/restaurantOrdersApi.ts:870` - `.from('restaurants')`
+- `src/shared/api/restaurantOrdersApi.ts:880` - `.from('restaurant_couriers')`
+- `src/shared/api/restaurantOrdersApi.ts:895` - `.from('drivers')`
+- `src/shared/api/restaurantOrdersApi.ts:912` - `.from('deliveries')`
+- `src/shared/api/restaurantOrdersApi.ts:1005` - `.from('restaurant_delivery_settings')`
+- `src/shared/api/restaurantOrdersApi.ts:1055` - `const deliveryResult = await supabase.from('deliveries').upsert(`
+- `src/shared/api/restaurantOrdersApi.ts:1061` - `const deliveryTaskResult = await supabase.from('delivery_tasks').upsert(`
+- `src/shared/api/restaurantOrdersApi.ts:1115` - `.from('deliveries')`
+- `src/shared/api/restaurantOrdersApi.ts:1130` - `.from('orders')`
+- `src/shared/api/restaurantOrdersApi.ts:1153` - `.from('orders')`
+- `src/shared/api/restaurantOrdersApi.ts:1167` - `.from('restaurant_delivery_settings')`
+- `src/shared/api/restaurantOrdersApi.ts:1188` - `.from('restaurant_delivery_settings')`
+- `src/shared/api/restaurantPaymentsApi.ts:89` - `.from('catalogs')`
+- `src/shared/api/restaurantPaymentsApi.ts:105` - `.from('clients')`
+- `src/shared/api/restaurantPaymentsApi.ts:127` - `.from('restaurant_payments')`
+- `src/shared/api/restaurantPaymentsApi.ts:140` - `.from('catalogs')`
+- `src/shared/api/restaurantPaymentsApi.ts:158` - `.from('restaurant_payments')`
+- `src/shared/api/settlementsApi.ts:52` - `.from('delivery_settlements')`
+- `src/shared/api/settlementsApi.ts:81` - `.from('delivery_settlements')`
+- `src/shared/api/settlementsApi.ts:118` - `.from('settlement_requests')`
+- `src/shared/api/subscriptionsApi.ts:96` - `.from('client_subscriptions')`
+- `src/shared/api/subscriptionsApi.ts:119` - `.from('platform_billing_settings')`
+- `src/shared/api/subscriptionsApi.ts:131` - `const { error } = await supabase.from('platform_billing_settings').upsert({`
+- `src/shared/api/subscriptionsApi.ts:154` - `.from('platform_custom_tariffs')`
+- `src/shared/api/subscriptionsApi.ts:193` - `const { error } = await supabase.from('platform_custom_tariffs').upsert({`
+- `src/shared/api/templatesApi.ts:59` - `.from('catalogs')`
+- `src/shared/api/templatesApi.ts:69` - `.from('template_versions')`
+- `src/shared/supabase.ts:394` - `.from('catalogs')`
+- `src/shared/supabase.ts:406` - `.from('restaurants')`
+- `src/shared/supabase.ts:426` - `const { error } = await supabase.from('restaurants').update(payload).eq('id', existing.id);`
+- `src/shared/supabase.ts:434` - `const { error } = await supabase.from('restaurants').upsert({`
+- `src/shared/supabase.ts:501` - `.from('clients')`
+- `src/shared/supabase.ts:510` - `.from('catalog_members')`
+- `src/shared/supabase.ts:521` - `.from('admin_user')`
+- `src/shared/supabase.ts:577` - `.from('catalogs')`
+- `src/shared/supabase.ts:610` - `supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),`
+- `src/shared/supabase.ts:612` - `.from('products')`
+- `src/shared/supabase.ts:617` - `.from('product_images')`
+- `src/shared/supabase.ts:621` - `supabase.from('tags').select('id, slug, name, icon, color').eq('catalog_id', catalog.id).order('sort_order'),`
+- `src/shared/supabase.ts:623` - `.from('bookable_resources')`
+- `src/shared/supabase.ts:627` - `supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),`
+- `src/shared/supabase.ts:629` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:635` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:641` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:693` - `supabase.from('restaurant').select('*').limit(1).single(),`
+- `src/shared/supabase.ts:694` - `supabase.from('category').select('*').order('sort_order', { ascending: true }).order('name'),`
+- `src/shared/supabase.ts:695` - `supabase.from('product').select('*').order('sort_order', { ascending: true }).order('title'),`
+- `src/shared/supabase.ts:696` - `supabase.from('cabin').select('*').order('sort_order', { ascending: true }).order('title'),`
+- `src/shared/supabase.ts:697` - `supabase.from('catalog_tag').select('*').order('sort_order', { ascending: true }).order('name'),`
+- `src/shared/supabase.ts:698` - `supabase.from('theme_settings').select('*').limit(1).single(),`
+- `src/shared/supabase.ts:701` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:709` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:717` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:791` - `.from('catalog_sections')`
+- `src/shared/supabase.ts:802` - `supabase.from('catalog_sections').upsert(`
+- `src/shared/supabase.ts:855` - `supabase.from('product_images').delete().eq('catalog_id', activePlatformCatalogId).eq('product_id', productId)`
+- `src/shared/supabase.ts:860` - `supabase.from('product_images').insert(images.map((url, sortOrder) => ({`
+- `src/shared/supabase.ts:875` - `await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));`
+- `src/shared/supabase.ts:880` - `const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as`
+- `src/shared/supabase.ts:892` - `await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));`
+- `src/shared/supabase.ts:900` - `await throwOnError(supabase.from('products').update(productPatchToPlatformRow(patch)).eq('id', productId).eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:907` - `await throwOnError(supabase.from('product').update(legacyPatch).eq('id', productId));`
+- `src/shared/supabase.ts:914` - `await throwOnError(supabase.from('products').delete().eq('id', productId).eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:917` - `await throwOnError(supabase.from('product').delete().eq('id', productId));`
+- `src/shared/supabase.ts:924` - `await throwOnError(supabase.from('categories').delete().eq('id', categoryId).eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:927` - `await throwOnError(supabase.from('category').delete().eq('id', categoryId));`
+- `src/shared/supabase.ts:944` - `.from('catalogs')`
+- `src/shared/supabase.ts:958` - `supabase.from('catalog_sections').upsert(`
+- `src/shared/supabase.ts:989` - `await throwOnError(supabase.from('restaurant').upsert(legacyRestaurant, { onConflict: 'id' }));`
+- `src/shared/supabase.ts:1002` - `.from('catalog_theme_settings')`
+- `src/shared/supabase.ts:1007` - `await throwOnError(supabase.from('theme_settings').upsert(themeToLegacyRow(value), { onConflict: 'id' }));`
+- `src/shared/supabase.ts:1018` - `supabase.from('catalog_sections').upsert(`
+- `src/shared/supabase.ts:1038` - `supabase.from('categories').select('id, slug').eq('catalog_id', activePlatformCatalogId).in('slug', slugs)`
+- `src/shared/supabase.ts:1055` - `supabase.from('categories').upsert(rows, { onConflict: 'catalog_id,slug' }).select('id, slug')`
+- `src/shared/supabase.ts:1059` - `supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))`
+- `src/shared/supabase.ts:1063` - `await throwOnError(supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:1073` - `supabase.from('category').upsert(values.map(categoryToLegacyRow), { onConflict: 'id' })`
+- `src/shared/supabase.ts:1077` - `await throwOnError(supabase.from('category').delete().not('id', 'in', postgrestList(ids)));`
+- `src/shared/supabase.ts:1080` - `await throwOnError(supabase.from('category').delete().neq('id', ''));`
+- `src/shared/supabase.ts:1091` - `supabase.from('tags').select('id, slug').eq('catalog_id', activePlatformCatalogId).in('slug', slugs)`
+- `src/shared/supabase.ts:1107` - `supabase.from('tags').upsert(rows, { onConflict: 'catalog_id,slug' }).select('id, slug')`
+- `src/shared/supabase.ts:1111` - `supabase.from('tags').delete().eq('catalog_id', activePlatformCatalogId).not('slug', 'in', postgrestList(slugs))`
+- `src/shared/supabase.ts:1115` - `await throwOnError(supabase.from('tags').delete().eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:1127` - `.from('catalog_tag')`
+- `src/shared/supabase.ts:1145` - `await throwOnError(supabase.from('catalog_tag').delete().not('id', 'in', postgrestList(ids)));`
+- `src/shared/supabase.ts:1148` - `await throwOnError(supabase.from('catalog_tag').delete().neq('id', ''));`
+- `src/shared/supabase.ts:1172` - `await throwOnError(supabase.from('bookable_resources').upsert(rows, { onConflict: 'id' }));`
+- `src/shared/supabase.ts:1177` - `await throwOnError(supabase.from('cabin').upsert(values.map((value, index) => ({ ...value, sort_order: index })), { onConflict: 'id' }));`
+- `src/shared/supabase.ts:1179` - `await throwOnError(supabase.from('cabin').delete().not('id', 'in', postgrestList(ids)));`
+- `src/shared/supabase.ts:1181` - `await throwOnError(supabase.from('cabin').delete().neq('id', ''));`
+- `src/shared/supabase.ts:1193` - `await throwOnError(supabase.from('products').delete().eq('catalog_id', activePlatformCatalogId));`
+- `src/shared/supabase.ts:1195` - `await throwOnError(supabase.from('products').insert(rows));`
+- `src/shared/supabase.ts:1201` - `await throwOnError(supabase.from('product').upsert(values.map((value, index) => ({ ...value, sort_order: index })), { onConflict: 'id' }));`
+- `src/shared/supabase.ts:1204` - `await throwOnError(supabase.from('product').delete().not('id', 'in', postgrestList(ids)));`
+- `src/shared/supabase.ts:1206` - `await throwOnError(supabase.from('product').delete().neq('id', ''));`
+- `src/shared/webPush.ts:66` - `const { data } = await supabase.from('catalogs').select('id').eq('slug', context.catalogSlug).maybeSingle();`
+- `supabase/functions/create-client/index.ts:122` - `adminClient.from('clients').select('id').eq('email', payload.email).maybeSingle(),`
+- `supabase/functions/create-client/index.ts:123` - `adminClient.from('catalogs').select('id').eq('slug', payload.slug).maybeSingle(),`
+- `supabase/functions/create-client/index.ts:125` - `.from('catalogs')`
+- `supabase/functions/create-client/index.ts:157` - `const { error: actorProfileError } = await adminClient.from('profiles').upsert({`
+- `supabase/functions/create-client/index.ts:164` - `const { error: profileError } = await adminClient.from('profiles').upsert({`
+- `supabase/functions/create-client/index.ts:183` - `.from('catalogs')`
+- `supabase/functions/create-client/index.ts:190` - `const { error: memberError } = await adminClient.from('catalog_members').insert({`
+- `supabase/functions/create-client/index.ts:198` - `const { error: deliverySettingsError } = await adminClient.from('restaurant_delivery_settings').upsert(`
+- `supabase/functions/create-client/index.ts:211` - `.from('clients')`
+- `supabase/functions/create-client/index.ts:238` - `const { error: subscriptionError } = await adminClient.from('client_subscriptions').insert({`
+- `supabase/functions/create-client/index.ts:247` - `const { error: auditError } = await adminClient.from('audit_logs').insert({`
+- `supabase/functions/create-client/index.ts:269` - `await adminClient.from('clients').delete().eq('id', clientId);`
+- `supabase/functions/create-client/index.ts:272` - `await adminClient.from('catalogs').delete().eq('id', catalogId);`
+- `supabase/functions/create-driver/index.ts:103` - `.from('users')`
+- `supabase/functions/create-driver/index.ts:132` - `.from('cities')`
+- `supabase/functions/create-driver/index.ts:141` - `.from('users')`
+- `supabase/functions/create-driver/index.ts:155` - `.from('drivers')`
+- `supabase/functions/create-driver/index.ts:192` - `await adminClient.from('drivers').delete().eq('id', driverId);`
+- `supabase/functions/create-driver/index.ts:195` - `await adminClient.from('users').delete().eq('id', publicUserId);`
+- `supabase/functions/send-web-push/index.ts:100` - `let query = admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', role);`
+- `supabase/functions/send-web-push/index.ts:112` - `const { data: catalog } = await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle();`
+- `supabase/functions/send-web-push/index.ts:122` - `admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'restaurant').eq('catalog_id', catalogId),`
+- `supabase/functions/send-web-push/index.ts:123` - `admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'super_admin')`
+- `supabase/functions/send-web-push/index.ts:132` - `admin.from('orders').select('catalog_id, restaurant_id, id, delivery_city, delivery_settlement').eq('id', orderId).maybeSingle(),`
+- `supabase/functions/send-web-push/index.ts:133` - `admin.from('deliveries').select('driver_id, status, delivery_provider').eq('id', deliveryId).maybeSingle()`
+- `supabase/functions/send-web-push/index.ts:145` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:152` - `.from('drivers')`
+- `supabase/functions/send-web-push/index.ts:160` - `.from('deliveries')`
+- `supabase/functions/send-web-push/index.ts:176` - `: await admin.from('restaurants').select('id').eq('catalog_id', catalogId);`
+- `supabase/functions/send-web-push/index.ts:180` - `.from('restaurant_couriers')`
+- `supabase/functions/send-web-push/index.ts:196` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:205` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:212` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:232` - `await admin.from('web_push_subscriptions').delete().eq('id', subscription.id);`
+- `supabase/functions/update-client/index.ts:114` - `.from('clients')`
+- `supabase/functions/update-client/index.ts:122` - `.from('clients')`
+- `supabase/functions/update-client/index.ts:168` - `.from('clients')`
+- `supabase/functions/update-client/index.ts:181` - `.from('catalogs')`
+- `supabase/functions/update-client/index.ts:189` - `.from('restaurant_delivery_settings')`
+- `supabase/functions/update-client/index.ts:197` - `const { error: deliverySettingsError } = await adminClient.from('restaurant_delivery_settings').upsert(`
+- `supabase/functions/update-client/index.ts:219` - `.from('client_subscriptions')`
+- `supabase/functions/update-client/index.ts:227` - `.from('profiles')`
+- `supabase/functions/update-client/index.ts:236` - `await adminClient.from('audit_logs').insert({`
+- `supabase/functions/update-driver/index.ts:108` - `.from('drivers')`
+- `supabase/functions/update-driver/index.ts:115` - `.from('users')`
+- `supabase/functions/update-driver/index.ts:144` - `.from('drivers')`
+- `supabase/functions/update-driver/index.ts:155` - `.from('users')`
+
+## Supabase RPC (54)
+
+- `src/shared/api/catalogAdminApi.ts:185` - `const { error } = await supabase.rpc('mark_client_personal_data_consent');`
+- `src/shared/api/clientAccountApi.ts:83` - `const { error } = await supabase.rpc('record_client_legal_consent', {`
+- `src/shared/api/clientAccountApi.ts:97` - `const { data, error } = await supabase.rpc('register_client_account', {`
+- `src/shared/api/clientAccountApi.ts:113` - `const { data, error } = await supabase.rpc('login_client_account', {`
+- `src/shared/api/clientAccountApi.ts:128` - `const { data, error } = await supabase.rpc('get_client_account_session', {`
+- `src/shared/api/clientAccountApi.ts:142` - `await supabase.rpc('logout_client_account', { client_session_token: token });`
+- `src/shared/api/clientPlatformApi.ts:557` - `const { data: statusData, error: statusError } = await client.rpc('get_public_restaurant_order_status', {`
+- `src/shared/api/clientPlatformApi.ts:569` - `const { data: trackingData } = await client.rpc('get_public_order_tracking', {`
+- `src/shared/api/deliveryApi.ts:376` - `client.rpc('get_driver_delivery_offers') as PromiseLike<{`
+- `src/shared/api/deliveryApi.ts:389` - `client.rpc('get_driver_delivery_offers') as PromiseLike<{`
+- `src/shared/api/deliveryApi.ts:402` - `client.rpc('get_current_driver_dashboard_profile') as PromiseLike<{`
+- `src/shared/api/deliveryApi.ts:421` - `client.rpc('get_current_driver_dashboard_data') as PromiseLike<{`
+- `src/shared/api/deliveryApi.ts:559` - `supabase.rpc('current_driver_id'),`
+- `src/shared/api/deliveryApi.ts:804` - `supabase.rpc('set_current_driver_availability', {`
+- `src/shared/api/deliveryApi.ts:829` - `supabase.rpc('update_current_driver_location', {`
+- `src/shared/api/deliveryApi.ts:880` - `supabase.rpc('update_current_driver_profile', {`
+- `src/shared/api/deliveryApi.ts:906` - `supabase.rpc('accept_available_delivery', {`
+- `src/shared/api/deliveryApi.ts:928` - `supabase.rpc('update_current_driver_delivery_status', {`
+- `src/shared/api/deliveryApi.ts:954` - `supabase.rpc('complete_driver_delivery', {`
+- `src/shared/api/deliveryApi.ts:972` - `const { data, error } = await supabase.rpc('refresh_current_driver_pickup_qr', {`
+- `src/shared/api/deliveryApi.ts:991` - `const { data, error } = await supabase.rpc('confirm_delivery_pickup_qr', {`
+- `src/shared/api/deliveryApi.ts:1000` - `const fallbackResult = await supabase.rpc('confirm_delivery_pickup_qr_by_token', {`
+- `src/shared/api/deliveryApi.ts:1039` - `const retryResult = await supabase.rpc('confirm_delivery_pickup_qr', {`
+- `src/shared/api/deliveryApi.ts:1050` - `const { data, error } = await supabase.rpc('get_restaurant_order_id_for_delivery', {`
+- `src/shared/api/deliveryApi.ts:1061` - `supabase.rpc('confirm_driver_pickup', {`
+- `src/shared/api/deliveryPricingApi.ts:125` - `const { error } = await supabase.rpc('review_delivery_price_request', {`
+- `src/shared/api/deliveryPricingApi.ts:140` - `const { error } = await supabase.rpc('request_delivery_price', {`
+- `src/shared/api/loginRedirectApi.ts:123` - `const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');`
+- `src/shared/api/loginRedirectApi.ts:135` - `supabase.rpc('resolve_current_login_redirect')`
+- `src/shared/api/platformAdminApi.ts:32` - `const { data, error } = await supabase.rpc('is_platform_admin');`
+- `src/shared/api/restaurantOrderPayload.ts:269` - `const fallbackResult = await client.rpc('create_public_order', fallbackArgs);`
+- `src/shared/api/restaurantOrdersApi.ts:727` - `const { data, error } = await supabase.rpc('get_restaurant_couriers_for_catalog', {`
+- `src/shared/api/restaurantOrdersApi.ts:743` - `const { data, error } = await supabase.rpc('link_restaurant_courier_by_email', {`
+- `src/shared/api/restaurantOrdersApi.ts:757` - `const { error } = await supabase.rpc('remove_restaurant_courier', {`
+- `src/shared/api/restaurantOrdersApi.ts:799` - `const driverRpcResult = await supabase.rpc('get_restaurant_assigned_drivers', {`
+- `src/shared/api/restaurantOrdersApi.ts:838` - `const { data, error } = await supabase.rpc('delete_restaurant_test_order', {`
+- `src/shared/api/restaurantOrdersApi.ts:951` - `const { data, error } = await supabase.rpc('get_public_restaurant_order_status', {`
+- `src/shared/api/restaurantOrdersApi.ts:972` - `const { data, error } = await supabase.rpc('get_public_order_tracking', { target_order_id: orderId.trim() });`
+- `src/shared/api/restaurantOrdersApi.ts:1036` - `const dispatchResult = await supabase.rpc('dispatch_restaurant_order_to_delivery', {`
+- `src/shared/api/restaurantOrdersApi.ts:1076` - `const { error } = await supabase.rpc('update_restaurant_order_status', {`
+- `src/shared/api/restaurantOrdersApi.ts:1088` - `const { data, error } = await supabase.rpc('confirm_restaurant_cash_payment', {`
+- `src/shared/api/restaurantOrdersApi.ts:1099` - `const assignmentResult = await supabase.rpc('assign_restaurant_delivery_driver', {`
+- `src/shared/api/restaurantPaymentsApi.ts:86` - `const { data: platformAdmin } = await supabase.rpc('is_platform_admin');`
+- `src/shared/api/settlementsApi.ts:101` - `const { error } = await supabase.rpc('record_settlement_request', {`
+- `src/shared/api/subscriptionsApi.ts:75` - `const { data, error } = await supabase.rpc('get_current_restaurant_billing_tariff', {`
+- `src/shared/api/templatesApi.ts:95` - `const { data, error } = await supabase.rpc('create_restaurant_template', {`
+- `src/shared/supabase.ts:484` - `const { data: rpcAccess, error: rpcError } = await supabase.rpc('has_catalog_admin_access', {`
+- `src/shared/webPush.ts:70` - `const { error } = await supabase.rpc('upsert_web_push_subscription', {`
+- `src/shared/webPush.ts:89` - `await supabase.rpc('delete_web_push_subscription', { subscription_endpoint: subscription.endpoint });`
+- `supabase/functions/create-client/index.ts:101` - `const { data: isPlatformAdmin, error: adminCheckError } = await userClient.rpc('is_platform_admin');`
+- `supabase/functions/create-client/index.ts:171` - `const { data: createdCatalogId, error: catalogError } = await adminClient.rpc('create_restaurant_from_template', {`
+- `supabase/functions/create-driver/index.ts:87` - `const { data: isPlatformAdmin, error: adminCheckError } = await userClient.rpc('is_platform_admin');`
+- `supabase/functions/update-client/index.ts:99` - `const { data: isPlatformAdmin, error: adminCheckError } = await userClient.rpc('is_platform_admin');`
+- `supabase/functions/update-driver/index.ts:92` - `const { data: isPlatformAdmin, error: adminCheckError } = await userClient.rpc('is_platform_admin');`
+
+## Storage (1)
+
+- `src/shared/api/clientsApi.ts:851` - `const bucket = supabase.storage.from('platform-banner-media');`
+
+## Realtime (27)
+
+- `src/app/App.tsx:2157` - `const channel = client.channel(`catalog-refresh-${catalogSlug}`);`
+- `src/app/App.tsx:2159` - `channel.on('postgres_changes', { event: '*', schema: 'public', table }, refreshCatalog);`
+- `src/shared/api/clientPlatformApi.ts:596` - `.channel(`client-order-${orderId}`)`
+- `src/shared/api/clientPlatformApi.ts:597` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, fetchOrder)`
+- `src/shared/api/clientPlatformApi.ts:598` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `order_id=eq.${orderId}` }, fetchOrder)`
+- `src/shared/api/clientPlatformApi.ts:599` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, fetchOrder)`
+- `src/shared/api/clientPlatformApi.ts:612` - `.channel('client-platform-snapshot')`
+- `src/shared/api/clientPlatformApi.ts:613` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'catalogs' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:614` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:615` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:616` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'product_images' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:617` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'catalog_sections' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:618` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_delivery_settings' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:619` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:620` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:621` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'platform_banners' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:622` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'platform_content_pages' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:623` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'platform_settings' }, onChange)`
+- `src/shared/api/clientPlatformApi.ts:624` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_settlements' }, onChange)`
+- `src/shared/api/deliveryApi.ts:1085` - `.channel(`driver-deliveries-${driverId}`)`
+- `src/shared/api/deliveryApi.ts:1086` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, (payload) => {`
+- `src/shared/api/deliveryApi.ts:1094` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'drivers', filter: `id=eq.${driverId}` }, scheduleRefresh)`
+- `src/shared/api/restaurantOrdersApi.ts:934` - `.channel(`restaurant-orders-${catalogId}`)`
+- `src/shared/api/restaurantOrdersApi.ts:935` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `catalog_id=eq.${catalogId}` }, onChange)`
+- `src/shared/api/restaurantOrdersApi.ts:936` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, onChange)`
+- `src/shared/api/restaurantOrdersApi.ts:937` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, onChange)`
+- `src/shared/api/restaurantOrdersApi.ts:938` - `.on('postgres_changes', { event: '*', schema: 'public', table: 'order_status_history', filter: `catalog_id=eq.${catalogId}` }, onChange)`
+
+## Сетевые запросы (121)
+
+- `src/app/App.tsx:1186` - `<a href={restaurant.instagram_url || 'https://instagram.com/'} target="_blank" rel="noreferrer">`
+- `src/app/App.tsx:1189` - `<a href={`https://wa.me/${whatsapp || '79990000000'}`} target="_blank" rel="noreferrer">`
+- `src/data/catalog.ts:4` - ``https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=78&${query}`;`
+- `src/data/catalog.ts:13` - `instagram_url: 'https://instagram.com/',`
+- `src/data/catalog.ts:15` - `mapLink: 'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm',`
+- `src/features/checkout/CheckoutScreen.tsx:465` - `return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;`
+- `src/features/client-platform/clientPlatformLogic.test.ts:233` - `'https://yandex.ru/maps/?ll=45.6927,43.3184&z=17&pt=45.6927,43.3184,pm2rdm'`
+- `src/features/client-platform/clientPlatformLogic.test.ts:244` - `'https://yandex.ru/maps/?text=%D0%93%D1%80%D0%BE%D0%B7%D0%BD%D1%8B%D0%B9%2C%20%D0%BF%D1%80%D0%BE%D1%81%D0%BF%D0%B5%D0%BA%D1%82%20%D0%9F%D1%83%D1%82%D0%B8%D0%BD%D0%B0'`
+- `src/features/client-platform/clientPlatformLogic.test.ts:251` - `assert.equal(buildSupportWhatsappUrl('+7 (999) 000-00-11'), 'https://wa.me/79990000011');`
+- `src/features/client-platform/clientPlatformLogic.test.ts:255` - `assert.equal(buildSupportWhatsappUrl(''), 'https://wa.me/79990000000');`
+- `src/features/client-platform/clientPlatformLogic.ts:111` - `return `https://yandex.ru/maps/?ll=${address.lng},${address.lat}&z=17&pt=${address.lng},${address.lat},pm2rdm`;`
+- `src/features/client-platform/clientPlatformLogic.ts:114` - `return `https://yandex.ru/maps/?text=${encodeURIComponent(address.addressLine)}`;`
+- `src/features/client-platform/clientPlatformLogic.ts:119` - `return `https://wa.me/${normalizedPhone}`;`
+- `src/features/client-platform/mockData.ts:7` - ``https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=80&${query}`;`
+- `src/features/client-platform/mockData.ts:337` - `qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayCatalog%20Rizih%201470',`
+- `src/features/client-platform/mockData.ts:364` - `qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayCatalog',`
+- `src/features/design-settings/DesignEditor.tsx:102` - `<input value={theme.background_image_url} onChange={(event) => updateTheme({ background_image_url: event.target.value, background_type: event.target.value ? 'image' : 'color' })} placeholder="https://..." />`
+- `src/features/design-settings/DesignEditor.tsx:124` - `<input value={restaurant.instagram_url} onChange={(event) => onUpdateRestaurant({ instagram_url: event.target.value })} placeholder="https://instagram.com/..." />`
+- `src/features/design-settings/DesignEditor.tsx:132` - `<input value={restaurant.mapLink ?? ''} onChange={(event) => onUpdateRestaurant({ mapLink: event.target.value })} placeholder="https://yandex.ru/maps/..." />`
+- `src/features/order/orderLifecycle.test.ts:77` - `'https://yandex.ru/maps/?text=%D1%83%D0%BB.+%D0%9B%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0%2C+123%2C+%D0%A6%D0%BE%D1%86%D0%B8-%D0%AE%D1%80%D1%82'`
+- `src/features/order/orderLifecycle.test.ts:197` - `'https://yandex.ru/maps/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:202` - `'https://yandex.ru/maps/?text=%D1%83%D0%BB.+%D0%9B%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0%2C+123'`
+- `src/features/order/orderLifecycle.test.ts:210` - `'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:215` - `'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:233` - `'https://yandex.ru/maps/?rtext=~43.322%2C45.705&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:238` - `'https://yandex.ru/maps/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'`
+- `src/features/order/orderLifecycle.ts:240` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/order/orderLifecycle.ts:246` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/order/orderLifecycle.ts:250` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/restaurant-admin/orderPresentation.ts:123` - `return digits ? `https://wa.me/${digits}` : '';`
+- `src/features/restaurant-settings/ProfileSettings.tsx:226` - `placeholder="https://instagram.com/restaurant"`
+- `src/features/restaurant-settings/ProfileSettings.tsx:239` - `placeholder="https://yandex.ru/maps/..."`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1240` - `<a href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1241` - `<a href="https://wa.me/79280000000" target="_blank" rel="noreferrer">WhatsApp</a>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1242` - `<a href="https://yandex.ru/maps/" target="_blank" rel="noreferrer">Местоположение</a>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2191` - `<a href={`https://t.me/${snapshot.supportTelegram.replace(/^@/, '')}`} target="_blank" rel="noreferrer">`
+- `src/pages/driver/DriverApp.tsx:1828` - `? `https://wa.me/${delivery.clientPhone.replace(/\D/g, '')}``
+- `src/pages/driver/DriverApp.tsx:2277` - `<a href="https://wa.me/79990000000" target="_blank" rel="noreferrer">Написать в WhatsApp</a>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3105` - `<label>Ссылка<input value={block.url} onChange={(event) => updateBlock(block.id, { url: event.target.value })} placeholder="https://..." /></label>`
+- `src/shared/api/restaurantOrdersApi.test.ts:347` - `origin: 'https://studia95.github.io',`
+- `src/shared/api/restaurantOrdersApi.test.ts:352` - `'https://studia95.github.io/catalogg/#/mangal/order/83ec0369'`
+- `src/shared/deliveryGeocoder.ts:50` - `const publicNominatimUrl = import.meta.env?.VITE_GEOCODER_URL ?? 'https://nominatim.openstreetmap.org';`
+- `src/shared/deliveryGeocoder.ts:114` - `fetcher = (url) => fetch(url),`
+- `src/shared/deliveryMap.test.ts:119` - `assert.equal(tiles.every((tile) => tile.url.startsWith('https://tile.openstreetmap.org/16/')), true);`
+- `src/shared/deliveryMap.test.ts:163` - `baseUrl: 'https://router.project-osrm.org',`
+- `src/shared/deliveryMap.test.ts:169` - `'https://router.project-osrm.org/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=true'`
+- `src/shared/deliveryMap.ts:221` - `url: `https://tile.openstreetmap.org/${zoom}/${wrappedTileX}/${tileY}.png`,`
+- `src/shared/deliveryMap.ts:232` - `'https://tile.openstreetmap.org/{z}/{x}/{y}.png';`
+- `src/shared/deliveryMap.ts:234` - `'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';`
+- `src/shared/deliveryMap.ts:237` - `'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',`
+- `src/shared/deliveryMap.ts:239` - `'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'`
+- `src/shared/deliveryNavigation.ts:70` - `const defaultRoadRouterUrl = import.meta.env?.VITE_ROAD_ROUTER_URL ?? 'https://router.project-osrm.org';`
+- `src/shared/exportTable.ts:53` - `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${sheetRows}</sheetData></worksheet>`;`
+- `src/shared/exportTable.ts:59` - `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`
+- `src/shared/exportTable.ts:66` - `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+- `src/shared/exportTable.ts:67` - `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>`
+- `src/shared/exportTable.ts:70` - `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
+- `src/shared/exportTable.ts:74` - `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+- `src/shared/exportTable.ts:75` - `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>`
+- `src/shared/restaurantLocation.test.ts:8` - `parseRestaurantCoordinatesFromMapLink('https://yandex.ru/maps/?ll=45.6986000%2C43.3178000&z=16'),`
+- `src/shared/restaurantLocation.test.ts:15` - `parseRestaurantCoordinatesFromMapLink('https://yandex.ru/maps/?ll=45.1,43.1&pt=45.6807903,43.3198743,pm2rdm'),`
+- `src/shared/restaurantLocation.test.ts:30` - `'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm'`
+- `src/shared/restaurantLocation.ts:28` - ``https://yandex.ru/maps/?ll=${lng},${lat}&z=16&pt=${lng},${lat},pm2rdm`;`
+- `src/shared/supabase.ts:95` - `return await fetch(input, { ...init, signal: controller.signal });`
+- `supabase/functions/create-client/index.ts:1` - `import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';`
+- `supabase/functions/create-driver/index.ts:1` - `import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';`
+- `supabase/functions/send-web-push/index.ts:2` - `import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';`
+- `supabase/functions/send-web-push/index.ts:19` - `'Access-Control-Allow-Origin': Deno.env.get('WEB_PUSH_ALLOWED_ORIGIN')?.trim() || 'https://wayyaam.ru',`
+- `supabase/functions/send-web-push/index.ts:49` - `const value = Deno.env.get('PUBLIC_APP_URL')?.trim() || 'https://studia95.github.io/catalogg/';`
+- `supabase/functions/update-client/index.ts:1` - `import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';`
+- `supabase/functions/update-driver/index.ts:1` - `import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';`
+- `supabase/schema.sql:237` - `'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=78&restaurant',`
+- `supabase/schema.sql:239` - `'https://instagram.com/',`
+- `supabase/schema.sql:241` - `'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm'`
+- `supabase/schema.sql:255` - `('chechen', 'Чеченские блюда', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'pot', 'food', 0),`
+- `supabase/schema.sql:256` - `('pizza', 'Пиццы', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'pizza', 'food', 1),`
+- `supabase/schema.sql:257` - `('fastfood', 'Фастфуд', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=78&burger', 'burger', 'food', 2),`
+- `supabase/schema.sql:258` - `('grill', 'Мясо', 'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=900&q=78&kebab', 'flame', 'food', 3),`
+- `supabase/schema.sql:259` - `('fridge', 'Напитки из холодильника', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&soda', 'bottle', 'drink', 4),`
+- `supabase/schema.sql:260` - `('lemonades', 'Лимонады в графине', 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=900&q=78&lemonade', 'glass', 'drink', 5),`
+- `supabase/schema.sql:261` - `('tea', 'Чай', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'tea', 'drink', 6),`
+- `supabase/schema.sql:262` - `('cabins', 'Кабинки', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=78&restaurant', 'home', 'space', 7)`
+- `supabase/schema.sql:287` - `('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=78&skewers', 'Баранина, специи, лук, соль, перец', '250 г', 2, 'с луком `
+- `supabase/schema.sql:288` - `('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'Говядина, галушки, бульон, зелень', '420 г', 1, 'с чесночным соусом'`
+- `supabase/schema.sql:289` - `('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 0, 'с томат`
+- `supabase/schema.sql:290` - `('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=900&q=78&wrap', 'Курица, лаваш, овощи, картофель, соус', '360 г', 1, 'с картофелем', tr`
+- `supabase/schema.sql:291` - `('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=78&steak', 'Говядина, соль, перец, розмарин', '430 г', 1, 'с перечным соусом', false, false,`
+- `supabase/schema.sql:292` - `('grilled-vegetables', 'Овощи на мангале', 320, 'Сезонные овощи, приготовленные на углях.', 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=78&vegetables', 'Перец, баклажан, кабачок, томаты', '280 г', 0, 'с зеленью', `
+- `supabase/schema.sql:293` - `('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=900&q=78&cola', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', `
+- `supabase/schema.sql:294` - `('pepsi', 'Pepsi', 120, 'Освежающий вкус с легкой сладостью.', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&pepsi', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', '`
+- `supabase/schema.sql:295` - `('fanta', 'Fanta', 120, 'Апельсиновый вкус и яркое настроение.', 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?auto=format&fit=crop&w=900&q=78&orange soda', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 15, 'fr`
+- `supabase/schema.sql:296` - `('sprite', 'Sprite', 120, 'Лимонно-лаймовый вкус и свежесть.', 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=900&q=78&sprite', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 18, 'fridge', `
+- `supabase/schema.sql:297` - `('ayran', 'Айран', 150, 'Освежающий кисломолочный напиток.', 'https://images.unsplash.com/photo-1564758565388-0d5da0cbb064?auto=format&fit=crop&w=900&q=78&ayran', 'Кисломолочный напиток, соль, мята', '250 мл', 0, 'охлажденный', true, false, false, false, 14, '`
+- `supabase/schema.sql:298` - `('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'Зеленый чай, чабрец, травы', '450 мл', 0, 'в чайнике', true, false, fa`
+- `supabase/schema.sql:299` - `('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=78&strawberry lemonade', 'Клубника, лимон, мята, содовая', '450 мл', 0, 'со`
+- `supabase/schema.sql:300` - `('blue-lagoon', 'Синяя лагуна', 250, 'Яркий цитрусовый лимонад с легкими морскими нотками.', 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=900&q=78&blue cocktail', 'Лимон, содовая, сироп блю кюрасао', '450 мл', 0, 'со льд`
+- `supabase/schema.sql:301` - `('tarhun', 'Лимонад тархун', 150, 'Домашний лимонад с ароматом тархуна.', 'https://images.unsplash.com/photo-1523371054106-bbf80586c38c?auto=format&fit=crop&w=900&q=78&green lemonade', 'Тархун, лимон, мята, содовая', '350 мл', 0, 'со льдом', false, false, fals`
+- `supabase/schema.sql:302` - `('signature-sauce', 'Соус фирменный', 80, 'Пикантный соус по авторскому рецепту.', 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?auto=format&fit=crop&w=900&q=78&sauce', 'Томаты, специи, чеснок', '60 г', 2, 'в соуснике', false, false, false, fal`
+- `supabase/schema.sql:340` - `('cabin-1', 'Кабинка №1', 'до 4 гостей', 'Закрывается шторами', 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=78&private dining', 0),`
+- `supabase/schema.sql:341` - `('cabin-2', 'Кабинка №2', 'до 4 гостей', 'Отдельная дверь', 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=78&restaurant booth', 1),`
+- `supabase/schema.sql:342` - `('big-cabin', 'Большая кабинка', 'до 10 гостей', 'Отдельная дверь', 'https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=78&large restaurant table', 2),`
+- `supabase/schema.sql:343` - `('main-hall', 'Общий зал', 'до 20 гостей', 'Открытое пространство', 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=78&restaurant hall', 3)`
+- `supabase/seed_restaurant_catalog.sql:48` - `('chechen', 'Чеченские блюда', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'pot', 10),`
+- `supabase/seed_restaurant_catalog.sql:49` - `('pizza', 'Пиццы', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'pizza', 20),`
+- `supabase/seed_restaurant_catalog.sql:50` - `('fastfood', 'Фастфуд', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=78&burger', 'burger', 30),`
+- `supabase/seed_restaurant_catalog.sql:51` - `('grill', 'Мясо', 'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=900&q=78&kebab', 'flame', 40),`
+- `supabase/seed_restaurant_catalog.sql:52` - `('fridge', 'Напитки из холодильника', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&soda', 'bottle', 50),`
+- `supabase/seed_restaurant_catalog.sql:53` - `('lemonades', 'Лимонады в графине', 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=900&q=78&lemonade', 'glass', 60),`
+- `supabase/seed_restaurant_catalog.sql:54` - `('tea', 'Чай', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'tea', 70),`
+- `supabase/seed_restaurant_catalog.sql:55` - `('cabins', 'Кабинки', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=78&restaurant', 'home', 80);`
+- `supabase/seed_restaurant_catalog.sql:71` - `('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=78&skewers', 'Баранина, специи, лук, соль, перец', '250 г', 'с луком и с`
+- `supabase/seed_restaurant_catalog.sql:72` - `('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'Говядина, галушки, бульон, зелень', '420 г', 'с чесночным соусом', 8`
+- `supabase/seed_restaurant_catalog.sql:73` - `('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 'с томатным`
+- `supabase/seed_restaurant_catalog.sql:74` - `('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=900&q=78&wrap', 'Курица, лаваш, овощи, картофель, соус', '360 г', 'с картофелем', 16, '`
+- `supabase/seed_restaurant_catalog.sql:75` - `('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=78&steak', 'Говядина, соль, перец, розмарин', '430 г', 'с перечным соусом', 5, 'grill', fals`
+- `supabase/seed_restaurant_catalog.sql:76` - `('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=900&q=78&cola', 'Газированный напиток', '330 мл', 'охлажденная', 20, 'fridge', false, false, false, 60),`
+- `supabase/seed_restaurant_catalog.sql:77` - `('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'Зеленый чай, чабрец, травы', '450 мл', 'в чайнике', 30, 'tea', true, f`
+- `supabase/seed_restaurant_catalog.sql:78` - `('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=78&strawberry-lemonade', 'Клубника, лимон, мята, содовая', '450 мл', 'со ль`
+- `supabase/seed_restaurant_catalog.sql:138` - `(v_catalog_id, 'Кабинка №1', 4, 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=78&private-dining', 10),`
+- `supabase/seed_restaurant_catalog.sql:139` - `(v_catalog_id, 'Кабинка №2', 4, 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=78&restaurant-booth', 20),`
+- `supabase/seed_restaurant_catalog.sql:140` - `(v_catalog_id, 'Большая кабинка', 10, 'https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=78&large-restaurant-table', 30);`
+
+## localStorage (78)
+
+- `src/app/App.tsx:185` - `const raw = window.localStorage.getItem(catalogCacheKey(slug));`
+- `src/app/App.tsx:194` - `window.localStorage.removeItem(catalogCacheKey(slug));`
+- `src/app/App.tsx:207` - `window.localStorage.setItem(catalogCacheKey(slug), serialized);`
+- `src/app/App.tsx:215` - `const raw = window.localStorage.getItem(deliverySettingsCacheKey(slug));`
+- `src/app/App.tsx:219` - `window.localStorage.removeItem(deliverySettingsCacheKey(slug));`
+- `src/app/App.tsx:230` - `window.localStorage.setItem(`
+- `src/features/client-platform/store.ts:244` - `name: 'waycatalog-client-platform',`
+- `src/features/client-platform/store.ts:245` - `storage: createJSONStorage(() => localStorage),`
+- `src/features/driver/store.ts:61` - `name: 'waycatalog-driver',`
+- `src/features/driver/store.ts:63` - `storage: createJSONStorage(() => localStorage),`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:475` - `<button type="button" onClick={() => downloadCsv('waycatalog-drivers', exportHeaders, exportRows)}><Download />CSV</button>`
+- `src/features/platform-admin-drivers/PlatformDriversPage.tsx:476` - `<button type="button" onClick={() => void downloadXlsx('waycatalog-drivers', 'Водители', exportHeaders, exportRows)}><FileSpreadsheet />XLSX</button>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:200` - `<button type="button" onClick={() => downloadCsv('waycatalog-geography', exportHeaders, exportRows)}>`
+- `src/features/platform-admin-geography/PlatformGeographyPage.tsx:203` - `<button type="button" onClick={() => void downloadXlsx('waycatalog-geography', 'География', exportHeaders, exportRows)}>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:190` - `<button type="button" onClick={() => downloadCsv('waycatalog-users', exportHeaders, exportRows)}><Download /><span>CSV</span></button>`
+- `src/features/platform-admin-users/PlatformUsersPage.tsx:191` - `<button type="button" onClick={() => void downloadXlsx('waycatalog-users', 'Пользователи', exportHeaders, exportRows)}><span>XLSX</span></button>`
+- `src/features/restaurant-settings/catalogAdminModel.ts:164` - `return JSON.parse(localStorage.getItem(stockTargetsStorageKey) ?? '{}') as StockTargets;`
+- `src/features/restaurant-settings/catalogAdminModel.ts:172` - `localStorage.setItem(stockTargetsStorageKey, JSON.stringify(targets));`
+- `src/features/stores.ts:115` - `storage: createJSONStorage(() => localStorage),`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:233` - `const stored = localStorage.getItem(key);`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:420` - `localStorage.setItem(paymentStorageKey(slug), JSON.stringify(paymentSettings));`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:424` - `localStorage.setItem(paymentStatusStorageKey(slug), JSON.stringify(paymentStatuses));`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2290` - `window.localStorage.setItem('wayyaam:advertising-preference:1.0', acceptedAdvertising ? 'granted' : 'denied');`
+- `src/pages/driver/DriverApp.tsx:596` - `if (event.key === 'waycatalog-driver-delivery-confirmed') {`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2069` - `const billingDraftStorageKey = 'waycatalog-platform-billing-draft';`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2089` - `const raw = window.localStorage.getItem(billingDraftStorageKey);`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2187` - `window.localStorage.setItem(billingDraftStorageKey, JSON.stringify(billing));`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2207` - `window.localStorage.setItem(billingDraftStorageKey, JSON.stringify(billing));`
+- `src/pages/scanner/ScannerPage.tsx:114` - `window.localStorage.setItem('waycatalog-driver-delivery-confirmed', `${parsed.deliveryId}:${Date.now()}`);`
+- `src/shared/CatalogLoadingScreen.tsx:20` - `<img src={`${import.meta.env.BASE_URL}assets/logo/waycatalog-icon.svg`} alt="" />`
+- `src/shared/LegalSurface.tsx:4` - `const COOKIE_CHOICE_KEY = `wayyaam:cookie-choice:${LEGAL_VERSION}`;`
+- `src/shared/LegalSurface.tsx:9` - `window.localStorage.setItem(COOKIE_CHOICE_KEY, JSON.stringify({ choice, version: LEGAL_VERSION, decidedAt: new Date().toISOString() }));`
+- `src/shared/LegalSurface.tsx:10` - `window.dispatchEvent(new CustomEvent('wayyaam:cookie-choice', { detail: choice }));`
+- `src/shared/LegalSurface.tsx:16` - `const stored = window.localStorage.getItem(COOKIE_CHOICE_KEY);`
+- `src/shared/api/catalogAdminApi.ts:96` - `firstLogin: localStorage.getItem('waycatalog:demo-consent-given') !== 'true',`
+- `src/shared/api/catalogAdminApi.ts:97` - `consentGiven: localStorage.getItem('waycatalog:demo-consent-given') === 'true',`
+- `src/shared/api/catalogAdminApi.ts:181` - `localStorage.setItem('waycatalog:demo-consent-given', 'true');`
+- `src/shared/api/clientAccountApi.ts:5` - `const clientSessionStorageKey = 'waycatalog-client-session';`
+- `src/shared/api/clientAccountApi.ts:46` - `return window.localStorage.getItem(clientSessionStorageKey) ?? '';`
+- `src/shared/api/clientAccountApi.ts:52` - `if (typeof window !== 'undefined') window.localStorage.setItem(clientSessionStorageKey, token);`
+- `src/shared/api/clientAccountApi.ts:56` - `if (typeof window !== 'undefined') window.localStorage.removeItem(clientSessionStorageKey);`
+- `src/shared/api/clientsApi.ts:194` - `const hiddenContestTicketStorageKey = 'waycatalog-hidden-contest-tickets';`
+- `src/shared/api/clientsApi.ts:202` - `const value = window.localStorage.getItem(hiddenContestTicketStorageKey);`
+- `src/shared/api/clientsApi.ts:211` - `window.localStorage.setItem(hiddenContestTicketStorageKey, JSON.stringify(Array.from(ids)));`
+- `src/shared/api/deliveryApi.ts:844` - `window.localStorage.removeItem(getSupabaseAuthStorageKey('driver'));`
+- `src/shared/clientIdentity.ts:27` - `export const clientPlatformStorageKey = 'waycatalog-client-platform';`
+- `src/shared/clientIdentity.ts:88` - `export const loadPublicClientProfile = (slug: string, storage: Storage = localStorage): PublicClientProfile | null => {`
+- `src/shared/clientIdentity.ts:116` - `storage: Storage = localStorage`
+- `src/shared/clientIdentity.ts:147` - `storage: Storage = localStorage`
+- `src/shared/clientIdentity.ts:170` - `storage: Storage = localStorage`
+- `src/shared/clientIdentity.ts:199` - `export const readLocalSettlementRequests = (storage: Storage = localStorage): SettlementRequest[] => {`
+- `src/shared/clientIdentity.ts:212` - `storage: Storage = localStorage,`
+- `src/shared/paymentSettings.ts:39` - `const stored = localStorage.getItem(paymentSettingsKey(slug));`
+- `src/shared/paymentSettings.ts:47` - `localStorage.setItem(paymentSettingsKey(slug), JSON.stringify(settings));`
+- `src/shared/paymentSettings.ts:51` - `const stored = localStorage.getItem(paymentStatusKey(slug, orderId));`
+- `src/shared/paymentSettings.ts:58` - `localStorage.setItem(paymentStatusKey(slug, orderId), status);`
+- `src/shared/privacyPolicy.ts:67` - `'Необходимые технологии обеспечивают вход, корзину и PWA. Аналитические cookies выключены до выбора пользователя. Подробный состав, localStorage, IndexedDB и Cache Storage указан в отдельной Политике cookies.'`
+- `src/shared/pwaSession.ts:90` - `window.localStorage.setItem(pwaResumePathKey, path);`
+- `src/shared/pwaSession.ts:95` - `const path = window.localStorage.getItem(pwaResumePathKey);`
+- `src/shared/pwaSession.ts:101` - `window.localStorage.removeItem(pwaResumePathKey);`
+- `src/shared/supabase.ts:38` - `if (!window.localStorage.getItem(currentAuthStorageKey)) {`
+- `src/shared/supabase.ts:40` - `.map((key) => window.localStorage.getItem(key))`
+- `src/shared/supabase.ts:42` - `if (fallbackSession) window.localStorage.setItem(currentAuthStorageKey, fallbackSession);`
+- `src/shared/supabase.ts:140` - `const serializedSession = window.localStorage.getItem(currentAuthStorageKey);`
+- `src/shared/supabase.ts:142` - `window.localStorage.setItem(getSupabaseAuthStorageKeyForRedirect(redirect), serializedSession);`
+- `src/shared/supabaseAuthScope.test.ts:21` - `assert.equal(getSupabaseAuthStorageKeyForRedirect('/driver'), 'waycatalog-auth-driver');`
+- `src/shared/supabaseAuthScope.test.ts:26` - `'waycatalog-auth-driver',`
+- `src/shared/supabaseAuthScope.test.ts:27` - `'waycatalog-auth-login',`
+- `src/shared/supabaseAuthScope.test.ts:28` - `'waycatalog-auth'`
+- `src/shared/supabaseAuthScope.test.ts:31` - `'waycatalog-auth-platform-admin',`
+- `src/shared/supabaseAuthScope.test.ts:32` - `'waycatalog-auth-login',`
+- `src/shared/supabaseAuthScope.test.ts:33` - `'waycatalog-auth'`
+- `src/shared/supabaseAuthScope.ts:40` - `export const getSupabaseAuthStorageKey = (scope: SupabaseAuthScope) => `waycatalog-auth-${scope}`;`
+- `src/shared/supabaseAuthScope.ts:47` - `return [...new Set(preferredScopes.map(getSupabaseAuthStorageKey)), 'waycatalog-auth'];`
+- `src/shared/supabaseAuthScope.ts:57` - `.map((key) => window.localStorage.getItem(key))`
+- `src/shared/supabaseAuthScope.ts:59` - `if (session) window.localStorage.setItem(targetKey, session);`
+- `src/sw.ts:68` - `tag: payload.tag || 'waycatalog-update',`
+- `supabase/functions/send-web-push/index.ts:91` - `let tag = 'waycatalog-update';`
+
+## sessionStorage (8)
+
+- `src/main.tsx:73` - `const redirect = window.sessionStorage.getItem('catalogg:redirect');`
+- `src/main.tsx:76` - `window.sessionStorage.removeItem('catalogg:redirect');`
+- `src/pages/driver/DriverApp.tsx:309` - `setMoneyHandedOver(window.sessionStorage.getItem(storageKey) === 'true');`
+- `src/pages/driver/DriverApp.tsx:313` - `window.sessionStorage.setItem(storageKey, 'true');`
+- `src/pages/driver/DriverApp.tsx:1010` - `() => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'`
+- `src/pages/driver/DriverApp.tsx:1061` - `window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'`
+- `src/pages/driver/DriverApp.tsx:1066` - `window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');`
+- `src/pages/driver/DriverApp.tsx:1804` - `window.sessionStorage.getItem(`driver-restaurant-route-started:${delivery.deliveryId}`) === 'true'`
+
+## IndexedDB/Cache/SW (4)
+
+- `src/features/dish-editor/storage.ts:9` - `const request = indexedDB.open(DB_NAME, DB_VERSION);`
+- `src/sw.ts:17` - `registerRoute(`
+- `src/sw.ts:27` - `registerRoute(`
+- `src/sw.ts:41` - `registerRoute(`
+
+## Геолокация/карты (60)
+
+- `src/data/catalog.ts:15` - `mapLink: 'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm',`
+- `src/features/checkout/CheckoutScreen.tsx:247` - `if (watchId !== null && navigator.geolocation) {`
+- `src/features/checkout/CheckoutScreen.tsx:248` - `navigator.geolocation.clearWatch(watchId);`
+- `src/features/checkout/CheckoutScreen.tsx:304` - `if (!navigator.geolocation) {`
+- `src/features/checkout/CheckoutScreen.tsx:347` - `const watchId = navigator.geolocation.watchPosition(`
+- `src/features/client-platform/clientPlatformLogic.test.ts:233` - `'https://yandex.ru/maps/?ll=45.6927,43.3184&z=17&pt=45.6927,43.3184,pm2rdm'`
+- `src/features/client-platform/clientPlatformLogic.test.ts:244` - `'https://yandex.ru/maps/?text=%D0%93%D1%80%D0%BE%D0%B7%D0%BD%D1%8B%D0%B9%2C%20%D0%BF%D1%80%D0%BE%D1%81%D0%BF%D0%B5%D0%BA%D1%82%20%D0%9F%D1%83%D1%82%D0%B8%D0%BD%D0%B0'`
+- `src/features/client-platform/clientPlatformLogic.ts:111` - `return `https://yandex.ru/maps/?ll=${address.lng},${address.lat}&z=17&pt=${address.lng},${address.lat},pm2rdm`;`
+- `src/features/client-platform/clientPlatformLogic.ts:114` - `return `https://yandex.ru/maps/?text=${encodeURIComponent(address.addressLine)}`;`
+- `src/features/design-settings/DesignEditor.tsx:132` - `<input value={restaurant.mapLink ?? ''} onChange={(event) => onUpdateRestaurant({ mapLink: event.target.value })} placeholder="https://yandex.ru/maps/..." />`
+- `src/features/order/orderLifecycle.test.ts:77` - `'https://yandex.ru/maps/?text=%D1%83%D0%BB.+%D0%9B%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0%2C+123%2C+%D0%A6%D0%BE%D1%86%D0%B8-%D0%AE%D1%80%D1%82'`
+- `src/features/order/orderLifecycle.test.ts:87` - `'yandexmaps://maps.yandex.ru/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:197` - `'https://yandex.ru/maps/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:202` - `'https://yandex.ru/maps/?text=%D1%83%D0%BB.+%D0%9B%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0%2C+123'`
+- `src/features/order/orderLifecycle.test.ts:210` - `'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:215` - `'https://yandex.ru/maps/?rtext=~43.23131%2C46.0033982&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:233` - `'https://yandex.ru/maps/?rtext=~43.322%2C45.705&rtt=auto'`
+- `src/features/order/orderLifecycle.test.ts:238` - `'https://yandex.ru/maps/?rtext=43.322%2C45.705~43.318123%2C45.698456&rtt=auto'`
+- `src/features/order/orderLifecycle.ts:240` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/order/orderLifecycle.ts:246` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/order/orderLifecycle.ts:250` - `return `https://yandex.ru/maps/?${params.toString().replace(/%7E/g, '~')}`;`
+- `src/features/order/orderLifecycle.ts:256` - `return `yandexmaps://maps.yandex.ru/?${query}`;`
+- `src/features/restaurant-settings/ProfileSettings.tsx:130` - `if (!navigator.geolocation) {`
+- `src/features/restaurant-settings/ProfileSettings.tsx:136` - `navigator.geolocation.getCurrentPosition(`
+- `src/features/restaurant-settings/ProfileSettings.tsx:239` - `placeholder="https://yandex.ru/maps/..."`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1242` - `<a href="https://yandex.ru/maps/" target="_blank" rel="noreferrer">Местоположение</a>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1516` - `if (watchId !== null && navigator.geolocation) {`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1517` - `navigator.geolocation.clearWatch(watchId);`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1544` - `if (!navigator.geolocation) {`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1587` - `const watchId = navigator.geolocation.watchPosition(`
+- `src/pages/driver/DriverApp.tsx:513` - `if (!authChecked || !hasDriverAccess || !snapshot.profile.isOnline || !effectiveDriverId || !navigator.geolocation) {`
+- `src/pages/driver/DriverApp.tsx:553` - `const watchId = navigator.geolocation.watchPosition(onPosition, () => undefined, {`
+- `src/pages/driver/DriverApp.tsx:560` - `navigator.geolocation.clearWatch(watchId);`
+- `src/pages/driver/DriverApp.tsx:1303` - `<section className="driver-yandex-navigation">`
+- `src/pages/driver/DriverApp.tsx:1331` - `<div className="driver-yandex-navigation__routes">`
+- `src/pages/driver/DriverApp.tsx:1812` - `const yandexRouteUrl = delivery`
+- `src/pages/driver/DriverApp.tsx:1961` - `<a className="driver-map-sheet__yandex" href={yandexRouteUrl}>`
+- `src/shared/deliveryGeocoder.ts:40` - `const nominatimSearchResultSchema = z.object({`
+- `src/shared/deliveryGeocoder.ts:49` - `const nominatimSearchPayloadSchema = z.array(nominatimSearchResultSchema);`
+- `src/shared/deliveryGeocoder.ts:50` - `const publicNominatimUrl = import.meta.env?.VITE_GEOCODER_URL ?? 'https://nominatim.openstreetmap.org';`
+- `src/shared/deliveryGeocoder.ts:88` - `const parsed = nominatimSearchPayloadSchema.safeParse(payload);`
+- `src/shared/deliveryMap.test.ts:119` - `assert.equal(tiles.every((tile) => tile.url.startsWith('https://tile.openstreetmap.org/16/')), true);`
+- `src/shared/deliveryMap.test.ts:163` - `baseUrl: 'https://router.project-osrm.org',`
+- `src/shared/deliveryMap.test.ts:169` - `'https://router.project-osrm.org/route/v1/driving/45.705,43.322;45.698456,43.318123?overview=full&geometries=geojson&steps=true'`
+- `src/shared/deliveryMap.ts:221` - `url: `https://tile.openstreetmap.org/${zoom}/${wrappedTileX}/${tileY}.png`,`
+- `src/shared/deliveryMap.ts:232` - `'https://tile.openstreetmap.org/{z}/{x}/{y}.png';`
+- `src/shared/deliveryMap.ts:234` - `'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';`
+- `src/shared/deliveryMap.ts:237` - `'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',`
+- `src/shared/deliveryMap.ts:239` - `'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'`
+- `src/shared/deliveryNavigation.ts:70` - `const defaultRoadRouterUrl = import.meta.env?.VITE_ROAD_ROUTER_URL ?? 'https://router.project-osrm.org';`
+- `src/shared/restaurantLocation.test.ts:8` - `parseRestaurantCoordinatesFromMapLink('https://yandex.ru/maps/?ll=45.6986000%2C43.3178000&z=16'),`
+- `src/shared/restaurantLocation.test.ts:15` - `parseRestaurantCoordinatesFromMapLink('https://yandex.ru/maps/?ll=45.1,43.1&pt=45.6807903,43.3198743,pm2rdm'),`
+- `src/shared/restaurantLocation.test.ts:30` - `'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm'`
+- `src/shared/restaurantLocation.ts:28` - ``https://yandex.ru/maps/?ll=${lng},${lat}&z=16&pt=${lng},${lat},pm2rdm`;`
+- `src/shared/restaurantLocation.ts:54` - `const yandexParamMatch = decodedText.match(/(?:pt|ll|sll)=(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)/);`
+- `src/shared/restaurantLocation.ts:55` - `if (yandexParamMatch) {`
+- `src/shared/restaurantLocation.ts:56` - `const lng = parseCoordinateInput(yandexParamMatch[1]);`
+- `src/shared/restaurantLocation.ts:57` - `const lat = parseCoordinateInput(yandexParamMatch[2]);`
+- `src/sw.ts:29` - `url.hostname === 'tile.openstreetmap.org' || url.hostname.endsWith('arcgisonline.com')`
+- `supabase/schema.sql:241` - `'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm'`
+
+## Push/email/WhatsApp (163)
+
+- `src/app/App.tsx:1107` - `const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');`
+- `src/app/App.tsx:1189` - `<a href={`https://wa.me/${whatsapp || '79990000000'}`} target="_blank" rel="noreferrer">`
+- `src/app/App.tsx:1190` - `<MessageCircle /> WhatsApp`
+- `src/app/App.tsx:2574` - `const emptyRestaurant = { ...demoRestaurant, id: catalogSlug, name: '', subtitle: '', whatsapp: '', instagram_url: '', address: '', mapLink: '', lat: null, lng: null };`
+- `src/data/catalog.ts:12` - `whatsapp: '79990000000',`
+- `src/entities/models.ts:41` - `whatsapp: string;`
+- `src/features/checkout/CheckoutScreen.tsx:448` - `const buildWhatsappHref = (orderId?: string) => {`
+- `src/features/checkout/CheckoutScreen.tsx:449` - `if (!restaurant.whatsapp) return '#';`
+- `src/features/checkout/CheckoutScreen.tsx:465` - `return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;`
+- `src/features/checkout/CheckoutScreen.tsx:885` - `restaurant.whatsapp && isCheckoutContactValid`
+- `src/features/checkout/CheckoutScreen.tsx:890` - `disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !acceptedOrderData || !acceptedOrderTransfer}`
+- `src/features/checkout/CheckoutScreen.tsx:892` - `if (!restaurant.whatsapp) {`
+- `src/features/checkout/CheckoutScreen.tsx:969` - `let whatsappWindow: Window | null = null;`
+- `src/features/checkout/CheckoutScreen.tsx:971` - `whatsappWindow = window.open('about:blank', '_blank');`
+- `src/features/checkout/CheckoutScreen.tsx:973` - `whatsappWindow = null;`
+- `src/features/checkout/CheckoutScreen.tsx:975` - `const openCreatedOrderWhatsapp = (href: string) => {`
+- `src/features/checkout/CheckoutScreen.tsx:976` - `if (whatsappWindow && !whatsappWindow.closed) {`
+- `src/features/checkout/CheckoutScreen.tsx:977` - `whatsappWindow.location.href = href;`
+- `src/features/checkout/CheckoutScreen.tsx:982` - `const closeReservedWhatsappWindow = () => {`
+- `src/features/checkout/CheckoutScreen.tsx:984` - `whatsappWindow?.close();`
+- `src/features/checkout/CheckoutScreen.tsx:1063` - `openCreatedOrderWhatsapp(buildWhatsappHref(orderId));`
+- `src/features/checkout/CheckoutScreen.tsx:1067` - `closeReservedWhatsappWindow();`
+- `src/features/checkout/CheckoutScreen.tsx:1068` - `toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');`
+- `src/features/checkout/CheckoutScreen.tsx:1072` - `closeReservedWhatsappWindow();`
+- `src/features/client-platform/clientPlatformLogic.test.ts:12` - `buildSupportWhatsappUrl,`
+- `src/features/client-platform/clientPlatformLogic.test.ts:250` - `it('opens WhatsApp support with a normalized phone number', () => {`
+- `src/features/client-platform/clientPlatformLogic.test.ts:251` - `assert.equal(buildSupportWhatsappUrl('+7 (999) 000-00-11'), 'https://wa.me/79990000011');`
+- `src/features/client-platform/clientPlatformLogic.test.ts:255` - `assert.equal(buildSupportWhatsappUrl(''), 'https://wa.me/79990000000');`
+- `src/features/client-platform/clientPlatformLogic.ts:117` - `export const buildSupportWhatsappUrl = (phone: string) => {`
+- `src/features/client-platform/clientPlatformLogic.ts:119` - `return `https://wa.me/${normalizedPhone}`;`
+- `src/features/client-platform/mockData.ts:27` - `supportWhatsapp: '79990000000',`
+- `src/features/client-platform/types.ts:243` - `supportWhatsapp: string;`
+- `src/features/design-settings/DesignEditor.tsx:119` - `WhatsApp для заказов`
+- `src/features/design-settings/DesignEditor.tsx:120` - `<input value={restaurant.whatsapp} onChange={(event) => onUpdateRestaurant({ whatsapp: event.target.value.replace(/\D/g, '') })} placeholder="79990000000" />`
+- `src/features/restaurant-admin/OrderDetailsPanel.tsx:40` - `getAdminOrderWhatsAppHref,`
+- `src/features/restaurant-admin/OrderDetailsPanel.tsx:138` - `const whatsappHref = getAdminOrderWhatsAppHref(order.clientPhone);`
+- `src/features/restaurant-admin/OrderDetailsPanel.tsx:140` - `const driverWhatsappHref = getAdminOrderWhatsAppHref(order.driverPhone ?? '');`
+- `src/features/restaurant-admin/OrderDetailsPanel.tsx:299` - `{whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}`
+- `src/features/restaurant-admin/OrderDetailsPanel.tsx:327` - `{driverWhatsappHref && <a href={driverWhatsappHref} target="_blank" rel="noreferrer"><MessageCircle />WhatsApp</a>}`
+- `src/features/restaurant-admin/orderPresentation.ts:121` - `export function getAdminOrderWhatsAppHref(phone: string) {`
+- `src/features/restaurant-admin/orderPresentation.ts:123` - `return digits ? `https://wa.me/${digits}` : '';`
+- `src/features/restaurant-settings/ProfileSettings.tsx:74` - `if (draft.whatsapp && !/^\+?\d{10,15}$/.test(draft.whatsapp)) {`
+- `src/features/restaurant-settings/ProfileSettings.tsx:75` - `setError('WhatsApp должен быть в формате +79990000000.');`
+- `src/features/restaurant-settings/ProfileSettings.tsx:213` - `WhatsApp`
+- `src/features/restaurant-settings/ProfileSettings.tsx:216` - `value={draft.whatsapp}`
+- `src/features/restaurant-settings/ProfileSettings.tsx:218` - `onChange={(event) => setDraft({ ...draft, whatsapp: event.target.value.replace(/[^\d+]/g, '') })}`
+- `src/pages/catalog-admin/RestaurantAdminShell.tsx:1262` - `return <div className="ra-detail-grid"><span>Название<strong>{restaurant.name}</strong></span><span>Описание<strong>{restaurant.subtitle}</strong></span><span>WhatsApp<strong>{restaurant.whatsapp}</strong></span><span>Instagram<strong>{restaurant.instagram_url`
+- `src/pages/client-platform/ClientPlatformApp.tsx:46` - `import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSav`
+- `src/pages/client-platform/ClientPlatformApp.tsx:129` - `supportWhatsapp: '',`
+- `src/pages/client-platform/ClientPlatformApp.tsx:1241` - `<a href="https://wa.me/79280000000" target="_blank" rel="noreferrer">WhatsApp</a>`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2085` - `href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)}`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2185` - `<a href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)} target="_blank" rel="noreferrer">`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2186` - `Написать в WhatsApp`
+- `src/pages/client-platform/ClientPlatformApp.tsx:2189` - `{snapshot.supportEmail && <a href={`mailto:${snapshot.supportEmail}`}>{snapshot.supportEmail}</a>}`
+- `src/pages/driver/DriverApp.tsx:1828` - `? `https://wa.me/${delivery.clientPhone.replace(/\D/g, '')}``
+- `src/pages/driver/DriverApp.tsx:2277` - `<a href="https://wa.me/79990000000" target="_blank" rel="noreferrer">Написать в WhatsApp</a>`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:2785` - `settingsQuery.data?.supportWhatsapp`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3155` - `supportWhatsapp: '',`
+- `src/pages/platform-admin/PlatformAdminApp.tsx:3182` - `<label><MessageCircle />WhatsApp<input value={support.supportWhatsapp} onChange={(event) => setSupport({ ...support, supportWhatsapp: event.target.value })} placeholder="79990000000" /></label>`
+- `src/shared/api/clientPlatformApi.ts:172` - `support_whatsapp: string;`
+- `src/shared/api/clientPlatformApi.ts:643` - `supportWhatsapp: '',`
+- `src/shared/api/clientPlatformApi.ts:669` - `supportWhatsapp: '',`
+- `src/shared/api/clientPlatformApi.ts:743` - `.select('support_whatsapp, support_phone, support_email, support_telegram, support_hours, support_hint')`
+- `src/shared/api/clientPlatformApi.ts:771` - `? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()`
+- `src/shared/api/clientPlatformApi.ts:1006` - `supportWhatsapp: settingsRow?.support_whatsapp || '',`
+- `src/shared/api/clientsApi.ts:699` - `supportWhatsapp: '79990000000',`
+- `src/shared/api/clientsApi.ts:710` - `.select('support_whatsapp, support_phone, support_email, support_telegram, support_hours, support_hint')`
+- `src/shared/api/clientsApi.ts:714` - `? await supabase.from('platform_settings').select('support_whatsapp').eq('id', 'global').maybeSingle()`
+- `src/shared/api/clientsApi.ts:718` - `support_whatsapp?: string;`
+- `src/shared/api/clientsApi.ts:726` - `supportWhatsapp: data?.support_whatsapp ?? '',`
+- `src/shared/api/clientsApi.ts:739` - `support_whatsapp: settings.supportWhatsapp,`
+- `src/shared/api/clientsApi.ts:751` - `support_whatsapp: settings.supportWhatsapp,`
+- `src/shared/api/platformTypes.ts:133` - `supportWhatsapp: string;`
+- `src/shared/api/restaurantOrderPayload.ts:91` - `return 'Заказ не создан в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.';`
+- `src/shared/api/restaurantOrdersApi.test.ts:344` - `it('builds a WhatsApp-safe link to the already-created order status page', () => {`
+- `src/shared/privacyPolicy.ts:48` - `'Иностранные сервисы, включая WhatsApp, карты, маршрутизацию и push-провайдеров, могут использоваться только после выполнения требований к локализации и трансграничной передаче. Основная база, Auth, файлы и резервные копии должны находиться в России.'`
+- `src/shared/restaurantOrderNotifications.ts:1` - `import { registerWebPushSubscription } from './webPush';`
+- `src/shared/restaurantOrderNotifications.ts:2` - `import { canRestoreWebPushSubscription, type WebPushContext } from './webPushContext';`
+- `src/shared/restaurantOrderNotifications.ts:10` - `return Notification.permission;`
+- `src/shared/restaurantOrderNotifications.ts:17` - `const permission = Notification.permission === 'default'`
+- `src/shared/restaurantOrderNotifications.ts:18` - `? await Notification.requestPermission()`
+- `src/shared/restaurantOrderNotifications.ts:19` - `: Notification.permission;`
+- `src/shared/restaurantOrderNotifications.ts:21` - `const registered = await registerWebPushSubscription(context);`
+- `src/shared/restaurantOrderNotifications.ts:26` - `return Notification.permission;`
+- `src/shared/restaurantOrderNotifications.ts:32` - `if (!canRestoreWebPushSubscription(permission, context)) return permission;`
+- `src/shared/restaurantOrderNotifications.ts:35` - `const registered = await registerWebPushSubscription(context);`
+- `src/shared/restaurantOrderNotifications.ts:69` - `notification.onclick = () => {`
+- `src/shared/restaurantOrderNotifications.ts:74` - `notification.close();`
+- `src/shared/supabase.ts:254` - `whatsapp: string | null;`
+- `src/shared/supabase.ts:317` - `whatsapp: value.whatsapp ?? '',`
+- `src/shared/supabase.ts:578` - `.select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url')`
+- `src/shared/supabase.ts:950` - `whatsapp: value.whatsapp,`
+- `src/shared/supabase.ts:984` - `whatsapp: normalizedRestaurant.whatsapp,`
+- `src/shared/webPush.test.ts:3` - `import { canRestoreWebPushSubscription } from './webPushContext';`
+- `src/shared/webPush.test.ts:8` - `canRestoreWebPushSubscription('granted', { role: 'restaurant', catalogId: 'catalog-1' }),`
+- `src/shared/webPush.test.ts:11` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'restaurant' }), false);`
+- `src/shared/webPush.test.ts:15` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'driver', driverId: 'driver-1' }), true);`
+- `src/shared/webPush.test.ts:16` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'driver' }), false);`
+- `src/shared/webPush.test.ts:17` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'super_admin' }), true);`
+- `src/shared/webPush.test.ts:18` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'client', orderId: 'order-1' }), true);`
+- `src/shared/webPush.test.ts:19` - `assert.equal(canRestoreWebPushSubscription('granted', { role: 'client' }), false);`
+- `src/shared/webPush.test.ts:24` - `canRestoreWebPushSubscription('default', { role: 'restaurant', catalogSlug: 'mangal' }),`
+- `src/shared/webPush.test.ts:27` - `assert.equal(canRestoreWebPushSubscription('denied', { role: 'super_admin' }), false);`
+- `src/shared/webPush.ts:6` - `const publicKey = () => import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY?.trim() ?? '';`
+- `src/shared/webPush.ts:20` - `const subscriptionUsesPublicKey = (subscription: PushSubscription, nextPublicKey: string) => {`
+- `src/shared/webPush.ts:32` - `const createPushSubscription = (registration: ServiceWorkerRegistration) =>`
+- `src/shared/webPush.ts:38` - `export async function registerWebPushSubscription(context: WebPushContext): Promise<boolean> {`
+- `src/shared/webPush.ts:39` - `if (!isWebPushSupported() || !supabase || !publicKey() || Notification.permission !== 'granted') return false;`
+- `src/shared/webPush.ts:49` - `subscription = await createPushSubscription(registration);`
+- `src/shared/webPush.ts:54` - `subscription = await createPushSubscription(registration);`
+- `src/shared/webPush.ts:70` - `const { error } = await supabase.rpc('upsert_web_push_subscription', {`
+- `src/shared/webPush.ts:84` - `export async function removeWebPushSubscription() {`
+- `src/shared/webPush.ts:89` - `await supabase.rpc('delete_web_push_subscription', { subscription_endpoint: subscription.endpoint });`
+- `src/shared/webPushContext.ts:11` - `export const canRestoreWebPushSubscription = (`
+- `src/sw.ts:79` - `event.notification.close();`
+- `src/sw.ts:80` - `const url = typeof event.notification.data?.url === 'string'`
+- `src/sw.ts:81` - `? event.notification.data.url`
+- `supabase/client_platform.sql:66` - `whatsapp_phone text not null default '',`
+- `supabase/client_platform.sql:145` - `support_whatsapp text not null default '',`
+- `supabase/client_platform.sql:150` - `insert into public.platform_settings (id, support_whatsapp)`
+- `supabase/functions/send-web-push/index.ts:19` - `'Access-Control-Allow-Origin': Deno.env.get('WEB_PUSH_ALLOWED_ORIGIN')?.trim() || 'https://wayyaam.ru',`
+- `supabase/functions/send-web-push/index.ts:63` - `const webhookSecret = Deno.env.get('WEB_PUSH_WEBHOOK_SECRET')?.trim();`
+- `supabase/functions/send-web-push/index.ts:100` - `let query = admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', role);`
+- `supabase/functions/send-web-push/index.ts:122` - `admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'restaurant').eq('catalog_id', catalogId),`
+- `supabase/functions/send-web-push/index.ts:123` - `admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'super_admin')`
+- `supabase/functions/send-web-push/index.ts:145` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:196` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:205` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:212` - `.from('web_push_subscriptions')`
+- `supabase/functions/send-web-push/index.ts:232` - `await admin.from('web_push_subscriptions').delete().eq('id', subscription.id);`
+- `supabase/link_mangal_client.sql:52` - `whatsapp,`
+- `supabase/link_mangal_client.sql:73` - `whatsapp = excluded.whatsapp,`
+- `supabase/restaurant_templates.sql:151` - `whatsapp,`
+- `supabase/restaurant_templates.sql:174` - `template_catalog.whatsapp,`
+- `supabase/schema.sql:18` - `whatsapp text not null default '',`
+- `supabase/schema.sql:231` - `insert into public.restaurant (id, name, subtitle, logo_url, banner_url, whatsapp, instagram_url, address, "mapLink")`
+- `supabase/schema.sql:248` - `whatsapp = excluded.whatsapp,`
+- `supabase/web_push.sql:4` - `create table if not exists public.web_push_subscriptions (`
+- `supabase/web_push.sql:20` - `create index if not exists web_push_subscriptions_catalog_idx`
+- `supabase/web_push.sql:21` - `on public.web_push_subscriptions(role, catalog_id);`
+- `supabase/web_push.sql:22` - `create index if not exists web_push_subscriptions_driver_idx`
+- `supabase/web_push.sql:23` - `on public.web_push_subscriptions(role, driver_id);`
+- `supabase/web_push.sql:24` - `create index if not exists web_push_subscriptions_order_idx`
+- `supabase/web_push.sql:25` - `on public.web_push_subscriptions(role, order_id);`
+- `supabase/web_push.sql:27` - `alter table public.web_push_subscriptions enable row level security;`
+- `supabase/web_push.sql:29` - `drop policy if exists "Users manage own web push subscriptions" on public.web_push_subscriptions;`
+- `supabase/web_push.sql:31` - `on public.web_push_subscriptions for all to authenticated`
+- `supabase/web_push.sql:35` - `create or replace function public.upsert_web_push_subscription(`
+- `supabase/web_push.sql:99` - `insert into public.web_push_subscriptions (`
+- `supabase/web_push.sql:121` - `grant execute on function public.upsert_web_push_subscription(text, text, text, text, uuid, uuid, uuid)`
+- `supabase/web_push.sql:124` - `create or replace function public.delete_web_push_subscription(subscription_endpoint text)`
+- `supabase/web_push.sql:130` - `delete from public.web_push_subscriptions`
+- `supabase/web_push.sql:136` - `grant execute on function public.delete_web_push_subscription(text) to authenticated;`
+- `supabase/web_push.sql:140` - `alter publication supabase_realtime add table public.web_push_subscriptions;`
+- `supabase/web_push_triggers.sql:6` - `create or replace function public.enqueue_web_push_event()`
+- `supabase/web_push_triggers.sql:18` - `where name = 'web_push_function_url'`
+- `supabase/web_push_triggers.sql:23` - `where name = 'web_push_webhook_secret'`
+- `supabase/web_push_triggers.sql:49` - `drop trigger if exists web_push_orders_event on public.orders;`
+- `supabase/web_push_triggers.sql:50` - `create trigger web_push_orders_event`
+- `supabase/web_push_triggers.sql:52` - `for each row execute function public.enqueue_web_push_event();`
+- `supabase/web_push_triggers.sql:54` - `drop trigger if exists web_push_deliveries_event on public.deliveries;`
+- `supabase/web_push_triggers.sql:55` - `create trigger web_push_deliveries_event`
+- `supabase/web_push_triggers.sql:57` - `for each row execute function public.enqueue_web_push_event();`
+
+## Логи и аудит (21)
+
+- `src/app/App.tsx:2013` - `console.error('Supabase save failed', error);`
+- `src/app/App.tsx:2043` - `console.error('Orders load failed', error);`
+- `src/app/App.tsx:2099` - `console.error('Delivery settings load failed', error);`
+- `src/app/App.tsx:2115` - `console.error('Restaurant session restoration failed', error);`
+- `src/app/App.tsx:2141` - `console.error('Payment settings load failed', error);`
+- `src/features/checkout/CheckoutScreen.tsx:962` - `console.error('Catalog stock refresh failed', error);`
+- `src/features/checkout/CheckoutScreen.tsx:1071` - `console.error('Order creation failed', error);`
+- `src/shared/api/auditApi.ts:8` - `.from('audit_logs')`
+- `src/shared/api/restaurantOrderPayload.ts:294` - `console.warn('Order was created, but delivery coordinates were not saved separately.', updateError);`
+- `src/shared/api/restaurantOrderPayload.ts:297` - `console.warn('Order was created, but delivery coordinates were not saved separately.', locationUpdateError);`
+- `src/shared/api/restaurantOrdersApi.ts:803` - `console.warn('Assigned restaurant drivers RPC failed; using the legacy table fallback.', driverRpcResult.error);`
+- `src/shared/api/settlementsApi.ts:58` - `console.warn('Failed to load delivery settlements from Supabase', error);`
+- `src/shared/api/settlementsApi.ts:108` - `console.warn('Failed to save settlement request to Supabase', error);`
+- `src/shared/api/settlementsApi.ts:124` - `console.warn('Failed to load settlement requests from Supabase', error);`
+- `src/shared/images.ts:36` - `console.warn('Image compression failed, using original file', error);`
+- `src/shared/supabase.ts:428` - `console.warn('Could not sync platform restaurant location', error);`
+- `src/shared/supabase.ts:446` - `console.warn('Could not create platform restaurant location', error);`
+- `supabase/functions/create-client/index.ts:247` - `const { error: auditError } = await adminClient.from('audit_logs').insert({`
+- `supabase/functions/update-client/index.ts:236` - `await adminClient.from('audit_logs').insert({`
+- `supabase/platform_admin_setup.sql:194` - `drop policy if exists "platform admins read audit logs" on public.audit_logs;`
+- `supabase/platform_admin_setup.sql:195` - `create policy "platform admins read audit logs" on public.audit_logs`

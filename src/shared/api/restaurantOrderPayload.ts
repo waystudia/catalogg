@@ -1,4 +1,5 @@
 import type { CartItem, Product } from '../../entities/models';
+import { getSelectedModifierDetails } from '../../entities/productModifiers';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
 
 type DeliverySettingsForSave = {
@@ -41,7 +42,15 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
   items.map((item) => ({
     product_id: item.product.id,
     quantity: Math.max(1, item.quantity),
-    options: []
+    options: [
+      ...(item.selected_choice ? [{ name: item.selected_choice, product_id: item.product.id }] : []),
+      ...getSelectedModifierDetails(item).map(({ group, option }) => ({
+        group_id: group.id,
+        option_id: option.id,
+        name: `${group.name}: ${option.name}`,
+        product_id: item.product.id
+      }))
+    ]
   }));
 
 export type RestaurantOrderStockIssue = {
@@ -56,25 +65,32 @@ export const findRestaurantOrderStockIssues = (
   liveProducts: Product[]
 ): RestaurantOrderStockIssue[] => {
   const productsById = new Map(liveProducts.map((product) => [product.id, product]));
+  const requestedByProduct = new Map<string, number>();
+  items.forEach((item) => requestedByProduct.set(
+    item.product.id,
+    (requestedByProduct.get(item.product.id) ?? 0) + Math.max(1, item.quantity)
+  ));
 
-  return items.flatMap((item) => {
-    const liveProduct = productsById.get(item.product.id);
+  return [...requestedByProduct.entries()].flatMap(([productId, requested]) => {
+    const cartItem = items.find((item) => item.product.id === productId);
+    if (!cartItem) return [];
+    const liveProduct = productsById.get(productId);
     if (!liveProduct || liveProduct.is_hidden) {
       return [{
-        productId: item.product.id,
-        title: item.product.title,
-        requested: item.quantity,
+        productId,
+        title: cartItem.product.title,
+        requested,
         available: 0
       }];
     }
     if (liveProduct.is_unlimited) return [];
 
     const available = Math.max(0, liveProduct.current_stock ?? liveProduct.stock_count ?? 0);
-    return available < item.quantity
+    return available < requested
       ? [{
-          productId: item.product.id,
-          title: liveProduct.title || item.product.title,
-          requested: item.quantity,
+          productId,
+          title: liveProduct.title || cartItem.product.title,
+          requested,
           available
         }]
       : [];
@@ -90,10 +106,14 @@ export const getRestaurantOrderCreationErrorMessage = (error: unknown) => {
 };
 
 const formatSelectedChoices = (items: CartItem[]) => {
-  const lines = items
-    .filter((item) => item.selected_choice)
-    .map((item) => `${item.product.title}: ${item.selected_choice}`);
-  return lines.length > 0 ? `Варианты блюд:\n${lines.join('\n')}` : '';
+  const lines = items.flatMap((item) => {
+    const choices = [
+      item.selected_choice,
+      ...getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`)
+    ].filter(Boolean);
+    return choices.length > 0 ? [`${item.product.title}: ${choices.join(', ')}`] : [];
+  });
+  return lines.length > 0 ? `Выбранные варианты:\n${lines.join('\n')}` : '';
 };
 
 export const resolvePublicOrderRpcName = (items: CartItem[]) =>
@@ -147,9 +167,12 @@ export const buildRestaurantOrderFingerprint = ({
     items: items
       .map((item) => ({
         productId: item.product.id,
-        quantity: Math.max(1, item.quantity)
+        quantity: Math.max(1, item.quantity),
+        selectedChoice: item.selected_choice?.trim() || '',
+        selectedModifiers: [...(item.selected_modifiers ?? [])]
+          .sort((left, right) => `${left.groupId}:${left.optionId}`.localeCompare(`${right.groupId}:${right.optionId}`))
       }))
-      .sort((left, right) => left.productId.localeCompare(right.productId))
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
   });
 
 export const createRestaurantOrderIdempotencyKey = (fingerprint: string) => {

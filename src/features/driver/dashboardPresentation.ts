@@ -1,4 +1,5 @@
 import type { DeliveryStatus } from '../order/orderLifecycle';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 
 export const getDriverGrossEarning = (earning: {
   readonly amount: number | string | null | undefined;
@@ -24,12 +25,14 @@ export type DriverNextAction =
 
 export const getDriverNextAction = (
   status: DeliveryStatus,
-  restaurantRouteStarted = false
+  restaurantRouteStarted = false,
+  businessType: BusinessType = 'restaurant'
 ): DriverNextAction => {
+  const terms = getBusinessTerms(businessType);
   if (status === 'assigned' && !restaurantRouteStarted) {
-    return { label: 'Поехать в ресторан', to: '/driver/map' };
+    return { label: terms.driverRouteAction, to: '/driver/map' };
   }
-  if (status === 'assigned') return { label: 'Я в ресторане', status: 'arrived_to_restaurant' };
+  if (status === 'assigned') return { label: terms.driverArrival, status: 'arrived_to_restaurant' };
   if (status === 'arrived_to_restaurant') return { label: 'Забрал заказ', status: 'handed_over' };
   if (status === 'handed_over') return { label: 'Выехал к клиенту', status: 'on_the_way' };
   if (status === 'on_the_way') return { label: 'Я у клиента', status: 'arrived_to_client' };
@@ -37,14 +40,14 @@ export const getDriverNextAction = (
   return null;
 };
 
-const driverDeliveryProgressLabels = [
+const getDriverDeliveryProgressLabels = (businessType: BusinessType) => [
   'Принял заказ',
-  'Еду в ресторан',
+  getBusinessTerms(businessType).driverRoute,
   'Забрал заказ',
   'Еду к клиенту',
   'Я у клиента',
   'Доставлено'
-] as const;
+];
 
 const driverDeliveryProgressStep: Partial<Record<DeliveryStatus, number>> = {
   assigned: 1,
@@ -57,10 +60,11 @@ const driverDeliveryProgressStep: Partial<Record<DeliveryStatus, number>> = {
 
 export const getDriverDeliveryProgress = (
   status: DeliveryStatus,
-  restaurantRouteStarted = false
+  restaurantRouteStarted = false,
+  businessType: BusinessType = 'restaurant'
 ) => ({
   activeStep: status === 'assigned' && restaurantRouteStarted
     ? 2
     : driverDeliveryProgressStep[status] ?? 1,
-  labels: [...driverDeliveryProgressLabels]
+  labels: getDriverDeliveryProgressLabels(businessType)
 });

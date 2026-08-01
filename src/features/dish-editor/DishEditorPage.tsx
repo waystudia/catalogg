@@ -4,10 +4,12 @@ import type { Category, Product } from '../../entities/models';
 import { saveDishDraft } from './storage';
 import { dishToProduct, productToDish, type Dish } from './types';
 import { DishForm } from './DishForm';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 
-function validateDish(dish: Dish) {
+function validateDish(dish: Dish, businessType: BusinessType) {
+  const terms = getBusinessTerms(businessType);
   if (dish.images.length === 0) return 'Добавьте минимум одно фото.';
-  if (!dish.name.trim()) return 'Введите название блюда.';
+  if (!dish.name.trim()) return `Введите название: ${terms.itemLower}.`;
   if (dish.price < 0 || Number.isNaN(dish.price)) return 'Введите корректную цену.';
   if (dish.categories.length === 0) return 'Выберите минимум одну категорию.';
   if (!dish.unlimitedQuantity && (dish.dailyQuantity < 0 || !Number.isInteger(dish.dailyQuantity))) {
@@ -23,7 +25,8 @@ export function DishEditorPage({
   cartCount,
   onBack,
   onSave,
-  onNavigate
+  onNavigate,
+  businessType = 'restaurant'
 }: {
   product: Product | null;
   categories: Category[];
@@ -32,17 +35,19 @@ export function DishEditorPage({
   onBack: () => void;
   onSave: (product: Product) => void;
   onNavigate: (target: 'home' | 'catalog' | 'drinks' | 'cabins' | 'profile') => void;
+  businessType?: BusinessType;
 }) {
   const foodCategories = useMemo(() => categories.filter((category) => category.kind !== 'space'), [categories]);
   const [dish, setDish] = useState<Dish>(() => productToDish(product, foodCategories[0]?.id ?? 'chechen'));
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [error, setError] = useState('');
-  const title = product ? 'Редактировать блюдо' : 'Добавить блюдо';
+  const terms = getBusinessTerms(businessType);
+  const title = product ? `Редактировать ${terms.itemLower}` : terms.addItem;
 
   const updateDish = (patch: Partial<Dish>) => setDish((current) => ({ ...current, ...patch }));
 
   const save = async () => {
-    const validationError = validateDish(dish);
+    const validationError = validateDish(dish, businessType);
     if (validationError) {
       setError(validationError);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -95,6 +100,7 @@ export function DishEditorPage({
         dish={dish}
         categories={foodCategories}
         products={products}
+        businessType={businessType}
         error={error}
         onChange={updateDish}
         onSubmit={() => void save()}
@@ -105,7 +111,7 @@ export function DishEditorPage({
           Отмена
         </button>
         <button className="dish-save" type="button" onClick={() => void save()}>
-          Сохранить изменения
+          {product ? 'Сохранить изменения' : terms.addItem}
         </button>
       </footer>
     </div>

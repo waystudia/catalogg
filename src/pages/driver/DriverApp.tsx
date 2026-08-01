@@ -78,6 +78,8 @@ import {
 } from '../../shared/restaurantOrderNotifications';
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
+import { getBusinessTerms } from '../../shared/businessTerminology';
+import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -257,13 +259,18 @@ const deliveryStatusLabels: Record<DeliveryStatus, string> = {
   not_required: 'Не требуется',
   waiting_courier: 'Новый заказ',
   assigned: 'Принят',
-  arrived_to_restaurant: 'На месте в ресторане',
+  arrived_to_restaurant: '',
   handed_over: 'Заказ получен',
   on_the_way: 'В пути к клиенту',
   arrived_to_client: 'На месте у клиента',
   delivered: 'Доставлен',
   failed: 'Проблема'
 };
+
+const getDeliveryStatusLabel = (status: DeliveryStatus, businessType: DeliveryOffer['businessType']) =>
+  status === 'arrived_to_restaurant'
+    ? getBusinessTerms(businessType).driverAtPlaceStatus
+    : deliveryStatusLabels[status];
 
 const driverDeliveryStatusTones: Record<DeliveryStatus, 'new' | 'work' | 'ready' | 'delivery' | 'done'> = {
   not_required: 'done',
@@ -295,12 +302,15 @@ const latestDeliveryStatus = (first: DeliveryStatus, second: DeliveryStatus) =>
 function DriverCashPaymentHandover({
   deliveryId,
   clientTotal,
-  courierPayout
+  courierPayout,
+  businessType
 }: {
   deliveryId: string;
   clientTotal: number;
   courierPayout: number;
+  businessType: DeliveryOffer['businessType'];
 }) {
+  const terms = getBusinessTerms(businessType);
   const storageKey = `driver-cash-handed-over:${deliveryId}`;
   const [moneyHandedOver, setMoneyHandedOver] = useState(false);
   const restaurantCashAmount = calculateDriverCashHandover({ clientTotal, courierPayout });
@@ -318,13 +328,13 @@ function DriverCashPaymentHandover({
     <section className="driver-cash-handover">
       <p>
         {moneyHandedOver
-          ? 'Деньги переданы. Ожидайте подтверждения оплаты рестораном.'
-          : `Передайте ресторану ${formatPrice(restaurantCashAmount)}. Ваши ${formatPrice(courierPayout)} уже удержаны из суммы ресторана.`}
+          ? `Деньги переданы. Ожидайте подтверждения оплаты ${terms.placeInstrumental}.`
+          : `Передайте ${terms.placeDative} ${formatPrice(restaurantCashAmount)}. Ваши ${formatPrice(courierPayout)} уже удержаны из суммы ${terms.placeGenitive}.`}
       </p>
       <button type="button" disabled={moneyHandedOver} onClick={confirmMoneyHandedOver}>
         {moneyHandedOver ? 'Деньги переданы ✓' : 'Я передал деньги'}
       </button>
-      <small>После подтверждения рестораном появится QR, затем станет доступна кнопка «Забрал заказ».</small>
+      <small>После подтверждения {terms.placeInstrumental} появится QR, затем станет доступна кнопка «Забрал заказ».</small>
     </section>
   );
 }
@@ -721,10 +731,11 @@ export function DriverApp() {
 
 function DriverHeader({ title, action }: { title: string; action?: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <header className="driver-header">
-      <button type="button" onClick={() => navigate(-1)} aria-label="Назад">
+      <button type="button" onClick={() => navigate(getDriverBackTarget(location.pathname))} aria-label="Назад">
         <ArrowLeft />
       </button>
       <h1>{title}</h1>
@@ -897,7 +908,7 @@ function DriverHomeScreen({
           <Link className="driver-other-order-row" to={`/driver/orders/${offer.deliveryId}`} key={offer.deliveryId}>
             <span>
               <strong>{offer.orderNumber}</strong>
-              <small>{offer.restaurantName || 'Ресторан'} → {formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
+              <small>{offer.restaurantName || getBusinessTerms(offer.businessType).place} → {formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
               <small>{offer.distanceKm} км · ≈ {offer.routeEtaMin} мин</small>
             </span>
             <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
@@ -925,6 +936,7 @@ function DriverIncomingOrderPanel({
   offer: DeliveryOffer;
   onRefresh: () => Promise<boolean>;
 }) {
+  const terms = getBusinessTerms(offer.businessType);
   const navigate = useNavigate();
   const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
   const dismissDeliveryOffer = useDriverStore((state) => state.dismissDeliveryOffer);
@@ -972,7 +984,7 @@ function DriverIncomingOrderPanel({
           <strong>{offer.orderNumber}</strong>
           <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
         </div>
-        <p><Home /><span><small>Ресторан</small><strong>{offer.restaurantName || 'Ресторан'} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
+        <p><Home /><span><small>{terms.place}</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
         <p><MapPin /><span><small>Адрес доставки</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
         <div className="driver-urgent-offer__meta">
           <span>{offer.distanceKm} км</span>
@@ -998,6 +1010,7 @@ function DriverCurrentDeliveryPanel({
   offer: DeliveryOffer;
   onRefresh: () => Promise<boolean>;
 }) {
+  const terms = getBusinessTerms(offer.businessType);
   const navigate = useNavigate();
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
@@ -1009,8 +1022,8 @@ function DriverCurrentDeliveryPanel({
   const [restaurantRouteStarted, setRestaurantRouteStarted] = useState(
     () => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
   );
-  const nextAction = getDriverNextAction(offer.status, restaurantRouteStarted);
-  const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted);
+  const nextAction = getDriverNextAction(offer.status, restaurantRouteStarted, offer.businessType);
+  const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted, offer.businessType);
   const qrPayload = buildDriverPickupQrPayload(offer);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
   const waitingForCashConfirmation =
@@ -1116,7 +1129,7 @@ function DriverCurrentDeliveryPanel({
           <small>Осталось ≈ {offer.routeEtaMin} мин</small>
         </span>
       </header>
-      <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || 'Ресторан'} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
+      <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
       <p><MapPin /><span><small>Точка Б</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
       <div className="driver-current-block__summary">
         <span>Ваш заработок</span>
@@ -1135,13 +1148,14 @@ function DriverCurrentDeliveryPanel({
       </ol>
       {waitingForCashConfirmation && (
         <DriverCashPaymentHandover
+          businessType={offer.businessType}
           deliveryId={offer.deliveryId}
           clientTotal={offer.orderTotal}
           courierPayout={offer.deliveryFee}
         />
       )}
       {!waitingForCashConfirmation && waitingForQr && (
-        <p className="driver-handover-gate">Покажите QR-код ресторану. После сканирования можно забрать заказ.</p>
+        <p className="driver-handover-gate">Покажите QR-код {terms.placeDative}. После сканирования можно забрать заказ.</p>
       )}
       {!waitingForCashConfirmation && waitingForQr && qrPayload && (
         <button
@@ -1152,7 +1166,7 @@ function DriverCurrentDeliveryPanel({
         >
           {qrImageUrl ? <img src={qrImageUrl} alt={`QR выдачи заказа ${offer.orderNumber}`} /> : <QrCode />}
           <span>
-            <strong>Показать QR ресторану</strong>
+            <strong>Показать QR: {terms.placeDative}</strong>
             <small>Нажмите, чтобы открыть крупный QR на весь экран.</small>
             <small className="driver-inline-qr__timer">
               {qrSecondsLeft > 0 ? `Новый QR через ${qrTimerLabel}` : 'Обновляем QR-код…'}
@@ -1167,7 +1181,7 @@ function DriverCurrentDeliveryPanel({
             className="driver-secondary driver-secondary--map-hint"
             type="button"
             onClick={openRestaurantRoute}
-          ><Navigation />Построить маршрут к ресторану</button>
+          ><Navigation />Построить маршрут: {terms.placeDative}</button>
         ) : (
           <Link
             className="driver-secondary"
@@ -1240,7 +1254,7 @@ function DriverDeliveryCard({
         <strong>{formatPrice(price)}</strong>
         <em data-tone={statusTone}>
           {offer.status === 'waiting_courier' && <span aria-hidden="true" />}
-          {deliveryStatusLabels[offer.status]}
+          {getDeliveryStatusLabel(offer.status, offer.businessType)}
         </em>
       </span>
     </Link>
@@ -1568,8 +1582,8 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [delivery?.deliveryId]);
 
-  const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status) : null, [delivery]);
-  const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status) : null, [delivery]);
+  const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status, false, delivery.businessType) : null, [delivery]);
+  const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status, false, delivery.businessType) : null, [delivery]);
   const waitingForCashConfirmation = Boolean(
     delivery?.status === 'arrived_to_restaurant' &&
     delivery.paymentMethod === 'cash' &&
@@ -1627,7 +1641,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   return (
     <>
-      <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{deliveryStatusLabels[delivery.status]}</small>} />
+      <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small>} />
       <Link className="driver-open-map" to={`/driver/map/${delivery.deliveryId}`}>
         <Navigation />
         <span>
@@ -1692,6 +1706,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
         </div>
         {waitingForCashConfirmation && (
           <DriverCashPaymentHandover
+            businessType={delivery.businessType}
             deliveryId={delivery.deliveryId}
             clientTotal={delivery.orderTotal}
             courierPayout={delivery.deliveryFee}
@@ -1804,7 +1819,7 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
     window.sessionStorage.getItem(`driver-restaurant-route-started:${delivery.deliveryId}`) === 'true'
   );
   const progress = delivery && !['waiting_courier', 'waiting_driver'].includes(delivery.status)
-    ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted)
+    ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted, delivery.businessType)
     : null;
   const currentDriverPoint = profile.lastLat !== null && profile.lastLng !== null
     ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
@@ -2253,6 +2268,7 @@ function DriverSettingsScreen({ profile, onProfileSaved }: { profile: DriverProf
         <button
           type="button"
           onClick={async () => {
+            if (!confirmRoleSignOut('водителя')) return;
             clearLocalActiveDelivery();
             await signOutDriver();
             redirectToClientHome();

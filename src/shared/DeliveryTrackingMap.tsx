@@ -24,6 +24,7 @@ import {
   getMapCenter,
   getMapZoomForPoints,
   getNavigationFollowCenter,
+  getNavigationLookAheadDistanceM,
   getNearestEquivalentAngle,
   mapPointToCoordinates,
   rotateMapDelta,
@@ -326,9 +327,13 @@ export function DeliveryTrackingMap({
   useEffect(() => {
     if (!followDriverHeading || !displayedDriver || userAdjustedViewRef.current) return;
     const nextDriverPosition = { lat: displayedDriver.lat, lng: displayedDriver.lng };
-    setCenter(getNavigationFollowCenter(nextDriverPosition, driverHeading));
+    setCenter(getNavigationFollowCenter(
+      nextDriverPosition,
+      driverHeading,
+      getNavigationLookAheadDistanceM(mapZoomRef.current)
+    ));
     setMapZoom((zoom) => Math.max(16, zoom));
-  }, [displayedDriver, driverHeading, followDriverHeading]);
+  }, [displayedDriver, driverHeading, followDriverHeading, mapZoom]);
 
   useEffect(() => {
     if (!driver) {
@@ -476,7 +481,11 @@ export function DeliveryTrackingMap({
     );
     if (displayedDriver) {
       const driverPosition = { lat: displayedDriver.lat, lng: displayedDriver.lng };
-      setCenter(getNavigationFollowCenter(driverPosition, driverHeading));
+      setCenter(getNavigationFollowCenter(
+        driverPosition,
+        driverHeading,
+        getNavigationLookAheadDistanceM(17)
+      ));
       animateMapZoom(17);
       return;
     }
@@ -586,7 +595,6 @@ export function DeliveryTrackingMap({
           if (Math.abs(wheelDeltaRef.current) < 160) return;
           const direction = wheelDeltaRef.current < 0 ? 1 : -1;
           wheelDeltaRef.current = 0;
-          userAdjustedViewRef.current = true;
           setMapZoom((value) => Math.min(18, Math.max(10, value + direction * 0.5)));
         }}
       >
@@ -669,8 +677,8 @@ export function DeliveryTrackingMap({
               aria-label={mapStyle === 'satellite' ? 'Переключить на схему' : 'Переключить на спутник'}
             ><Layers3 /></button>
           )}
-          <button type="button" onClick={() => { cancelZoomAnimation(); userAdjustedViewRef.current = true; setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
-          <button type="button" onClick={() => { cancelZoomAnimation(); userAdjustedViewRef.current = true; setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
+          <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.min(18, value + 0.5)); }} aria-label="Приблизить"><Plus /></button>
+          <button type="button" onClick={() => { cancelZoomAnimation(); setMapZoom((value) => Math.max(10, value - 0.5)); }} aria-label="Отдалить"><Minus /></button>
           {navigationMode && (
             <button
               type="button"

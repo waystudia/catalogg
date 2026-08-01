@@ -1,3 +1,5 @@
+import type { BusinessType } from '../businessTerminology';
+
 export type ClientStatus = 'active' | 'inactive' | 'blocked' | 'pending';
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'expired' | 'cancelled';
 
@@ -5,7 +7,7 @@ export type PlatformTemplateOption = {
   templateVersionId: string;
   templateKey: string;
   templateName: string;
-  businessType: string;
+  businessType: BusinessType;
   version: number;
   description: string;
   templateCatalogSlug?: string;
@@ -37,7 +39,7 @@ export type PlatformClient = {
   templateName: string;
   templateKey: string;
   templateVersion: number;
-  businessType: string;
+  businessType: BusinessType;
   logoUrl: string;
   createdAt: string;
 };
@@ -210,7 +212,9 @@ export type CreateClientPayload = {
   serviceSettlements?: string[];
   password: string;
   templateVersionId: string;
-  businessType: string;
+  businessType: BusinessType;
+  templateType: BusinessType;
+  seedDemoMenu?: boolean;
   planId?: string;
   subscriptionEndsAt?: string;
   status?: ClientStatus;
@@ -338,6 +342,9 @@ export type UpdateClientPayload = {
   phone?: string;
   primaryCity?: string;
   serviceSettlements?: string[];
+  businessType?: BusinessType;
+  templateType?: BusinessType;
+  seedDemoMenu?: boolean;
   password?: string;
   status?: ClientStatus;
   planId?: string;

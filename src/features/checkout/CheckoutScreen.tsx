@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
 import { useClientPlatformStore } from '../client-platform/store';
 import type { ClientAddress, ClientOrder } from '../client-platform/types';
@@ -75,6 +76,8 @@ import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { SafeImage } from '../../shared/SafeImage';
 import { loadCatalog } from '../../shared/supabase';
+import { getCartItemPrice } from '../../entities/productVariants';
+import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -123,6 +126,8 @@ export function CheckoutScreen({
   const total = selectCartTotal(items);
   const cartCount = selectCartCount(items);
   const [orderComment, setOrderComment] = useState('');
+  const [acceptedOrderData, setAcceptedOrderData] = useState(false);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'cash' | 'bank_transfer'>(() =>
     paymentSettings.transferEnabled ? 'bank_transfer' : 'cash'
   );
@@ -408,7 +413,13 @@ export function CheckoutScreen({
     'Здравствуйте! Хочу оформить заказ.',
     '',
     'Заказ:',
-    ...items.map((item, index) => `${index + 1}. ${item.product.title} - ${item.quantity} шт. x ${formatPrice(item.product.price)}`),
+    ...items.map((item, index) => {
+      const selections = [
+        item.selected_choice,
+        ...getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`)
+      ].filter(Boolean);
+      return `${index + 1}. ${item.product.title}${selections.length > 0 ? ` (${selections.join(', ')})` : ''} - ${item.quantity} шт. x ${formatPrice(getCartItemPrice(item))}`;
+    }),
     '',
     `Итого: ${formatPrice(total)}`,
     '',
@@ -782,36 +793,41 @@ export function CheckoutScreen({
           <button type="button" onClick={onEditCart}>Изменить <ArrowRight /></button>
         </div>
         <div className="checkout-summary__list">
-          {items.map((item) => (
-            <article className="checkout-order-card" key={item.product.id}>
+          {items.map((item) => {
+            const lineId = getCartLineId(item);
+            const modifierLabel = getSelectedModifierDetails(item).map(({ option }) => option.name).join(' · ');
+            return (
+            <article className="checkout-order-card" key={lineId}>
               <SafeImage src={item.product.image_url} alt={item.product.title} />
               <div className="checkout-order-card__body">
                 <div className="checkout-order-card__copy">
                   <h3>{item.product.title}</h3>
+                  {item.selected_choice && <small>{item.selected_choice}</small>}
+                  {modifierLabel && <small>{modifierLabel}</small>}
                   <p>{item.product.description}</p>
                 </div>
                 <button
                   className="checkout-order-card__remove"
                   type="button"
-                  onClick={() => removeCartItem(item.product.id)}
+                  onClick={() => removeCartItem(lineId)}
                   aria-label={`Удалить ${item.product.title}`}
                 >
                   <Trash2 />
                 </button>
                 <div className="checkout-order-card__bottom">
                   <div>
-                    <strong>{formatPrice(item.product.price)}</strong>
-                    <span>{item.quantity} × {formatPrice(item.product.price)}</span>
+                    <strong>{formatPrice(getCartItemPrice(item))}</strong>
+                    <span>{item.quantity} × {formatPrice(getCartItemPrice(item))}</span>
                   </div>
                   <div className="checkout-order-card__stepper">
-                    <button type="button" onClick={() => decrementCartItem(item.product.id)} aria-label="Уменьшить"><Minus /></button>
+                    <button type="button" onClick={() => decrementCartItem(lineId)} aria-label="Уменьшить"><Minus /></button>
                     <b>{item.quantity}</b>
-                    <button type="button" onClick={() => addCartItem(item.product)} aria-label="Увеличить"><Plus /></button>
+                    <button type="button" onClick={() => addCartItem(item.product, item.selected_choice, item.selected_modifiers)} aria-label="Увеличить"><Plus /></button>
                   </div>
                 </div>
               </div>
             </article>
-          ))}
+          );})}
         </div>
         <div className="checkout-summary__total">
           <span><ShoppingCart /> Итого</span>
@@ -838,7 +854,18 @@ export function CheckoutScreen({
 
       <section className="checkout-privacy-card">
         <ShieldCheck />
-        <div><strong>Ваши данные защищены</strong><span>Используются только для обработки заказа</span></div>
+        <div><strong>Данные используются для заказа</strong><span>Ознакомьтесь с условиями и подтвердите передачу исполнителям</span></div>
+      </section>
+
+      <section className="legal-checkboxes" aria-label="Согласия для заказа">
+        <label className="legal-checkbox">
+          <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
+          <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
+        </label>
+        <label className="legal-checkbox">
+          <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
+          <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные ресторану и назначенному водителю</a>.</span>
+        </label>
       </section>
 
       <section className="checkout-submit-card">
@@ -871,7 +898,7 @@ export function CheckoutScreen({
               : 'primary-wide checkout-summary__action is-disabled'
           }
           type="button"
-          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid}
+          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !acceptedOrderData || !acceptedOrderTransfer}
           onClick={async () => {
             if (!restaurant.whatsapp) {
               return;
@@ -881,6 +908,10 @@ export function CheckoutScreen({
               return;
             }
             if (!validateCheckoutContact()) return;
+            if (!acceptedOrderData || !acceptedOrderTransfer) {
+              toast.error('Подтвердите оба обязательных согласия.');
+              return;
+            }
             if (mode === 'delivery') {
               if (!validateDeliveryDetails()) return;
               if (settlementNeedsAdminReview) {
@@ -1035,7 +1066,7 @@ export function CheckoutScreen({
                     items: items.map((item) => ({
                       dishId: item.product.id,
                       name: item.product.title,
-                      price: item.product.price,
+                      price: getCartItemPrice(item),
                       quantity: item.quantity
                     }))
                   });

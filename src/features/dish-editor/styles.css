@@ -6,6 +6,10 @@
   color: var(--text);
 }
 
+.modal-backdrop--dish-editor {
+  z-index: 100;
+}
+
 .dish-editor-header {
   position: sticky;
   top: 0;
@@ -73,6 +77,47 @@
 .dish-form {
   display: grid;
   gap: 14px;
+}
+
+.dish-modifier-editor__group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(232, 162, 58, 0.22);
+  border-radius: 14px;
+}
+
+.dish-modifier-editor__head {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.dish-modifier-editor__head label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.dish-modifier-editor__head label input {
+  width: 16px;
+  min-height: 16px;
+}
+
+.dish-modifier-editor__head button,
+.dish-modifier-editor__presets button {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.dish-modifier-editor__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
 }
 
 .dish-section {
@@ -461,12 +506,307 @@
 }
 
 @media (max-width: 380px) {
+  .dish-two-fields {
+    grid-template-columns: minmax(0, 1fr) 88px;
+  }
+
+  .dish-two-fields--title {
+    grid-template-columns: minmax(0, 1fr) 82px;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop--dish-editor {
+    padding: 0;
+    background: var(--bg, #f7f8fa);
+    backdrop-filter: none;
+  }
+
+  .design-editor--dish {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: var(--bg, #f7f8fa);
+    box-shadow: none;
+  }
+
+  .dish-editor-page {
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .dish-editor-header {
+    position: relative;
+    flex: 0 0 auto;
+    grid-template-columns: 36px minmax(0, 1fr) 70px;
+    gap: 4px;
+    margin: 0;
+    padding: calc(5px + env(safe-area-inset-top)) 10px 5px;
+    background: var(--bg, #f7f8fa);
+    backdrop-filter: none;
+  }
+
+  .dish-editor-header h2 {
+    font-size: 15px;
+  }
+
+  .dish-editor-header button {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .dish-editor-header button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dish-editor-header div {
+    gap: 2px;
+  }
+
+  .dish-form {
+    gap: 6px;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px 10px 10px;
+  }
+
+  .dish-section {
+    gap: 6px;
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .dish-section h3,
+  .dish-section__head h3 {
+    font-size: 13px;
+  }
+
+  .dish-section small {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .dish-photos {
+    gap: 6px;
+    padding-bottom: 0;
+  }
+
+  .dish-photo {
+    flex-basis: 94px;
+    border-radius: 10px;
+  }
+
+  .dish-photo button {
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+  }
+
   .dish-two-fields,
   .dish-two-fields--title {
-    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .dish-section label {
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .dish-section input,
+  .dish-section textarea,
+  .dish-section select {
+    min-height: 36px;
+    border-radius: 10px;
+    padding: 0 9px;
+    font-size: 14px;
+  }
+
+  .dish-section textarea {
+    min-height: 68px;
+    padding-top: 8px;
+  }
+
+  .dish-chip,
+  .dish-tag {
+    min-height: 32px;
+    gap: 5px;
+    padding: 0 9px;
+    font-size: 13px;
+  }
+
+  .dish-chip svg,
+  .dish-tag svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .dish-choice-editor {
+    gap: 6px;
+  }
+
+  .dish-choice-editor > div:first-child small {
+    margin-top: 2px;
+  }
+
+  .dish-choice-editor__list {
+    gap: 5px;
+  }
+
+  .dish-choice-editor__row {
+    grid-template-columns: 12px minmax(0, 1fr) 88px auto;
+    gap: 6px;
+  }
+
+  .dish-choice-editor__row > span {
+    width: 12px;
+    height: 12px;
+  }
+
+  .dish-choice-editor__row label > span {
+    top: 4px;
+    left: 9px;
+    font-size: 8px;
+  }
+
+  .dish-choice-editor__row label input {
+    min-height: 40px;
+    padding-top: 12px;
+  }
+
+  .dish-choice-editor__row button {
+    max-width: 26px;
+    overflow: hidden;
+    padding: 4px 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .dish-choice-editor__row button::after {
+    color: var(--accent);
+    content: '×';
+    font-size: 22px;
+  }
+
+  .dish-choice-editor__add {
+    padding: 3px 0;
+    font-size: 12px;
+  }
+
+  .dish-modifier-editor__group {
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .dish-modifier-editor__head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 8px;
+  }
+
+  .dish-modifier-editor__head > input,
+  .dish-modifier-editor__head > button {
+    grid-column: 1 / -1;
+  }
+
+  .dish-modifier-editor__group .dish-choice-editor__row {
+    grid-template-columns: minmax(0, 1fr) 82px auto auto;
+  }
+
+  .dish-pair-picker {
+    display: flex;
+    max-height: none;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0;
+    scrollbar-width: none;
+  }
+
+  .dish-pair-picker::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dish-pair-option {
+    flex: 0 0 190px;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 6px;
+    min-height: 48px;
+    border-radius: 12px;
+    padding: 5px;
+  }
+
+  .dish-pair-option img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .dish-pair-option b {
+    padding: 4px 6px;
+    font-size: 9px;
+  }
+
+  .dish-switches {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .dish-switch {
+    min-height: 40px;
+    padding: 0 8px;
+  }
+
+  .dish-switch span {
+    width: 38px;
+    height: 24px;
+  }
+
+  .dish-switch span::after {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dish-switch input:checked + span::after {
+    transform: translateX(14px);
+  }
+
+  .dish-unlimited-toggle {
+    gap: 7px;
+    margin-top: 4px;
+  }
+
+  .dish-unlimited-toggle small {
+    font-size: 10px;
   }
 
   .dish-actions {
-    grid-template-columns: 1fr;
+    position: relative;
+    flex: 0 0 auto;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 6px;
+    margin: 0;
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+    background: var(--bg, #f7f8fa);
+    backdrop-filter: none;
+  }
+
+  .dish-actions button {
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 14px;
   }
 }

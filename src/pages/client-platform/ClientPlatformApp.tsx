@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { legalDocuments } from '../../shared/legalDocuments';
 import {
   ArrowLeft,
   Banknote,
@@ -67,6 +68,7 @@ import type {
   PlatformBanner
 } from '../../features/client-platform/types';
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
+import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
@@ -462,7 +464,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
       <Link className="platform-search platform-search--home" to="/restaurants">
         <Search />
-        <span>Блюдо или ресторан</span>
+        <span>Позиция или заведение</span>
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
@@ -477,7 +479,7 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       ) : (
         <section className="empty-state empty-state--compact">
           <Store />
-          <strong>Рестораны пока не подключены</strong>
+          <strong>Заведения пока не подключены</strong>
           <Link to="/city">Выбрать другое место</Link>
         </section>
       )}
@@ -847,7 +849,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       </label>
       <button className="wide-action" type="button" disabled={!nearestCityId} onClick={() => chooseCity(nearestCityId)}>
         <LocateFixed />
-        Показать ближайшие рестораны
+        Показать ближайшие заведения
       </button>
       {recentCities.length > 0 && (
         <section className="plain-section">
@@ -878,7 +880,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
                   <small>
                     {countRestaurantsForCity(snapshot, city.id) > 0
                       ? formatRestaurantCount(countRestaurantsForCity(snapshot, city.id))
-                      : 'Пока нет ресторанов'}
+                      : 'Пока нет заведений'}
                     {city.region ? ` · ${city.region}` : ''}
                   </small>
                 </span>
@@ -951,14 +953,14 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   return (
     <>
-      <PageHeader title="Рестораны" />
+      <PageHeader title="Заведения" />
       <label className="platform-search">
         <Search />
         <input
-          aria-label="Поиск ресторанов"
+          aria-label="Поиск заведений"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск ресторанов"
+          placeholder="Поиск заведений"
           type="search"
         />
       </label>
@@ -1071,10 +1073,10 @@ function RestaurantArea({
     return (
       <div className="client-platform platform-theme">
         <div className="platform-page">
-          <PageHeader title="Ресторан не найден" backTo="/restaurants" />
+          <PageHeader title="Заведение не найдено" backTo="/restaurants" />
           <Link className="wide-link" to="/restaurants">
             <Store />
-            К ресторанам
+            К заведениям
           </Link>
         </div>
       </div>
@@ -1130,6 +1132,7 @@ function RestaurantCatalogPage({
   snapshot: ClientPlatformSnapshot;
   restaurant: ClientRestaurant;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const [searchParams, setSearchParams] = useSearchParams();
   const favoriteRestaurantIds = useClientPlatformStore((state) => state.favoriteRestaurantIds);
   const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
@@ -1157,7 +1160,7 @@ function RestaurantCatalogPage({
             className={favoriteRestaurantIds.includes(restaurant.id) ? 'restaurant-round is-active' : 'restaurant-round'}
             type="button"
             onClick={() => toggleFavoriteRestaurant(restaurant.id)}
-            aria-label="Добавить ресторан в избранное"
+            aria-label={`Добавить ${terms.placeAccusative} в избранное`}
           >
             <Heart />
           </button>
@@ -1209,7 +1212,7 @@ function RestaurantCatalogPage({
         </section>
 
         <section className="restaurant-section">
-          <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? 'Блюда'}</h2>
+          <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? terms.items}</h2>
           <div className="dish-grid">
             {visibleDishes.map((dish) => (
               <article className="dish-card" key={dish.id}>
@@ -1217,7 +1220,7 @@ function RestaurantCatalogPage({
                   className={favoriteDishIds.includes(dish.id) ? 'dish-card__favorite is-active' : 'dish-card__favorite'}
                   type="button"
                   onClick={() => toggleFavoriteDish(dish.id)}
-                  aria-label="Добавить блюдо в избранное"
+                  aria-label={`Добавить ${terms.itemLower} в избранное`}
                 >
                   <Heart />
                 </button>
@@ -1763,6 +1766,7 @@ function PaymentPage({
   snapshot: ClientPlatformSnapshot;
   restaurant: ClientRestaurant;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const navigate = useNavigate();
   const drafts = useClientPlatformStore((state) => state.checkoutDrafts);
   const setPaymentMethod = useClientPlatformStore((state) => state.setDraftPaymentMethod);
@@ -1802,7 +1806,7 @@ function PaymentPage({
               {method === 'qr' ? <QrCode /> : method === 'bank_transfer' ? <Building2 /> : <Banknote />}
               <span>
                 <strong>{paymentMethodLabels[method]}</strong>
-                <small>{method === 'cash' ? 'Оплата при получении' : 'Ресторан подтвердит оплату вручную'}</small>
+                <small>{method === 'cash' ? 'Оплата при получении' : `${terms.place} подтвердит оплату вручную`}</small>
               </span>
             </button>
           ))}
@@ -1839,6 +1843,8 @@ function PaymentConfirmPage({
   const dishes = getRestaurantDishes(snapshot, restaurant.slug);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
+  const [acceptedOrderData, setAcceptedOrderData] = useState(false);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
   const submitLockRef = useRef(false);
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const summaryWithoutDelivery = calculateCartSummary(lines, dishes, 0);
@@ -1873,6 +1879,10 @@ function PaymentConfirmPage({
   };
 
   const confirmPayment = async () => {
+    if (!acceptedOrderData || !acceptedOrderTransfer) {
+      setOrderError('Подтвердите оба обязательных согласия перед оформлением заказа.');
+      return;
+    }
     if (submitLockRef.current) return;
     submitLockRef.current = true;
     setIsSubmitting(true);
@@ -1938,8 +1948,18 @@ function PaymentConfirmPage({
             <small>{paymentSettings.paymentComment}</small>
           </section>
         )}
+        <section className="legal-checkboxes" aria-label="Согласия для заказа">
+          <label className="legal-checkbox">
+            <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
+            <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
+          </label>
+          <label className="legal-checkbox">
+            <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
+            <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные выбранному ресторану и назначенному водителю</a> для исполнения заказа.</span>
+          </label>
+        </section>
         {orderError && <small className="form-error">{orderError}</small>}
-        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting}>
+        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting || !acceptedOrderData || !acceptedOrderTransfer}>
           {isSubmitting ? 'Отправляем заказ...' : draft.paymentMethod === 'cash' ? 'Подтвердить заказ' : 'Я оплатил(а) заказ'}
         </button>
       </main>
@@ -1956,6 +1976,7 @@ function OrderStatusPage({
   restaurant: ClientRestaurant;
   orderId?: string;
 }) {
+  const terms = getBusinessTerms(restaurant.businessType);
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
   const order = selectClientOrderForStatus(orders, restaurant.slug, orderId);
@@ -2004,7 +2025,7 @@ function OrderStatusPage({
         <section className="status-panel">
           <small>Статус заказа</small>
           <h1>{statusLabels[order.status]}</h1>
-          {order.status === 'waiting_payment_confirmation' && <p>Ресторан получил заказ и проверяет оплату.</p>}
+          {order.status === 'waiting_payment_confirmation' && <p>{terms.paymentConfirmation}</p>}
           <OrderProgress status={order.status} />
         </section>
         <section className="delivery-info">
@@ -2189,6 +2210,9 @@ function ProfilePage() {
   const [clientName, setClientName] = useState(profile.name);
   const [clientPhone, setClientPhone] = useState(profile.phone);
   const [clientPassword, setClientPassword] = useState('');
+  const [acceptedClientAgreement, setAcceptedClientAgreement] = useState(false);
+  const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
+  const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>('login');
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
@@ -2246,15 +2270,29 @@ function ProfilePage() {
       setIsSavingClient(false);
       return;
     }
+    if (clientAuthMode === 'register' && (!acceptedClientAgreement || !acceptedClientConsent)) {
+      setClientError('Для регистрации примите соглашение и отдельное согласие на обработку данных.');
+      setIsSavingClient(false);
+      return;
+    }
 
     try {
       const session = clientAuthMode === 'register'
-        ? await registerClientAccount({ ...nextProfile, password: clientPassword })
+        ? await registerClientAccount({
+            ...nextProfile,
+            password: clientPassword,
+            acceptedAgreement: acceptedClientAgreement,
+            acceptedPersonalData: acceptedClientConsent,
+            acceptedAdvertising
+          })
         : await loginClientAccount({ phone: nextProfile.phone, password: clientPassword });
       saveProfile({ name: session.name, phone: session.phone });
       setClientName(session.name);
       setClientPhone(session.phone);
       setClientPassword('');
+      if (clientAuthMode === 'register') {
+        window.localStorage.setItem('wayyaam:advertising-preference:1.0', acceptedAdvertising ? 'granted' : 'denied');
+      }
       setClientMessage(clientAuthMode === 'register' ? 'Аккаунт создан' : 'Вход выполнен');
       navigate(clientReturnTo, { replace: true });
     } catch (error) {
@@ -2407,6 +2445,23 @@ function ProfilePage() {
                   required
                 />
               </label>
+              {clientAuthMode === 'register' && (
+                <section className="legal-checkboxes" aria-label="Условия регистрации">
+                  <label className="legal-checkbox">
+                    <input type="checkbox" checked={acceptedClientAgreement} onChange={(event) => setAcceptedClientAgreement(event.target.checked)} required />
+                    <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a>.</span>
+                  </label>
+                  <label className="legal-checkbox">
+                    <input type="checkbox" checked={acceptedClientConsent} onChange={(event) => setAcceptedClientConsent(event.target.checked)} required />
+                    <span>Даю отдельное <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
+                  </label>
+                  <label className="legal-checkbox">
+                    <input type="checkbox" checked={acceptedAdvertising} onChange={(event) => setAcceptedAdvertising(event.target.checked)} />
+                    <span>Согласен(на) получать <a href={legalDocuments.advertisingConsent} target="_blank" rel="noreferrer">рекламные и акционные уведомления</a>. Это необязательно.</span>
+                  </label>
+                  <a href={legalDocuments.policy} target="_blank" rel="noreferrer">Политика обработки персональных данных</a>
+                </section>
+              )}
               <label className="field-label">
                 <span>Пароль</span>
                 <input

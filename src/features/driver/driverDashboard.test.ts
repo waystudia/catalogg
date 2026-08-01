@@ -78,4 +78,26 @@ describe('driver dashboard presentation', () => {
     assert.deepEqual(getDriverDeliveryProgress('arrived_to_client'), { activeStep: 5, labels });
     assert.deepEqual(getDriverDeliveryProgress('delivered'), { activeStep: 6, labels });
   });
+
+  it('uses coffee shop terminology for route and arrival actions', () => {
+    assert.deepEqual(getDriverNextAction('assigned', false, 'coffee_shop'), {
+      label: 'Поехать в кофейню',
+      to: '/driver/map'
+    });
+    assert.deepEqual(getDriverNextAction('assigned', true, 'coffee_shop'), {
+      label: 'Я в кофейне',
+      status: 'arrived_to_restaurant'
+    });
+    assert.deepEqual(getDriverDeliveryProgress('assigned', true, 'coffee_shop'), {
+      activeStep: 2,
+      labels: [
+        'Принял заказ',
+        'Еду в кофейню',
+        'Забрал заказ',
+        'Еду к клиенту',
+        'Я у клиента',
+        'Доставлено'
+      ]
+    });
+  });
 });
