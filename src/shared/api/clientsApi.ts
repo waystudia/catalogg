@@ -355,7 +355,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       .limit(1000),
     supabase
       .from('catalogs')
-      .select('id, name, slug, status, logo_url, business_type, created_at')
+      .select('id, name, slug, status, logo_url, business_type, is_template, created_at')
       .order('created_at', { ascending: false })
   ]);
   const fallbackOrdersResult = ordersResult.error
@@ -370,9 +370,10 @@ export async function getPlatformStats(): Promise<PlatformStats> {
     status: PlatformClient['catalogStatus'];
     logo_url: string | null;
     business_type: string | null;
+    is_template: boolean | null;
     created_at: string;
   }>)
-    .filter((catalog) => !knownCatalogIds.has(catalog.id))
+    .filter((catalog) => catalog.is_template !== true && !knownCatalogIds.has(catalog.id))
     .map((catalog) => ({
       id: '',
       companyName: catalog.name,

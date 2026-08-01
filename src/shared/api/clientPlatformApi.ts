@@ -23,6 +23,7 @@ import type {
   PlatformContentPage,
   RestaurantTheme
 } from '../../features/client-platform/types';
+import { isPublicMenuCategory } from '../../entities/publicCategoryVisibility';
 import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
@@ -829,14 +830,16 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     }
   }
 
+  const publicCategories = categories.filter(
+    (category) => !category.is_hidden && isPublicMenuCategory(category)
+  );
   const categoriesByCatalog = new Map<string, CategoryRow[]>();
-  categories
-    .filter((category) => !category.is_hidden)
+  publicCategories
     .forEach((category) => {
       categoriesByCatalog.set(category.catalog_id, [...(categoriesByCatalog.get(category.catalog_id) ?? []), category]);
     });
 
-  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const categoryById = new Map(publicCategories.map((category) => [category.id, category]));
   const firstImageByProductId = new Map<string, string>();
   productImages.forEach((image) => {
     if (!firstImageByProductId.has(image.product_id)) {
@@ -860,9 +863,9 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   );
 
   const platformCategories: ClientPlatformCategory[] = unique(
-    categories.filter((category) => !category.is_hidden).map((category) => category.slug)
+    publicCategories.map((category) => category.slug)
   ).map((slug) => {
-    const category = categories.find((item) => item.slug === slug);
+    const category = publicCategories.find((item) => item.slug === slug);
     return {
       id: `platform-${slug}`,
       slug,
@@ -931,8 +934,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     };
   });
 
-  const restaurantCategories: ClientRestaurantCategory[] = categories
-    .filter((category) => !category.is_hidden)
+  const restaurantCategories: ClientRestaurantCategory[] = publicCategories
     .flatMap((category) => {
       const catalog = catalogs.find((item) => item.id === category.catalog_id);
       if (!catalog) return [];

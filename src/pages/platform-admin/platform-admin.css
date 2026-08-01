@@ -957,6 +957,7 @@
 }
 
 .platform-template-create input {
+  box-sizing: border-box;
   width: 100%;
   min-height: 44px;
   border: 1px solid #cbd5e1;
@@ -998,6 +999,11 @@
 .platform-template-card__actions button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.platform-template-card__actions .is-danger {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .platform-template-list {
@@ -2342,6 +2348,11 @@
   }
 
   .platform-page {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
     padding: 20px 14px 96px;
   }
 
@@ -2366,6 +2377,39 @@
   .platform-billing-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .templates-page .platform-template-create,
+  .templates-page .platform-template-list,
+  .platform-template-card {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .platform-template-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .platform-template-card > div {
+    min-width: 0;
+  }
+
+  .platform-template-card h2,
+  .platform-template-card p,
+  .platform-template-card small {
+    overflow-wrap: anywhere;
+  }
+
+  .platform-template-card__actions {
+    justify-content: flex-start;
+  }
+
+  .platform-template-card__actions > * {
+    box-sizing: border-box;
+    max-width: 100%;
   }
 
   .platform-settings-form,
@@ -2687,7 +2731,15 @@
 }
 
 .clients-page .search-field {
+  overflow: hidden;
   min-width: 0;
+  border-radius: 12px;
+  padding: 0;
+}
+
+.clients-page .search-field svg {
+  z-index: 1;
+  pointer-events: none;
 }
 
 .clients-page .search-field input {

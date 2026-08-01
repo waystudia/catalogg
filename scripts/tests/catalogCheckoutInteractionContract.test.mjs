@@ -4,6 +4,10 @@ import test from 'node:test';
 
 const appSource = await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const appStyles = await readFile(new URL('../../src/app/styles.css', import.meta.url), 'utf8');
+const catalogCategoryObserverSource = await readFile(
+  new URL('../../src/app/useCatalogCategoryObserver.ts', import.meta.url),
+  'utf8'
+);
 const indexSource = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
 const checkoutSource = await readFile(
   new URL('../../src/features/checkout/CheckoutScreen.tsx', import.meta.url),
@@ -44,18 +48,40 @@ test('product photos repeat at both edges and normalize after scrolling', () => 
   assert.match(appSource, /scrollBehavior\s*=\s*'auto'/);
 });
 
-test('mobile gestures disable page zoom and keep dish photo swipes horizontal', () => {
+test('mobile gestures lock single photos and enable only horizontal gallery swipes', () => {
   assert.match(
     indexSource,
     /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no"/
   );
   assert.match(
-    appStyles,
-    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*pan-x;/
+    appSource,
+    /images\.length > 1 \? ' product-photo-carousel--swipeable' : ''/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*pan-x;/
+    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*none;/
+  );
+  assert.match(
+    appStyles,
+    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*none;/
+  );
+  assert.match(
+    appStyles,
+    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-x;/
+  );
+  assert.match(
+    appStyles,
+    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x;/
+  );
+});
+
+test('a clicked catalog category stays active while smooth scrolling reaches its section', () => {
+  assert.match(appSource, /lockCategoryUntilVisible\(id, target\);/);
+  assert.match(catalogCategoryObserverSource, /const pendingCategoryRef = useRef<string \| null>\(null\);/);
+  assert.match(catalogCategoryObserverSource, /pendingCategoryRef\.current = target \? id : null;/);
+  assert.match(
+    catalogCategoryObserverSource,
+    /const pendingCategory = pendingCategoryRef\.current;[\s\S]*pendingEntry\?\.isIntersecting[\s\S]*setActive\(pendingCategory\);[\s\S]*pendingCategoryRef\.current = null;[\s\S]*return;/
   );
 });
 

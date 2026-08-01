@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { normalizeBusinessType } from '../businessTerminology';
 import type { CreateRestaurantTemplatePayload, PlatformTemplateOption } from './platformTypes';
 
 const fallbackTemplates: PlatformTemplateOption[] = [
@@ -56,7 +57,7 @@ const mapTemplateCatalog = (row: TemplateCatalogRow): PlatformTemplateOption => 
   templateVersionId: row.id,
   templateKey: row.template_name ?? row.slug,
   templateName: row.name,
-  businessType: row.business_type === 'coffee_shop' ? 'coffee_shop' : row.template_versions?.templates?.business_type ?? 'restaurant',
+  businessType: normalizeBusinessType(row.business_type ?? row.template_versions?.templates?.business_type),
   version: row.template_versions?.version ?? 1,
   description: row.description || row.template_versions?.templates?.description || 'Настраиваемый ресторанный шаблон',
   templateCatalogSlug: row.slug,
@@ -90,7 +91,7 @@ export async function getTemplateOptions(): Promise<PlatformTemplateOption[]> {
       templateVersionId: row.id,
       templateKey: row.templates?.key ?? 'restaurant-modern',
       templateName: row.templates?.name ?? 'Template',
-      businessType: row.templates?.business_type ?? 'restaurant',
+      businessType: normalizeBusinessType(row.templates?.business_type),
       version: row.version,
       description: row.templates?.description ?? ''
     }))
@@ -112,6 +113,20 @@ export async function createRestaurantTemplate(payload: CreateRestaurantTemplate
 
   if (error) throw error;
   return { catalogId: String(data) };
+}
+
+export async function deleteRestaurantTemplate(catalogId: string): Promise<void> {
+  if (!supabase) return;
+
+  const { data, error } = await supabase
+    .from('catalogs')
+    .delete()
+    .eq('id', catalogId)
+    .eq('is_template', true)
+    .select('id');
+
+  if (error) throw error;
+  if (!data?.length) throw new Error('Шаблон не найден или уже удалён. Обычные каталоги не затронуты.');
 }
 
 export async function publishCoffeeTemplateAssets(catalogId: string): Promise<number> {

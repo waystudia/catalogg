@@ -56,6 +56,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
+import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
 import {
   cabins as demoCabins,
   categories as demoCategories,
@@ -65,6 +66,7 @@ import {
 } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
 import { buildCartLineId, getCartLineId, getSelectedModifierDetails } from '../entities/productModifiers';
+import { isPublicMenuCategory } from '../entities/publicCategoryVisibility';
 import {
   getCartItemPrice,
   getProductChoiceOptions,
@@ -397,7 +399,6 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
   const displayedImages = images.length > 1
     ? [images[images.length - 1], ...images, images[0]]
     : (images.length ? images : ['']);
-
   useEffect(() => {
     setActiveIndex(0);
     setDisplayedIndex(images.length > 1 ? 1 : 0);
@@ -423,7 +424,7 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
   return (
     <>
       <div
-        className={hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}
+        className={`${hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}${images.length > 1 ? ' product-photo-carousel--swipeable' : ''}`}
         data-active-image={images[activeIndex] ?? product.image_url}
         role={hero ? 'button' : undefined}
         tabIndex={hero ? 0 : undefined}
@@ -443,10 +444,12 @@ function ProductImageCarousel({ product, hero = false }: { product: Product; her
           }
         }}
         onTouchStart={(event) => {
+          if (images.length < 2) return;
           touchStartX.current = event.touches[0]?.clientX ?? null;
           didSwipe.current = false;
         }}
         onTouchEnd={(event) => {
+          if (images.length < 2) return;
           if (touchStartX.current === null) return;
           const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
           touchStartX.current = null;
@@ -1108,7 +1111,7 @@ function HomeScreen({
   const [active, setActive] = useState('all');
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
-  const featuredCategories = categories.filter((category) => category.showOnHome !== false);
+  const featuredCategories = categories.filter((category) => category.showOnHome !== false && isPublicMenuCategory(category));
   const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
   const openRestaurantMap = () => {
@@ -1122,7 +1125,7 @@ function HomeScreen({
   return (
     <main className="screen">
       <CategoryPills
-        categories={categories.filter((category) => category.kind !== 'space').slice(0, 5)}
+        categories={categories.filter(isPublicMenuCategory).slice(0, 5)}
         active={active}
         onSelect={(id) => {
           setActive(id);
@@ -1352,7 +1355,7 @@ function CatalogScreen({
   const hits = visibleProducts.filter((product) => (product.is_hit || product.is_popular) && queryMatches(product));
   const sauces = visibleProducts.filter((product) => isSauceProduct(product) && queryMatches(product));
   const realSections = categories
-    .filter((category) => category.kind !== 'space')
+    .filter(isPublicMenuCategory)
     .map((category) => ({
       id: category.id,
       title: category.name,
@@ -1388,24 +1391,9 @@ function CatalogScreen({
     return () => window.cancelAnimationFrame(frame);
   }, [initialCategory, sections.length]);
 
-  useEffect(() => {
-    const elements = Array.from(sectionRefs.current.values());
-    if (elements.length === 0) return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top);
-        const next = visible[0]?.target.getAttribute('data-catalog-section');
-        if (next) setActive(next);
-      },
-      { rootMargin: '-84px 0px -62% 0px', threshold: [0, 0.01] }
-    );
-
-    elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
-  }, [normalizedQuery, sections.length]);
+  const lockCategoryUntilVisible = useCatalogCategoryObserver(
+    sectionRefs, normalizedQuery, sections.length, setActive
+  );
 
   useEffect(() => {
     const pill = pillRefs.current.get(active);
@@ -1430,8 +1418,9 @@ function CatalogScreen({
   }, []);
 
   const scrollToSection = (id: string) => {
-    setActive(id);
     const target = sectionRefs.current.get(id);
+    lockCategoryUntilVisible(id, target);
+    setActive(id);
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 

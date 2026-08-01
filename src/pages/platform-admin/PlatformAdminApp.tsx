@@ -112,7 +112,8 @@ import { PlatformGeographyPage } from '../../features/platform-admin-geography/P
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
-import { createRestaurantTemplate, getTemplateOptions, publishCoffeeTemplateAssets } from '../../shared/api/templatesApi';
+import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
+import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
   getRestaurantOrderNotificationPermission,
@@ -1618,134 +1619,6 @@ function ClientsPage({
         <Plus />
         Добавить клиента
       </button>
-    </main>
-  );
-}
-
-function TemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [lastAutoSlug, setLastAutoSlug] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [publishingTemplateId, setPublishingTemplateId] = useState('');
-
-  useEffect(() => {
-    if ((!slug || slug === lastAutoSlug) && name) {
-      const nextSlug = createSlug(name);
-      setSlug(nextSlug);
-      setLastAutoSlug(nextSlug);
-    }
-  }, [lastAutoSlug, name, slug]);
-
-  const onCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!name.trim() || !slug.trim()) {
-      toast.error('Укажите название и адрес шаблона');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await createRestaurantTemplate({
-        name: name.trim(),
-        slug: slug.trim().toLowerCase(),
-        templateName: slug.trim().toLowerCase()
-      });
-      toast.success('Шаблон создан');
-      setName('');
-      setSlug('');
-      setLastAutoSlug('');
-      void queryClient.invalidateQueries({ queryKey: ['platform-templates'] });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось создать шаблон');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <main className="platform-page">
-      <header className="platform-page-head">
-        <div>
-          <h1>Шаблоны</h1>
-          <p>Создавайте шаблоны заведений и настраивайте их как обычные каталоги</p>
-        </div>
-      </header>
-
-      <form className="platform-template-create" onSubmit={onCreateTemplate}>
-        <label>
-          Название шаблона
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Шаблон: Шашлычная"
-            required
-          />
-        </label>
-        <label>
-          Адрес шаблона
-          <input
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            onBlur={(event) => setSlug(normalizeSlugInput(event.target.value))}
-            placeholder="coffee-shop"
-            required
-          />
-        </label>
-        <button type="submit" disabled={isSubmitting}>
-          <Plus />
-          {isSubmitting ? 'Создаём...' : 'Создать шаблон'}
-        </button>
-      </form>
-
-      <section className="platform-template-list">
-        {templates.length === 0 && (
-          <div className="platform-placeholder">
-            <LayoutTemplate />
-            <h2>Шаблонов пока нет</h2>
-            <p>Создайте первый шаблон, затем откройте его админку и наполните каталог.</p>
-          </div>
-        )}
-        {templates.map((template) => (
-          <article className="platform-template-card" key={template.templateVersionId}>
-            <div>
-              <span className="platform-template-badge">TEMPLATE</span>
-              <h2>{template.templateName}</h2>
-              <p>{template.description}</p>
-              {template.templateCatalogSlug && <small>#/{template.templateCatalogSlug}</small>}
-            </div>
-            <div className="platform-template-card__actions">
-              {template.businessType === 'coffee_shop' && template.isCatalogTemplate && (
-                <button
-                  type="button"
-                  disabled={publishingTemplateId === template.templateVersionId}
-                  onClick={async () => {
-                    setPublishingTemplateId(template.templateVersionId);
-                    try {
-                      const count = await publishCoffeeTemplateAssets(template.templateVersionId);
-                      toast.success(`Опубликовано фотографий: ${count}`);
-                    } catch (error) {
-                      toast.error(error instanceof Error ? error.message : 'Не удалось опубликовать фотографии');
-                    } finally {
-                      setPublishingTemplateId('');
-                    }
-                  }}
-                >
-                  <Upload />
-                  {publishingTemplateId === template.templateVersionId ? 'Публикуем...' : 'Опубликовать фото'}
-                </button>
-              )}
-              {template.templateCatalogSlug && (
-                <a href={getCatalogAdminUrl(template.templateCatalogSlug)}>
-                  <Settings />
-                  Настроить
-                </a>
-              )}
-            </div>
-          </article>
-        ))}
-      </section>
     </main>
   );
 }
@@ -3439,7 +3312,7 @@ function PlatformAdminContent() {
       );
     }
     if (route === 'templates') {
-      return <TemplatesPage templates={templatesQuery.data ?? []} />;
+      return <PlatformTemplatesPage templates={templatesQuery.data ?? []} />;
     }
     if (route === 'client-signups') {
       return <PlatformUsersPage />;
