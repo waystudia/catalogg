@@ -158,7 +158,7 @@ test('keeps a wide upright restaurant destination label the same size while zoom
       <section className="driver-phone--map">
         <DeliveryTrackingMap
           restaurant={{ ...restaurant, label: 'Мангал' }}
-          client={client}
+          client={{ ...client, label: 'дукхвах' }}
           driver={{ ...restaurant, label: 'Моё местоположение' }}
           routePoints={[restaurant, client]}
           loadRoute={async () => ({
@@ -175,19 +175,23 @@ test('keeps a wide upright restaurant destination label the same size while zoom
   );
 
   const restaurantMarker = screen.getByRole('button', { name: 'Ресторан: Мангал' });
-  const clientMarker = screen.getByRole('button', { name: 'Клиент: Клиент' });
+  const clientMarker = screen.getByRole('button', { name: 'Клиент: дукхвах' });
   await expect.element(restaurantMarker.getByText('Мангал')).toBeVisible();
   await expect.element(restaurantMarker.getByText('Ресторан')).toBeVisible();
   expect(clientMarker.element().querySelector('strong')?.textContent).toBe('Клиент');
-  expect(clientMarker.element().querySelector('small')?.textContent).toBe('Клиент');
+  expect(clientMarker.element().querySelector('small')?.textContent).toBe('дукхвах');
   const readMarkerSize = (marker: Element) => {
     const style = getComputedStyle(marker);
     return { width: Number.parseFloat(style.width), height: Number.parseFloat(style.height) };
   };
   const initialSize = readMarkerSize(restaurantMarker.element());
-  expect(initialSize.width).toBeGreaterThanOrEqual(80);
-  expect(initialSize.height).toBeGreaterThanOrEqual(40);
+  expect(initialSize.width).toBeGreaterThanOrEqual(150);
+  expect(initialSize.height).toBeGreaterThanOrEqual(50);
   expect(readMarkerSize(clientMarker.element())).toEqual(initialSize);
+  for (const label of [restaurantMarker.element(), clientMarker.element()]) {
+    const text = label.querySelector<HTMLElement>('.delivery-tracking-map__marker-label');
+    expect(text?.scrollWidth).toBeLessThanOrEqual(text?.clientWidth ?? 0);
+  }
 
   await screen.getByRole('button', { name: 'Отдалить' }).click();
   await screen.getByRole('button', { name: 'Отдалить' }).click();

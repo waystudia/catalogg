@@ -248,12 +248,12 @@
 
 .delivery-tracking-map__marker--restaurant,
 .delivery-tracking-map__marker--client {
-  width: 96px;
-  height: 46px;
-  grid-template-columns: 25px minmax(0, 1fr);
-  gap: 5px;
-  border-radius: 14px;
-  padding: 5px 8px;
+  width: 160px;
+  height: 58px;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  border-radius: 16px;
+  padding: 7px 12px;
   background: #5b3df4;
   transform: translate(-50%, -108%) rotate(var(--map-counter-rotation, 0deg));
 }
@@ -265,8 +265,8 @@
 
 .delivery-tracking-map__marker--restaurant svg,
 .delivery-tracking-map__marker--client svg {
-  width: 23px;
-  height: 23px;
+  width: 28px;
+  height: 28px;
   transform: none;
 }
 
@@ -288,14 +288,14 @@
 }
 
 .delivery-tracking-map__marker-label strong {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 900;
 }
 
 .delivery-tracking-map__marker-label small {
   margin-top: 2px;
   color: rgb(255 255 255 / 78%);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
 }
 .delivery-tracking-map__marker--driver {
