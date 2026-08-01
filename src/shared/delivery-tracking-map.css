@@ -301,6 +301,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
+  box-shadow: none;
   color: #facc15;
   filter: drop-shadow(0 8px 10px rgb(79 70 229 / 34%));
   transform: translate(-50%, -50%) rotate(var(--driver-heading, 0deg));
