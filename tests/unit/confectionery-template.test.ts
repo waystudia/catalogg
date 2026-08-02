@@ -95,7 +95,7 @@ describe('confectionery template', () => {
     expect(photographed.find((item) => item.id === 'birthday-custom-cake')?.image_url).toBeTruthy();
 
     photographed.forEach((item) => {
-      expect(item.image_url.startsWith('/catalogg/assets/templates/confectionery/')).toBe(true);
+      expect(item.image_url.startsWith('/assets/templates/confectionery/')).toBe(true);
       const file = join(process.cwd(), 'public', item.image_url.replace('/catalogg/', ''));
       expect(existsSync(file), `${item.title}: ${file}`).toBe(true);
       const bytes = readFileSync(file);

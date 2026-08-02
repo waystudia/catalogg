@@ -89,7 +89,6 @@
 .restaurant-list-item,
 .profile-card,
 .profile-cabinet-button,
-.profile-role-grid button,
 .profile-menu a,
 .profile-menu button,
 .order-card,
@@ -145,7 +144,6 @@
 .restaurant-list-item svg,
 .bottom-nav svg,
 .profile-cabinet-button svg,
-.profile-role-grid svg,
 .profile-menu svg,
 .order-card svg,
 .payment-method svg {
@@ -1824,15 +1822,13 @@
   font-weight: 900;
 }
 
-.profile-cabinet-button span,
-.profile-driver-entry span {
+.profile-cabinet-button span {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.profile-cabinet-button small,
-.profile-driver-entry small {
+.profile-cabinet-button small {
   color: #667085;
   font-weight: 700;
 }
@@ -1845,42 +1841,6 @@
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
-}
-
-.profile-role-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.profile-role-grid button {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 72px;
-  padding: 8px;
-  color: #111827;
-  font-weight: 900;
-  text-align: center;
-}
-
-.profile-role-grid button.is-active {
-  border-color: #5b3df4;
-  background: #f0edff;
-  color: #5b3df4;
-}
-
-.profile-driver-entry {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-}
-
-.profile-driver-entry > a {
-  grid-column: 1 / -1;
 }
 
 .form-error,

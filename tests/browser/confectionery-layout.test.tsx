@@ -59,9 +59,9 @@ test('confectionery cards, prices and horizontal categories stay usable at every
             {confectioneryCategories.map((category) => <button className="pill" type="button" key={category.id}>{category.name}</button>)}
           </div>
           <div className="catalog-grid">
-            {card('cake', 'Красный бархат', '/catalogg/assets/templates/confectionery/products/red-velvet-cake.webp', '1 900 ₽/кг')}
+            {card('cake', 'Красный бархат', '/assets/templates/confectionery/products/red-velvet-cake.webp', '1 900 ₽/кг')}
             {card('placeholder', 'Морковный торт', '', '1 750 ₽/кг')}
-            {card('set', 'Большой подарочный бокс', '/catalogg/assets/templates/confectionery/products/large-gift-box.webp', 'от 2 900 ₽')}
+            {card('set', 'Большой подарочный бокс', '/assets/templates/confectionery/products/large-gift-box.webp', 'от 2 900 ₽')}
           </div>
         </main>
       </div>

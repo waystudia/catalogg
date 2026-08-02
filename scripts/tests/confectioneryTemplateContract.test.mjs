@@ -45,6 +45,8 @@ test('generated confectionery collection is local, WebP and within page-weight b
     readFile(migrationUrl, 'utf8')
   ]);
   assert.doesNotMatch(`${config}\n${migration}`, /https?:\/\//i);
+  assert.doesNotMatch(`${config}\n${migration}`, /\/catalogg\/assets\/templates\/confectionery/i);
+  assert.match(`${config}\n${migration}`, /\/assets\/templates\/confectionery/);
 });
 
 test('product photos are lazy runtime assets instead of service-worker precache payload', async () => {

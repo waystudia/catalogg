@@ -32,7 +32,7 @@ export const platformFallbackTemplates: PlatformTemplateOption[] = [
     description: 'Торты, десерты, выпечка и подарочные наборы',
     templateCatalogSlug: 'confectionery',
     isCatalogTemplate: true,
-    previewImage: '/catalogg/assets/templates/confectionery/preview.webp'
+    previewImage: '/assets/templates/confectionery/preview.webp'
   }
 ];
 
@@ -76,7 +76,7 @@ const mapTemplateCatalog = (row: TemplateCatalogRow): PlatformTemplateOption => 
   templateCatalogSlug: row.slug,
   isCatalogTemplate: true,
   previewImage: row.slug === 'confectionery'
-    ? '/catalogg/assets/templates/confectionery/preview.webp'
+    ? '/assets/templates/confectionery/preview.webp'
     : row.business_type === 'coffee_shop'
       ? '/catalogg/assets/template-coffee-shop/hero.webp'
       : undefined

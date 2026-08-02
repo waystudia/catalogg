@@ -6,7 +6,6 @@ import {
   Bell,
   Bike,
   Building2,
-  Car,
   Check,
   ChevronDown,
   ChevronRight,
@@ -2242,7 +2241,7 @@ function ProfilePage() {
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
-  const [clientPhone, setClientPhone] = useState(profile.phone);
+  const [accountIdentifier, setAccountIdentifier] = useState(profile.phone);
   const [clientPassword, setClientPassword] = useState('');
   const [acceptedClientAgreement, setAcceptedClientAgreement] = useState(false);
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
@@ -2254,16 +2253,9 @@ function ProfilePage() {
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
   const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
-  const [activeRole, setActiveRole] = useState<'client' | 'restaurant' | 'driver' | null>(
-    clientAuthRequested ? 'client' : null
-  );
-  const [restaurantEmail, setRestaurantEmail] = useState('');
-  const [restaurantPassword, setRestaurantPassword] = useState('');
-  const [restaurantError, setRestaurantError] = useState('');
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
-  const [isSigningRestaurant, setIsSigningRestaurant] = useState(false);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
     { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
@@ -2290,22 +2282,25 @@ function ProfilePage() {
       if (session) {
         saveProfile({ name: session.name, phone: session.phone });
         setClientName(session.name);
-        setClientPhone(session.phone);
+        setAccountIdentifier(session.phone);
         setClientMessage('Вы вошли в аккаунт');
       }
     });
   }, [saveProfile]);
 
-  const submitClientProfile = async (event: FormEvent<HTMLFormElement>) => {
+  const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const nextProfile = { name: clientName.trim(), phone: clientPhone.trim() };
+    const identifier = accountIdentifier.trim();
+    const nextProfile = { name: clientName.trim(), phone: identifier };
 
     setClientError('');
     setClientMessage('');
     setIsSavingClient(true);
 
-    if (!nextProfile.phone || !clientPassword) {
-      setClientError('Введите номер телефона и пароль.');
+    if (!identifier || !clientPassword) {
+      setClientError(clientAuthMode === 'register'
+        ? 'Введите номер телефона и пароль.'
+        : 'Введите телефон или почту и пароль.');
       setIsSavingClient(false);
       return;
     }
@@ -2321,6 +2316,19 @@ function ProfilePage() {
     }
 
     try {
+      if (clientAuthMode === 'login' && identifier.includes('@')) {
+        const redirect = await resolveLoginRedirect(identifier, clientPassword);
+        if (!redirect || redirect === '/') {
+          await signOutPlatformAdmin();
+          throw new Error('Аккаунт не привязан к кабинету ресторана или водителя.');
+        }
+        const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
+        setClientPassword('');
+        rememberPwaResumePath(targetPath);
+        navigate(targetPath, { replace: true });
+        return;
+      }
+
       const session = clientAuthMode === 'register'
         ? await registerClientAccount({
             ...nextProfile,
@@ -2333,7 +2341,7 @@ function ProfilePage() {
       saveProfile({ name: session.name, phone: session.phone });
       setClientSession(session);
       setClientName(session.name);
-      setClientPhone(session.phone);
+      setAccountIdentifier(session.phone);
       setClientPassword('');
       if (clientAuthMode === 'register') {
         window.localStorage.setItem('wayyaam:advertising-preference:1.0', acceptedAdvertising ? 'granted' : 'denied');
@@ -2347,44 +2355,16 @@ function ProfilePage() {
     }
   };
 
-  const submitStaffLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setRestaurantError('');
-    setIsSigningRestaurant(true);
-
-    try {
-      const redirect = await resolveLoginRedirect(
-        restaurantEmail,
-        restaurantPassword,
-        activeRole === 'driver' ? 'driver' : 'restaurant'
-      );
-      if (!redirect) {
-        throw new Error('Неверный email или пароль.');
-      }
-      const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
-      rememberPwaResumePath(targetPath);
-      navigate(targetPath, { replace: true });
-    } catch (error) {
-      setRestaurantError(error instanceof Error ? error.message : 'Не удалось войти.');
-    } finally {
-      setIsSigningRestaurant(false);
-    }
-  };
-
   const logout = () => {
     clearPwaResumePath();
     saveProfile({ name: '', phone: '' });
     setClientName('');
-    setClientPhone('');
+    setAccountIdentifier('');
     setClientPassword('');
     setClientMessage('');
     setClientError('');
     setClientSession(null);
     setIsClientSessionChecking(false);
-    setRestaurantEmail('');
-    setRestaurantPassword('');
-    setRestaurantError('');
-    setActiveRole(null);
     setAccountOpen(false);
     void logoutClientAccount();
     void signOutPlatformAdmin();
@@ -2416,170 +2396,114 @@ function ProfilePage() {
       <button
         className="profile-cabinet-button"
         type="button"
-        onClick={() => {
-          setAccountOpen((value) => !value);
-          if (!accountOpen) setActiveRole(null);
-        }}
+        onClick={() => setAccountOpen((value) => !value)}
       >
         <CircleUserRound />
         <span>
           <strong>Личный кабинет</strong>
-          <small>Вход для клиента, ресторана или водителя</small>
+          <small>Единый вход по телефону или почте</small>
         </span>
         <ChevronRight />
       </button>
 
       {accountOpen && (
         <section className="profile-account-panel">
-          <div className="profile-role-grid">
-            <button className={activeRole === 'client' ? 'is-active' : ''} type="button" onClick={() => {
-              setRestaurantError('');
-              setActiveRole('client');
-            }}>
-              <UserRoundCheck />
-              <span>Клиент</span>
-            </button>
-            <button className={activeRole === 'restaurant' ? 'is-active' : ''} type="button" onClick={() => {
-              setRestaurantError('');
-              setActiveRole('restaurant');
-            }}>
-              <Building2 />
-              <span>Ресторан</span>
-            </button>
-            <button className={activeRole === 'driver' ? 'is-active' : ''} type="button" onClick={() => {
-              setRestaurantError('');
-              setActiveRole('driver');
-            }}>
-              <Car />
-              <span>Водитель</span>
-            </button>
-          </div>
-
-          {activeRole === 'client' && (
-            <form className="profile-inline-form" onSubmit={submitClientProfile}>
-              <div className="segment-control">
-                <button
-                  className={clientAuthMode === 'login' ? 'is-active' : ''}
-                  type="button"
-                  onClick={() => {
-                    setClientAuthMode('login');
-                    setClientError('');
-                  }}
-                >
-                  Войти
-                </button>
-                <button
-                  className={clientAuthMode === 'register' ? 'is-active' : ''}
-                  type="button"
-                  onClick={() => {
-                    setClientAuthMode('register');
-                    setClientError('');
-                  }}
-                >
-                  Регистрация
-                </button>
-              </div>
-              {clientAuthMode === 'register' && (
-                <label className="field-label">
-                  <span>Имя</span>
-                  <input
-                    value={clientName}
-                    onChange={(event) => setClientName(event.target.value)}
-                    placeholder="Ваше имя"
-                    autoComplete="name"
-                    required
-                  />
+          <form className="profile-inline-form" onSubmit={submitAccount}>
+            <div className="segment-control">
+              <button
+                className={clientAuthMode === 'login' ? 'is-active' : ''}
+                type="button"
+                onClick={() => {
+                  setClientAuthMode('login');
+                  setClientError('');
+                }}
+              >
+                Войти
+              </button>
+              <button
+                className={clientAuthMode === 'register' ? 'is-active' : ''}
+                type="button"
+                onClick={() => {
+                  setClientAuthMode('register');
+                  setClientError('');
+                }}
+              >
+                Регистрация
+              </button>
+            </div>
+            {clientAuthMode === 'register' && (
+              <label className="field-label">
+                <span>Имя</span>
+                <input
+                  value={clientName}
+                  onChange={(event) => setClientName(event.target.value)}
+                  placeholder="Ваше имя"
+                  autoComplete="name"
+                  required
+                />
+              </label>
+            )}
+            <label className="field-label">
+              <span>{clientAuthMode === 'register' ? 'Телефон' : 'Телефон или почта'}</span>
+              <input
+                value={accountIdentifier}
+                onChange={(event) => setAccountIdentifier(event.target.value)}
+                placeholder={clientAuthMode === 'register' ? '+7' : '+7 или name@example.ru'}
+                inputMode={clientAuthMode === 'register' ? 'tel' : 'text'}
+                autoComplete={clientAuthMode === 'register' ? 'tel' : 'username'}
+                required
+              />
+            </label>
+            {clientAuthMode === 'register' && (
+              <section className="legal-checkboxes" aria-label="Условия регистрации">
+                <label className="legal-checkbox">
+                  <input type="checkbox" checked={acceptedClientAgreement} onChange={(event) => setAcceptedClientAgreement(event.target.checked)} required />
+                  <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a>.</span>
                 </label>
-              )}
-              <label className="field-label">
-                <span>Телефон</span>
-                <input
-                  value={clientPhone}
-                  onChange={(event) => setClientPhone(event.target.value)}
-                  placeholder="+7"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  required
-                />
-              </label>
-              {clientAuthMode === 'register' && (
-                <section className="legal-checkboxes" aria-label="Условия регистрации">
-                  <label className="legal-checkbox">
-                    <input type="checkbox" checked={acceptedClientAgreement} onChange={(event) => setAcceptedClientAgreement(event.target.checked)} required />
-                    <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a>.</span>
-                  </label>
-                  <label className="legal-checkbox">
-                    <input type="checkbox" checked={acceptedClientConsent} onChange={(event) => setAcceptedClientConsent(event.target.checked)} required />
-                    <span>Даю отдельное <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
-                  </label>
-                  <label className="legal-checkbox">
-                    <input type="checkbox" checked={acceptedAdvertising} onChange={(event) => setAcceptedAdvertising(event.target.checked)} />
-                    <span>Согласен(на) получать <a href={legalDocuments.advertisingConsent} target="_blank" rel="noreferrer">рекламные и акционные уведомления</a>. Это необязательно.</span>
-                  </label>
-                  <a href={legalDocuments.policy} target="_blank" rel="noreferrer">Политика обработки персональных данных</a>
-                </section>
-              )}
-              <label className="field-label">
-                <span>Пароль</span>
-                <input
-                  value={clientPassword}
-                  onChange={(event) => setClientPassword(event.target.value)}
-                  type="password"
-                  autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
-                  minLength={6}
-                  maxLength={72}
-                  required
-                />
-              </label>
-              {clientError && <small className="form-error">{clientError}</small>}
-              {clientMessage && <small className="form-success">{clientMessage}</small>}
-              <button className="wide-action" type="submit" disabled={isSavingClient}>
-                <UserRoundCheck />
-                {isSavingClient
-                  ? 'Проверяем...'
-                  : clientAuthMode === 'register'
-                    ? 'Зарегистрироваться'
-                    : 'Войти как клиент'}
-              </button>
-            </form>
-          )}
-
-          {activeRole === 'restaurant' && (
-            <form className="profile-inline-form" onSubmit={submitStaffLogin}>
-              <label className="field-label">
-                <span>Email</span>
-                <input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />
-              </label>
-              <label className="field-label">
-                <span>Пароль</span>
-                <input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />
-              </label>
-              {restaurantError && <small className="form-error">{restaurantError}</small>}
-              <button className="wide-action" type="submit" disabled={isSigningRestaurant}>
-                <ShieldCheck />
-                {isSigningRestaurant ? 'Проверяем...' : 'Войти как ресторан'}
-              </button>
-            </form>
-          )}
-
-          {activeRole === 'driver' && (
-            <form className="profile-inline-form" onSubmit={submitStaffLogin}>
-              <label className="field-label">
-                <span>Email</span>
-                <input value={restaurantEmail} onChange={(event) => setRestaurantEmail(event.target.value)} type="email" autoComplete="email" required />
-              </label>
-              <label className="field-label">
-                <span>Пароль</span>
-                <input value={restaurantPassword} onChange={(event) => setRestaurantPassword(event.target.value)} type="password" autoComplete="current-password" required />
-              </label>
-              <small className="form-muted">Данные для входа водителю выдаёт администратор платформы.</small>
-              {restaurantError && <small className="form-error">{restaurantError}</small>}
-              <button className="wide-action" type="submit" disabled={isSigningRestaurant}>
-                <Car />
-                {isSigningRestaurant ? 'Проверяем...' : 'Войти как водитель'}
-              </button>
-            </form>
-          )}
+                <label className="legal-checkbox">
+                  <input type="checkbox" checked={acceptedClientConsent} onChange={(event) => setAcceptedClientConsent(event.target.checked)} required />
+                  <span>Даю отдельное <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
+                </label>
+                <label className="legal-checkbox">
+                  <input type="checkbox" checked={acceptedAdvertising} onChange={(event) => setAcceptedAdvertising(event.target.checked)} />
+                  <span>Согласен(на) получать <a href={legalDocuments.advertisingConsent} target="_blank" rel="noreferrer">рекламные и акционные уведомления</a>. Это необязательно.</span>
+                </label>
+                <a href={legalDocuments.policy} target="_blank" rel="noreferrer">Политика обработки персональных данных</a>
+              </section>
+            )}
+            <label className="field-label">
+              <span>Пароль</span>
+              <input
+                value={clientPassword}
+                onChange={(event) => setClientPassword(event.target.value)}
+                type="password"
+                autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
+                minLength={6}
+                maxLength={72}
+                required
+              />
+            </label>
+            {clientError && <small className="form-error">{clientError}</small>}
+            {clientMessage && <small className="form-success">{clientMessage}</small>}
+            {clientAuthMode === 'login' && (
+              <small className="form-muted">
+                Клиенты входят по телефону. Рестораны и водители — по почте, выданной администратором.
+              </small>
+            )}
+            <button className="wide-action" type="submit" disabled={isSavingClient}>
+              <UserRoundCheck />
+              {isSavingClient
+                ? 'Проверяем...'
+                : clientAuthMode === 'register'
+                  ? 'Зарегистрироваться'
+                  : 'Войти'}
+            </button>
+            {clientAuthMode === 'register' && (
+              <small className="form-muted">
+                Регистрация создаёт аккаунт клиента. Аккаунты ресторанов и водителей выдаёт администратор.
+              </small>
+            )}
+          </form>
         </section>
       )}
 

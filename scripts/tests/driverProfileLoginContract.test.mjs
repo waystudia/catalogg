@@ -24,13 +24,14 @@ describe('driver login from the client profile', () => {
     assert.match(redirect, /Сервис профилей временно не отвечает/);
     assert.match(redirect, /PGRST202/i);
     assert.match(redirect, /expectedRole/);
-    assert.match(redirect, /Это аккаунт водителя\. Выберите «Водитель»/);
-    assert.match(redirect, /Это аккаунт ресторана\. Выберите «Ресторан»/);
     assert.match(
       profile,
-      /resolveLoginRedirect\([\s\S]*restaurantEmail,[\s\S]*restaurantPassword,[\s\S]*activeRole === 'driver'/
+      /identifier\.includes\('@'\)[\s\S]*resolveLoginRedirect\(identifier, clientPassword\)/
     );
-    assert.match(profile, /Данные для входа водителю выдаёт администратор платформы/);
+    assert.match(profile, /Телефон или почта/);
+    assert.match(profile, /Рестораны и водители — по почте, выданной администратором/);
+    assert.doesNotMatch(profile, /profile-role-grid/);
+    assert.doesNotMatch(profile, /Войти как (?:клиент|ресторан|водитель)/);
     assert.doesNotMatch(profile, /Аккаунт водителя создаёт и выдаёт супер-админ/);
     assert.doesNotMatch(redirect, /const authenticatedDriverId = await getAuthenticatedDriverId\(\)/);
   });

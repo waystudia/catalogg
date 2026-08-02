@@ -52,8 +52,8 @@ begin
   set name = 'Dolce House',
       description = 'Торты, десерты и сладкие подарки',
       slug = 'confectionery',
-      logo_url = '/catalogg/assets/templates/confectionery/logo.svg',
-      banner_url = '/catalogg/assets/templates/confectionery/hero.webp',
+      logo_url = '/assets/templates/confectionery/logo.svg',
+      banner_url = '/assets/templates/confectionery/hero.webp',
       address = 'ул. Цветочная, 18',
       whatsapp = '79990000000',
       is_template = true,
@@ -72,16 +72,16 @@ begin
 
   insert into public.categories (catalog_id, name, slug, description, image_url, icon, is_hidden, sort_order)
   values
-    (v_template_id, 'Популярное', 'popular', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/red-velvet-cake.webp', 'star', false, 10),
-    (v_template_id, 'Торты', 'cakes', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/medovik-cake.webp', 'cake', false, 20),
-    (v_template_id, 'Торты на заказ', 'custom-cakes', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/birthday-custom-cake.webp', 'cake', false, 30),
-    (v_template_id, 'Пироги', 'pies', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/apple-pie.webp', 'pie', false, 40),
-    (v_template_id, 'Порционные десерты', 'portion-desserts', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/new-york-cheesecake.webp', 'dessert', false, 50),
-    (v_template_id, 'Капкейки и эклеры', 'cupcakes-eclairs', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/cupcake-set.webp', 'cupcake', false, 60),
-    (v_template_id, 'Фрукты в шоколаде', 'chocolate-fruit', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/strawberry-chocolate-12.webp', 'strawberry', false, 70),
-    (v_template_id, 'Выпечка и печенье', 'bakery-cookies', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/homemade-cookie-box.webp', 'cookie', false, 80),
-    (v_template_id, 'Подарочные наборы', 'gift-sets', '{"kind":"food","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/gift-set-for-her.webp', 'gift', false, 90),
-    (v_template_id, 'Напитки', 'drinks', '{"kind":"drink","showOnHome":true}', '/catalogg/assets/templates/confectionery/products/cocoa.webp', 'cup-soda', false, 100);
+    (v_template_id, 'Популярное', 'popular', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/red-velvet-cake.webp', 'star', false, 10),
+    (v_template_id, 'Торты', 'cakes', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/medovik-cake.webp', 'cake', false, 20),
+    (v_template_id, 'Торты на заказ', 'custom-cakes', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/birthday-custom-cake.webp', 'cake', false, 30),
+    (v_template_id, 'Пироги', 'pies', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/apple-pie.webp', 'pie', false, 40),
+    (v_template_id, 'Порционные десерты', 'portion-desserts', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/new-york-cheesecake.webp', 'dessert', false, 50),
+    (v_template_id, 'Капкейки и эклеры', 'cupcakes-eclairs', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/cupcake-set.webp', 'cupcake', false, 60),
+    (v_template_id, 'Фрукты в шоколаде', 'chocolate-fruit', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/strawberry-chocolate-12.webp', 'strawberry', false, 70),
+    (v_template_id, 'Выпечка и печенье', 'bakery-cookies', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/homemade-cookie-box.webp', 'cookie', false, 80),
+    (v_template_id, 'Подарочные наборы', 'gift-sets', '{"kind":"food","showOnHome":true}', '/assets/templates/confectionery/products/gift-set-for-her.webp', 'gift', false, 90),
+    (v_template_id, 'Напитки', 'drinks', '{"kind":"drink","showOnHome":true}', '/assets/templates/confectionery/products/cocoa.webp', 'cup-soda', false, 100);
 
   insert into public.products (
     catalog_id, category_id, title, slug, status, price, description, ingredients,
@@ -138,7 +138,7 @@ begin
 
   insert into public.product_images (catalog_id, product_id, url, alt, sort_order)
   select v_template_id, product.id,
-    '/catalogg/assets/templates/confectionery/products/' ||
+    '/assets/templates/confectionery/products/' ||
       case when product.slug = 'medovik-classic' then 'medovik-cake' else product.slug end || '.webp',
     product.title || ' — фото товара', 0
   from public.products product
@@ -235,7 +235,7 @@ begin
       'working_hours','Ежедневно, 09:00–21:00',
       'minimum_order',700
     )),
-    (v_template_id, 'restaurant-gallery', 'Обложки ресторана', true, 5, jsonb_build_object('images', jsonb_build_array('/catalogg/assets/templates/confectionery/hero.webp')))
+    (v_template_id, 'restaurant-gallery', 'Обложки ресторана', true, 5, jsonb_build_object('images', jsonb_build_array('/assets/templates/confectionery/hero.webp')))
   on conflict (catalog_id, key) do update set settings = excluded.settings, enabled = true;
 end;
 $$;

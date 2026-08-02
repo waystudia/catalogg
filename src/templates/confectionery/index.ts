@@ -9,7 +9,7 @@ import type {
   ThemeSettings
 } from '../../entities/models';
 
-const assetRoot = '/catalogg/assets/templates/confectionery';
+const assetRoot = '/assets/templates/confectionery';
 
 export const confectioneryCategories: Category[] = ([
   { id: 'popular', slug: 'popular', name: 'Популярное', image: `${assetRoot}/products/red-velvet-cake.webp`, icon: 'star', kind: 'food' },
