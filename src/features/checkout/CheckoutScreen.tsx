@@ -25,7 +25,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
-import { useClientPlatformStore } from '../client-platform/store';
+import {
+  CLIENT_ORDER_CONSENT_VERSION,
+  useClientPlatformStore
+} from '../client-platform/store';
 import type { ClientAddress, ClientOrder } from '../client-platform/types';
 import {
   selectCartCount,
@@ -120,16 +123,20 @@ export function CheckoutScreen({
   const saveClientProfile = useClientPlatformStore((state) => state.saveProfile);
   const addClientAddress = useClientPlatformStore((state) => state.addAddress);
   const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
+  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
+  const recordOrderConsent = useClientPlatformStore((state) => state.recordOrderConsent);
   const items = useCartStore((state) => state.items);
   const addCartItem = useCartStore((state) => state.add);
   const decrementCartItem = useCartStore((state) => state.decrement);
   const removeCartItem = useCartStore((state) => state.remove);
   const updateCartItemQuantity = useCartStore((state) => state.updateQuantity);
+  const clearCart = useCartStore((state) => state.clear);
   const total = selectCartTotal(items);
   const cartCount = selectCartCount(items);
   const [orderComment, setOrderComment] = useState('');
-  const [acceptedOrderData, setAcceptedOrderData] = useState(false);
-  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
+  const hasCurrentOrderConsent = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION;
+  const [acceptedOrderData, setAcceptedOrderData] = useState(hasCurrentOrderConsent);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(hasCurrentOrderConsent);
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'cash' | 'bank_transfer'>(() =>
     paymentSettings.transferEnabled ? 'bank_transfer' : 'cash'
   );
@@ -953,6 +960,8 @@ export function CheckoutScreen({
                 });
               }
             }
+            const profileName = clientName.trim() || 'Гость';
+            const profilePhone = clientPhone.trim();
             savePublicClientProfile(catalogSlug, {
               name: clientName,
               phone: clientPhone,
@@ -960,6 +969,7 @@ export function CheckoutScreen({
               deliverySettlement: effectiveDeliverySettlement,
               deliveryAddress
             });
+            saveClientProfile({ name: profileName, phone: profilePhone });
             const orderPayload: CreateRestaurantOrderFromCartInput = {
               slug: catalogSlug,
               items,
@@ -1044,8 +1054,6 @@ export function CheckoutScreen({
                       : orderType === 'pickup'
                         ? 'pickup'
                         : 'dine_in';
-                  const profileName = clientName.trim() || 'Гость';
-                  const profilePhone = clientPhone.trim();
                   const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
 
                   if (mode === 'delivery') {
@@ -1065,7 +1073,6 @@ export function CheckoutScreen({
                       isDefault: true
                     };
 
-                    saveClientProfile({ name: profileName, phone: profilePhone });
                     addClientAddress(clientAddress);
                   }
 
@@ -1101,9 +1108,11 @@ export function CheckoutScreen({
                       quantity: item.quantity
                     }))
                   });
+                  recordOrderConsent();
+                  clearCart();
+                  onSubmitOrder();
                   toast.success('Заказ создан в системе ресторана');
                   openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
-                  window.setTimeout(onSubmitOrder, 500);
                   return;
                 }
                 closeReservedWhatsappWindow();

@@ -132,6 +132,11 @@ export type ClientProfile = {
   phone: string;
 };
 
+export type ClientOrderConsent = {
+  version: string;
+  acceptedAt: string;
+};
+
 export type ClientCheckoutDraft = {
   orderType: ClientOrderType;
   clientName: string;

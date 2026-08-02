@@ -46,6 +46,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
+  CLIENT_ORDER_CONSENT_VERSION,
   selectAllCartCount,
   selectCheckoutDraft,
   selectRestaurantCart,
@@ -1837,14 +1838,17 @@ function PaymentConfirmPage({
   const drafts = useClientPlatformStore((state) => state.checkoutDrafts);
   const profile = useClientPlatformStore((state) => state.profile);
   const submitOrder = useClientPlatformStore((state) => state.submitOrder);
+  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
+  const recordOrderConsent = useClientPlatformStore((state) => state.recordOrderConsent);
   const draft = selectCheckoutDraft(drafts, restaurant.slug);
   const paymentSettings = getPaymentSettings(snapshot, restaurant.slug);
   const lines = useClientPlatformStore((state) => selectRestaurantCart(state.carts, restaurant.slug));
   const dishes = getRestaurantDishes(snapshot, restaurant.slug);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
-  const [acceptedOrderData, setAcceptedOrderData] = useState(false);
-  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
+  const hasCurrentOrderConsent = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION;
+  const [acceptedOrderData, setAcceptedOrderData] = useState(hasCurrentOrderConsent);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(hasCurrentOrderConsent);
   const submitLockRef = useRef(false);
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const summaryWithoutDelivery = calculateCartSummary(lines, dishes, 0);
@@ -1929,6 +1933,7 @@ function PaymentConfirmPage({
       estimatedTimeMax: restaurant.deliveryTimeTo
     });
 
+    recordOrderConsent();
     submitOrder(order);
     navigate(`/r/${restaurant.slug}/order/${order.id}`);
   };
@@ -2205,6 +2210,7 @@ function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
+  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
@@ -2237,6 +2243,9 @@ function ProfilePage() {
   const displayName = profile.name || 'Гость WayCatalog';
   const displayPhone = profile.phone || 'Телефон не указан';
   const displayAddress = addresses.find((address) => address.isDefault)?.addressLine ?? addresses[0]?.addressLine ?? '';
+  const displayConsentDate = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION
+    ? new Date(orderConsent.acceptedAt).toLocaleDateString('ru-RU')
+    : '';
   const returnToValue = searchParams.get('returnTo') ?? '';
   const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
     ? returnToValue
@@ -2352,6 +2361,9 @@ function ProfilePage() {
           <strong>{displayName}</strong>
           <small>{displayPhone}</small>
           {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
+          {displayConsentDate && (
+            <small className="profile-card__consent"><ShieldCheck /> Согласия подтверждены {displayConsentDate}</small>
+          )}
         </span>
         <ChevronRight />
       </section>

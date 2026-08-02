@@ -6316,7 +6316,12 @@ a {
 .checkout-customer-details__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 10px;
+}
+
+.checkout-customer-details__fields .checkout-field {
+  align-content: start;
 }
 
 .checkout-payment-method > div:first-child {
@@ -6880,23 +6885,22 @@ a {
 }
 
 .flow-backdrop {
-  right: 0;
-  bottom: 120px;
-  left: 0;
-  align-items: end;
-  padding: 14px 16px 0;
+  inset: 0;
+  z-index: 60;
+  align-items: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
   background: rgba(0, 0, 0, 0.64);
 }
 
 .flow-modal {
   position: relative;
   width: min(820px, 100%);
-  max-height: calc(100dvh - 136px);
+  max-height: calc(100dvh - 24px);
   display: grid;
-  gap: 14px;
+  gap: 10px;
   overflow: auto;
   border-radius: 28px;
-  padding: 26px 20px 22px;
+  padding: 20px 16px 16px;
   background: #ffffff;
   color: #17120f;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
@@ -6904,16 +6908,16 @@ a {
 
 .flow-modal__close {
   position: absolute;
-  top: 22px;
-  right: 22px;
+  top: 14px;
+  right: 14px;
   display: grid;
-  width: 54px;
-  height: 54px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  border: 1px solid #e4e0da;
+  border-radius: 14px;
+  background: #f7f5f2;
+  color: #17120f;
 }
 
 .flow-modal__close svg {
@@ -6948,17 +6952,17 @@ a {
 .modal-handle {
   width: 56px;
   height: 8px;
-  margin: -8px auto 20px;
+  margin: -4px auto 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(23, 18, 15, 0.2);
 }
 
 .modal-icon {
   display: block;
-  width: 74px;
-  height: 74px;
-  margin: 0 auto 22px;
-  padding: 18px;
+  width: 62px;
+  height: 62px;
+  margin: 0 auto 6px;
+  padding: 14px;
   border: 1px solid rgba(232, 162, 58, 0.36);
   border-radius: 999px;
   color: #ffad3d;
@@ -7158,6 +7162,13 @@ a {
 .flow-modal .primary-wide:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+.flow-modal > .primary-wide,
+.flow-modal > .ghost-wide {
+  min-height: 50px;
+  border-radius: 15px;
+  font-size: 16px;
 }
 
 .flow-continue-bar {
@@ -9022,8 +9033,9 @@ a {
   }
 
   .flow-modal {
-    max-height: calc(100dvh - 132px);
-    padding: 22px 14px 18px;
+    max-height: calc(100dvh - 16px);
+    gap: 9px;
+    padding: 18px 12px 12px;
   }
 
   .flow-modal h2 {
@@ -9044,8 +9056,8 @@ a {
   }
 
   .flow-products {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    max-height: min(50dvh, 520px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: min(48dvh, 460px);
   }
 
   .flow-product-card {
@@ -10533,6 +10545,60 @@ a {
 }
 
 @media (max-width: 360px) {
+  .flow-backdrop {
+    padding: 6px;
+  }
+
+  .flow-modal {
+    max-height: calc(100dvh - 12px);
+    gap: 7px;
+    padding: 14px 10px 10px;
+  }
+
+  .flow-modal h2 {
+    margin-right: 42px;
+    margin-left: 42px;
+    font-size: 20px;
+  }
+
+  .flow-modal > p {
+    font-size: 14px;
+  }
+
+  .flow-modal .modal-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 4px;
+    padding: 11px;
+  }
+
+  .flow-modal > .primary-wide,
+  .flow-modal > .ghost-wide {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .flow-products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: min(46dvh, 360px);
+  }
+
+  .flow-product-card {
+    grid-template-rows: 88px auto auto 32px;
+    min-height: 190px;
+    padding: 7px;
+  }
+
+  .flow-product-card img,
+  .flow-product-card .image-fallback {
+    height: 88px;
+  }
+
+  .flow-product-card__stepper button {
+    width: 32px;
+    height: 32px;
+  }
+
   .restaurant-menu-overview {
     grid-template-columns: minmax(0, 1fr);
     gap: 9px;

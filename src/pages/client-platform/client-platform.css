@@ -1792,6 +1792,20 @@
   height: 14px;
 }
 
+.profile-card__consent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0f8a57 !important;
+  font-weight: 800;
+}
+
+.profile-card__consent svg {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+}
+
 .profile-inline-form {
   display: grid;
   gap: 12px;

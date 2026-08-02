@@ -42,7 +42,7 @@ Configure these Supabase secrets: `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PR
 The trigger migration already connects `orders` and `deliveries` to the Edge Function through `pg_net`; separate Database Webhooks are not needed. The endpoint used by the trigger is:
 
 ```text
-https://tggwiyvalfvcsvuyhaxc.supabase.co/functions/v1/send-web-push
+https://api.wayyaam.ru/functions/v1/send-web-push
 ```
 
 The trigger sends the `x-webhook-secret` from Supabase Vault. Realtime alone cannot wake a closed PWA.

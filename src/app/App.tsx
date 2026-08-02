@@ -1117,19 +1117,6 @@ function CatalogScreen({
               </section>
             )}
           </div>
-          <section className="catalog-business-info" aria-label="Информация о заказе">
-            <span className="catalog-business-info__status"><i aria-hidden="true" /> Открыто</span>
-            {restaurant.working_hours && <span><Timer /> {restaurant.working_hours}</span>}
-            {restaurant.address && <span><MapPin /> {restaurant.address}</span>}
-            {deliverySettings?.enable_delivery && <span><Truck /> Доставка</span>}
-            {deliverySettings?.enable_pickup && <span><Package /> Самовывоз</span>}
-            {restaurant.minimum_order ? <span><ShoppingBag /> Минимальный заказ {formatRublePrice(restaurant.minimum_order)}</span> : null}
-            {restaurant.whatsapp && (
-              <a href={`https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
-                <MessageCircle /> Связаться
-              </a>
-            )}
-          </section>
           {restaurant.catalog_notice && (
             <aside className="catalog-notice"><CakeSlice /> <span>{restaurant.catalog_notice}</span></aside>
           )}
@@ -1617,9 +1604,21 @@ function UpsellReminder({
   const add = useCartStore((state) => state.add);
   const decrement = useCartStore((state) => state.decrement);
   const isDrinks = category.kind === 'drink';
-  const suggestions = products
-    .filter((product) => isProductInCategory(product, category.id))
-    .slice(0, 12);
+  const categorySuggestions = products.filter(
+    (product) => !product.is_hidden && isProductInCategory(product, category.id)
+  );
+  const isSauceCategory = [category.id, category.slug, category.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase('ru-RU')
+    .match(/соус|sauce/);
+  const suggestions = (
+    categorySuggestions.length > 0
+      ? categorySuggestions
+      : isSauceCategory
+        ? products.filter((product) => !product.is_hidden && isSauceProduct(product))
+        : []
+  ).slice(0, 12);
   const selectedProduct = suggestions.find((product) => product.id === selectedId);
 
   const chooseProduct = (product: Product) => {
