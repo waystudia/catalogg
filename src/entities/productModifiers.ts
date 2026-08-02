@@ -1,8 +1,10 @@
 import type {
+  CartConfiguration,
   CartItem,
   ProductModifierGroup,
   SelectedProductModifier
 } from './models';
+import { getCartItemPrice, getCartItemTotal } from './productPricing';
 
 const nonNegativeNumber = (value: unknown) => {
   const parsed = Number(value);
@@ -52,27 +54,48 @@ export const getSelectedModifierDetails = (item: CartItem) => {
     .map((option) => ({ group, option })));
 };
 
-export const getCartItemPrice = (item: CartItem) => {
-  const variantPrice = (item.product.choice_options ?? [])
-    .map((choice) => typeof choice === 'string' ? { name: choice, price: item.product.price } : choice)
-    .find((choice) => choice.name.trim() === item.selected_choice)?.price ?? item.product.price;
-  return getSelectedModifierDetails(item)
-    .reduce((total, { option }) => total + option.priceDelta, variantPrice);
+export const getMissingRequiredModifierGroup = (
+  groups: ProductModifierGroup[] | undefined,
+  selectedModifiers: SelectedProductModifier[] = []
+) => {
+  const selected = new Set(selectedModifiers.map((value) => `${value.groupId}:${value.optionId}`));
+  return normalizeProductModifierGroups(groups).find((group) => {
+    if (!group.required || group.isActive === false) return false;
+    const selectedCount = group.options.filter((option) =>
+      option.isActive !== false && selected.has(`${group.id}:${option.id}`)
+    ).length;
+    return selectedCount < group.minSelected;
+  });
 };
 
-export const getCartItemTotal = (item: CartItem) => getCartItemPrice(item) * item.quantity;
+export { getCartItemPrice, getCartItemTotal };
 
 export const buildCartLineId = (
   productId: string,
   selectedChoice?: string,
-  selectedModifiers: SelectedProductModifier[] = []
+  selectedModifiers: SelectedProductModifier[] = [],
+  configuration: CartConfiguration = {}
 ) => {
   const modifiers = [...selectedModifiers]
     .sort((left, right) => `${left.groupId}:${left.optionId}`.localeCompare(`${right.groupId}:${right.optionId}`))
     .map((value) => `${value.groupId}:${value.optionId}`)
     .join('|');
-  return [productId, selectedChoice?.trim() ?? '', modifiers].join('::');
+  const details = [
+    ['weight', configuration.selectedWeight === undefined ? '' : String(configuration.selectedWeight)],
+    ['inscription', configuration.inscription?.trim() ?? ''],
+    ['decoration', configuration.decorationComment?.trim() ?? ''],
+    ['date', configuration.productionDate?.trim() ?? ''],
+    ['time', configuration.productionTime?.trim() ?? '']
+  ].filter(([, value]) => value).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
+  const legacyLineId = [productId, selectedChoice?.trim() ?? '', modifiers].join('::');
+  return details ? `${legacyLineId}::${details}` : legacyLineId;
 };
 
 export const getCartLineId = (item: CartItem) =>
-  item.line_id || buildCartLineId(item.product.id, item.selected_choice, item.selected_modifiers);
+  item.line_id || buildCartLineId(item.product.id, item.selected_choice, item.selected_modifiers, {
+    selectedWeight: item.selected_weight,
+    inscription: item.inscription,
+    decorationComment: item.decoration_comment,
+    productionDate: item.production_date,
+    productionTime: item.production_time
+  });

@@ -11,9 +11,6 @@ import {
   Croissant,
   CupSoda,
   Drumstick,
-  Edit3,
-  Eye,
-  EyeOff,
   Fish,
   Flame,
   GlassWater,
@@ -49,8 +46,6 @@ import {
   User,
   Wheat,
   CreditCard,
-  ZoomIn,
-  ZoomOut,
   X
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
@@ -64,15 +59,16 @@ import {
   restaurant as demoRestaurant,
   themeSettings as demoThemeSettings
 } from '../data/catalog';
-import type { Cabin, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
-import { buildCartLineId, getCartLineId, getSelectedModifierDetails } from '../entities/productModifiers';
+import type { Cabin, CartItem, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
+import { buildCartLineId, getCartLineId, getMissingRequiredModifierGroup, getSelectedModifierDetails } from '../entities/productModifiers';
 import { isPublicMenuCategory } from '../entities/publicCategoryVisibility';
 import {
   getCartItemPrice,
   getProductChoiceOptions,
-  getProductStartingPrice
 } from '../entities/productVariants';
+import { formatRublePrice, normalizeSelectedWeight } from '../entities/productPricing';
 import { CheckoutScreen } from '../features/checkout/CheckoutScreen';
+import { ProductImageCarousel, ProductTile } from '../features/catalog/ProductTile';
 import {
   CategoriesSettings,
   BackupSettings,
@@ -95,7 +91,6 @@ import {
   isProductInCategory,
   loadStockTargets,
   makeLoadingRestaurant,
-  playAddSound,
   playCartSound,
   saveStockTargets,
   type StockTargets
@@ -383,151 +378,6 @@ const settingsAccentStyle = {
   '--primary-text': '#ffffff'
 } as React.CSSProperties;
 
-function ProductImageCarousel({ product, hero = false }: { product: Product; hero?: boolean }) {
-  const images = product.image_urls?.filter(Boolean).length
-    ? product.image_urls.filter(Boolean)
-    : product.image_url
-      ? [product.image_url]
-      : [];
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [displayedIndex, setDisplayedIndex] = useState(images.length > 1 ? 1 : 0);
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [viewerScale, setViewerScale] = useState(1);
-  const touchStartX = useRef<number | null>(null);
-  const didSwipe = useRef(false);
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const scrollEndRef = useRef<number | null>(null);
-  const displayedImages = images.length > 1
-    ? [images[images.length - 1], ...images, images[0]]
-    : (images.length ? images : ['']);
-  useEffect(() => {
-    setActiveIndex(0);
-    setDisplayedIndex(images.length > 1 ? 1 : 0);
-    window.requestAnimationFrame(() => {
-      const track = trackRef.current;
-      if (track) track.scrollTo({ left: images.length > 1 ? track.clientWidth : 0 });
-    });
-  }, [product.id, images.length]);
-
-  useEffect(() => () => {
-    if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
-  }, []);
-
-  useEffect(() => {
-    if (!isViewerOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isViewerOpen]);
-
-  return (
-    <>
-      <div
-        className={`${hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}${images.length > 1 ? ' product-photo-carousel--swipeable' : ''}`}
-        data-active-image={images[activeIndex] ?? product.image_url}
-        role={hero ? 'button' : undefined}
-        tabIndex={hero ? 0 : undefined}
-        aria-label={hero ? `Увеличить фото: ${product.title}` : undefined}
-        onKeyDown={(event) => {
-          if (hero && (event.key === 'Enter' || event.key === ' ')) setIsViewerOpen(true);
-        }}
-        onClick={(event) => {
-          if (didSwipe.current) {
-            event.stopPropagation();
-            didSwipe.current = false;
-            return;
-          }
-          if (hero) {
-            setViewerScale(1);
-            setIsViewerOpen(true);
-          }
-        }}
-        onTouchStart={(event) => {
-          if (images.length < 2) return;
-          touchStartX.current = event.touches[0]?.clientX ?? null;
-          didSwipe.current = false;
-        }}
-        onTouchEnd={(event) => {
-          if (images.length < 2) return;
-          if (touchStartX.current === null) return;
-          const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-          touchStartX.current = null;
-          didSwipe.current = Math.abs(delta) >= 12;
-        }}
-      >
-        <div
-          className="product-photo-carousel__track"
-          ref={trackRef}
-          onScroll={(event) => {
-            const track = event.currentTarget;
-            const width = track.clientWidth;
-            if (width <= 0) return;
-            const rawIndex = Math.round(track.scrollLeft / width);
-            setDisplayedIndex(rawIndex);
-            setActiveIndex(images.length > 1 ? (rawIndex - 1 + images.length) % images.length : 0);
-            if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
-            scrollEndRef.current = window.setTimeout(() => {
-              if (images.length < 2) return;
-              const settledIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
-              const resetIndex = settledIndex === 0 ? images.length : settledIndex === images.length + 1 ? 1 : null;
-              if (resetIndex === null) return;
-              track.style.scrollBehavior = 'auto';
-              track.scrollTo({ left: resetIndex * track.clientWidth });
-              setDisplayedIndex(resetIndex);
-              window.requestAnimationFrame(() => {
-                track.style.scrollBehavior = '';
-              });
-            }, 180);
-          }}
-        >
-          {displayedImages.map((image, index) => (
-            <span className={`product-photo-carousel__slide${index === displayedIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
-              <SafeImage
-                className={hero ? 'product-hero' : undefined}
-                src={image}
-                alt={activeIndex === 0 ? product.title : `${product.title}, фото ${activeIndex + 1}`}
-                loading={hero ? undefined : 'lazy'}
-                draggable={false}
-              />
-            </span>
-          ))}
-        </div>
-        {images.length > 1 && (
-          <span className="product-photo-carousel__dots" aria-label={`Фото ${activeIndex + 1} из ${images.length}`}>
-            {images.map((image, index) => <i className={index === activeIndex ? 'is-active' : ''} key={`${image}-dot-${index}`} />)}
-          </span>
-        )}
-      </div>
-      {hero && isViewerOpen && (
-        <div className="product-photo-viewer" role="dialog" aria-modal="true" aria-label={`Фото блюда ${product.title}`}>
-          <button className="product-photo-viewer__close" type="button" onClick={() => setIsViewerOpen(false)} aria-label="Закрыть">
-            <X />
-          </button>
-          <div className="product-photo-viewer__viewport">
-            <SafeImage
-              src={images[activeIndex] ?? product.image_url}
-              alt={product.title}
-              style={{ filter: 'var(--dish-photo-filter, none)', transform: `scale(${viewerScale})` }}
-              draggable={false}
-            />
-          </div>
-          <div className="product-photo-viewer__controls">
-            <button type="button" onClick={() => setViewerScale((value) => Math.max(1, value - 0.5))} aria-label="Уменьшить">
-              <ZoomOut />
-            </button>
-            <button type="button" onClick={() => setViewerScale(1)}>100%</button>
-            <button type="button" onClick={() => setViewerScale((value) => Math.min(4, value + 0.5))} aria-label="Увеличить">
-              <ZoomIn />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 function TopBar({
   title,
   canBack,
@@ -638,201 +488,6 @@ function CategoryPills({
         </button>
       ))}
     </div>
-  );
-}
-
-function ProductTile({
-  product,
-  variant = 'compact',
-  onOpen,
-  onEdit,
-  onDelete,
-  onToggle,
-  onStockChange,
-  onAdd
-}: {
-  product: Product;
-  variant?: 'compact' | 'large' | 'drink';
-  onOpen: (product: Product) => void;
-  onEdit?: (product: Product) => void;
-  onDelete?: (productId: string) => void;
-  onToggle?: (productId: string, key: ProductFlag) => void;
-  onStockChange?: (productId: string, stockCount: number) => void;
-  onAdd?: (product: Product) => void;
-}) {
-  const add = useCartStore((state) => state.add);
-  const decrement = useCartStore((state) => state.decrement);
-  const items = useCartStore((state) => state.items);
-  const isAdmin = useAuthStore((state) => state.isAdmin);
-  const currentStock = getCurrentStock(product);
-  const soldOut = isLimitedProduct(product) && currentStock <= 0;
-  const quantity = items.find((item) => item.product.id === product.id)?.quantity ?? 0;
-  const choiceOptions = getProductChoiceOptions(product);
-
-  const captureCartAnimation = (button: HTMLButtonElement) => {
-    const buttonRect = button.getBoundingClientRect();
-    const tile = button.closest('.product-tile') as HTMLElement | null;
-    const carousel = tile?.querySelector('.product-photo-carousel') as HTMLElement | null;
-    const image = tile?.querySelector('.product-photo-carousel__slide.is-active img, .product-tile__image img') as HTMLImageElement | null;
-    const visibleImageRect = carousel?.getBoundingClientRect() ?? image?.getBoundingClientRect();
-    return {
-      buttonRect,
-      imageRect: visibleImageRect,
-      imageUrl: carousel?.dataset.activeImage || image?.currentSrc || product.image_url
-    };
-  };
-
-  const playCartAnimation = (
-    { buttonRect, imageRect, imageUrl }: ReturnType<typeof captureCartAnimation>,
-    reverse = false
-  ) => {
-    const target = document.querySelector('[data-cart-animation-target] .cart-bar__icon') as HTMLElement | null;
-    const targetRect = target?.getBoundingClientRect();
-    const startX = imageRect ? imageRect.left + imageRect.width / 2 : buttonRect.left + buttonRect.width / 2;
-    const startY = imageRect ? imageRect.top + imageRect.height / 2 : buttonRect.top + buttonRect.height / 2;
-    const endX = targetRect ? targetRect.left + targetRect.width / 2 : Math.max(50, window.innerWidth * 0.18);
-    const endY = targetRect ? targetRect.top + targetRect.height / 2 : window.innerHeight - 54;
-    const flyer = document.createElement('span');
-    const width = Math.min(imageRect?.width ?? 64, 180);
-    const height = Math.min(imageRect?.height ?? 64, 150);
-
-    flyer.className = reverse ? 'cart-flyer cart-flyer--reverse' : 'cart-flyer';
-    flyer.setAttribute('aria-hidden', 'true');
-    flyer.style.setProperty('--flyer-start-x', `${startX}px`);
-    flyer.style.setProperty('--flyer-start-y', `${startY}px`);
-    flyer.style.setProperty('--flyer-mid-x', `${Math.max(58, Math.min(window.innerWidth - 58, window.innerWidth * 0.5))}px`);
-    flyer.style.setProperty('--flyer-mid-y', `${Math.max(86, Math.min(startY - 72, window.innerHeight * 0.32))}px`);
-    flyer.style.setProperty('--flyer-end-x', `${endX}px`);
-    flyer.style.setProperty('--flyer-end-y', `${endY}px`);
-    flyer.style.setProperty('--flyer-width', `${width}px`);
-    flyer.style.setProperty('--flyer-height', `${height}px`);
-
-    if (imageUrl) {
-      const flyerImage = document.createElement('img');
-      flyerImage.src = imageUrl;
-      flyerImage.alt = '';
-      flyer.append(flyerImage);
-    } else {
-      flyer.classList.add('cart-flyer--empty');
-      flyer.textContent = '+';
-    }
-
-    document.body.append(flyer);
-    const cleanup = () => flyer.remove();
-    flyer.addEventListener('animationend', cleanup, { once: true });
-    window.setTimeout(cleanup, 1200);
-  };
-
-  return (
-    <article
-      className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}${soldOut ? ' is-sold-out' : ''}`}
-      onClick={() => onOpen(product)}
-    >
-      <div className="product-tile__image">
-        <ProductImageCarousel product={product} />
-        {product.is_popular && (
-          <span className="product-state product-state--popular">
-            <Star />
-          </span>
-        )}
-        {quantity > 0 && <b className="product-tile__quantity-badge">{quantity}</b>}
-        {product.is_hidden && <span className="product-state product-state--hidden">Скрыто</span>}
-        {soldOut && <span className="product-state product-state--sold-out">Закончилось</span>}
-        {isAdmin && (
-          <div className="admin-card-tools" onClick={(event) => event.stopPropagation()}>
-            <button type="button" aria-label="Редактировать" onClick={() => onEdit?.(product)}>
-              <Edit3 />
-            </button>
-            <button
-              type="button"
-              aria-label="Минус один остаток"
-              disabled={!isLimitedProduct(product) || currentStock <= 0}
-              onClick={() => onStockChange?.(product.id, Math.max(0, currentStock - 1))}
-            >
-              -1
-            </button>
-            <button
-              className={product.is_popular ? 'is-on' : ''}
-              type="button"
-              aria-label="Популярное"
-              onClick={() => onToggle?.(product.id, 'is_popular')}
-            >
-              <Star />
-            </button>
-            <button
-              className={product.is_hidden ? 'is-on' : ''}
-              type="button"
-              aria-label={product.is_hidden ? 'Показать' : 'Скрыть'}
-              onClick={() => onToggle?.(product.id, 'is_hidden')}
-            >
-              {product.is_hidden ? <EyeOff /> : <Eye />}
-            </button>
-            <button type="button" aria-label="Удалить" onClick={() => onDelete?.(product.id)}>
-              <Trash2 />
-            </button>
-            <span className="admin-stock-count">
-              Остаток: {isLimitedProduct(product) ? currentStock : 'без лимита'}
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="product-tile__body">
-        <div>
-          <h3>{product.title}</h3>
-          <p>{soldOut ? 'Закончилось' : product.description}</p>
-        </div>
-        <div className="product-tile__bottom">
-          <strong>
-            {choiceOptions.length > 0 && 'от '}
-            {formatPrice(getProductStartingPrice(product))}
-          </strong>
-          <div
-            className={quantity > 0 ? 'product-tile__stepper has-quantity' : 'product-tile__stepper'}
-            onClick={(event) => event.stopPropagation()}
-            onDoubleClick={(event) => event.preventDefault()}
-          >
-            {quantity > 0 && (
-              <>
-                <button
-                  className="product-tile__stepper-button product-tile__stepper-button--minus"
-                  type="button"
-                  aria-label={`Уменьшить ${product.title}`}
-                  onClick={(event) => {
-                    const animationSnapshot = captureCartAnimation(event.currentTarget);
-                    playCartAnimation(animationSnapshot, true);
-                    decrement(product.id);
-                    playCartSound('remove');
-                  }}
-                >
-                  <Minus />
-                </button>
-                <span className="product-tile__stepper-count">{quantity}</span>
-              </>
-            )}
-            <button
-              className="add-button product-tile__stepper-button"
-              type="button"
-              disabled={soldOut}
-              aria-label={`Добавить ${product.title}`}
-              onClick={(event) => {
-                const button = event.currentTarget;
-                if (choiceOptions.length > 0) {
-                  onOpen(product);
-                  return;
-                }
-                const animationSnapshot = captureCartAnimation(button);
-                add(product);
-                onAdd?.(product);
-                playAddSound();
-                window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));
-              }}
-            >
-              <Plus />
-            </button>
-          </div>
-        </div>
-      </div>
-    </article>
   );
 }
 
@@ -1019,13 +674,18 @@ function CartSheet({
                 const modifierLabel = getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`).join(' · ');
                 return (
                 <article className="cart-item-card" key={lineId}>
-                  <SafeImage src={item.product.image_url} alt={item.product.title} />
+                  <SafeImage src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
                   <div className="cart-item-card__content">
                     <div className="cart-item-card__top">
                       <div>
                         <h3>{item.product.title}</h3>
                         {item.selected_choice && <small className="cart-item-card__choice">{item.selected_choice}</small>}
                         {modifierLabel && <small className="cart-item-card__choice">{modifierLabel}</small>}
+                        {item.selected_weight !== undefined && <small className="cart-item-card__choice">Вес: {item.selected_weight.toLocaleString('ru-RU')} кг</small>}
+                        {item.inscription && <small className="cart-item-card__choice">Надпись: «{item.inscription}»</small>}
+                        {item.decoration_comment && <small className="cart-item-card__choice">Оформление: {item.decoration_comment}</small>}
+                        {item.production_date && <small className="cart-item-card__choice">Дата: {item.production_date}</small>}
+                        {item.production_time && <small className="cart-item-card__choice">Время: {item.production_time}</small>}
                         <p>{item.product.description}</p>
                       </div>
                       <button className="cart-item-card__remove" type="button" onClick={() => remove(lineId)} aria-label={`Удалить ${item.product.title}`}>
@@ -1046,7 +706,13 @@ function CartSheet({
                           <Minus />
                         </button>
                         <span>{item.quantity}</span>
-                        <button type="button" onClick={() => add(item.product, item.selected_choice, item.selected_modifiers)} aria-label="Увеличить">
+                        <button type="button" onClick={() => add(item.product, item.selected_choice, item.selected_modifiers, {
+                          selectedWeight: item.selected_weight,
+                          inscription: item.inscription,
+                          decorationComment: item.decoration_comment,
+                          productionDate: item.production_date,
+                          productionTime: item.production_time
+                        })} aria-label="Увеличить">
                           <Plus />
                         </button>
                       </div>
@@ -1272,11 +938,14 @@ function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
                 alt={`Обложка ${index + 1}`}
                 key={`${image}-${index}`}
                 draggable={false}
+                width={1440}
+                height={1080}
+                loading={index === 0 ? 'eager' : 'lazy'}
               />
           ))}
         </div>
       ) : (
-        <SafeImage src="" alt="Обложка ресторана" />
+        <SafeImage src="" alt="Обложка ресторана" width={1440} height={1080} />
       )}
       {images.length > 1 && (
         <div className="restaurant-menu-hero__dots" aria-label={`Обложка ${activeIndex + 1} из ${images.length}`}>
@@ -1448,6 +1117,22 @@ function CatalogScreen({
               </section>
             )}
           </div>
+          <section className="catalog-business-info" aria-label="Информация о заказе">
+            <span className="catalog-business-info__status"><i aria-hidden="true" /> Открыто</span>
+            {restaurant.working_hours && <span><Timer /> {restaurant.working_hours}</span>}
+            {restaurant.address && <span><MapPin /> {restaurant.address}</span>}
+            {deliverySettings?.enable_delivery && <span><Truck /> Доставка</span>}
+            {deliverySettings?.enable_pickup && <span><Package /> Самовывоз</span>}
+            {restaurant.minimum_order ? <span><ShoppingBag /> Минимальный заказ {formatRublePrice(restaurant.minimum_order)}</span> : null}
+            {restaurant.whatsapp && (
+              <a href={`https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
+                <MessageCircle /> Связаться
+              </a>
+            )}
+          </section>
+          {restaurant.catalog_notice && (
+            <aside className="catalog-notice"><CakeSlice /> <span>{restaurant.catalog_notice}</span></aside>
+          )}
         </>
       )}
       <span className="catalog-nav-sentinel" ref={navSentinelRef} aria-hidden="true" />
@@ -1660,7 +1345,8 @@ function ProductScreen({
   const decrement = useCartStore((state) => state.decrement);
   const items = useCartStore((state) => state.items);
   const choiceOptions = getProductChoiceOptions(product);
-  const cartChoice = items.find((item) => item.product.id === product.id)?.selected_choice;
+  const existingConfiguration = items.find((item) => item.product.id === product.id);
+  const cartChoice = existingConfiguration?.selected_choice;
   const [selectedChoice, setSelectedChoice] = useState(cartChoice ?? choiceOptions[0]?.name ?? '');
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedProductModifier[]>(() =>
     (product.modifier_groups ?? []).filter((group) => group.isActive !== false).flatMap((group) => group.options
@@ -1668,9 +1354,36 @@ function ProductScreen({
       .slice(0, group.maxSelected)
       .map((option) => ({ groupId: group.id, optionId: option.id })))
   );
-  const configuredItem = { product, quantity: 1, selected_choice: selectedChoice || undefined, selected_modifiers: selectedModifiers };
+  const [selectedWeight, setSelectedWeight] = useState(() => normalizeSelectedWeight(product, existingConfiguration?.selected_weight));
+  const [inscription, setInscription] = useState(existingConfiguration?.inscription ?? '');
+  const [decorationComment, setDecorationComment] = useState(existingConfiguration?.decoration_comment ?? '');
+  const [productionDate, setProductionDate] = useState(existingConfiguration?.production_date ?? '');
+  const [productionTime, setProductionTime] = useState(existingConfiguration?.production_time ?? '');
+  const minProductionDate = useMemo(() => {
+    const date = new Date(Date.now() + Math.max(0, product.advance_order_hours ?? 0) * 60 * 60 * 1000);
+    const offset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+  }, [product.advance_order_hours]);
+  const configuration = {
+    selectedWeight: product.pricing_type === 'per_kg' ? selectedWeight : undefined,
+    inscription: product.allow_inscription ? inscription : undefined,
+    decorationComment: product.allow_decoration_comment ? decorationComment : undefined,
+    productionDate: product.allow_production_schedule ? productionDate : undefined,
+    productionTime: product.allow_production_schedule ? productionTime : undefined
+  };
+  const configuredItem: CartItem = {
+    product,
+    quantity: 1,
+    selected_choice: selectedChoice || undefined,
+    selected_modifiers: selectedModifiers,
+    selected_weight: configuration.selectedWeight,
+    inscription: configuration.inscription,
+    decoration_comment: configuration.decorationComment,
+    production_date: configuration.productionDate,
+    production_time: configuration.productionTime
+  };
   const selectedPrice = getCartItemPrice(configuredItem);
-  const selectedLineId = buildCartLineId(product.id, selectedChoice || undefined, selectedModifiers);
+  const selectedLineId = buildCartLineId(product.id, selectedChoice || undefined, selectedModifiers, configuration);
   const quantity = items.find((item) => getCartLineId(item) === selectedLineId)?.quantity ?? 0;
   const pairs = product.pair_ids.map((id) => products.find((item) => item.id === id)).filter((item): item is Product => Boolean(item));
   const isFlowProduct = Boolean(flowAction && isProductInCategory(product, flowAction.categoryId));
@@ -1681,9 +1394,23 @@ function ProductScreen({
   const hasIngredients = hasFactValue(product.ingredients);
   const hasWeight = hasFactValue(product.weight);
   const hasServing = hasFactValue(product.serving);
+  const hasAllergens = (product.allergens ?? []).length > 0;
 
   const addProduct = () => {
-    add(product, selectedChoice || undefined, selectedModifiers);
+    const missingModifierGroup = getMissingRequiredModifierGroup(product.modifier_groups, selectedModifiers);
+    if (missingModifierGroup) {
+      toast.error(`Выберите: ${missingModifierGroup.name}`);
+      return;
+    }
+    if (product.allow_production_schedule && (!productionDate || !productionTime)) {
+      toast.error('Выберите дату и время изготовления');
+      return;
+    }
+    if (product.allow_production_schedule && productionDate < minProductionDate) {
+      toast.error(`Заказ возможен не раньше ${minProductionDate}`);
+      return;
+    }
+    add(product, selectedChoice || undefined, selectedModifiers, configuration);
     if (isFlowProduct) {
       flowAction?.onProductAdd(product);
     }
@@ -1695,7 +1422,7 @@ function ProductScreen({
       <div className="product-heading">
         <div>
           <h2>{product.title}</h2>
-          <strong>{formatPrice(selectedPrice)}</strong>
+          <strong>{formatRublePrice(selectedPrice)}</strong>
         </div>
         {product.is_hit && (
           <span className="hit-badge">
@@ -1715,10 +1442,33 @@ function ProductScreen({
           <dd>{product.weight}</dd>
         </div>}
         {hasServing && <div>
-          <dt>Подаётся</dt>
+          <dt>Срок</dt>
           <dd>{product.serving}</dd>
         </div>}
+        {hasAllergens && <div>
+          <dt>Аллергены</dt>
+          <dd>{product.allergens?.join(', ')}</dd>
+        </div>}
       </dl>}
+
+      {product.pricing_type === 'per_kg' && (
+        <fieldset className="product-choice-group product-customization">
+          <legend>Вес торта *</legend>
+          <label>
+            <span>Выберите вес</span>
+            <select
+              aria-label="Вес торта"
+              value={selectedWeight}
+              onChange={(event) => setSelectedWeight(normalizeSelectedWeight(product, Number(event.target.value)))}
+            >
+              {Array.from({ length: Math.max(1, Math.floor((4 - (product.minimum_weight ?? 1.5)) / (product.weight_step ?? 0.5)) + 1) }, (_, index) => {
+                const value = Number(((product.minimum_weight ?? 1.5) + index * (product.weight_step ?? 0.5)).toFixed(2));
+                return <option value={value} key={value}>{value.toLocaleString('ru-RU')} кг — {formatRublePrice(product.price * value)}</option>;
+              })}
+            </select>
+          </label>
+        </fieldset>
+      )}
 
       {choiceOptions.length > 0 && (
         <fieldset className="product-choice-group">
@@ -1768,6 +1518,49 @@ function ProductScreen({
         </fieldset>
       ))}
 
+      {(product.allow_inscription || product.allow_decoration_comment || product.allow_production_schedule) && (
+        <section className="product-custom-fields" aria-label="Параметры заказного торта">
+          {product.advance_order_hours && (
+            <p className="product-advance-notice"><Timer /> Оформление минимум за {product.advance_order_hours} часа</p>
+          )}
+          {product.allow_inscription && (
+            <label>
+              Надпись на торте
+              <input
+                maxLength={80}
+                value={inscription}
+                onChange={(event) => setInscription(event.target.value.slice(0, 80))}
+                placeholder="Например: С днём рождения, Амина"
+              />
+              <small>{inscription.length}/80</small>
+            </label>
+          )}
+          {product.allow_decoration_comment && (
+            <label>
+              Комментарий к оформлению
+              <textarea
+                maxLength={300}
+                value={decorationComment}
+                onChange={(event) => setDecorationComment(event.target.value.slice(0, 300))}
+                placeholder="Цвета, пожелания и важные детали"
+              />
+            </label>
+          )}
+          {product.allow_production_schedule && (
+            <div className="product-schedule-fields">
+              <label>
+                Дата изготовления *
+                <input type="date" min={minProductionDate} value={productionDate} onChange={(event) => setProductionDate(event.target.value)} />
+              </label>
+              <label>
+                Желаемое время *
+                <input type="time" value={productionTime} onChange={(event) => setProductionTime(event.target.value)} />
+              </label>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="quantity">
         <button
           type="button"
@@ -1793,7 +1586,7 @@ function ProductScreen({
       </section>
 
       <button className="primary-wide" type="button" onClick={addProduct} disabled={isLimitedProduct(product) && getCurrentStock(product) <= 0}>
-        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину - ${formatPrice(selectedPrice)}`}
+        {isLimitedProduct(product) && getCurrentStock(product) <= 0 ? 'Закончилось' : `Добавить в корзину — ${formatRublePrice(selectedPrice)}`}
       </button>
       {isFlowProduct && flowAction?.selectedId && (
         <button className="flow-continue-bar flow-continue-bar--inline" type="button" onClick={flowAction.onContinue}>
@@ -2840,9 +2633,13 @@ function AppContent({
     );
   }
 
+  const businessTemplateClass = catalog.restaurant.business_type === 'confectionery'
+    ? ' app-shell--confectionery'
+    : '';
+
   return (
     <div
-      className={
+      className={`${
         screen === 'admin-home'
           ? 'app-shell app-shell--restaurant-admin'
           : screen === 'settings-stock'
@@ -2852,7 +2649,7 @@ function AppContent({
             : screen.startsWith('settings')
               ? 'app-shell app-shell--settings'
               : 'app-shell'
-      }
+      }${businessTemplateClass}`}
       style={{
         ...applyTheme(themeStore),
         '--dish-photo-filter': getPhotoQualityFilter(photoQuality),
@@ -2955,6 +2752,7 @@ function AppContent({
           )}
           {screen === 'product' && selectedProduct && (
             <ProductScreen
+              key={selectedProduct.id}
               product={selectedProduct}
               products={catalog.products}
               onOpenProduct={(product) => setSelectedProduct(product)}

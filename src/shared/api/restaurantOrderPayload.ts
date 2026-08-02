@@ -1,5 +1,6 @@
 import type { CartItem, Product } from '../../entities/models';
 import { getSelectedModifierDetails } from '../../entities/productModifiers';
+import { normalizeSelectedWeight } from '../../entities/productPricing';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
 
 type DeliverySettingsForSave = {
@@ -49,7 +50,37 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
         option_id: option.id,
         name: `${group.name}: ${option.name}`,
         product_id: item.product.id
-      }))
+      })),
+      ...(item.selected_weight === undefined ? [] : [{
+        key: 'weight',
+        name: `Вес: ${normalizeSelectedWeight(item.product, item.selected_weight)} кг`,
+        value: String(normalizeSelectedWeight(item.product, item.selected_weight)),
+        product_id: item.product.id
+      }]),
+      ...(item.inscription?.trim() ? [{
+        key: 'inscription',
+        name: `Надпись: ${item.inscription.trim().slice(0, 80)}`,
+        value: item.inscription.trim().slice(0, 80),
+        product_id: item.product.id
+      }] : []),
+      ...(item.decoration_comment?.trim() ? [{
+        key: 'decoration_comment',
+        name: `Оформление: ${item.decoration_comment.trim().slice(0, 300)}`,
+        value: item.decoration_comment.trim().slice(0, 300),
+        product_id: item.product.id
+      }] : []),
+      ...(item.production_date?.trim() ? [{
+        key: 'production_date',
+        name: `Дата: ${item.production_date.trim()}`,
+        value: item.production_date.trim(),
+        product_id: item.product.id
+      }] : []),
+      ...(item.production_time?.trim() ? [{
+        key: 'production_time',
+        name: `Время: ${item.production_time.trim()}`,
+        value: item.production_time.trim(),
+        product_id: item.product.id
+      }] : [])
     ]
   }));
 
@@ -109,7 +140,12 @@ const formatSelectedChoices = (items: CartItem[]) => {
   const lines = items.flatMap((item) => {
     const choices = [
       item.selected_choice,
-      ...getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`)
+      ...getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`),
+      item.selected_weight === undefined ? '' : `Вес: ${normalizeSelectedWeight(item.product, item.selected_weight)} кг`,
+      item.inscription?.trim() ? `Надпись: ${item.inscription.trim().slice(0, 80)}` : '',
+      item.decoration_comment?.trim() ? `Оформление: ${item.decoration_comment.trim().slice(0, 300)}` : '',
+      item.production_date?.trim() ? `Дата: ${item.production_date.trim()}` : '',
+      item.production_time?.trim() ? `Время: ${item.production_time.trim()}` : ''
     ].filter(Boolean);
     return choices.length > 0 ? [`${item.product.title}: ${choices.join(', ')}`] : [];
   });
@@ -170,7 +206,12 @@ export const buildRestaurantOrderFingerprint = ({
         quantity: Math.max(1, item.quantity),
         selectedChoice: item.selected_choice?.trim() || '',
         selectedModifiers: [...(item.selected_modifiers ?? [])]
-          .sort((left, right) => `${left.groupId}:${left.optionId}`.localeCompare(`${right.groupId}:${right.optionId}`))
+          .sort((left, right) => `${left.groupId}:${left.optionId}`.localeCompare(`${right.groupId}:${right.optionId}`)),
+        selectedWeight: item.selected_weight ?? null,
+        inscription: item.inscription?.trim() || '',
+        decorationComment: item.decoration_comment?.trim() || '',
+        productionDate: item.production_date?.trim() || '',
+        productionTime: item.production_time?.trim() || ''
       }))
       .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
   });

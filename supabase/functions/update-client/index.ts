@@ -8,8 +8,8 @@ type UpdateClientPayload = {
   phone?: string;
   primaryCity?: string;
   serviceSettlements?: string[];
-  businessType?: 'restaurant' | 'coffee_shop';
-  templateType?: 'restaurant' | 'coffee_shop';
+  businessType?: 'restaurant' | 'coffee_shop' | 'confectionery';
+  templateType?: 'restaurant' | 'coffee_shop' | 'confectionery';
   seedDemoMenu?: boolean;
   password?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
@@ -68,10 +68,10 @@ const assertPayload = (payload: UpdateClientPayload) => {
   if (payload.password !== undefined && payload.password.length > 0 && !isStrongPassword(payload.password)) {
     throw new Error('Password is too weak.');
   }
-  if (payload.businessType !== undefined && !['restaurant', 'coffee_shop'].includes(payload.businessType)) {
+  if (payload.businessType !== undefined && !['restaurant', 'coffee_shop', 'confectionery'].includes(payload.businessType)) {
     throw new Error('Business type is invalid.');
   }
-  if (payload.templateType !== undefined && !['restaurant', 'coffee_shop'].includes(payload.templateType)) {
+  if (payload.templateType !== undefined && !['restaurant', 'coffee_shop', 'confectionery'].includes(payload.templateType)) {
     throw new Error('Template type is invalid.');
   }
 };

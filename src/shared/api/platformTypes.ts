@@ -12,6 +12,7 @@ export type PlatformTemplateOption = {
   description: string;
   templateCatalogSlug?: string;
   isCatalogTemplate?: boolean;
+  previewImage?: string;
 };
 
 export type CreateRestaurantTemplatePayload = {

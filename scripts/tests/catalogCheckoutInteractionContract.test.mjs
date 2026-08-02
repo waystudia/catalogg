@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const appSource = await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const appSource = [
+  await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8'),
+  await readFile(new URL('../../src/features/catalog/ProductTile.tsx', import.meta.url), 'utf8')
+].join('\n');
 const appStyles = await readFile(new URL('../../src/app/styles.css', import.meta.url), 'utf8');
 const catalogCategoryObserverSource = await readFile(
   new URL('../../src/app/useCatalogCategoryObserver.ts', import.meta.url),

@@ -7,11 +7,13 @@ import {
   BarChart3,
   BadgePercent,
   BookOpen,
+  CakeSlice,
   Bell,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Coffee,
   CreditCard,
   Database,
   Eye,
@@ -201,6 +203,7 @@ const statusLabels: Record<PlatformClient['status'], string> = {
 const businessTypeLabels: Record<string, string> = {
   restaurant: 'Ресторан',
   coffee_shop: 'Кофейня',
+  confectionery: 'Кондитерская',
   cafe: 'Кофейня',
   salon: 'Салон красоты',
   barbershop: 'Барбершоп',
@@ -958,7 +961,7 @@ function CreateClientForm({
 
   useEffect(() => {
     setValue('templateType', businessType, { shouldValidate: true });
-    if (businessType !== 'coffee_shop') setValue('seedDemoMenu', false);
+    if (businessType === 'restaurant') setValue('seedDemoMenu', false);
     const compatibleTemplate = templates.find((template) => template.businessType === businessType);
     if (compatibleTemplate && selectedTemplate?.businessType !== businessType) {
       setValue('templateVersionId', compatibleTemplate.templateVersionId, { shouldValidate: true });
@@ -1097,27 +1100,47 @@ function CreateClientForm({
         <section className="client-form-section">
           <h3>Каталог и шаблон</h3>
           <div className="client-form-grid">
-            <label>
-              <span>
-                Шаблон <b>*</b>
-              </span>
-              <select
-                {...register('templateVersionId')}
-                aria-invalid={Boolean(errors.templateVersionId)}
-              >
-                {templates.map((template) => (
-                  <option value={template.templateVersionId} key={template.templateVersionId}>
-                    {template.templateName} v{template.version}
-                  </option>
-                ))}
-              </select>
-              {selectedTemplate && (
-                <em>
-                  {businessTypeLabels[selectedTemplate.businessType] ?? selectedTemplate.businessType}: {selectedTemplate.description}
-                </em>
-              )}
+            <fieldset className="client-template-picker">
+              <legend>Шаблон <b>*</b></legend>
+              <input type="hidden" {...register('templateVersionId')} />
+              <div className="client-template-picker__grid" role="radiogroup" aria-label="Шаблон каталога">
+                {templates.map((template) => {
+                  const Icon = template.businessType === 'coffee_shop'
+                    ? Coffee
+                    : template.businessType === 'confectionery'
+                      ? CakeSlice
+                      : Store;
+                  const selected = template.templateVersionId === templateVersionId;
+                  return (
+                    <button
+                      className={selected ? 'client-template-card is-selected' : 'client-template-card'}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      key={template.templateVersionId}
+                      onClick={() => {
+                        setValue('templateVersionId', template.templateVersionId, { shouldValidate: true });
+                        setValue('businessType', template.businessType, { shouldValidate: true });
+                        setValue('templateType', template.businessType, { shouldValidate: true });
+                      }}
+                    >
+                      <span className="client-template-card__preview">
+                        {template.previewImage
+                          ? <img src={template.previewImage} alt="" width="480" height="320" loading="lazy" />
+                          : <Icon aria-hidden="true" />}
+                      </span>
+                      <span className="client-template-card__content">
+                        <i><Icon aria-hidden="true" /></i>
+                        <strong>{businessTypeLabels[template.businessType] ?? template.templateName}</strong>
+                        <small>{template.description}</small>
+                        <b>{selected ? 'Выбрано' : 'Выбрать'}</b>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               {errors.templateVersionId && <small>{errors.templateVersionId.message}</small>}
-            </label>
+            </fieldset>
             <label>
               <span>
                 Тип заведения <b>*</b>
@@ -1125,16 +1148,17 @@ function CreateClientForm({
               <select {...register('businessType')} aria-invalid={Boolean(errors.businessType)}>
                 <option value="restaurant">🍽 Ресторан</option>
                 <option value="coffee_shop">☕ Кофейня</option>
+                <option value="confectionery">🍰 Кондитерская</option>
               </select>
               <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
               {errors.businessType && <small>{errors.businessType.message}</small>}
             </label>
             <input type="hidden" {...register('templateType')} />
-            {businessType === 'coffee_shop' && (
+            {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
               <label className="client-form__disabled-option">
                 <input {...register('seedDemoMenu')} type="checkbox" />
                 <span>Заполнить демонстрационным меню</span>
-                <em>Добавим категории, позиции, описания, цены, модификаторы и сгенерированные изображения кофейни.</em>
+                <em>Добавим категории, позиции, описания, цены, модификаторы и локальные изображения выбранного шаблона.</em>
               </label>
             )}
             <label>
@@ -1266,7 +1290,7 @@ function EditClientForm({
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (businessType !== client.businessType) {
-      const nextType = businessType === 'coffee_shop' ? 'Кофейня' : 'Ресторан';
+      const nextType = businessTypeLabels[businessType] ?? 'Ресторан';
       if (!window.confirm(`Изменить тип заведения на «${nextType}»? Существующие категории и позиции сохранятся.`)) return;
     }
     setIsSubmitting(true);
@@ -1316,6 +1340,7 @@ function EditClientForm({
               <select value={businessType} onChange={(event) => setBusinessType(event.target.value as PlatformClient['businessType'])}>
                 <option value="restaurant">🍽 Ресторан</option>
                 <option value="coffee_shop">☕ Кофейня</option>
+                <option value="confectionery">🍰 Кондитерская</option>
               </select>
               <em>Тексты интерфейса обновятся автоматически, данные сохранятся.</em>
             </label>

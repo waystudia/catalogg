@@ -52,7 +52,20 @@ describe('business terminology', () => {
     });
   });
 
-  it('normalizes both canonical values, the legacy alias, and invalid input', () => {
+  it('keeps the confectionery vocabulary centralized', () => {
+    expect(BUSINESS_TERMINOLOGY.confectionery).toMatchObject({
+      place: 'Кондитерская',
+      item: 'Товар',
+      addItem: 'Добавить товар',
+      driverRoute: 'Еду в кондитерскую',
+      orderPrepared: 'Заказ приготовлен кондитерской'
+    });
+    expect(normalizeBusinessType('confectionery')).toBe('confectionery');
+    expect(normalizeBusinessType('bakery')).toBe('confectionery');
+    expect(getBusinessTerms('confectionery')).toBe(BUSINESS_TERMINOLOGY.confectionery);
+  });
+
+  it('normalizes canonical values, legacy aliases, and invalid input', () => {
     expect(normalizeBusinessType('restaurant')).toBe('restaurant');
     expect(normalizeBusinessType('coffee_shop')).toBe('coffee_shop');
     expect(normalizeBusinessType('coffee')).toBe('coffee_shop');

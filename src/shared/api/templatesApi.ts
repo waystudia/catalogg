@@ -2,14 +2,15 @@ import { supabase } from '../supabase';
 import { normalizeBusinessType } from '../businessTerminology';
 import type { CreateRestaurantTemplatePayload, PlatformTemplateOption } from './platformTypes';
 
-const fallbackTemplates: PlatformTemplateOption[] = [
+export const platformFallbackTemplates: PlatformTemplateOption[] = [
   {
     templateVersionId: '00000000-0000-4000-8000-000000000002',
     templateKey: 'restaurant-modern',
     templateName: 'Restaurant Modern',
     businessType: 'restaurant',
     version: 2,
-    description: 'Ресторанный шаблон каталога, который используется для Мангал.'
+    description: 'Ресторанный шаблон каталога, который используется для Мангал.',
+    previewImage: '/catalogg/assets/template-fast-food/hero.jpg'
   },
   {
     templateVersionId: '00000000-0000-4000-8000-000000000003',
@@ -19,7 +20,19 @@ const fallbackTemplates: PlatformTemplateOption[] = [
     version: 1,
     description: 'Готовый шаблон кофейни с напитками, десертами и модификаторами.',
     templateCatalogSlug: 'coffee-shop',
-    isCatalogTemplate: true
+    isCatalogTemplate: true,
+    previewImage: '/catalogg/assets/template-coffee-shop/hero.webp'
+  },
+  {
+    templateVersionId: '00000000-0000-4000-8000-000000000004',
+    templateKey: 'confectionery',
+    templateName: 'Кондитерская',
+    businessType: 'confectionery',
+    version: 1,
+    description: 'Торты, десерты, выпечка и подарочные наборы',
+    templateCatalogSlug: 'confectionery',
+    isCatalogTemplate: true,
+    previewImage: '/catalogg/assets/templates/confectionery/preview.webp'
   }
 ];
 
@@ -61,11 +74,18 @@ const mapTemplateCatalog = (row: TemplateCatalogRow): PlatformTemplateOption => 
   version: row.template_versions?.version ?? 1,
   description: row.description || row.template_versions?.templates?.description || 'Настраиваемый ресторанный шаблон',
   templateCatalogSlug: row.slug,
-  isCatalogTemplate: true
+  isCatalogTemplate: true,
+  previewImage: row.slug === 'confectionery'
+    ? '/catalogg/assets/templates/confectionery/preview.webp'
+    : row.business_type === 'coffee_shop'
+      ? '/catalogg/assets/template-coffee-shop/hero.webp'
+      : undefined
 });
 
+const templateOrder: Record<string, number> = { restaurant: 0, coffee_shop: 1, confectionery: 2 };
+
 export async function getTemplateOptions(): Promise<PlatformTemplateOption[]> {
-  if (!supabase) return fallbackTemplates;
+  if (!supabase) return platformFallbackTemplates;
 
   const catalogTemplates = await supabase
     .from('catalogs')
@@ -74,7 +94,9 @@ export async function getTemplateOptions(): Promise<PlatformTemplateOption[]> {
     .order('created_at', { ascending: false });
 
   if (!catalogTemplates.error && catalogTemplates.data?.length) {
-    return (catalogTemplates.data as TemplateCatalogRow[]).map(mapTemplateCatalog);
+    return (catalogTemplates.data as TemplateCatalogRow[])
+      .map(mapTemplateCatalog)
+      .sort((left, right) => (templateOrder[left.businessType] ?? 99) - (templateOrder[right.businessType] ?? 99));
   }
 
   const { data, error } = await supabase

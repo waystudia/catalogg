@@ -8,7 +8,7 @@ import { getBusinessTerms, type BusinessType } from '../../shared/businessTermin
 
 function validateDish(dish: Dish, businessType: BusinessType) {
   const terms = getBusinessTerms(businessType);
-  if (dish.images.length === 0) return 'Добавьте минимум одно фото.';
+  if (businessType !== 'confectionery' && dish.images.length === 0) return 'Добавьте минимум одно фото.';
   if (!dish.name.trim()) return `Введите название: ${terms.itemLower}.`;
   if (dish.price < 0 || Number.isNaN(dish.price)) return 'Введите корректную цену.';
   if (dish.categories.length === 0) return 'Выберите минимум одну категорию.';

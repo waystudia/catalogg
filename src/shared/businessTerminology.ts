@@ -1,4 +1,4 @@
-export const BUSINESS_TYPES = ['restaurant', 'coffee_shop'] as const;
+export const BUSINESS_TYPES = ['restaurant', 'coffee_shop', 'confectionery'] as const;
 
 export type BusinessType = (typeof BUSINESS_TYPES)[number];
 
@@ -65,11 +65,32 @@ export const BUSINESS_TERMINOLOGY: Readonly<Record<BusinessType, BusinessTerms>>
     driverAtPlaceStatus: 'На месте в кофейне',
     orderPrepared: 'Заказ приготовлен кофейней',
     paymentConfirmation: 'Кофейня получила заказ и проверяет оплату.'
+  },
+  confectionery: {
+    place: 'Кондитерская',
+    placeLower: 'кондитерская',
+    placeAccusative: 'кондитерскую',
+    placePrepositional: 'кондитерской',
+    placeInstrumental: 'кондитерской',
+    placeGenitive: 'кондитерской',
+    placeDative: 'кондитерской',
+    item: 'Товар',
+    itemLower: 'товар',
+    items: 'Товары',
+    itemGenitive: 'товара',
+    addItem: 'Добавить товар',
+    driverRoute: 'Еду в кондитерскую',
+    driverRouteAction: 'Поехать в кондитерскую',
+    driverArrival: 'Я в кондитерской',
+    driverAtPlaceStatus: 'На месте в кондитерской',
+    orderPrepared: 'Заказ приготовлен кондитерской',
+    paymentConfirmation: 'Кондитерская получила заказ и проверяет оплату.'
   }
 };
 
 export const normalizeBusinessType = (value: unknown): BusinessType => {
   if (value === 'coffee_shop' || value === 'coffee') return 'coffee_shop';
+  if (value === 'confectionery' || value === 'bakery') return 'confectionery';
   return DEFAULT_BUSINESS_TYPE;
 };
 

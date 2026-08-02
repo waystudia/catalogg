@@ -11,7 +11,7 @@ type CreateClientPayload = {
   password: string;
   templateVersionId: string;
   businessType: string;
-  templateType: 'restaurant' | 'coffee_shop';
+  templateType: 'restaurant' | 'coffee_shop' | 'confectionery';
   seedDemoMenu?: boolean;
   planId?: string;
   subscriptionEndsAt?: string;
@@ -68,8 +68,8 @@ const assertPayload = (payload: CreateClientPayload) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new Error('Email is invalid.');
   if (!isStrongPassword(payload.password)) throw new Error('Password is too weak.');
   if (!payload.templateVersionId) throw new Error('Template is required.');
-  if (!['restaurant', 'coffee_shop'].includes(payload.businessType)) throw new Error('Business type is invalid.');
-  if (!['restaurant', 'coffee_shop'].includes(payload.templateType)) throw new Error('Template type is invalid.');
+  if (!['restaurant', 'coffee_shop', 'confectionery'].includes(payload.businessType)) throw new Error('Business type is invalid.');
+  if (!['restaurant', 'coffee_shop', 'confectionery'].includes(payload.templateType)) throw new Error('Template type is invalid.');
   if (!payload.adminConsentConfirmed) throw new Error('Client consent confirmation is required.');
 };
 
@@ -194,7 +194,7 @@ Deno.serve(async (request) => {
         .single();
       if (catalogFetchError || !catalog) throw catalogFetchError ?? new Error('Could not load created catalog.');
 
-      if (payload.templateType === 'coffee_shop' && payload.seedDemoMenu !== true) {
+      if (['coffee_shop', 'confectionery'].includes(payload.templateType) && payload.seedDemoMenu !== true) {
         const { error: productCleanupError } = await adminClient.from('products').delete().eq('catalog_id', catalog.id);
         if (productCleanupError) throw productCleanupError;
         const { error: categoryCleanupError } = await adminClient.from('categories').delete().eq('catalog_id', catalog.id);
