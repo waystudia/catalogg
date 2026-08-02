@@ -67,6 +67,7 @@ import {
   deliveryPositionIsAccurateEnough,
   deliveryGeolocationTimeoutMessage,
   getDeliveryGeolocationErrorMessage,
+  getDeliveryLocationProgress,
   getDeliveryLowAccuracyMessage,
   normalizeDeliveryCoordinates,
   type DeliveryCoordinates
@@ -172,6 +173,8 @@ export function CheckoutScreen({
   const effectiveDeliveryCity = selectedClientPlace || deliveryCity || configuredCity;
   const selectedCabin = activeCabins.find((cabin) => cabin.id === cabinId);
   const [isLocating, setIsLocating] = useState(false);
+  const [locationProgress, setLocationProgress] = useState<number | null>(null);
+  const [locationProgressAccuracyM, setLocationProgressAccuracyM] = useState<number | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [geoError, setGeoError] = useState('');
   const [isDeliveryMapOpen, setIsDeliveryMapOpen] = useState(false);
@@ -276,6 +279,8 @@ export function CheckoutScreen({
       const nextLat = Number(lat.toFixed(7));
       const nextLng = Number(lng.toFixed(7));
       setGeoError('');
+      setLocationProgress(null);
+      setLocationProgressAccuracyM(null);
       setOrder({
         deliveryLat: nextLat,
         deliveryLng: nextLng,
@@ -303,12 +308,16 @@ export function CheckoutScreen({
 
   const locateDeliveryAddress = () => {
     if (!navigator.geolocation) {
+      setLocationProgress(null);
+      setLocationProgressAccuracyM(null);
       setGeoError('Геолокация недоступна в этом браузере.');
       return;
     }
 
     clearLocationSession();
     setIsLocating(true);
+    setLocationProgress(0);
+    setLocationProgressAccuracyM(null);
     setGeoError('');
 
     let bestCoordinates: DeliveryCoordinates | null = null;
@@ -320,8 +329,12 @@ export function CheckoutScreen({
       clearLocationSession();
 
       if (coordinates) {
+        setLocationProgress(100);
+        setLocationProgressAccuracyM(Math.max(0, Math.round(coordinates.accuracy)));
         applyDeliveryCoordinates(coordinates);
       } else {
+        setLocationProgress(null);
+        setLocationProgressAccuracyM(null);
         setGeoError(message || 'Не удалось получить геолокацию. Проверьте разрешение браузера.');
       }
 
@@ -330,6 +343,8 @@ export function CheckoutScreen({
 
     const handlePosition = (position: GeolocationPosition) => {
       bestCoordinates = chooseMoreAccuratePosition(bestCoordinates, position.coords);
+      setLocationProgress(getDeliveryLocationProgress(bestCoordinates.accuracy));
+      setLocationProgressAccuracyM(Math.max(0, Math.round(bestCoordinates.accuracy)));
 
       if (deliveryPositionIsAccurateEnough(bestCoordinates, DELIVERY_TARGET_ACCURACY_M)) {
         finish(bestCoordinates);
@@ -561,13 +576,25 @@ export function CheckoutScreen({
               ref={locationButtonRef}
             >
               <LocateFixed />
-              <span>{isLocating ? 'Определяем...' : 'Определить моё местоположение'}</span>
+              <span>{isLocating ? `Определяем · ${locationProgress ?? 0}%` : 'Определить моё местоположение'}</span>
             </button>
             <button className="map-link-button checkout-location-button" type="button" onClick={() => setIsDeliveryMapOpen(true)}>
               <MapPin />
               <span>Уточнить точку на карте</span>
             </button>
           </div>
+          {locationProgress !== null && (
+            <div className="checkout-location-progress" role="status" aria-live="polite">
+              <div>
+                <span>{isLocating ? 'Получаем точные координаты GPS' : 'Местоположение определено'}</span>
+                <strong>{locationProgress}%</strong>
+              </div>
+              <progress aria-label="Прогресс определения местоположения" max="100" value={locationProgress} />
+              {locationProgressAccuracyM !== null && (
+                <small>Текущая точность: около {locationProgressAccuracyM} м</small>
+              )}
+            </div>
+          )}
           {(deliveryLat !== null && deliveryLng !== null) && (
             <p className="checkout-location-hint">
               Координаты: {deliveryLat.toFixed(7)}, {deliveryLng.toFixed(7)}

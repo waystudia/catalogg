@@ -29,6 +29,8 @@ describe('client delivery location precision contract', () => {
     assert.doesNotMatch(clientApp, /navigator\.geolocation\.getCurrentPosition/);
     assert.match(clientApp, /chooseMoreAccuratePosition\(bestCoordinates, position\.coords\)/);
     assert.match(clientApp, /deliveryPositionIsAccurateEnough\(bestCoordinates, DELIVERY_TARGET_ACCURACY_M\)/);
+    assert.match(restaurantCheckout, /getDeliveryLocationProgress\(bestCoordinates\.accuracy\)/);
+    assert.match(restaurantCheckout, /aria-label="Прогресс определения местоположения"/);
   });
 
   it('keeps map search explicit, Chechnya-bounded, and wired into both checkout paths', () => {

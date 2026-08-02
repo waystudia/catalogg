@@ -21,6 +21,24 @@ export const deliveryPositionIsAccurateEnough = (
   targetAccuracyM: number
 ) => coordinates.accuracy <= targetAccuracyM;
 
+export const getDeliveryLocationProgress = (
+  accuracyM: number | null,
+  targetAccuracyM = DELIVERY_TARGET_ACCURACY_M
+) => {
+  if (accuracyM === null || !Number.isFinite(accuracyM)) return 0;
+  if (accuracyM <= targetAccuracyM) return 100;
+
+  const maximumUsefulAccuracyM = 2_000;
+  const clampedAccuracyM = Math.min(maximumUsefulAccuracyM, Math.max(targetAccuracyM, accuracyM));
+  const measuredProgress = (
+    Math.log(maximumUsefulAccuracyM) - Math.log(clampedAccuracyM)
+  ) / (
+    Math.log(maximumUsefulAccuracyM) - Math.log(targetAccuracyM)
+  );
+
+  return Math.min(95, Math.max(10, Math.round(10 + (measuredProgress * 85))));
+};
+
 export const normalizeDeliveryCoordinates = (coordinates: DeliveryCoordinates) => ({
   lat: Number(coordinates.latitude.toFixed(7)),
   lng: Number(coordinates.longitude.toFixed(7)),

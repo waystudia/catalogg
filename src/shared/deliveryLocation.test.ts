@@ -8,6 +8,7 @@ import {
   deliveryGeolocationTimeoutMessage,
   deliveryPositionIsAccurateEnough,
   formatDeliveryLocationNote,
+  getDeliveryLocationProgress,
   getDeliveryGeolocationErrorMessage,
   getDeliveryLowAccuracyMessage,
   normalizeDeliveryCoordinates,
@@ -45,6 +46,14 @@ describe('delivery location precision', () => {
   it('accepts coordinates at the target accuracy boundary', () => {
     assert.equal(deliveryPositionIsAccurateEnough(coordinates({ accuracy: 35 }), 35), true);
     assert.equal(deliveryPositionIsAccurateEnough(coordinates({ accuracy: 36 }), 35), false);
+  });
+
+  it('reports GPS progress only from real accuracy readings', () => {
+    assert.equal(getDeliveryLocationProgress(null), 0);
+    assert.equal(getDeliveryLocationProgress(2_500), 10);
+    assert.equal(getDeliveryLocationProgress(100), 58);
+    assert.equal(getDeliveryLocationProgress(20), 84);
+    assert.equal(getDeliveryLocationProgress(10), 100);
   });
 
   it('rounds browser coordinates for stable order storage', () => {
