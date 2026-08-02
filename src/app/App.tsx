@@ -90,6 +90,7 @@ import {
   getDailyStock,
   getOrderFlowCategories,
   getProductCategoryIds,
+  getUpsellReminderTitle,
   isLimitedProduct,
   isProductInCategory,
   loadStockTargets,
@@ -1841,7 +1842,7 @@ function UpsellReminder({
           <X />
         </button>
         {isDrinks ? <Coffee className="modal-icon" /> : <ChefHat className="modal-icon" />}
-        <h2 id="flow-title">Вы выбрали «{category.name}»?</h2>
+        <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
         <p>Можно добавить к заказу одну из позиций перед оформлением.</p>
         <div className="flow-products">
           {suggestions.map((product) => (
@@ -2882,7 +2883,7 @@ function AppContent({
             title={screen === 'product' ? undefined : title}
             canBack={screen !== 'home'}
             onBack={() => {
-              if (isAdmin && routeSection === 'dishes') {
+              if (routeSection === 'dishes') {
                 openRestaurantAdminPath('admin-home');
                 return;
               }
@@ -2913,7 +2914,7 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin }))}
+              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }))}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}

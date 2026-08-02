@@ -94,6 +94,41 @@ export const isProductInCategory = (product: Product, categoryId: string) =>
 export const getOrderFlowCategories = (categories: Category[]) =>
   categories.filter((category) => category.kind !== 'space' && category.showInOrderFlow === true);
 
+export const getUpsellReminderTitle = (category: Category) =>
+  `Вы забыли ${category.name.trim().toLocaleLowerCase('ru')}?`;
+
+type LegacyCategoryRow = {
+  id: string;
+  name: string;
+  image: string;
+  icon: string;
+  kind: Category['kind'];
+  sort_order: number;
+  show_on_home?: boolean | null;
+  show_in_order_flow?: boolean | null;
+};
+
+export const categoryToLegacyPersistence = (category: Category, sortIndex: number) => ({
+  id: category.id,
+  name: category.name,
+  image: category.image,
+  icon: category.icon,
+  kind: category.kind,
+  sort_order: sortIndex,
+  show_on_home: category.showOnHome !== false,
+  show_in_order_flow: category.showInOrderFlow === true
+});
+
+export const normalizeLegacyCategory = (category: LegacyCategoryRow): Category => ({
+  id: category.id,
+  name: category.name,
+  image: category.image,
+  icon: category.icon,
+  kind: category.kind,
+  showOnHome: category.show_on_home !== false,
+  showInOrderFlow: category.show_in_order_flow === true
+});
+
 export const createCategoryDraft = (name = 'Новая категория'): Category => {
   const id = makeId('category');
   return {

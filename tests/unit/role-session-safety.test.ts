@@ -10,6 +10,11 @@ describe('role account session safety', () => {
     expect(getRestaurantCatalogBackTarget({ catalogSlug: 'mangal', isAdmin: true })).toBe('/mangal/dashboard');
     expect(getRestaurantCatalogBackTarget({ catalogSlug: '  mangal  ', isAdmin: true })).toBe('/mangal/dashboard');
     expect(getRestaurantCatalogBackTarget({ catalogSlug: 'mangal', isAdmin: false })).toBe('/');
+    expect(getRestaurantCatalogBackTarget({
+      catalogSlug: 'mangal',
+      isAdmin: false,
+      routeSection: 'dishes'
+    })).toBe('/mangal/dashboard');
   });
 
   it('keeps every driver back action inside the driver application', () => {

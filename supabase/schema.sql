@@ -36,6 +36,9 @@ create table if not exists public.category (
   updated_at timestamptz not null default now()
 );
 
+alter table public.category add column if not exists show_on_home boolean not null default true;
+alter table public.category add column if not exists show_in_order_flow boolean not null default false;
+
 create table if not exists public.catalog_tag (
   id text primary key,
   name text not null,

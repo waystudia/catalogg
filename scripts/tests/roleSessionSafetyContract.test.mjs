@@ -9,7 +9,7 @@ test('role back buttons preserve the active account session', async () => {
   const driver = await read('src/pages/driver/DriverApp.tsx');
   const driverHeader = driver.slice(driver.indexOf('function DriverHeader'), driver.indexOf('function DriverHomeScreen'));
 
-  assert.match(restaurant, /getRestaurantCatalogBackTarget\(\{ catalogSlug, isAdmin \}\)/);
+  assert.match(restaurant, /getRestaurantCatalogBackTarget\(\{ catalogSlug, isAdmin, routeSection \}\)/);
   assert.match(driver, /navigate\(getDriverBackTarget\(location\.pathname\)\)/);
   assert.doesNotMatch(driverHeader, /signOutDriver/);
 });

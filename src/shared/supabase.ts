@@ -3,6 +3,10 @@ import { cabins, categories, products, restaurant, themeSettings } from '../data
 import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, ProductModifierGroup, Restaurant, ThemeSettings } from '../entities/models';
 import { normalizeProductChoiceOptions } from '../entities/productVariants';
 import { normalizeProductModifierGroups } from '../entities/productModifiers';
+import {
+  categoryToLegacyPersistence,
+  normalizeLegacyCategory
+} from '../features/restaurant-settings/catalogAdminModel';
 import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
 import { settleRestaurantSessionCheck } from './restaurantSession';
@@ -148,6 +152,7 @@ export const preserveSupabaseSessionForRedirect = (redirect: string) => {
 
 const legacyCatalogSlug = 'mangal';
 let activePlatformCatalogId: string | null = null;
+let activeCatalogIsLegacy = true;
 
 const normalizeCatalogSlug = (catalogSlug?: string) =>
   (catalogSlug || legacyCatalogSlug).trim().toLowerCase().replace(/^\/+|\/+$/g, '') || legacyCatalogSlug;
@@ -607,6 +612,7 @@ export function onAdminSessionChange(callback: (isAdmin: boolean) => void, catal
 export async function loadCatalog(catalogSlug?: string) {
   const normalizedSlug = normalizeCatalogSlug(catalogSlug);
   activePlatformCatalogId = null;
+  activeCatalogIsLegacy = isLegacyCatalog(normalizedSlug);
 
   if (!supabase) {
     return {
@@ -796,11 +802,9 @@ export async function loadCatalog(catalogSlug?: string) {
         restaurantResult.data?.banner_url
       )
     },
-    categories: ((categoriesResult.data ?? categories) as Category[]).map((category) => ({
-      ...category,
-      showOnHome: category.showOnHome ?? true,
-      showInOrderFlow: category.showInOrderFlow ?? false
-    })),
+    categories: (categoriesResult.data ?? categories).map((category) =>
+      normalizeLegacyCategory(category as Parameters<typeof normalizeLegacyCategory>[0])
+    ),
     products: applyProductChoices(productsResult.data ?? products, productChoicesResult.data?.settings),
     cabins: cabinsResult.data ?? cabins,
     tags: tagsResult.data ?? [],
@@ -917,15 +921,6 @@ const categoryMeta = (value: Category) =>
     showInOrderFlow: value.showInOrderFlow === true,
     kind: value.kind
   });
-
-const categoryToLegacyRow = (value: Category, index: number) => ({
-  id: value.id,
-  name: value.name,
-  image: value.image,
-  icon: value.icon,
-  kind: value.kind,
-  sort_order: index
-});
 
 const productPatchToPlatformRow = (patch: Partial<Product>) => {
   const row: Record<string, unknown> = {};
@@ -1162,6 +1157,18 @@ export async function replaceCategoriesInSupabase(values: Category[], options: {
     } else if (options.removeMissing) {
       await throwOnError(supabase.from('categories').delete().eq('catalog_id', activePlatformCatalogId));
     }
+    if (activeCatalogIsLegacy) {
+      const legacyIds = values.map((value) => value.id);
+      await throwOnError(
+        supabase.from('category').upsert(values.map(categoryToLegacyPersistence), { onConflict: 'id' })
+      );
+      if (options.removeMissing && legacyIds.length > 0) {
+        await throwOnError(supabase.from('category').delete().not('id', 'in', postgrestList(legacyIds)));
+      } else if (options.removeMissing) {
+        await throwOnError(supabase.from('category').delete().neq('id', ''));
+      }
+      return values;
+    }
     const idsBySlug = new Map(savedRows.map((row) => [row.slug, row.id]));
     return values.map((value) => {
       const slug = value.slug || createSlug(value.name || value.id);
@@ -1170,7 +1177,7 @@ export async function replaceCategoriesInSupabase(values: Category[], options: {
   }
   const ids = values.map((value) => value.id);
   await throwOnError(
-    supabase.from('category').upsert(values.map(categoryToLegacyRow), { onConflict: 'id' })
+    supabase.from('category').upsert(values.map(categoryToLegacyPersistence), { onConflict: 'id' })
   );
   if (ids.length > 0) {
     if (options.removeMissing) {

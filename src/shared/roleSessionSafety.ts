@@ -7,11 +7,13 @@ export const confirmRoleSignOut = (
 
 export const getRestaurantCatalogBackTarget = ({
   catalogSlug,
-  isAdmin
+  isAdmin,
+  routeSection
 }: {
   catalogSlug: string;
   isAdmin: boolean;
-}) => isAdmin ? `/${catalogSlug.trim()}/dashboard` : '/';
+  routeSection?: string;
+}) => isAdmin || routeSection === 'dishes' ? `/${catalogSlug.trim()}/dashboard` : '/';
 
 export const getDriverBackTarget = (pathname: string) => {
   const normalized = pathname.split('?')[0].replace(/\/+$/, '') || '/driver';
