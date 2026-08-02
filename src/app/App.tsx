@@ -1997,6 +1997,10 @@ function AppContent({
   }, [cartCount]);
 
   useEffect(() => {
+    if (routeSection === 'checkout' && !isAdmin) {
+      setScreen('checkout');
+      return;
+    }
     if (routeSection === 'dishes' && isAdmin) {
       setCatalogCategory('all');
       setScreen('catalog');

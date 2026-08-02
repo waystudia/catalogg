@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
+const legacyCheckoutSource = fs.readFileSync('src/features/checkout/CheckoutScreen.tsx', 'utf8');
+const restaurantAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientAccountApi.ts', 'utf8');
 const migrationFiles = fs
   .readdirSync('supabase/migrations')
@@ -11,6 +13,10 @@ const migrationFiles = fs
 test('client checkout requires a real account session', () => {
   assert.match(appSource, /buildClientAuthPath\(`\/r\/\$\{restaurant\.slug\}\/checkout`\)/);
   assert.match(appSource, /Войти или зарегистрироваться/);
+  assert.match(appSource, /restoreClientAccountSession\(\)/);
+  assert.match(legacyCheckoutSource, /restoreClientAccountSession\(\)/);
+  assert.match(legacyCheckoutSource, /buildClientAuthPath\(`\/\$\{catalogSlug\}\/checkout`\)/);
+  assert.match(restaurantAppSource, /routeSection === 'checkout'/);
 });
 
 test('client profile supports separate registration and login flows', () => {
@@ -18,6 +24,8 @@ test('client profile supports separate registration and login flows', () => {
   assert.match(appSource, /loginClientAccount/);
   assert.match(appSource, /type="password"/);
   assert.match(appSource, /Зарегистрироваться/);
+  assert.match(appSource, /Аккаунт защищён паролем/);
+  assert.match(appSource, /Гостевой профиль/);
 });
 
 test('client account session is restored from the server', () => {

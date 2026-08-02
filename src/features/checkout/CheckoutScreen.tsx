@@ -22,6 +22,7 @@ import {
   X
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
@@ -83,6 +84,10 @@ import { loadCatalog } from '../../shared/supabase';
 import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
+import {
+  buildClientAuthPath,
+  restoreClientAccountSession
+} from '../../shared/api/clientAccountApi';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -106,6 +111,7 @@ export function CheckoutScreen({
   onEditCart: () => void;
   onSubmitOrder: () => void;
 }) {
+  const navigate = useNavigate();
   const {
     mode,
     cabinId,
@@ -190,6 +196,7 @@ export function CheckoutScreen({
   const [customSettlement, setCustomSettlement] = useState('');
   const [deliveryValidationErrors, setDeliveryValidationErrors] = useState<string[]>([]);
   const [contactValidationErrors, setContactValidationErrors] = useState<string[]>([]);
+  const [isClientSessionReady, setIsClientSessionReady] = useState(false);
   const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
@@ -386,6 +393,26 @@ export function CheckoutScreen({
   useEffect(() => clearLocationSession, [clearLocationSession]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    void restoreClientAccountSession().then((session) => {
+      if (!isMounted) return;
+      if (!session) {
+        navigate(buildClientAuthPath(`/${catalogSlug}/checkout`), { replace: true });
+        return;
+      }
+
+      saveClientProfile({ name: session.name, phone: session.phone });
+      setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
+      setIsClientSessionReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [catalogSlug, navigate, saveClientProfile, setOrder]);
+
+  useEffect(() => {
     if (profileHydratedRef.current) return;
     profileHydratedRef.current = true;
     const savedProfile = loadPublicClientCheckoutProfile(catalogSlug);
@@ -488,6 +515,22 @@ export function CheckoutScreen({
     window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
   };
   const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
+
+  if (!isClientSessionReady) {
+    return (
+      <main className="screen checkout-screen">
+        <section className="checkout-privacy-card" aria-live="polite">
+          <div className="checkout-customer-details__head">
+            <ShieldCheck />
+            <div>
+              <h2>Проверяем личный кабинет</h2>
+              <p>Для заказа нужно один раз войти или создать аккаунт с паролем.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="screen checkout-screen">

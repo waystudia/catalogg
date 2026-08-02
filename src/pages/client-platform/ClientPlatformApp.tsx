@@ -85,6 +85,7 @@ import {
   registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
+import type { ClientAccountSession } from '../../shared/api/clientAccountApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
@@ -1386,12 +1387,39 @@ function CheckoutPage({
   const increment = useClientPlatformStore((state) => state.addDish);
   const decrement = useClientPlatformStore((state) => state.decrementDish);
   const hasClientAccount = hasStoredClientSession();
+  const [isClientSessionReady, setIsClientSessionReady] = useState(false);
 
   useEffect(() => {
-    if (!hasClientAccount) {
-      navigate(buildClientAuthPath(`/r/${restaurant.slug}/checkout`), { replace: true });
-    }
-  }, [hasClientAccount, navigate, restaurant.slug]);
+    let isMounted = true;
+
+    void restoreClientAccountSession().then((session) => {
+      if (!isMounted) return;
+      if (!session) {
+        navigate(buildClientAuthPath(`/r/${restaurant.slug}/checkout`), { replace: true });
+        return;
+      }
+      saveProfile({ name: session.name, phone: session.phone });
+      setIsClientSessionReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [hasClientAccount, navigate, restaurant.slug, saveProfile]);
+
+  if (!isClientSessionReady) {
+    return (
+      <>
+        <RestaurantTopbar restaurant={restaurant} title="Оформление заказа" />
+        <main className="restaurant-flow">
+          <section className="flow-section" aria-live="polite">
+            <h2>Проверяем личный кабинет</h2>
+            <p>Для заказа нужно один раз войти или создать аккаунт с паролем.</p>
+          </section>
+        </main>
+      </>
+    );
+  }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2219,10 +2247,12 @@ function ProfilePage() {
   const [acceptedClientAgreement, setAcceptedClientAgreement] = useState(false);
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
   const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
-  const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>('login');
+  const clientAuthRequested = searchParams.get('clientAuth') === '1';
+  const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
+    clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
+  );
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
-  const clientAuthRequested = searchParams.get('clientAuth') === '1';
   const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
   const [activeRole, setActiveRole] = useState<'client' | 'restaurant' | 'driver' | null>(
     clientAuthRequested ? 'client' : null
@@ -2231,6 +2261,8 @@ function ProfilePage() {
   const [restaurantPassword, setRestaurantPassword] = useState('');
   const [restaurantError, setRestaurantError] = useState('');
   const [isSavingClient, setIsSavingClient] = useState(false);
+  const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
+  const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const [isSigningRestaurant, setIsSigningRestaurant] = useState(false);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
@@ -2253,11 +2285,14 @@ function ProfilePage() {
 
   useEffect(() => {
     void restoreClientAccountSession().then((session) => {
-      if (!session) return;
-      saveProfile({ name: session.name, phone: session.phone });
-      setClientName(session.name);
-      setClientPhone(session.phone);
-      setClientMessage('Вы вошли в аккаунт');
+      setClientSession(session);
+      setIsClientSessionChecking(false);
+      if (session) {
+        saveProfile({ name: session.name, phone: session.phone });
+        setClientName(session.name);
+        setClientPhone(session.phone);
+        setClientMessage('Вы вошли в аккаунт');
+      }
     });
   }, [saveProfile]);
 
@@ -2296,6 +2331,7 @@ function ProfilePage() {
           })
         : await loginClientAccount({ phone: nextProfile.phone, password: clientPassword });
       saveProfile({ name: session.name, phone: session.phone });
+      setClientSession(session);
       setClientName(session.name);
       setClientPhone(session.phone);
       setClientPassword('');
@@ -2343,6 +2379,8 @@ function ProfilePage() {
     setClientPassword('');
     setClientMessage('');
     setClientError('');
+    setClientSession(null);
+    setIsClientSessionChecking(false);
     setRestaurantEmail('');
     setRestaurantPassword('');
     setRestaurantError('');
@@ -2360,6 +2398,13 @@ function ProfilePage() {
         <span>
           <strong>{displayName}</strong>
           <small>{displayPhone}</small>
+          <small className={clientSession ? 'profile-card__consent' : undefined}>
+            {isClientSessionChecking
+              ? 'Проверяем вход…'
+              : clientSession
+                ? 'Аккаунт защищён паролем'
+                : 'Гостевой профиль · аккаунт ещё не создан'}
+          </small>
           {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
           {displayConsentDate && (
             <small className="profile-card__consent"><ShieldCheck /> Согласия подтверждены {displayConsentDate}</small>
