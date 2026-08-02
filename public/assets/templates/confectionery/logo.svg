@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">Dolce House</title>
+  <desc id="description">Монограмма кондитерской в виде торта под стеклянным колпаком</desc>
+  <rect width="128" height="128" rx="32" fill="#fff8f2"/>
+  <path d="M28 86h72M36 78h56M42 72c0-17 9-31 22-31s22 14 22 31" fill="none" stroke="#b85f6b" stroke-width="6" stroke-linecap="round"/>
+  <path d="M64 31v10M59 31h10" fill="none" stroke="#d9a66c" stroke-width="5" stroke-linecap="round"/>
+  <path d="M45 61c7 4 12 4 19 0 7 4 12 4 19 0" fill="none" stroke="#d9a66c" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="25" r="4" fill="#b85f6b"/>
+</svg>

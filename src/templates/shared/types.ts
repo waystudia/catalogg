@@ -1,10 +1,11 @@
 import type { ComponentType } from 'react';
 
-export type TemplateKey = 'restaurant-modern' | 'barbershop-dark' | 'menswear-premium';
+export type TemplateKey = 'restaurant-modern' | 'confectionery' | 'barbershop-dark' | 'menswear-premium';
 
 export type TemplateBusinessType =
   | 'restaurant'
   | 'cafe'
+  | 'confectionery'
   | 'shop'
   | 'fashion'
   | 'fragrance'

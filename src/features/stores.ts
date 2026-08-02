@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { CartItem, OrderMode, Product, SelectedProductModifier, ThemeSettings } from '../entities/models';
+import type { CartConfiguration, CartItem, OrderMode, Product, SelectedProductModifier, ThemeSettings } from '../entities/models';
 import { getCartItemTotal } from '../entities/productVariants';
 import { buildCartLineId, getCartLineId } from '../entities/productModifiers';
 import { themeSettings } from '../data/catalog';
@@ -9,7 +9,7 @@ import { redirectToClientHome } from '../shared/appNavigation';
 type CartStore = {
   items: CartItem[];
   updatedAt: number | null;
-  add: (product: Product, selectedChoice?: string, selectedModifiers?: SelectedProductModifier[]) => void;
+  add: (product: Product, selectedChoice?: string, selectedModifiers?: SelectedProductModifier[], configuration?: CartConfiguration) => void;
   remove: (lineIdOrProductId: string) => void;
   decrement: (lineIdOrProductId: string) => void;
   updateQuantity: (lineIdOrProductId: string, quantity: number) => void;
@@ -61,13 +61,13 @@ export const useCartStore = create<CartStore>()(
     (set) => ({
       items: [],
       updatedAt: null,
-      add: (product, selectedChoice, selectedModifiers = []) =>
+      add: (product, selectedChoice, selectedModifiers = [], configuration = {}) =>
         set((state) => {
           if (!product.is_unlimited && product.stock_count <= 0) {
             return state;
           }
 
-          const lineId = buildCartLineId(product.id, selectedChoice, selectedModifiers);
+          const lineId = buildCartLineId(product.id, selectedChoice, selectedModifiers, configuration);
           const existing = state.items.find((item) => getCartLineId(item) === lineId);
 
           if (existing) {
@@ -87,6 +87,11 @@ export const useCartStore = create<CartStore>()(
               quantity: 1,
               selected_choice: selectedChoice,
               selected_modifiers: selectedModifiers,
+              selected_weight: configuration.selectedWeight,
+              inscription: configuration.inscription?.trim() || undefined,
+              decoration_comment: configuration.decorationComment?.trim() || undefined,
+              production_date: configuration.productionDate?.trim() || undefined,
+              production_time: configuration.productionTime?.trim() || undefined,
               line_id: lineId
             }],
             updatedAt: touchCart()

@@ -3,6 +3,8 @@ import { cabins, categories, products, restaurant, themeSettings } from '../data
 import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, ProductModifierGroup, Restaurant, ThemeSettings } from '../entities/models';
 import { normalizeProductChoiceOptions } from '../entities/productVariants';
 import { normalizeProductModifierGroups } from '../entities/productModifiers';
+import { confectioneryTemplate } from '../templates/confectionery';
+import { normalizeBusinessType } from './businessTerminology';
 import {
   categoryToLegacyPersistence,
   normalizeLegacyCategory
@@ -159,6 +161,19 @@ const normalizeCatalogSlug = (catalogSlug?: string) =>
 
 const isLegacyCatalog = (catalogSlug?: string) => normalizeCatalogSlug(catalogSlug) === legacyCatalogSlug;
 
+const getLocalTemplateCatalog = (catalogSlug: string) => catalogSlug === confectioneryTemplate.slug
+  ? {
+      restaurant: confectioneryTemplate.restaurant,
+      categories: [...confectioneryTemplate.categories],
+      products: [...confectioneryTemplate.products],
+      cabins: [] as Cabin[],
+      tags: [] as CatalogTag[],
+      theme: confectioneryTemplate.theme,
+      photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
+      source: 'demo' as const
+    }
+  : null;
+
 const normalizeRestaurant = (value?: Restaurant | null): Restaurant => ({
   ...restaurant,
   ...(value ?? {}),
@@ -201,7 +216,7 @@ const applyProductChoices = (values: Product[], settings: unknown) => {
   const choices = normalizeProductChoices(settings);
   return values.map((product) => ({
     ...product,
-    choice_options: normalizeProductChoiceOptions(choices[product.id], product.price)
+    choice_options: normalizeProductChoiceOptions(choices[product.id] ?? product.choice_options, product.price)
   }));
 };
 
@@ -296,6 +311,7 @@ type PlatformProductRow = {
   is_popular: boolean;
   is_new: boolean;
   is_promo: boolean;
+  custom_fields?: unknown;
 };
 
 type PlatformProductImageRow = {
@@ -350,6 +366,53 @@ const applyProductModifiers = (
     })))
 }));
 
+const productConfigKeys = [
+  'old_price',
+  'pricing_type',
+  'price_prefix',
+  'price_tier',
+  'unit',
+  'minimum_weight',
+  'weight_step',
+  'preparation_time',
+  'advance_order_hours',
+  'allergens',
+  'badges',
+  'allow_inscription',
+  'allow_decoration_comment',
+  'allow_production_schedule',
+  'placeholder_kind'
+] as const satisfies ReadonlyArray<keyof Product>;
+
+const applyProductConfig = (values: Product[], settings: unknown) => {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return values;
+  const configs = settings as Record<string, unknown>;
+  return values.map((product) => {
+    const raw = configs[product.id];
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return product;
+    const source = raw as Record<string, unknown>;
+    const patch: Partial<Product> = {};
+    productConfigKeys.forEach((key) => {
+      if (source[key] !== undefined) {
+        (patch as Record<string, unknown>)[key] = source[key];
+      }
+    });
+    return { ...product, ...patch };
+  });
+};
+
+const applyPopularCategory = (values: Product[], categoryValues: Category[]) => {
+  const popularId = categoryValues.find((category) => category.slug === 'popular')?.id;
+  if (!popularId) return values;
+  return values.map((product) => ({
+    ...product,
+    category_ids: Array.from(new Set([
+      ...(product.category_ids ?? [product.category_id]),
+      ...(product.is_popular ? [popularId] : [])
+    ]))
+  }));
+};
+
 type PlatformCabinRow = {
   id: string;
   title: string;
@@ -371,8 +434,19 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   instagram_url: value.instagram_url ?? '',
   address: value.address ?? '',
   mapLink: value.map_url ?? '',
-  business_type: value.business_type === 'coffee_shop' ? 'coffee_shop' : 'restaurant'
+  business_type: normalizeBusinessType(value.business_type)
 });
+
+const applyCatalogInfo = (value: Restaurant, settings: unknown): Restaurant => {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return value;
+  const source = settings as Record<string, unknown>;
+  return {
+    ...value,
+    catalog_notice: typeof source.catalog_notice === 'string' ? source.catalog_notice : value.catalog_notice,
+    working_hours: typeof source.working_hours === 'string' ? source.working_hours : value.working_hours,
+    minimum_order: typeof source.minimum_order === 'number' ? source.minimum_order : value.minimum_order
+  };
+};
 
 const withRestaurantLocation = (
   value: Restaurant,
@@ -431,7 +505,19 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   stock_count: value.stock_count,
   category_id: value.category_id ?? '',
   category_ids: value.category_id ? [value.category_id] : [],
-  pair_ids: []
+  pair_ids: [],
+  ...(() => {
+    if (!value.custom_fields || typeof value.custom_fields !== 'object' || Array.isArray(value.custom_fields)) return {};
+    const source = value.custom_fields as Record<string, unknown>;
+    const patch: Partial<Product> = {};
+    productConfigKeys.forEach((key) => {
+      if (source[key] !== undefined) (patch as Record<string, unknown>)[key] = source[key];
+    });
+    patch.choice_options = Array.isArray(source.choice_options)
+      ? normalizeProductChoiceOptions(source.choice_options as ProductChoiceOptionInput[], value.price)
+      : undefined;
+    return patch;
+  })()
 });
 
 const mapPlatformCabin = (value: PlatformCabinRow): Cabin => ({
@@ -615,6 +701,8 @@ export async function loadCatalog(catalogSlug?: string) {
   activeCatalogIsLegacy = isLegacyCatalog(normalizedSlug);
 
   if (!supabase) {
+    const localTemplate = getLocalTemplateCatalog(normalizedSlug);
+    if (localTemplate) return localTemplate;
     return {
       restaurant,
       categories,
@@ -635,6 +723,8 @@ export async function loadCatalog(catalogSlug?: string) {
       .maybeSingle();
 
     if (!catalogResult.data || catalogResult.error) {
+      const localTemplate = getLocalTemplateCatalog(normalizedSlug);
+      if (localTemplate) return localTemplate;
       return {
         restaurant: { ...restaurant, name: normalizedSlug, subtitle: '', logo_url: '', banner_url: '' },
         categories: [],
@@ -662,12 +752,14 @@ export async function loadCatalog(catalogSlug?: string) {
       productChoicesResult,
       productModifierGroupsResult,
       productModifierOptionsResult,
+      productConfigResult,
+      catalogInfoResult,
       restaurantLocation
     ] = await Promise.all([
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
-        .select('id, category_id, title, status, price, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo')
+        .select('id, category_id, title, status, price, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase
@@ -710,6 +802,18 @@ export async function loadCatalog(catalogSlug?: string) {
         .select('id, group_id, name, price_delta, is_default, is_active')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
+      supabase
+        .from('catalog_sections')
+        .select('settings')
+        .eq('catalog_id', catalog.id)
+        .eq('key', 'product-config')
+        .maybeSingle(),
+      supabase
+        .from('catalog_sections')
+        .select('settings')
+        .eq('catalog_id', catalog.id)
+        .eq('key', 'catalog-info')
+        .maybeSingle(),
       getPlatformRestaurantLocation(catalog.id)
     ]);
     const productImages = new Map<string, string[]>();
@@ -717,25 +821,28 @@ export async function loadCatalog(catalogSlug?: string) {
       productImages.set(imageRow.product_id, [...(productImages.get(imageRow.product_id) ?? []), imageRow.url]);
     });
 
+    const mappedCategories = ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory);
+    const mappedProducts = applyPopularCategory(applyProductConfig(applyProductModifiers(
+      applyProductChoices(
+        ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
+          mapPlatformProduct(product, productImages.get(product.id) ?? [])
+        ),
+        productChoicesResult.data?.settings
+      ),
+      (productModifierGroupsResult.data ?? []) as PlatformProductModifierGroupRow[],
+      (productModifierOptionsResult.data ?? []) as PlatformProductModifierOptionRow[]
+    ), productConfigResult.data?.settings), mappedCategories);
+
     return {
-      restaurant: {
+      restaurant: applyCatalogInfo({
         ...withRestaurantLocation(mapPlatformRestaurant(catalog), restaurantLocation),
         banner_urls: normalizeRestaurantGallery(
           restaurantGalleryResult.data?.settings,
           catalog.banner_url
         )
-      },
-      categories: ((categoriesResult.data ?? []) as PlatformCategoryRow[]).map(mapPlatformCategory),
-      products: applyProductModifiers(
-        applyProductChoices(
-          ((productsResult.data ?? []) as PlatformProductRow[]).map((product) =>
-            mapPlatformProduct(product, productImages.get(product.id) ?? [])
-          ),
-          productChoicesResult.data?.settings
-        ),
-        (productModifierGroupsResult.data ?? []) as PlatformProductModifierGroupRow[],
-        (productModifierOptionsResult.data ?? []) as PlatformProductModifierOptionRow[]
-      ),
+      }, catalogInfoResult.data?.settings),
+      categories: mappedCategories,
+      products: mappedProducts,
       cabins: ((cabinsResult.data ?? []) as PlatformCabinRow[]).map(mapPlatformCabin),
       tags: (tagsResult.data ?? []) as CatalogTag[],
       theme: hydrateTheme(themeResult.data?.settings as Partial<ThemeSettings> | undefined),
@@ -850,7 +957,11 @@ const productToPlatformRow = (product: Product) => ({
   is_unlimited: product.is_unlimited ?? false,
   is_popular: product.is_popular,
   is_new: product.is_new,
-  is_promo: product.is_hit
+  is_promo: product.is_hit,
+  custom_fields: {
+    ...getProductConfig(product),
+    choice_options: normalizeProductChoiceOptions(product.choice_options, product.price)
+  }
 });
 
 async function saveProductChoices(product: Product) {
@@ -915,6 +1026,43 @@ async function saveProductModifiers(product: Product) {
   }
 }
 
+const getProductConfig = (product: Partial<Product>) => Object.fromEntries(
+  productConfigKeys.flatMap((key) => product[key] === undefined ? [] : [[key, product[key]]])
+);
+
+async function saveProductConfig(productId: string, patch: Partial<Product>, remove = false) {
+  if (!supabase || !activePlatformCatalogId || !uuidPattern.test(productId)) return;
+  const current = await throwOnError(
+    supabase
+      .from('catalog_sections')
+      .select('settings')
+      .eq('catalog_id', activePlatformCatalogId)
+      .eq('key', 'product-config')
+      .maybeSingle()
+  ) as { settings?: unknown } | null;
+  const settings = current?.settings && typeof current.settings === 'object' && !Array.isArray(current.settings)
+    ? { ...(current.settings as Record<string, unknown>) }
+    : {};
+  if (remove) {
+    delete settings[productId];
+  } else {
+    const existing = settings[productId] && typeof settings[productId] === 'object' && !Array.isArray(settings[productId])
+      ? settings[productId] as Record<string, unknown>
+      : {};
+    settings[productId] = { ...existing, ...getProductConfig(patch) };
+  }
+  await throwOnError(
+    supabase.from('catalog_sections').upsert({
+      catalog_id: activePlatformCatalogId,
+      key: 'product-config',
+      title: 'Параметры товаров',
+      enabled: Object.keys(settings).length > 0,
+      sort_order: 112,
+      settings
+    }, { onConflict: 'catalog_id,key' })
+  );
+}
+
 const categoryMeta = (value: Category) =>
   JSON.stringify({
     showOnHome: value.showOnHome !== false,
@@ -969,6 +1117,7 @@ export async function saveProductToSupabase(product: Product) {
       await syncPlatformProductImages(product.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
       await saveProductChoices(product);
       await saveProductModifiers(product);
+      await saveProductConfig(product.id, product);
       return;
     }
     const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
@@ -979,6 +1128,7 @@ export async function saveProductToSupabase(product: Product) {
       await syncPlatformProductImages(createdProduct.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
       await saveProductChoices(createdProduct);
       await saveProductModifiers(createdProduct);
+      await saveProductConfig(createdProduct.id, createdProduct);
     }
     return;
   }
@@ -996,6 +1146,7 @@ export async function updateProductInSupabase(productId: string, patch: Partial<
     if (patch.image_url !== undefined || patch.image_urls !== undefined) {
       await syncPlatformProductImages(productId, patch.image_urls?.length ? patch.image_urls : patch.image_url ? [patch.image_url] : []);
     }
+    await saveProductConfig(productId, patch);
     return;
   }
   const legacyPatch = { ...patch };
@@ -1006,6 +1157,7 @@ export async function deleteProductFromSupabase(productId: string) {
   if (!supabase) return;
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(productId)) return;
+    await saveProductConfig(productId, {}, true);
     await throwOnError(supabase.from('products').delete().eq('id', productId).eq('catalog_id', activePlatformCatalogId));
     return;
   }
@@ -1058,6 +1210,23 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
           enabled: bannerUrls.length > 0,
           sort_order: 5,
           settings: { images: bannerUrls }
+        },
+        { onConflict: 'catalog_id,key' }
+      )
+    );
+    await throwOnError(
+      supabase.from('catalog_sections').upsert(
+        {
+          catalog_id: catalogId,
+          key: 'catalog-info',
+          title: 'Информация каталога',
+          enabled: true,
+          sort_order: 6,
+          settings: {
+            catalog_notice: value.catalog_notice ?? '',
+            working_hours: value.working_hours ?? '',
+            minimum_order: value.minimum_order ?? 0
+          }
         },
         { onConflict: 'catalog_id,key' }
       )

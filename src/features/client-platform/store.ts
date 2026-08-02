@@ -5,6 +5,7 @@ import type {
   ClientCartLine,
   ClientCheckoutDraft,
   ClientOrder,
+  ClientOrderConsent,
   ClientOrderItem,
   ClientOrderStatus,
   ClientOrderType,
@@ -17,6 +18,7 @@ type ClientPlatformStore = {
   selectedCityId: string;
   recentCityIds: string[];
   profile: ClientProfile;
+  orderConsent: ClientOrderConsent | null;
   addresses: ClientAddress[];
   favoriteRestaurantIds: string[];
   favoriteDishIds: string[];
@@ -25,6 +27,7 @@ type ClientPlatformStore = {
   orders: ClientOrder[];
   setSelectedCity: (cityId: string) => void;
   saveProfile: (profile: ClientProfile) => void;
+  recordOrderConsent: () => void;
   addAddress: (address: ClientAddress) => void;
   selectDraftAddress: (restaurantSlug: string, address: ClientAddress) => void;
   updateCheckoutDraft: (restaurantSlug: string, patch: Partial<ClientCheckoutDraft>) => void;
@@ -46,6 +49,8 @@ type ClientPlatformStore = {
   toggleFavoriteRestaurant: (restaurantId: string) => void;
   toggleFavoriteDish: (dishId: string) => void;
 };
+
+export const CLIENT_ORDER_CONSENT_VERSION = '1.0';
 
 const defaultDraft = (): ClientCheckoutDraft => ({
   orderType: 'delivery',
@@ -119,6 +124,7 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
       selectedCityId: '',
       recentCityIds: [],
       profile: { name: '', phone: '' },
+      orderConsent: null,
       addresses: [],
       favoriteRestaurantIds: [],
       favoriteDishIds: [],
@@ -131,6 +137,12 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
           recentCityIds: [cityId, ...state.recentCityIds.filter((item) => item !== cityId)].slice(0, 3)
         })),
       saveProfile: (profile) => set({ profile }),
+      recordOrderConsent: () => set({
+        orderConsent: {
+          version: CLIENT_ORDER_CONSENT_VERSION,
+          acceptedAt: new Date().toISOString()
+        }
+      }),
       addAddress: (address) =>
         set((state) => ({
           addresses: [
@@ -243,7 +255,7 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
     {
       name: 'waycatalog-client-platform',
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
       migrate: (persistedState, version) => {
         if (!isPersistedClientStore(persistedState)) {
           return persistedState as ClientPlatformStore;
@@ -288,12 +300,54 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
           };
         }
 
+        if (version < 5) {
+          const latestOrder = (nextState.orders ?? [])[0];
+          const currentProfile = nextState.profile ?? { name: '', phone: '' };
+          const currentAddresses = nextState.addresses ?? [];
+          const recoveredAddress = latestOrder?.orderType === 'delivery'
+            && latestOrder.addressLine
+            && typeof latestOrder.deliveryLat === 'number'
+            && typeof latestOrder.deliveryLng === 'number'
+            && !currentAddresses.some((address) => address.addressLine === latestOrder.addressLine)
+            ? [{
+                id: `recovered-${latestOrder.id}`,
+                title: 'Адрес доставки',
+                addressLine: latestOrder.addressLine,
+                lat: latestOrder.deliveryLat,
+                lng: latestOrder.deliveryLng,
+                accuracyM: null,
+                entrance: '',
+                floor: '',
+                apartment: '',
+                intercomCode: '',
+                landmark: '',
+                comment: '',
+                isDefault: true
+              }, ...currentAddresses.map((address) => ({ ...address, isDefault: false }))]
+            : currentAddresses;
+
+          nextState = {
+            ...nextState,
+            profile: latestOrder
+              ? {
+                  name: currentProfile.name || latestOrder.clientName,
+                  phone: currentProfile.phone || latestOrder.clientPhone
+                }
+              : currentProfile,
+            addresses: recoveredAddress,
+            orderConsent: latestOrder
+              ? { version: CLIENT_ORDER_CONSENT_VERSION, acceptedAt: latestOrder.createdAt }
+              : null
+          };
+        }
+
         return nextState as ClientPlatformStore;
       },
       partialize: (state) => ({
         selectedCityId: state.selectedCityId,
         recentCityIds: state.recentCityIds,
         profile: state.profile,
+        orderConsent: state.orderConsent,
         addresses: state.addresses,
         favoriteRestaurantIds: state.favoriteRestaurantIds,
         favoriteDishIds: state.favoriteDishIds,

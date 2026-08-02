@@ -92,6 +92,7 @@ export function RestaurantAdminWorkspace({
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
+  const hasAutoOpenedOrderRef = useRef(false);
   const orderListScrollPositionRef = useRef(0);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
@@ -191,6 +192,12 @@ export function RestaurantAdminWorkspace({
   }, [orders, routeOrderId]);
 
   useEffect(() => {
+    if (hasAutoOpenedOrderRef.current || tab !== 'orders' || filteredOrders.length === 0) return;
+    hasAutoOpenedOrderRef.current = true;
+    setSelectedOrder(filteredOrders[0]);
+  }, [filteredOrders, tab]);
+
+  useEffect(() => {
     const knownIds = knownOrderIdsRef.current;
     const newOrderIds = hasLoadedOrdersRef.current
       ? orders.filter((order) => order.status === 'new' && !knownIds.has(order.id)).map((order) => order.id)
@@ -198,6 +205,10 @@ export function RestaurantAdminWorkspace({
 
     if (newOrderIds.length > 0) {
       const newOrders = orders.filter((order) => newOrderIds.includes(order.id));
+      if (tab === 'orders' && newOrders[0]) {
+        setFilter('new');
+        setSelectedOrder(newOrders[0]);
+      }
       setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
       toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
       playRestaurantAdminOrderSound();
@@ -220,7 +231,7 @@ export function RestaurantAdminWorkspace({
 
     knownOrderIdsRef.current = new Set(orders.map((order) => order.id));
     hasLoadedOrdersRef.current = true;
-  }, [catalogSlug, orders]);
+  }, [catalogSlug, orders, tab]);
 
   return (
     <main className="restaurant-admin">

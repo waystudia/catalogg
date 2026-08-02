@@ -1,5 +1,5 @@
 import type { CartItem, Product, ProductChoiceOption, ProductChoiceOptionInput } from './models';
-import { getCartItemPrice as getConfiguredCartItemPrice, getCartItemTotal as getConfiguredCartItemTotal } from './productModifiers';
+import { getCartItemPrice as getConfiguredCartItemPrice, getCartItemTotal as getConfiguredCartItemTotal } from './productPricing';
 
 const validPriceOr = (value: unknown, fallback: number) =>
   Number.isFinite(value) && (value as number) > 0 ? value as number : fallback;

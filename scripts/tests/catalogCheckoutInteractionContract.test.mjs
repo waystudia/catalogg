@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const appSource = await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
+const appSource = [
+  await readFile(new URL('../../src/app/App.tsx', import.meta.url), 'utf8'),
+  await readFile(new URL('../../src/features/catalog/ProductTile.tsx', import.meta.url), 'utf8')
+].join('\n');
 const appStyles = await readFile(new URL('../../src/app/styles.css', import.meta.url), 'utf8');
 const catalogCategoryObserverSource = await readFile(
   new URL('../../src/app/useCatalogCategoryObserver.ts', import.meta.url),
@@ -134,4 +137,38 @@ test('order submission stays disabled until contacts and both legal consents are
   );
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
   assert.match(checkoutSource, /if \(!acceptedOrderData \|\| !acceptedOrderTransfer\)/);
+});
+
+test('successful checkout persists the profile and consent, then clears the cart before opening WhatsApp', () => {
+  assert.match(checkoutSource, /saveClientProfile\(\{ name: profileName, phone: profilePhone \}\)/);
+  const saveProfileIndex = checkoutSource.indexOf('saveClientProfile({ name: profileName, phone: profilePhone });');
+  const orderPayloadIndex = checkoutSource.indexOf('const orderPayload: CreateRestaurantOrderFromCartInput');
+  assert.ok(saveProfileIndex > 0 && saveProfileIndex < orderPayloadIndex);
+
+  const consentIndex = checkoutSource.indexOf('recordOrderConsent();');
+  const clearIndex = checkoutSource.indexOf('clearCart();');
+  const submitIndex = checkoutSource.indexOf('onSubmitOrder();');
+  const whatsappIndex = checkoutSource.indexOf('openCreatedOrderWhatsapp(buildWhatsappHref(orderId));');
+
+  assert.ok(consentIndex > 0);
+  assert.ok(clearIndex > consentIndex);
+  assert.ok(submitIndex > clearIndex);
+  assert.ok(whatsappIndex > submitIndex);
+});
+
+test('order consent is restored by legal-document version and shown in the profile', () => {
+  assert.match(checkoutSource, /orderConsent\?\.version === CLIENT_ORDER_CONSENT_VERSION/);
+  assert.match(checkoutSource, /useState\(hasCurrentOrderConsent\)/);
+  assert.match(clientPlatformSource, /Согласия подтверждены \{displayConsentDate\}/);
+});
+
+test('catalog removes the redundant order-information chip row and sauces have a safe fallback', () => {
+  assert.doesNotMatch(appSource, /aria-label="Информация о заказе"/);
+  assert.match(appSource, /categorySuggestions\.length > 0[\s\S]*isSauceCategory[\s\S]*isSauceProduct\(product\)/);
+});
+
+test('upsell modal covers sticky catalog UI and uses compact two-column mobile controls', () => {
+  assert.match(appStyles, /\.flow-backdrop\s*\{[^}]*z-index:\s*60;/);
+  assert.match(appStyles, /\.flow-modal > \.primary-wide,[\s\S]*min-height:\s*50px;[\s\S]*font-size:\s*16px;/);
+  assert.match(appStyles, /@media \(max-width: 360px\)[\s\S]*\.flow-products\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
 });

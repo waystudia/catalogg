@@ -18,14 +18,20 @@ const coffeeModifierPresets: Record<string, string[]> = {
   'Сахар': ['Без сахара', '1 порция', '2 порции', '3 порции']
 };
 
-const makeModifierGroup = (name: string): ProductModifierGroup => ({
+const confectioneryModifierPresets: Record<string, string[]> = {
+  'Начинка': ['Медовик', 'Красный бархат', 'Шоколад-вишня', 'Фисташка-малина', 'Сникерс', 'Ваниль-клубника'],
+  'Декор': ['Без дополнительного декора', 'Ягоды', 'Шоколадный декор', 'Минималистичный декор', 'Тематический декор'],
+  'Упаковка': ['Стандартная', 'Подарочная', 'С лентой']
+};
+
+const makeModifierGroup = (name: string, presets: Record<string, string[]>): ProductModifierGroup => ({
   id: crypto.randomUUID(),
   name,
-  required: name === 'Объём',
-  minSelected: name === 'Объём' ? 1 : 0,
+  required: ['Объём', 'Начинка', 'Декор'].includes(name),
+  minSelected: ['Объём', 'Начинка', 'Декор'].includes(name) ? 1 : 0,
   maxSelected: name === 'Дополнительно' ? 6 : 1,
   isActive: true,
-  options: (coffeeModifierPresets[name] ?? ['Новый вариант']).map((optionName, index) => ({
+  options: (presets[name] ?? ['Новый вариант']).map((optionName, index) => ({
     id: crypto.randomUUID(),
     name: optionName,
     priceDelta: 0,
@@ -127,6 +133,43 @@ export function DishForm({
       <CategorySelector categories={categories} value={dish.categories} onChange={(categories) => onChange({ categories })} />
       <TagsSelector tags={dish.tags} onChange={(tags) => onChange({ tags })} />
 
+      {businessType === 'confectionery' && (
+        <section className="dish-section">
+          <h3>Цена и заказ</h3>
+          <div className="dish-two-fields">
+            <label>
+              Тип цены
+              <select value={dish.pricingType} onChange={(event) => onChange({ pricingType: event.target.value as Dish['pricingType'] })}>
+                <option value="fixed">Фиксированная</option>
+                <option value="from">Цена «от»</option>
+                <option value="per_kg">За килограмм</option>
+                <option value="variant">По варианту</option>
+              </select>
+            </label>
+            <label>
+              Ценовой сегмент
+              <select value={dish.priceTier} onChange={(event) => onChange({ priceTier: event.target.value as Dish['priceTier'] })}>
+                <option value="budget">Бюджетный</option>
+                <option value="standard">Стандарт</option>
+                <option value="premium">Премиум</option>
+              </select>
+            </label>
+          </div>
+          {dish.pricingType === 'per_kg' && (
+            <div className="dish-two-fields">
+              <label>Минимальный вес, кг<input type="number" min="0.5" step="0.5" value={dish.minimumWeight} onChange={(event) => onChange({ minimumWeight: Math.max(0.5, Number(event.target.value) || 0.5) })} /></label>
+              <label>Шаг веса, кг<input type="number" min="0.1" step="0.1" value={dish.weightStep} onChange={(event) => onChange({ weightStep: Math.max(0.1, Number(event.target.value) || 0.1) })} /></label>
+            </div>
+          )}
+          <label>Предзаказ, часов<input type="number" min="0" max="720" value={dish.advanceOrderHours} onChange={(event) => onChange({ advanceOrderHours: Math.max(0, Number(event.target.value) || 0) })} /></label>
+          <div className="dish-switches">
+            <label className="dish-switch">Надпись<input type="checkbox" checked={dish.allowInscription} onChange={(event) => onChange({ allowInscription: event.target.checked })} /><span /></label>
+            <label className="dish-switch">Комментарий к декору<input type="checkbox" checked={dish.allowDecorationComment} onChange={(event) => onChange({ allowDecorationComment: event.target.checked })} /><span /></label>
+            <label className="dish-switch">Дата и время<input type="checkbox" checked={dish.allowProductionSchedule} onChange={(event) => onChange({ allowProductionSchedule: event.target.checked })} /><span /></label>
+          </div>
+        </section>
+      )}
+
       <section className="dish-section">
         <label>
           Описание
@@ -140,10 +183,10 @@ export function DishForm({
         <small>{dish.description.length}/500</small>
       </section>
 
-      {businessType === 'coffee_shop' && (
+      {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
         <section className="dish-section dish-choice-editor dish-modifier-editor">
           <div>
-            <h3>Варианты напитка</h3>
+            <h3>{businessType === 'coffee_shop' ? 'Варианты напитка' : 'Модификаторы товара'}</h3>
             <small>Группы можно менять, скрывать или удалить. Доплата прибавляется к базовой цене.</small>
           </div>
           {dish.modifierGroups.map((group, groupIndex) => (
@@ -213,8 +256,11 @@ export function DishForm({
             </div>
           ))}
           <div className="dish-modifier-editor__presets">
-            {Object.keys(coffeeModifierPresets).filter((name) => !dish.modifierGroups.some((group) => group.name === name)).map((name) => (
-              <button type="button" key={name} onClick={() => onChange({ modifierGroups: [...dish.modifierGroups, makeModifierGroup(name)] })}>+ {name}</button>
+            {Object.keys(businessType === 'coffee_shop' ? coffeeModifierPresets : confectioneryModifierPresets).filter((name) => !dish.modifierGroups.some((group) => group.name === name)).map((name) => (
+              <button type="button" key={name} onClick={() => {
+                const presets = businessType === 'coffee_shop' ? coffeeModifierPresets : confectioneryModifierPresets;
+                onChange({ modifierGroups: [...dish.modifierGroups, makeModifierGroup(name, presets)] });
+              }}>+ {name}</button>
             ))}
           </div>
         </section>
@@ -230,6 +276,12 @@ export function DishForm({
             placeholder="Баранина, специи, лук, соль"
           />
         </label>
+        {businessType === 'confectionery' && (
+          <label>
+            Аллергены
+            <input maxLength={200} value={dish.allergens} onChange={(event) => onChange({ allergens: event.target.value.slice(0, 200) })} placeholder="глютен, яйца, молочные продукты" />
+          </label>
+        )}
       </section>
 
       <QuantityInput

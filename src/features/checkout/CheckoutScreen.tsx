@@ -25,7 +25,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
-import { useClientPlatformStore } from '../client-platform/store';
+import {
+  CLIENT_ORDER_CONSENT_VERSION,
+  useClientPlatformStore
+} from '../client-platform/store';
 import type { ClientAddress, ClientOrder } from '../client-platform/types';
 import {
   selectCartCount,
@@ -79,6 +82,7 @@ import { SafeImage } from '../../shared/SafeImage';
 import { loadCatalog } from '../../shared/supabase';
 import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
+import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -119,16 +123,20 @@ export function CheckoutScreen({
   const saveClientProfile = useClientPlatformStore((state) => state.saveProfile);
   const addClientAddress = useClientPlatformStore((state) => state.addAddress);
   const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
+  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
+  const recordOrderConsent = useClientPlatformStore((state) => state.recordOrderConsent);
   const items = useCartStore((state) => state.items);
   const addCartItem = useCartStore((state) => state.add);
   const decrementCartItem = useCartStore((state) => state.decrement);
   const removeCartItem = useCartStore((state) => state.remove);
   const updateCartItemQuantity = useCartStore((state) => state.updateQuantity);
+  const clearCart = useCartStore((state) => state.clear);
   const total = selectCartTotal(items);
   const cartCount = selectCartCount(items);
   const [orderComment, setOrderComment] = useState('');
-  const [acceptedOrderData, setAcceptedOrderData] = useState(false);
-  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
+  const hasCurrentOrderConsent = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION;
+  const [acceptedOrderData, setAcceptedOrderData] = useState(hasCurrentOrderConsent);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(hasCurrentOrderConsent);
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'cash' | 'bank_transfer'>(() =>
     paymentSettings.transferEnabled ? 'bank_transfer' : 'cash'
   );
@@ -424,37 +432,23 @@ export function CheckoutScreen({
       setOrder({ cabinId: '' });
     }
   }, [activeCabins, cabinId, mode, setOrder]);
-  const orderLines = [
-    'Здравствуйте! Хочу оформить заказ.',
-    '',
-    'Заказ:',
-    ...items.map((item, index) => {
-      const selections = [
-        item.selected_choice,
-        ...getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`)
-      ].filter(Boolean);
-      return `${index + 1}. ${item.product.title}${selections.length > 0 ? ` (${selections.join(', ')})` : ''} - ${item.quantity} шт. x ${formatPrice(getCartItemPrice(item))}`;
-    }),
-    '',
-    `Итого: ${formatPrice(total)}`,
-    '',
-    'Получение:',
-    mode === 'hall'
-      ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}`
-      : mode === 'delivery'
-        ? `Доставка${finalDeliveryAddress ? `, ${finalDeliveryAddress}` : ''}`
-        : 'На вынос',
-    ...(mode === 'hall' && selectedCabin ? [`Кабинка: ${selectedCabin.title} (${selectedCabin.capacity})`] : []),
-    ...(mode === 'delivery' && deliveryCity ? [`Город: ${deliveryCity}`] : []),
-    ...(mode === 'delivery' && effectiveDeliverySettlement ? [`Село / район: ${effectiveDeliverySettlement}`] : []),
-    ...(mode === 'delivery' && deliveryAddress ? [`Адрес: ${deliveryAddress}`] : []),
-    ...(clientName ? [`Имя: ${clientName}`] : []),
-    ...(clientPhone ? [`Телефон: ${clientPhone}`] : []),
-    `Оплата: ${usesBankTransfer ? 'Безналично' : 'Наличными'}`,
-    '',
-    'Комментарий:',
-    'Пожалуйста, подтвердите заказ.'
-  ];
+  const fulfillmentLabel = mode === 'hall'
+    ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}`
+    : mode === 'delivery'
+      ? 'Доставка'
+      : 'Самовывоз';
+  const orderLines = buildWhatsappOrderText({
+    businessName: restaurant.name,
+    businessLabel: restaurant.business_type === 'confectionery' ? 'Кондитерская' : restaurant.business_type === 'coffee_shop' ? 'Кофейня' : 'Ресторан',
+    items,
+    fulfillmentLabel,
+    customerName: clientName,
+    customerPhone: clientPhone,
+    deliveryAddress: mode === 'delivery' ? finalDeliveryAddress : '',
+    comment: orderComment,
+    paymentLabel: usesBankTransfer ? 'Безналично' : 'Наличными',
+    total
+  }).split('\n');
   const getOrderIdempotencyKey = (payload: CreateRestaurantOrderFromCartInput) => {
     const fingerprint = buildRestaurantOrderFingerprint(payload);
 
@@ -825,12 +819,17 @@ export function CheckoutScreen({
             const modifierLabel = getSelectedModifierDetails(item).map(({ option }) => option.name).join(' · ');
             return (
             <article className="checkout-order-card" key={lineId}>
-              <SafeImage src={item.product.image_url} alt={item.product.title} />
+              <SafeImage src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
               <div className="checkout-order-card__body">
                 <div className="checkout-order-card__copy">
                   <h3>{item.product.title}</h3>
                   {item.selected_choice && <small>{item.selected_choice}</small>}
                   {modifierLabel && <small>{modifierLabel}</small>}
+                  {item.selected_weight !== undefined && <small>Вес: {item.selected_weight.toLocaleString('ru-RU')} кг</small>}
+                  {item.inscription && <small>Надпись: «{item.inscription}»</small>}
+                  {item.decoration_comment && <small>Оформление: {item.decoration_comment}</small>}
+                  {item.production_date && <small>Дата: {item.production_date}</small>}
+                  {item.production_time && <small>Время: {item.production_time}</small>}
                   <p>{item.product.description}</p>
                 </div>
                 <button
@@ -849,7 +848,13 @@ export function CheckoutScreen({
                   <div className="checkout-order-card__stepper">
                     <button type="button" onClick={() => decrementCartItem(lineId)} aria-label="Уменьшить"><Minus /></button>
                     <b>{item.quantity}</b>
-                    <button type="button" onClick={() => addCartItem(item.product, item.selected_choice, item.selected_modifiers)} aria-label="Увеличить"><Plus /></button>
+                    <button type="button" onClick={() => addCartItem(item.product, item.selected_choice, item.selected_modifiers, {
+                      selectedWeight: item.selected_weight,
+                      inscription: item.inscription,
+                      decorationComment: item.decoration_comment,
+                      productionDate: item.production_date,
+                      productionTime: item.production_time
+                    })} aria-label="Увеличить"><Plus /></button>
                   </div>
                 </div>
               </div>
@@ -939,6 +944,12 @@ export function CheckoutScreen({
               toast.error('Подтвердите оба обязательных согласия.');
               return;
             }
+            const missingCakeSchedule = items.find((item) => item.product.allow_production_schedule && (!item.production_date || !item.production_time));
+            if (missingCakeSchedule) {
+              toast.error(`Укажите дату и время для «${missingCakeSchedule.product.title}»`);
+              onEditCart();
+              return;
+            }
             if (mode === 'delivery') {
               if (!validateDeliveryDetails()) return;
               if (settlementNeedsAdminReview) {
@@ -949,6 +960,8 @@ export function CheckoutScreen({
                 });
               }
             }
+            const profileName = clientName.trim() || 'Гость';
+            const profilePhone = clientPhone.trim();
             savePublicClientProfile(catalogSlug, {
               name: clientName,
               phone: clientPhone,
@@ -956,6 +969,7 @@ export function CheckoutScreen({
               deliverySettlement: effectiveDeliverySettlement,
               deliveryAddress
             });
+            saveClientProfile({ name: profileName, phone: profilePhone });
             const orderPayload: CreateRestaurantOrderFromCartInput = {
               slug: catalogSlug,
               items,
@@ -1040,8 +1054,6 @@ export function CheckoutScreen({
                       : orderType === 'pickup'
                         ? 'pickup'
                         : 'dine_in';
-                  const profileName = clientName.trim() || 'Гость';
-                  const profilePhone = clientPhone.trim();
                   const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
 
                   if (mode === 'delivery') {
@@ -1061,7 +1073,6 @@ export function CheckoutScreen({
                       isDefault: true
                     };
 
-                    saveClientProfile({ name: profileName, phone: profilePhone });
                     addClientAddress(clientAddress);
                   }
 
@@ -1097,9 +1108,11 @@ export function CheckoutScreen({
                       quantity: item.quantity
                     }))
                   });
+                  recordOrderConsent();
+                  clearCart();
+                  onSubmitOrder();
                   toast.success('Заказ создан в системе ресторана');
                   openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
-                  window.setTimeout(onSubmitOrder, 500);
                   return;
                 }
                 closeReservedWhatsappWindow();

@@ -2,6 +2,8 @@ export type BackgroundType = 'color' | 'gradient' | 'image';
 export type ButtonStyle = 'filled' | 'outline';
 export type HeaderStyle = 'centered' | 'compact';
 export type OrderMode = 'hall' | 'takeaway' | 'delivery';
+export type PricingType = 'fixed' | 'from' | 'per_kg' | 'variant';
+export type PriceTier = 'budget' | 'standard' | 'premium';
 
 export type ThemeSettings = {
   id: string;
@@ -45,6 +47,9 @@ export type Restaurant = {
   lat: number | null;
   lng: number | null;
   business_type?: import('../shared/businessTerminology').BusinessType;
+  catalog_notice?: string;
+  working_hours?: string;
+  minimum_order?: number;
 };
 
 export type Category = {
@@ -71,6 +76,7 @@ export type CatalogTag = {
 export type ProductChoiceOption = {
   name: string;
   price: number;
+  old_price?: number;
 };
 
 export type ProductChoiceOptionInput = string | ProductChoiceOption;
@@ -102,6 +108,7 @@ export type Product = {
   id: string;
   title: string;
   price: number;
+  old_price?: number;
   description: string;
   image_url: string;
   image_urls?: string[];
@@ -123,6 +130,20 @@ export type Product = {
   pair_ids: string[];
   choice_options?: ProductChoiceOptionInput[];
   modifier_groups?: ProductModifierGroup[];
+  pricing_type?: PricingType;
+  price_prefix?: 'от';
+  price_tier?: PriceTier;
+  unit?: 'шт' | 'набор' | 'кг' | 'порция';
+  minimum_weight?: number;
+  weight_step?: number;
+  preparation_time?: string;
+  advance_order_hours?: number;
+  allergens?: string[];
+  badges?: string[];
+  allow_inscription?: boolean;
+  allow_decoration_comment?: boolean;
+  allow_production_schedule?: boolean;
+  placeholder_kind?: 'dessert';
 };
 
 export type Cabin = {
@@ -139,4 +160,17 @@ export type CartItem = {
   selected_choice?: string;
   selected_modifiers?: SelectedProductModifier[];
   line_id?: string;
+  selected_weight?: number;
+  inscription?: string;
+  decoration_comment?: string;
+  production_date?: string;
+  production_time?: string;
+};
+
+export type CartConfiguration = {
+  selectedWeight?: number;
+  inscription?: string;
+  decorationComment?: string;
+  productionDate?: string;
+  productionTime?: string;
 };
