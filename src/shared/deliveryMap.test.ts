@@ -81,21 +81,23 @@ describe('delivery map picker geometry', () => {
     assert.equal(getNearestEquivalentAngle(-170, 170), -190);
   });
 
-  it('keeps the followed driver centered horizontally in the lower map area with road visible ahead', () => {
+  it('keeps the followed driver visible above the order sheet with road ahead', () => {
     const driver = { lat: 43.3181235, lng: 45.6987654 };
-    for (const heading of [0, 90, 180, 270]) {
-      const center = getNavigationFollowCenter(driver, heading, getNavigationLookAheadDistanceM(17));
-      const projected = coordinatesToMapPoint(driver, center, 17, 640, { clampToViewport: false });
-      const rotated = rotateMapPoint(projected, -heading, { x: 320, y: 320 });
-      assert.equal(Math.abs(rotated.x - 320) < 1, true);
-      assert.equal(rotated.y > 620 && rotated.y < 665, true);
+    for (const zoom of [16, 17, 17.5, 18]) {
+      for (const heading of [0, 90, 180, 270]) {
+        const center = getNavigationFollowCenter(driver, heading, getNavigationLookAheadDistanceM(zoom));
+        const projected = coordinatesToMapPoint(driver, center, zoom, 640, { clampToViewport: false });
+        const rotated = rotateMapPoint(projected, -heading, { x: 320, y: 320 });
+        assert.equal(Math.abs(rotated.x - 320) < 1, true);
+        assert.equal(rotated.y > 425 && rotated.y < 440, true);
+      }
     }
   });
 
   it('keeps the driver screen anchor stable when navigation zoom changes', () => {
-    assert.equal(getNavigationLookAheadDistanceM(17), 280);
-    assert.equal(getNavigationLookAheadDistanceM(16), 560);
-    assert.equal(getNavigationLookAheadDistanceM(18), 140);
+    assert.equal(getNavigationLookAheadDistanceM(17), 96);
+    assert.equal(getNavigationLookAheadDistanceM(16), 192);
+    assert.equal(getNavigationLookAheadDistanceM(18), 48);
   });
 
   it('clamps dragged markers inside the map viewport', () => {

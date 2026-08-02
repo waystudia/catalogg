@@ -84,7 +84,7 @@ export const getNavigationFollowCenter = (
 };
 
 export const getNavigationLookAheadDistanceM = (zoom: number) =>
-  280 * (2 ** (17 - zoom));
+  96 * (2 ** (17 - zoom));
 
 export const rotateMapPoint = (
   point: DeliveryMapPoint,
