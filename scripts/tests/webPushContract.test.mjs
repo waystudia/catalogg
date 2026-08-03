@@ -13,13 +13,12 @@ describe('background web push contract', () => {
     assert.match(source, /clients\.openWindow/);
   });
 
-  it('keeps public map tiles in a bounded cache to avoid downloading the same road repeatedly', async () => {
+  it('keeps map tiles out of service-worker storage while retaining push support', async () => {
     const source = await read('src/sw.ts');
-    assert.match(source, /CacheFirst/);
-    assert.match(source, /ExpirationPlugin/);
-    assert.match(source, /catalog-map-tiles/);
-    assert.match(source, /tile\.openstreetmap\.org/);
-    assert.match(source, /arcgisonline\.com/);
+    assert.doesNotMatch(source, /CacheFirst|ExpirationPlugin|catalog-map-tiles/);
+    assert.doesNotMatch(source, /tile\.openstreetmap\.org|arcgisonline\.com/);
+    assert.match(source, /caches\.keys\(\)/);
+    assert.match(source, /showNotification/);
   });
 
   it('stores subscriptions with an upsert key and protects them with RLS', async () => {

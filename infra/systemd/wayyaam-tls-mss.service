@@ -1,0 +1,12 @@
+[Unit]
+Description=Clamp WayYaam HTTPS MSS for reliable mobile TLS handshakes
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/configure-wayyaam-tls-mss
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

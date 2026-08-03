@@ -1,11 +1,6 @@
 /// <reference lib="webworker" />
 
 import { clientsClaim, skipWaiting } from 'workbox-core';
-import { ExpirationPlugin } from 'workbox-expiration';
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
-import { buildNavigationCacheName, staleNavigationCacheNames } from './shared/pwaCachePolicy';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
@@ -13,52 +8,18 @@ declare const self: ServiceWorkerGlobalScope & {
 
 skipWaiting();
 clientsClaim();
-cleanupOutdatedCaches();
 
-const precacheManifest = self.__WB_MANIFEST;
-const navigationCacheName = buildNavigationCacheName(precacheManifest);
+// Keep the worker only for push notifications. The browser HTTP cache still
+// handles immutable hashed assets, while pages and images always use the
+// network and can never be trapped behind a stale PWA cache.
+Object.freeze(self.__WB_MANIFEST);
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const cacheNames = await caches.keys();
-    await Promise.all(
-      staleNavigationCacheNames(cacheNames, navigationCacheName)
-        .map((cacheName) => caches.delete(cacheName))
-    );
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
   })());
 });
-
-registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: navigationCacheName,
-    networkTimeoutSeconds: 3
-  })
-);
-
-precacheAndRoute(precacheManifest);
-
-registerRoute(
-  ({ url, request }) => request.destination === 'image' && (
-    url.hostname === 'tile.openstreetmap.org' || url.hostname.endsWith('arcgisonline.com')
-  ),
-  new CacheFirst({
-    cacheName: 'catalog-map-tiles',
-    plugins: [new ExpirationPlugin({
-      maxEntries: 600,
-      maxAgeSeconds: 30 * 24 * 60 * 60,
-      purgeOnQuotaError: true
-    })]
-  })
-);
-
-registerRoute(
-  ({ request }) => request.destination === 'image',
-  new NetworkFirst({
-    cacheName: 'catalog-images',
-    networkTimeoutSeconds: 4
-  })
-);
 
 type PushPayload = {
   title?: string;

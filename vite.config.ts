@@ -48,8 +48,7 @@ export default defineConfig(({ mode }) => {
           ]
         },
         injectManifest: {
-          globPatterns: ['**/*.{js,css,svg,ico,png,jpg,jpeg,webp}'],
-          globIgnores: ['index.html', 'assets/templates/confectionery/products/*.webp']
+          globPatterns: []
         }
       })
     ],

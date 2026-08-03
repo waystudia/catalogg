@@ -1,3 +1,9 @@
+{
+    servers {
+        protocols h1 h2
+    }
+}
+
 {$PROXY_DOMAIN} {
     tls {
         curves x25519
@@ -17,6 +23,7 @@
         reverse_proxy studio:3000
     }
 
+    header Alt-Svc "clear"
     header -server
 }
 
@@ -32,7 +39,7 @@ wayyaam.ru, www.wayyaam.ru {
     header @immutable Cache-Control "public, max-age=31536000, immutable"
 
     @appShell path / /index.html /sw.js /manifest.webmanifest
-    header @appShell Cache-Control "no-cache"
+    header @appShell Cache-Control "no-store"
 
     # Public catalog photos previously pointed directly at Unsplash, which is
     # unreliable for Russian mobile networks. Keep the client on this domain
@@ -55,5 +62,6 @@ wayyaam.ru, www.wayyaam.ru {
         file_server
     }
 
+    header Alt-Svc "clear"
     header -server
 }

@@ -49,13 +49,13 @@ test('generated confectionery collection is local, WebP and within page-weight b
   assert.match(`${config}\n${migration}`, /\/assets\/templates\/confectionery/);
 });
 
-test('product photos are lazy runtime assets instead of service-worker precache payload', async () => {
+test('product photos stay outside service-worker storage', async () => {
   const [viteConfig, serviceWorker] = await Promise.all([
     readFile(new URL('../../vite.config.ts', import.meta.url), 'utf8'),
     readFile(new URL('../../src/sw.ts', import.meta.url), 'utf8')
   ]);
-  assert.match(viteConfig, /globIgnores:[\s\S]*assets\/templates\/confectionery\/products\/\*\.webp/);
-  assert.match(serviceWorker, /request\.destination === 'image'[\s\S]*catalog-images/);
+  assert.match(viteConfig, /globPatterns:\s*\[\]/);
+  assert.doesNotMatch(serviceWorker, /precacheAndRoute|registerRoute|catalog-images/);
 });
 
 test('server pricing validates weight steps and resolves variants and modifiers', async () => {
