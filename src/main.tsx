@@ -1,6 +1,5 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { registerSW } from 'virtual:pwa-register';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
@@ -36,11 +35,8 @@ const ScannerPage = lazy(() =>
   import('./pages/scanner/ScannerPage').then((module) => ({ default: module.ScannerPage }))
 );
 
-registerSW({
-  immediate: true,
-  onRegisteredSW(_swUrl, registration) {
-    if (!registration) return;
-
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).then((registration) => {
     const checkForUpdate = () => {
       void registration.update();
     };
@@ -52,8 +48,11 @@ registerSW({
       }
     });
     window.setInterval(checkForUpdate, 10 * 60 * 1000);
-  }
-});
+  }).catch(() => {
+    // The embedded loading screen remains visible if the app itself cannot load;
+    // a service-worker registration failure must never force a page reload.
+  });
+}
 
 const restoreGitHubPagesRedirect = () => {
   try {

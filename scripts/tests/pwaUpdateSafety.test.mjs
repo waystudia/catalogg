@@ -6,7 +6,9 @@ const mainSource = await readFile(new URL('../../src/main.tsx', import.meta.url)
 const serviceWorkerSource = await readFile(new URL('../../src/sw.ts', import.meta.url), 'utf8');
 
 test('a service worker update never force-reloads an open iOS PWA window', () => {
-  assert.match(mainSource, /registerSW\(\{[\s\S]*immediate: true/);
+  assert.match(mainSource, /navigator\.serviceWorker\.register\(`\$\{import\.meta\.env\.BASE_URL\}sw\.js`\)/);
+  assert.doesNotMatch(mainSource, /virtual:pwa-register/);
+  assert.doesNotMatch(mainSource, /registerSW\(/);
   assert.doesNotMatch(mainSource, /controllerchange/);
   assert.doesNotMatch(mainSource, /window\.location\.reload\(\)/);
   assert.doesNotMatch(mainSource, /updateSW\(true\)/);
