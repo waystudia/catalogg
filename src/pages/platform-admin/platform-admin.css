@@ -12,6 +12,171 @@
   --platform-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
 }
 
+.platform-reviews-page {
+  align-content: start;
+}
+
+.platform-review-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-review-filters button {
+  min-height: 38px;
+  border: 1px solid #dbe2ea;
+  border-radius: 999px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.platform-review-filters button.is-active {
+  border-color: #6d4aff;
+  background: #6d4aff;
+  color: #ffffff;
+}
+
+.platform-review-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.platform-review-card,
+.platform-review-empty {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.platform-review-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.platform-review-card header,
+.platform-review-card footer,
+.platform-review-card header span,
+.platform-review-card header strong,
+.platform-review-card footer span,
+.platform-review-card footer button {
+  display: flex;
+  align-items: center;
+}
+
+.platform-review-card header,
+.platform-review-card footer {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-review-card header span,
+.platform-review-card header strong,
+.platform-review-card footer button {
+  gap: 7px;
+}
+
+.platform-review-card header span {
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.platform-review-card header svg,
+.platform-review-card footer button svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.platform-review-card header strong {
+  color: #f59e0b;
+}
+
+.platform-review-card p {
+  min-height: 48px;
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.platform-review-card footer span {
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.platform-review-card footer b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.platform-review-card footer time {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.platform-review-card footer button {
+  min-height: 38px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff1f2;
+  color: #dc2626;
+  font-weight: 900;
+}
+
+.platform-review-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.platform-review-empty svg {
+  width: 36px;
+  height: 36px;
+  color: #6d4aff;
+}
+
+.platform-review-empty h2,
+.platform-review-empty p {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .platform-review-list {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-review-card {
+    padding: 14px;
+  }
+
+  .platform-review-card footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .platform-review-card footer button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 .platform-admin-shell {
   min-height: 100vh;
   display: block;

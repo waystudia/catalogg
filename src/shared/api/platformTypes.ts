@@ -258,6 +258,17 @@ export type PlatformDriverActivity = {
   earnedAmount: number;
 };
 
+export type PlatformReview = {
+  id: string;
+  targetType: 'restaurant' | 'driver';
+  targetName: string;
+  clientName: string;
+  rating: number;
+  comment: string;
+  isVisible: boolean;
+  createdAt: string;
+};
+
 export type PlatformContestTicket = {
   id: string;
   contestId: string;

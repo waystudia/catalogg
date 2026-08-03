@@ -117,6 +117,7 @@ import { PlatformDriversPage } from '../../features/platform-admin-drivers/Platf
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
 import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
+import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -142,6 +143,7 @@ type PlatformRoute =
   | 'settlements'
   | 'roads'
   | 'drivers'
+  | 'reviews'
   | 'catalogs'
   | 'templates'
   | 'import-export'
@@ -182,6 +184,7 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
   { route: 'settlements', label: 'География', detail: 'Сёла и заявки', Icon: MapPin },
   { route: 'roads', label: 'Асфальт', detail: 'Хорошие дороги', Icon: Route },
   { route: 'drivers', label: 'Водители', detail: 'Доступы и статусы', Icon: Truck },
+  { route: 'reviews', label: 'Отзывы', detail: 'Рестораны и водители', Icon: MessageCircle },
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
   { route: 'templates', label: 'Шаблоны', detail: 'Управление шаблонами', Icon: LayoutTemplate },
   { route: 'import-export', label: 'Импорт / Экспорт', detail: 'Данные и каталоги', Icon: Database },
@@ -254,6 +257,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   if (path.includes('/admin/settlements')) return 'settlements';
   if (path.includes('/admin/roads')) return 'roads';
   if (path.includes('/admin/drivers')) return 'drivers';
+  if (path.includes('/admin/reviews')) return 'reviews';
   if (path.includes('/admin/templates')) return 'templates';
   if (path.includes('/admin/import-export')) return 'import-export';
   if (path.includes('/admin/contests')) return 'contests';
@@ -3358,6 +3362,9 @@ function PlatformAdminContent() {
     }
     if (route === 'drivers') {
       return <PlatformDriversPage />;
+    }
+    if (route === 'reviews') {
+      return <PlatformReviewsRoute />;
     }
     if (route === 'contests') {
       return <PlatformContestsPage />;
