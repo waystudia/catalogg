@@ -1109,12 +1109,24 @@ function CatalogScreen({
   useEffect(() => {
     const pill = pillRefs.current.get(active);
     const rail = categoryRailRef.current;
-    if (!pill || !rail) return;
-    const railRect = rail.getBoundingClientRect();
-    const pillRect = pill.getBoundingClientRect();
-    if (pillRect.left < railRect.left || pillRect.right > railRect.right) {
-      pill.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
+    if (!pill || !rail) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      const railRect = rail.getBoundingClientRect();
+      const pillRect = pill.getBoundingClientRect();
+      const centeredLeft = rail.scrollLeft
+        + pillRect.left
+        - railRect.left
+        - (rail.clientWidth - pillRect.width) / 2;
+      const maxLeft = Math.max(0, rail.scrollWidth - rail.clientWidth);
+
+      rail.scrollTo({
+        left: Math.min(maxLeft, Math.max(0, centeredLeft)),
+        behavior: 'smooth'
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [active]);
 
   useEffect(() => {

@@ -88,6 +88,15 @@ test('a clicked catalog category stays active while smooth scrolling reaches its
   );
 });
 
+test('the active catalog category is smoothly centered without moving the page', () => {
+  assert.match(appSource, /const centeredLeft = rail\.scrollLeft/);
+  assert.match(appSource, /rail\.scrollTo\(\{[\s\S]*left:[\s\S]*behavior: 'smooth'/);
+  assert.doesNotMatch(
+    appSource,
+    /pill\.scrollIntoView\(\{ behavior: 'smooth', inline: 'center', block: 'nearest' \}\)/
+  );
+});
+
 test('restaurant footer uses the current WayYaam brand', () => {
   assert.match(appSource, /Сайт создан в WayYaam/);
   assert.match(appSource, /WayYaam\. Все права защищены/);
