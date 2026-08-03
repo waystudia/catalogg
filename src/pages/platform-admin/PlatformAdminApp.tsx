@@ -7,6 +7,7 @@ import {
   BarChart3,
   BadgePercent,
   BookOpen,
+  Boxes,
   CakeSlice,
   Bell,
   CheckCircle2,
@@ -118,6 +119,7 @@ import { PlatformContestsPage } from '../../features/platform-admin-contests/Pla
 import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
+import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -2069,6 +2071,7 @@ type SubscriptionView =
   | 'limits'
   | 'custom-tariff'
   | 'routes'
+  | 'modules'
   | 'subscriptions'
   | 'price-requests'
   | 'payments';
@@ -2236,6 +2239,9 @@ function SubscriptionsPage() {
 
   if (view !== 'overview') {
     const onBack = () => setView('overview');
+    if (view === 'modules') {
+      return <PlatformRestaurantModulesPage onBack={onBack} />;
+    }
     if (view === 'commissions') {
       return (
         <main className="platform-page platform-compact-detail">
@@ -2364,6 +2370,7 @@ function SubscriptionsPage() {
     Icon: typeof BadgePercent;
     tone: string;
   }> = [
+    { view: 'modules', title: 'Модули ресторанов', description: 'POS, склад, финансы и функции по подписке', summary: <>Безопасное включение</>, Icon: Boxes, tone: 'purple' },
     { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {formatTariff(billing.restaurantTariffType, billing.restaurantCommission, billing.restaurantFixedFee)} · Водитель {formatTariff(billing.driverTariffType, billing.driverTariff, billing.driverFixedFee)}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'limits', title: 'Лимиты', description: 'Лимиты и предупреждения', summary: <>Ресторан {formatMoney(billing.restaurantLimit)} · Водитель {formatMoney(billing.driverLimit)} · {billing.warningPercent}%</>, Icon: ShieldAlert, tone: 'violet' },
     { view: 'custom-tariff', title: 'Индивидуальный тариф', description: 'Установить тариф для ресторана или водителя', summary: <>{customTariffsQuery.data?.length ?? 0} настроено</>, Icon: UserRound, tone: 'purple' },

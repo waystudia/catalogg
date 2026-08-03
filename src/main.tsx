@@ -35,25 +35,6 @@ const ScannerPage = lazy(() =>
   import('./pages/scanner/ScannerPage').then((module) => ({ default: module.ScannerPage }))
 );
 
-if ('serviceWorker' in navigator) {
-  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).then((registration) => {
-    const checkForUpdate = () => {
-      void registration.update();
-    };
-
-    window.addEventListener('focus', checkForUpdate);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        checkForUpdate();
-      }
-    });
-    window.setInterval(checkForUpdate, 10 * 60 * 1000);
-  }).catch(() => {
-    // The embedded loading screen remains visible if the app itself cannot load;
-    // a service-worker registration failure must never force a page reload.
-  });
-}
-
 const restoreGitHubPagesRedirect = () => {
   try {
     const redirect = window.sessionStorage.getItem('catalogg:redirect');

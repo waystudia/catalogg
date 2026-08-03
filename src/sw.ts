@@ -1,23 +1,22 @@
 /// <reference lib="webworker" />
 
-import { clientsClaim, skipWaiting } from 'workbox-core';
+import { skipWaiting } from 'workbox-core';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
 };
 
 skipWaiting();
-clientsClaim();
 
-// Keep the worker only for push notifications. The browser HTTP cache still
-// handles immutable hashed assets, while pages and images always use the
-// network and can never be trapped behind a stale PWA cache.
+// This final worker only retires every previously installed caching worker.
+// The application no longer registers a replacement worker.
 Object.freeze(self.__WB_MANIFEST);
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const cacheNames = await caches.keys();
     await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+    await self.registration.unregister();
   })());
 });
 

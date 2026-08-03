@@ -5,9 +5,10 @@ import test from 'node:test';
 const mainSource = await readFile(new URL('../../src/main.tsx', import.meta.url), 'utf8');
 const serviceWorkerSource = await readFile(new URL('../../src/sw.ts', import.meta.url), 'utf8');
 const viteConfigSource = await readFile(new URL('../../vite.config.ts', import.meta.url), 'utf8');
+const indexSource = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
 
-test('a service worker update never force-reloads an open iOS PWA window', () => {
-  assert.match(mainSource, /navigator\.serviceWorker\.register\(`\$\{import\.meta\.env\.BASE_URL\}sw\.js`\)/);
+test('the application no longer installs a service worker', () => {
+  assert.doesNotMatch(mainSource, /navigator\.serviceWorker\.register/);
   assert.doesNotMatch(mainSource, /virtual:pwa-register/);
   assert.doesNotMatch(mainSource, /registerSW\(/);
   assert.doesNotMatch(mainSource, /controllerchange/);
@@ -15,9 +16,10 @@ test('a service worker update never force-reloads an open iOS PWA window', () =>
   assert.doesNotMatch(mainSource, /updateSW\(true\)/);
 });
 
-test('the next normal launch can activate the update while old clients keep running', () => {
+test('the final worker activates immediately and unregisters itself', () => {
   assert.match(serviceWorkerSource, /skipWaiting\(\);/);
-  assert.match(serviceWorkerSource, /clientsClaim\(\);/);
+  assert.match(serviceWorkerSource, /self\.registration\.unregister\(\)/);
+  assert.doesNotMatch(serviceWorkerSource, /clientsClaim\(\);/);
 });
 
 test('the replacement worker deletes every PWA cache and never serves pages or images', () => {
@@ -27,4 +29,13 @@ test('the replacement worker deletes every PWA cache and never serves pages or i
   assert.doesNotMatch(serviceWorkerSource, /precacheAndRoute|registerRoute|NetworkFirst|CacheFirst/);
   assert.doesNotMatch(serviceWorkerSource, /catalog-pages|catalog-images|catalog-map-tiles/);
   assert.match(viteConfigSource, /globPatterns:\s*\[\]/);
+});
+
+test('the application shell retires stale workers and caches before a clean network reload', () => {
+  assert.match(indexSource, /navigator\.serviceWorker\.getRegistrations\(\)/);
+  assert.match(indexSource, /registration\.unregister\(\)/);
+  assert.match(indexSource, /window\.caches\.keys\(\)/);
+  assert.match(indexSource, /window\.caches\.delete\(cacheName\)/);
+  assert.match(indexSource, /window\.location\.replace\(nextUrl\.toString\(\)\)/);
+  assert.match(indexSource, /window\.localStorage\.setItem\(retirementKey, 'done'\)/);
 });
