@@ -36,21 +36,8 @@ const ScannerPage = lazy(() =>
   import('./pages/scanner/ScannerPage').then((module) => ({ default: module.ScannerPage }))
 );
 
-let reloadingForUpdate = false;
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloadingForUpdate) return;
-    reloadingForUpdate = true;
-    window.location.reload();
-  });
-}
-
-const updateSW = registerSW({
+registerSW({
   immediate: true,
-  onNeedRefresh() {
-    void updateSW(true);
-  },
   onRegisteredSW(_swUrl, registration) {
     if (!registration) return;
 
