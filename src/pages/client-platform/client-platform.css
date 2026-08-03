@@ -511,14 +511,17 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  display: grid;
+  display: inline-grid;
+  flex: 0 0 auto;
   width: 30px;
   height: 30px;
   place-items: center;
+  padding: 0;
   border: 0;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.34);
   color: #ffffff;
+  line-height: 1;
   z-index: 2;
 }
 
@@ -528,8 +531,10 @@
 }
 
 .restaurant-card__favorite svg {
+  display: block;
   width: 18px;
   height: 18px;
+  margin: 0;
 }
 
 .restaurant-card__body {
