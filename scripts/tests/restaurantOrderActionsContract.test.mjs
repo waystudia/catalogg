@@ -54,18 +54,28 @@ describe('restaurant order action contract', () => {
     assert.match(overflowMenu, /Удалить заказ/);
   });
 
-  it('exposes quick irreversible deletion only in the local development order list', async () => {
+  it('lets an authenticated restaurant irreversibly delete any order from production order details', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
+    const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+    const app = await read('src/app/App.tsx');
     const api = await read('src/shared/api/restaurantOrdersApi.ts');
     const migration = await read('supabase/migrations/20260730234824_development_delete_restaurant_order.sql');
+    const restriction = await read('supabase/migrations/20260803195140_restrict_restaurant_order_deletion.sql');
 
-    assert.match(workspace, /import\.meta\.env\.DEV &&/);
-    assert.match(workspace, /admin-order-card__dev-delete/);
+    assert.doesNotMatch(app, /onOrderDelete=\{\(order\) => changeOrderStatus\(order, 'cancelled'/);
+    assert.match(workspace, /const deleteOrder = async \(order: RestaurantOrder\)/);
     assert.match(workspace, /deleteRestaurantTestOrder\(order\)/);
+    assert.match(workspace, /onDelete=\{\(\) => deleteOrder\(selectedVisibleOrder\)\}/);
+    assert.match(panel, /onDelete: \(\) => Promise<void>/);
+    assert.match(panel, /await onDelete\(\)/);
+    assert.match(panel, /Удалить заказ/);
+    assert.match(panel, /Это действие нельзя отменить/);
     assert.match(api, /rpc\('delete_restaurant_test_order'/);
     assert.match(migration, /public\.is_catalog_member/);
     assert.match(migration, /client\.owner_user_id = auth\.uid\(\)/);
     assert.match(migration, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon/);
+    assert.match(restriction, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon, service_role/);
+    assert.match(restriction, /grant execute on function public\.delete_restaurant_test_order\(uuid, uuid\) to authenticated/);
   });
 
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {

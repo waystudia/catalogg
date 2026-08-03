@@ -62,7 +62,7 @@ export function OrderDetailsPanel({
   onClose: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onRefreshOrders: () => void;
-  onDelete: () => void;
+  onDelete: () => Promise<void>;
 }) {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() =>
     order.restaurantPaymentConfirmedAt ? 'confirmed' : loadPaymentStatus(catalogSlug, order.id)
@@ -72,6 +72,7 @@ export function OrderDetailsPanel({
   const [isRejecting, setIsRejecting] = useState(false);
   const [isConfirmingCash, setIsConfirmingCash] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isPaymentPanelOpen, setIsPaymentPanelOpen] = useState(false);
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
@@ -212,6 +213,15 @@ export function OrderDetailsPanel({
       setIsChangingStatus(false);
     }
   };
+  const deleteOrder = async () => {
+    if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <aside className="admin-order-details-panel">
@@ -239,19 +249,14 @@ export function OrderDetailsPanel({
                   Отменить заказ
                 </button>
               )}
-              {!orderIsFinished && (
-                <button
-                  type="button"
-                  data-danger="true"
-                  onClick={() => {
-                    if (window.confirm('Удалить заказ? Это действие нельзя отменить.')) {
-                      onDelete();
-                    }
-                  }}
-                >
-                  Удалить заказ
-                </button>
-              )}
+              <button
+                type="button"
+                data-danger="true"
+                disabled={isDeleting}
+                onClick={() => void deleteOrder()}
+              >
+                {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+              </button>
             </div>
           </details>
         </header>

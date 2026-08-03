@@ -3,18 +3,15 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { imageFileToDataUrl } from '../../shared/images';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
-import { SettingsHeader } from './SettingsHeader';
 
 export function PaymentSettingsCard({
   slug,
   settings,
-  onSave,
-  onBack
+  onSave
 }: {
   slug: string;
   settings: RestaurantPaymentSettings;
   onSave: (settings: RestaurantPaymentSettings) => void;
-  onBack: () => void;
 }) {
   const [draft, setDraft] = useState(settings);
 
@@ -37,7 +34,6 @@ export function PaymentSettingsCard({
 
   return (
     <main className="settings-screen payment-settings-screen">
-      <SettingsHeader title="Платежи" onBack={onBack} />
       <section className="settings-form-card payment-settings-card">
         <h2>Реквизиты для перевода</h2>
         <label className="settings-toggle-row">

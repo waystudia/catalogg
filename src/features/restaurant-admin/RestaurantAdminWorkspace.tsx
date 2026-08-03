@@ -56,7 +56,6 @@ export function RestaurantAdminWorkspace({
   onOpenCatalog,
   onAddDish,
   onOrderStatus,
-  onOrderDelete,
   onRefreshOrders,
   onSaveDeliverySettings
 }: {
@@ -73,7 +72,6 @@ export function RestaurantAdminWorkspace({
   onOpenCatalog: () => void;
   onAddDish: () => void;
   onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => Promise<void>;
-  onOrderDelete: (order: RestaurantOrder) => void;
   onRefreshOrders: () => void;
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
@@ -147,16 +145,15 @@ export function RestaurantAdminWorkspace({
       window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
     });
   };
-  const deleteTestOrder = async (order: RestaurantOrder) => {
-    if (!window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) return;
+  const deleteOrder = async (order: RestaurantOrder) => {
     try {
       const deleted = await deleteRestaurantTestOrder(order);
       if (!deleted) throw new Error('Заказ уже удалён или не найден');
       if (selectedOrder?.id === order.id) setSelectedOrder(null);
-      toast.success(`Тестовый заказ #${order.orderNumber} удалён`);
+      toast.success(`Заказ #${order.orderNumber} удалён`);
       onRefreshOrders();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось удалить тестовый заказ');
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить заказ');
     }
   };
   const enableOrderNotifications = () => {
@@ -378,10 +375,7 @@ export function RestaurantAdminWorkspace({
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
                   }}
                   onRefreshOrders={onRefreshOrders}
-                  onDelete={() => {
-                    onOrderDelete(selectedVisibleOrder);
-                    setSelectedOrder(null);
-                  }}
+                  onDelete={() => deleteOrder(selectedVisibleOrder)}
                 />
               )}
               <div className="admin-order-list">
@@ -431,7 +425,11 @@ export function RestaurantAdminWorkspace({
                                 type="button"
                                 aria-label={`Удалить тестовый заказ ${order.orderNumber}`}
                                 title="Удалить тестовый заказ"
-                                onClick={() => void deleteTestOrder(order)}
+                                onClick={() => {
+                                  if (window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) {
+                                    void deleteOrder(order);
+                                  }
+                                }}
                               >
                                 ×
                               </button>

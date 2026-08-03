@@ -2614,7 +2614,6 @@ function AppContent({
         <PaymentSettingsCard
           slug={catalogSlug}
           settings={paymentSettings}
-          onBack={openRestaurantSettingsHub}
           onSave={(settings) => {
             setPaymentSettings(settings);
             savePaymentSettings(catalogSlug, settings);
@@ -2720,7 +2719,6 @@ function AppContent({
       }}
       onAddDish={() => setAdminEditor('dish')}
       onOrderStatus={changeOrderStatus}
-      onOrderDelete={(order) => changeOrderStatus(order, 'cancelled', 'restaurant_deleted')}
       onRefreshOrders={refreshRestaurantOrders}
       onSaveDeliverySettings={saveDeliverySettings}
     />

@@ -16,7 +16,8 @@ test('restaurant profile back navigation returns to the restaurant settings tab'
   assert.match(appSource, /const openRestaurantSettingsHub = useCallback/);
   assert.match(appSource, /const targetPath = `\/\$\{catalogSlug\}\/settings`/);
   assert.match(appSource, /if \(screen === 'settings'\) return openRestaurantSettingsHub\(\)/);
-  assert.match(appSource, /onBack=\{openRestaurantSettingsHub\}/);
+  assert.match(appSource, /<SettingsHeader[\s\S]*?onBack=\{\(\) => \{/);
+  assert.match(appSource, /openRestaurantSettingsHub\(\);/);
 });
 
 test('superadmin dashboard uses the compact six-card dashboard composition', () => {
