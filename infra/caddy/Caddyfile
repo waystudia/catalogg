@@ -1,4 +1,8 @@
 {$PROXY_DOMAIN} {
+    tls {
+        curves x25519
+    }
+
     @supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
 
     handle @supabase_api {
@@ -17,6 +21,10 @@
 }
 
 wayyaam.ru, www.wayyaam.ru {
+    tls {
+        curves x25519
+    }
+
     root * /srv/wayyaam/current
     encode zstd gzip
 
