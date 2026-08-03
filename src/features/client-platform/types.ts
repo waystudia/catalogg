@@ -65,6 +65,16 @@ export type ClientRestaurant = {
   paymentMethods: ClientPaymentMethod[];
   publicPath?: string;
   businessType?: BusinessType;
+  reviewCount: number;
+};
+
+export type ClientRestaurantReview = {
+  id: string;
+  restaurantId: string;
+  clientName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
 };
 
 export type ClientPlatformCategory = {
@@ -242,6 +252,7 @@ export type ClientPlatformSnapshot = {
   cities: ClientCity[];
   categories: ClientPlatformCategory[];
   restaurants: ClientRestaurant[];
+  reviews: ClientRestaurantReview[];
   restaurantCategories: ClientRestaurantCategory[];
   dishes: ClientDish[];
   paymentSettings: PaymentSettings[];

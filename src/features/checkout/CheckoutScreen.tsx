@@ -22,7 +22,6 @@ import {
   X
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
@@ -85,7 +84,8 @@ import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
 import {
-  buildClientAuthPath,
+  loginClientAccount,
+  registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
 
@@ -111,7 +111,6 @@ export function CheckoutScreen({
   onEditCart: () => void;
   onSubmitOrder: () => void;
 }) {
-  const navigate = useNavigate();
   const {
     mode,
     cabinId,
@@ -131,6 +130,7 @@ export function CheckoutScreen({
   const submitClientOrder = useClientPlatformStore((state) => state.submitOrder);
   const orderConsent = useClientPlatformStore((state) => state.orderConsent);
   const recordOrderConsent = useClientPlatformStore((state) => state.recordOrderConsent);
+  const clearClientPlatformCart = useClientPlatformStore((state) => state.clearCart);
   const items = useCartStore((state) => state.items);
   const addCartItem = useCartStore((state) => state.add);
   const decrementCartItem = useCartStore((state) => state.decrement);
@@ -197,7 +197,11 @@ export function CheckoutScreen({
   const [deliveryValidationErrors, setDeliveryValidationErrors] = useState<string[]>([]);
   const [contactValidationErrors, setContactValidationErrors] = useState<string[]>([]);
   const [isClientSessionReady, setIsClientSessionReady] = useState(false);
+  const [hasClientSession, setHasClientSession] = useState(false);
+  const [clientPassword, setClientPassword] = useState('');
+  const [accountError, setAccountError] = useState('');
   const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
+  const isCheckoutAccountValid = hasClientSession || clientPassword.length >= 6;
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
   );
@@ -225,6 +229,7 @@ export function CheckoutScreen({
     const errors: string[] = [];
     if (!clientName.trim()) errors.push('Введите имя.');
     if (!isValidRussianClientPhone(clientPhone)) errors.push('Введите полный номер телефона.');
+    if (!hasClientSession && clientPassword.length < 6) errors.push('Введите пароль — минимум 6 символов.');
 
     setContactValidationErrors(errors);
     if (errors.length === 0) return true;
@@ -395,22 +400,26 @@ export function CheckoutScreen({
   useEffect(() => {
     let isMounted = true;
 
-    void restoreClientAccountSession().then((session) => {
-      if (!isMounted) return;
-      if (!session) {
-        navigate(buildClientAuthPath(`/${catalogSlug}/checkout`), { replace: true });
-        return;
-      }
-
-      saveClientProfile({ name: session.name, phone: session.phone });
-      setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
-      setIsClientSessionReady(true);
-    });
+    void restoreClientAccountSession()
+      .then((session) => {
+        if (!isMounted) return;
+        setHasClientSession(Boolean(session));
+        if (session) {
+          saveClientProfile({ name: session.name, phone: session.phone });
+          setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
+        }
+      })
+      .catch(() => {
+        if (isMounted) setHasClientSession(false);
+      })
+      .finally(() => {
+        if (isMounted) setIsClientSessionReady(true);
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [catalogSlug, navigate, saveClientProfile, setOrder]);
+  }, [saveClientProfile, setOrder]);
 
   useEffect(() => {
     if (profileHydratedRef.current) return;
@@ -811,7 +820,28 @@ export function CheckoutScreen({
             />
             <small id="checkout-phone-hint">Введите 10 цифр после +7</small>
           </label>
+          {!hasClientSession && (
+            <label className="checkout-field">
+              <span>Пароль</span>
+              <input
+                value={clientPassword}
+                onChange={(event) => {
+                  setClientPassword(event.target.value);
+                  setAccountError('');
+                  setContactValidationErrors([]);
+                }}
+                type="password"
+                minLength={6}
+                maxLength={72}
+                autoComplete="new-password"
+                placeholder="Минимум 6 символов"
+                required
+              />
+              <small>Создадим профиль автоматически. Если номер уже зарегистрирован, выполним вход.</small>
+            </label>
+          )}
         </div>
+        {accountError && <p className="checkout-account-error" role="alert">{accountError}</p>}
       </section>
 
       <section className="checkout-payment-method" aria-labelledby="checkout-payment-title">
@@ -935,7 +965,7 @@ export function CheckoutScreen({
       <section className="legal-checkboxes" aria-label="Согласия для заказа">
         <label className="legal-checkbox">
           <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
-          <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
+          <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a> и даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
         </label>
         <label className="legal-checkbox">
           <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
@@ -968,12 +998,12 @@ export function CheckoutScreen({
         )}
         <button
           className={
-            restaurant.whatsapp && isCheckoutContactValid
+            restaurant.whatsapp && isCheckoutContactValid && isCheckoutAccountValid
               ? 'primary-wide checkout-summary__action'
               : 'primary-wide checkout-summary__action is-disabled'
           }
           type="button"
-          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !acceptedOrderData || !acceptedOrderTransfer}
+          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !isCheckoutAccountValid || !acceptedOrderData || !acceptedOrderTransfer}
           onClick={async () => {
             if (!restaurant.whatsapp) {
               return;
@@ -1059,6 +1089,36 @@ export function CheckoutScreen({
               submitLockRef.current = false;
               setIsSubmittingOrder(false);
               return;
+            }
+
+            if (!hasClientSession) {
+              setAccountError('');
+              try {
+                let session;
+                try {
+                  session = await registerClientAccount({
+                    name: profileName,
+                    phone: profilePhone,
+                    password: clientPassword,
+                    acceptedAgreement: acceptedOrderData,
+                    acceptedPersonalData: acceptedOrderData,
+                    acceptedAdvertising: false
+                  });
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : '';
+                  if (!message.includes('Аккаунт с этим номером уже существует')) throw error;
+                  session = await loginClientAccount({ phone: profilePhone, password: clientPassword });
+                }
+                setHasClientSession(true);
+                saveClientProfile({ name: session.name, phone: session.phone });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : 'Не удалось создать профиль.';
+                setAccountError(message);
+                toast.error(message);
+                submitLockRef.current = false;
+                setIsSubmittingOrder(false);
+                return;
+              }
             }
 
             let whatsappWindow: Window | null = null;
@@ -1153,6 +1213,7 @@ export function CheckoutScreen({
                   });
                   recordOrderConsent();
                   clearCart();
+                  clearClientPlatformCart(catalogSlug);
                   onSubmitOrder();
                   toast.success('Заказ создан в системе ресторана');
                   openCreatedOrderWhatsapp(buildWhatsappHref(orderId));

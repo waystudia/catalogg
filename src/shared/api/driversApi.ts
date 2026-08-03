@@ -21,6 +21,7 @@ type DriverRow = {
   service_settlements?: string[] | null;
   is_active: boolean | null;
   is_online: boolean | null;
+  is_premium?: boolean | null;
   status: string | null;
   rating: number | null;
   debt_amount?: number | string | null;
@@ -48,6 +49,7 @@ const demoDrivers: PlatformDriver[] = [
     serviceSettlements: ['Грозный'],
     isActive: true,
     isOnline: true,
+    isPremium: false,
     status: 'online',
     rating: 4.9,
     debt: 0,
@@ -69,6 +71,7 @@ const mapDriver = (row: DriverRow): PlatformDriver => ({
   serviceSettlements: Array.isArray(row.service_settlements) ? row.service_settlements : [],
   isActive: row.is_active ?? true,
   isOnline: row.is_online ?? false,
+  isPremium: row.is_premium ?? false,
   status: row.status ?? 'offline',
   rating: Number(row.rating ?? 5),
   debt: Number(row.debt_amount ?? 0),
@@ -104,7 +107,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
 
   const result = await supabase
     .from('drivers')
-    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, debt_amount, max_active_deliveries, created_at, users(email), cities(name)')
+    .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, is_premium, status, rating, debt_amount, max_active_deliveries, created_at, users(email), cities(name)')
     .order('created_at', { ascending: false });
 
   if (!result.error) {
@@ -113,7 +116,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
 
   const fallback = await supabase
     .from('drivers')
-    .select('id, user_id, email, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, status, rating, created_at')
+    .select('id, user_id, email, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, is_premium, status, rating, created_at')
     .order('created_at', { ascending: false });
 
   if (fallback.error) throw fallback.error;
@@ -209,7 +212,6 @@ export async function updateDriverProfile(payload: UpdateDriverPayload) {
     });
     if (error) throw new Error(await getFunctionErrorMessage(error));
     if (!data) throw new Error('Edge Function did not return driver data.');
-    return;
   }
 
   const driverPatch: Record<string, unknown> = {};
@@ -242,6 +244,14 @@ export async function updateDriverProfile(payload: UpdateDriverPayload) {
       .from('users')
       .update(userPatch)
       .eq('id', payload.userId);
+    if (error) throw error;
+  }
+
+  if (payload.isPremium !== undefined) {
+    const { error } = await supabase.rpc('set_driver_premium', {
+      target_driver_id: payload.driverId,
+      next_is_premium: payload.isPremium
+    });
     if (error) throw error;
   }
 }

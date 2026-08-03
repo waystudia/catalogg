@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Crown,
   Download,
   Eye,
   EyeOff,
@@ -39,7 +40,7 @@ import { copyText } from '../../shared/platformUrls';
 import { legalDocuments } from '../../shared/legalDocuments';
 import './platform-drivers.css';
 
-type DriverFilter = 'all' | 'online' | 'offline' | 'debt';
+type DriverFilter = 'all' | 'premium' | 'online' | 'offline' | 'debt';
 type DriverDialog =
   | { type: 'create' }
   | { type: 'profile' | 'edit' | 'orders' | 'finance'; driver: PlatformDriver }
@@ -110,6 +111,7 @@ function DriverForm({
   const [vehicleInfo, setVehicleInfo] = useState(driver?.vehicleInfo ?? '');
   const [carNumber, setCarNumber] = useState(driver?.carNumber ?? '');
   const [maxActiveDeliveries, setMaxActiveDeliveries] = useState(driver?.maxActiveDeliveries ?? 1);
+  const [isPremium, setIsPremium] = useState(driver?.isPremium ?? false);
   const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
   const [primaryRestaurantId, setPrimaryRestaurantId] = useState('');
   const [password, setPassword] = useState(driver ? '' : generatePassword());
@@ -148,6 +150,7 @@ function DriverForm({
           vehicleInfo,
           carNumber,
           maxActiveDeliveries,
+          isPremium,
           password: password.trim() || undefined
         });
         await saveDriverRestaurantAssignments(
@@ -176,7 +179,8 @@ function DriverForm({
         await updateDriverProfile({
           driverId: result.driverId,
           userId: result.userId,
-          maxActiveDeliveries
+          maxActiveDeliveries,
+          isPremium
         });
         toast.success('Водитель создан');
         onSaved(result, password);
@@ -206,6 +210,18 @@ function DriverForm({
           <select value={maxActiveDeliveries} onChange={(event) => setMaxActiveDeliveries(Number(event.target.value))}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => <option value={value} key={value}>{value}</option>)}
           </select>
+        </label>
+        <label className="platform-driver-form__premium platform-driver-form__wide">
+          <input
+            type="checkbox"
+            checked={isPremium}
+            onChange={(event) => setIsPremium(event.target.checked)}
+          />
+          <Crown />
+          <span>
+            <strong>Премиум-водитель</strong>
+            <small>Премиум получает новые заказы первым, пока он онлайн и может взять заказ.</small>
+          </span>
         </label>
         <label className="platform-driver-form__wide">Города и сёла работы
           <select
@@ -324,6 +340,7 @@ function DriverDetails({
         <div><dt>Город</dt><dd>{driver.cityName || 'Не указан'}</dd></div>
         <div><dt>Зоны работы</dt><dd>{driver.serviceSettlements.join(', ') || 'Не указаны'}</dd></div>
         <div><dt>Одновременно заказов</dt><dd>{driver.maxActiveDeliveries}</dd></div>
+        <div><dt>Приоритет</dt><dd>{driver.isPremium ? 'Премиум' : 'Обычный'}</dd></div>
         <div><dt>Рейтинг</dt><dd>{driver.rating.toFixed(1)}</dd></div>
       </dl>
     </div>
@@ -369,6 +386,7 @@ export function PlatformDriversPage() {
     return drivers.filter((driver) => {
       if (filter === 'online' && !driver.isOnline) return false;
       if (filter === 'offline' && driver.isOnline) return false;
+      if (filter === 'premium' && !driver.isPremium) return false;
       if (filter === 'debt' && driver.debt <= 0) return false;
       if (cityFilter && ![driver.cityName, ...driver.serviceSettlements].includes(cityFilter)) return false;
       return !normalized || [
@@ -385,7 +403,7 @@ export function PlatformDriversPage() {
 
   const totalDebt = drivers.reduce((sum, driver) => sum + driver.debt, 0);
   const onlineCount = drivers.filter((driver) => driver.isOnline).length;
-  const exportHeaders = ['ФИО', 'Телефон', 'Email', 'Статус', 'Автомобиль', 'Госномер', 'Города и сёла', 'Доставок', 'Завершено', 'Начислено', 'Долг', 'Рейтинг'];
+  const exportHeaders = ['ФИО', 'Телефон', 'Email', 'Статус', 'Приоритет', 'Автомобиль', 'Госномер', 'Города и сёла', 'Доставок', 'Завершено', 'Начислено', 'Долг', 'Рейтинг'];
   const exportRows = drivers.map((driver) => {
     const activity = activityFor(activities, driver.id);
     return [
@@ -393,6 +411,7 @@ export function PlatformDriversPage() {
       driver.phone,
       driver.email,
       driver.isOnline ? 'Онлайн' : 'Оффлайн',
+      driver.isPremium ? 'Премиум' : 'Обычный',
       driver.vehicleInfo,
       driver.carNumber,
       [driver.cityName, ...driver.serviceSettlements].filter(Boolean).join(', '),
@@ -420,6 +439,21 @@ export function PlatformDriversPage() {
     }
   };
 
+  const togglePremium = async (driver: PlatformDriver) => {
+    try {
+      await updateDriverProfile({
+        driverId: driver.id,
+        userId: driver.userId,
+        isPremium: !driver.isPremium
+      });
+      toast.success(driver.isPremium ? 'Премиум-приоритет отключён' : 'Водитель отмечен как премиум');
+      setMenuDriverId('');
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось изменить премиум-статус');
+    }
+  };
+
   return (
     <main className="platform-page platform-drivers-page">
       <header className="platform-page-head platform-drivers-page__head">
@@ -442,12 +476,13 @@ export function PlatformDriversPage() {
       <nav className="platform-driver-filters" aria-label="Фильтры водителей">
         {([
           ['all', 'Все'],
+          ['premium', 'Премиум'],
           ['online', 'Онлайн'],
           ['offline', 'Оффлайн'],
           ['debt', 'Есть долг']
         ] as Array<[DriverFilter, string]>).map(([value, label]) => (
           <button className={filter === value ? 'is-active' : ''} type="button" onClick={() => setFilter(value)} key={value}>
-            {value !== 'all' && <i className={`is-${value}`} />}{label}
+            {value === 'premium' ? <Crown /> : value !== 'all' && <i className={`is-${value}`} />}{label}
           </button>
         ))}
         <label>Город<ChevronDown />
@@ -486,6 +521,7 @@ export function PlatformDriversPage() {
             <span className="platform-driver-row__avatar"><UserRound /><i className={driver.isOnline ? 'is-online' : ''} /></span>
             <div className="platform-driver-row__identity">
               <strong>{driver.name || 'Без имени'}</strong>
+              {driver.isPremium && <b className="platform-driver-row__premium"><Crown />Премиум</b>}
               <small>{driver.phone || driver.email || 'Контакты не указаны'}</small>
               <small>{driver.vehicleInfo || 'Автомобиль не указан'}{driver.carNumber ? ` · ${driver.carNumber}` : ''}</small>
               <em><MapPin />{driver.serviceSettlements.join(', ') || driver.cityName || 'Город не указан'}</em>
@@ -505,6 +541,7 @@ export function PlatformDriversPage() {
                   <button type="button" onClick={() => { setDialog({ type: 'edit', driver }); setMenuDriverId(''); }}><Pencil />Редактировать</button>
                   <button type="button" onClick={() => { setDialog({ type: 'orders', driver }); setMenuDriverId(''); }}><Truck />Заказы</button>
                   <button type="button" onClick={() => { setDialog({ type: 'finance', driver }); setMenuDriverId(''); }}><WalletCards />Финансы</button>
+                  <button type="button" onClick={() => void togglePremium(driver)}><Crown />{driver.isPremium ? 'Убрать премиум' : 'Сделать премиум'}</button>
                   <button type="button" onClick={() => { setDialog({ type: 'edit', driver }); setMenuDriverId(''); }}><KeyRound />Сбросить пароль</button>
                   <button className={driver.isActive ? 'is-danger' : ''} type="button" onClick={() => void toggleBlocked(driver)}><Ban />{driver.isActive ? 'Заблокировать' : 'Активировать'}</button>
                 </div>

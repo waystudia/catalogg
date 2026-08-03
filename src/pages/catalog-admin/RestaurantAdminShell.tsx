@@ -202,7 +202,7 @@ const defaultPaymentSettings: PaymentSettings = {
   firstName: 'Магомед',
   middleName: '',
   displayName: 'Исаев Магомед',
-  comment: 'Оплата заказа WayCatalog',
+  comment: 'Оплата заказа WayYaam',
   qrUrl: '',
   allowCash: true,
   allowTransfer: true,
@@ -506,7 +506,7 @@ export function RestaurantAdminShell({
       <aside className="restaurant-admin-sidebar">
         <div className="restaurant-admin-logo">
           <span>W</span>
-          <strong>WayCatalog</strong>
+          <strong>WayYaam</strong>
         </div>
         <nav>
           {navItems.map((item) => (

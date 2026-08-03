@@ -8,6 +8,7 @@ import {
   buildOrderAfterClientPaymentNotice,
   mergeClientOrderRealtimePatch,
   requireSavedRestaurantOrderId,
+  summarizeRestaurantReviews,
   selectClientOrderForStatus,
   buildSupportWhatsappUrl,
   calculateCartSummary,
@@ -33,6 +34,7 @@ const restaurants: ClientRestaurant[] = [
     logoUrl: '',
     coverUrl: '',
     rating: 4.7,
+    reviewCount: 0,
     minOrderAmount: 500,
     freeDeliveryFrom: 900,
     deliveryTimeFrom: 30,
@@ -63,6 +65,7 @@ const restaurants: ClientRestaurant[] = [
     logoUrl: '',
     coverUrl: '',
     rating: 4.8,
+    reviewCount: 0,
     minOrderAmount: 700,
     freeDeliveryFrom: 1200,
     deliveryTimeFrom: 30,
@@ -93,6 +96,7 @@ const restaurants: ClientRestaurant[] = [
     logoUrl: '',
     coverUrl: '',
     rating: 4.6,
+    reviewCount: 0,
     minOrderAmount: 400,
     freeDeliveryFrom: 1000,
     deliveryTimeFrom: 25,
@@ -357,6 +361,20 @@ describe('client platform reviews', () => {
         }),
       /Введите имя, телефон и текст отзыва/
     );
+  });
+
+  it('calculates the displayed restaurant rating from every visible review', () => {
+    assert.deepEqual(
+      summarizeRestaurantReviews([
+        { id: 'review-1', restaurantId: 'restaurant-1', clientName: 'Адам', rating: 5, comment: 'Отлично', createdAt: '2026-08-01T10:00:00.000Z' },
+        { id: 'review-2', restaurantId: 'restaurant-1', clientName: 'Марьям', rating: 3, comment: 'Нормально', createdAt: '2026-08-02T10:00:00.000Z' }
+      ]),
+      { rating: 4, reviewCount: 2 }
+    );
+  });
+
+  it('keeps a neutral five-star rating while a restaurant has no reviews', () => {
+    assert.deepEqual(summarizeRestaurantReviews([]), { rating: 5, reviewCount: 0 });
   });
 });
 

@@ -16,7 +16,7 @@ export function Home() {
           <MapPin />
           <span>Грозный</span>
         </div>
-        <h1 style={styles.title}>WayCatalog</h1>
+        <h1 style={styles.title}>WayYaam</h1>
         <p style={styles.subtitle}>Выберите ресторан, войдите в кабинет или продолжите как клиент.</p>
       </section>
 

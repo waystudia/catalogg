@@ -3,7 +3,9 @@ const config = {
   plugins: ['@stryker-mutator/vitest-runner'],
   mutate: [
     'src/shared/pwaSession.ts:37:0-87:0',
-    'src/shared/deliveryLocation.ts:1:0-95:0'
+    'src/shared/deliveryLocation.ts:1:0-95:0',
+    'src/shared/pwaCachePolicy.ts',
+    'supabase/functions/send-web-push/premiumDispatch.ts'
   ],
   testRunner: 'vitest',
   vitest: {

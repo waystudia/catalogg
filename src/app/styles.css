@@ -3652,7 +3652,8 @@ a {
   display: none;
 }
 
-.restaurant-menu-highlights > span {
+.restaurant-menu-highlights > span,
+.restaurant-menu-highlights > button {
   display: inline-flex;
   min-height: 34px;
   min-width: 0;
@@ -3663,11 +3664,15 @@ a {
   border: 1px solid color-mix(in srgb, var(--text) 13%, transparent);
   border-radius: var(--button-radius);
   padding: 0 4px;
+  background: transparent;
   color: var(--text);
+  font: inherit;
 }
 
+.restaurant-menu-highlights > button:first-child,
 .restaurant-menu-highlights > span:first-child {
   flex-grow: 0.5;
+  cursor: pointer;
 }
 
 .restaurant-menu-highlights > span:nth-child(2) {
@@ -3691,6 +3696,84 @@ a {
   line-height: 1.1;
   letter-spacing: 0;
   white-space: nowrap;
+}
+
+.catalog-reviews-screen {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px 16px 110px;
+}
+
+.catalog-review-summary,
+.catalog-reviews-empty,
+.catalog-review-card {
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.catalog-review-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+}
+
+.catalog-review-summary svg,
+.catalog-review-card header svg {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+  fill: currentColor;
+}
+
+.catalog-review-summary strong {
+  font-size: 24px;
+}
+
+.catalog-review-summary span,
+.catalog-review-card time {
+  color: var(--muted);
+}
+
+.catalog-reviews-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 30px 18px;
+  text-align: center;
+}
+
+.catalog-reviews-empty p,
+.catalog-review-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.catalog-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.catalog-review-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.catalog-review-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.catalog-review-card header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 900;
 }
 
 .catalog-business-info {
@@ -6315,9 +6398,16 @@ a {
 
 .checkout-customer-details__fields {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   align-items: start;
   gap: 10px;
+}
+
+.checkout-account-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .checkout-customer-details__fields .checkout-field {
@@ -7124,14 +7214,17 @@ a {
 }
 
 .flow-product-card__stepper button {
-  display: grid;
+  display: inline-grid;
+  flex: 0 0 auto;
   width: 34px;
   height: 34px;
   place-items: center;
+  padding: 0;
   border: 1px solid #ffad3d;
   border-radius: 999px;
   background: #ffffff;
   color: #ff8a00;
+  line-height: 1;
 }
 
 .flow-product-card.is-selected .flow-product-card__stepper button:last-child {
@@ -7140,8 +7233,10 @@ a {
 }
 
 .flow-product-card__stepper svg {
+  display: block;
   width: 18px;
   height: 18px;
+  margin: 0;
 }
 
 .flow-product-card__stepper span {

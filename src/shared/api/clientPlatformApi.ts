@@ -1,7 +1,8 @@
 import {
   buildClientDeliveryComment,
   buildClientReviewPayload,
-  resolveCheckoutSettlement
+  resolveCheckoutSettlement,
+  summarizeRestaurantReviews
 } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import type {
@@ -18,6 +19,7 @@ import type {
   ClientProfile,
   ClientRestaurant,
   ClientRestaurantCategory,
+  ClientRestaurantReview,
   PaymentSettings,
   PlatformBanner,
   PlatformContentPage,
@@ -27,6 +29,7 @@ import { isPublicMenuCategory } from '../../entities/publicCategoryVisibility';
 import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
+import { getStoredClientSessionToken } from './clientAccountApi';
 
 type CatalogRow = {
   id: string;
@@ -44,6 +47,15 @@ type RestaurantProfileRow = {
   address_line: string | null;
   lat: number | null;
   lng: number | null;
+};
+
+type ClientReviewRow = {
+  id: string;
+  restaurant_id: string;
+  client_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
 };
 
 type CategoryRow = {
@@ -334,6 +346,7 @@ export async function saveClientSignup(profile: ClientProfile) {
 }
 
 export async function saveClientReview(input: {
+  orderId: string;
   restaurantId: string;
   clientName: string;
   clientPhone: string;
@@ -341,19 +354,33 @@ export async function saveClientReview(input: {
   comment: string;
 }) {
   const review = buildClientReviewPayload(input);
+  const sessionToken = getStoredClientSessionToken();
 
   if (!supabase) return;
+  if (!sessionToken) throw new Error('Войдите в аккаунт клиента, чтобы оставить отзыв.');
 
-  const { error } = await supabase.from('client_reviews').insert({
-    target_type: 'restaurant',
-    restaurant_id: review.restaurantId,
-    client_name: review.clientName,
-    client_phone: review.clientPhone,
-    rating: review.rating,
-    comment: review.comment
+  const { error } = await supabase.rpc('submit_client_review', {
+    client_session_token: sessionToken,
+    target_order_id: input.orderId,
+    target_rating: review.rating,
+    target_comment: review.comment
   });
 
-  if (error) throw error;
+  if (!error) return;
+  const message = error.message.toLowerCase();
+  if (message.includes('client_review_auth_required')) {
+    throw new Error('Сессия закончилась. Войдите в аккаунт клиента ещё раз.');
+  }
+  if (message.includes('client_review_order_forbidden')) {
+    throw new Error('Оставить отзыв может только клиент, оформивший этот заказ.');
+  }
+  if (message.includes('client_review_order_not_found')) {
+    throw new Error('Заказ не найден. Обновите страницу и попробуйте ещё раз.');
+  }
+  if (message.includes('client_review_comment_invalid')) {
+    throw new Error('Напишите отзыв длиной от 2 до 2000 символов.');
+  }
+  throw error;
 }
 
 type ClientPlatformOrderInput = {
@@ -621,6 +648,7 @@ export function subscribeClientPlatformSnapshotRealtime(onChange: () => void) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_delivery_settings' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurants' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'client_reviews' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_banners' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_content_pages' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'platform_settings' }, onChange)
@@ -638,6 +666,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       cities: [],
       categories: [],
       restaurants: [],
+      reviews: [],
       restaurantCategories: [],
       dishes: [],
       paymentSettings: [],
@@ -664,6 +693,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       cities: [],
       categories: [],
       restaurants: [],
+      reviews: [],
       restaurantCategories: [],
       dishes: [],
       paymentSettings: [],
@@ -690,6 +720,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     deliveryResult,
     paymentsResult,
     restaurantProfilesResult,
+    reviewsResult,
     bannersResult,
     contentPagesResult,
     settingsResult,
@@ -732,6 +763,13 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .select('catalog_id, address_line, lat, lng')
         .in('catalog_id', catalogIds),
       supabase
+        .from('client_reviews')
+        .select('id, restaurant_id, client_name, rating, comment, created_at')
+        .in('restaurant_id', catalogIds)
+        .eq('target_type', 'restaurant')
+        .eq('is_visible', true)
+        .order('created_at', { ascending: false }),
+      supabase
         .from('platform_banners')
         .select('id, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, starts_at, ends_at, is_active, sort_order, platform_content_pages(slug)')
         .eq('is_active', true)
@@ -763,6 +801,15 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   const deliverySettings = (deliveryResult.data ?? []) as DeliverySettingsRow[];
   const paymentRows = (paymentsResult.data ?? []) as PaymentRow[];
   const restaurantProfiles = (restaurantProfilesResult.data ?? []) as RestaurantProfileRow[];
+  if (reviewsResult.error) throw reviewsResult.error;
+  const reviews: ClientRestaurantReview[] = ((reviewsResult.data ?? []) as ClientReviewRow[]).map((review) => ({
+    id: review.id,
+    restaurantId: review.restaurant_id,
+    clientName: review.client_name,
+    rating: Number(review.rating),
+    comment: review.comment,
+    createdAt: review.created_at
+  }));
   const legacyBannersResult = bannersResult.error
     ? await supabase
       .from('platform_banners')
@@ -902,6 +949,9 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     const catalogCategories = categoriesByCatalog.get(catalog.id) ?? [];
     const serviceSettlements = settings?.service_settlements ?? [];
     const preparation = Math.max(10, settings?.default_preparation_minutes ?? 30);
+    const reviewSummary = summarizeRestaurantReviews(
+      reviews.filter((review) => review.restaurantId === catalog.id)
+    );
 
     return {
       id: catalog.id,
@@ -916,7 +966,8 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       categorySlugs: unique(catalogCategories.map((category) => category.slug)),
       logoUrl: catalog.logo_url,
       coverUrl: catalog.banner_url || legacyRestaurantBannerBySlug.get(catalog.slug) || catalogCategories.find((category) => category.image_url)?.image_url || '',
-      rating: 5,
+      rating: reviewSummary.rating,
+      reviewCount: reviewSummary.reviewCount,
       minOrderAmount: settings?.minimum_order_amount ?? 0,
       freeDeliveryFrom: settings?.free_delivery_from ?? 0,
       deliveryTimeFrom: preparation,
@@ -972,6 +1023,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     cities,
     categories: platformCategories,
     restaurants,
+    reviews,
     restaurantCategories,
     dishes,
     paymentSettings: restaurants.map((restaurant) =>

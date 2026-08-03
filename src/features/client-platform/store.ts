@@ -244,9 +244,29 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
           )
         })),
       repeatOrder: (order) =>
-        set((state) => ({
-          carts: { ...state.carts, [order.restaurantSlug]: orderItemsToCart(order.items) }
-        })),
+        set((state) => {
+          const currentDraft = getDraft(state.checkoutDrafts, order.restaurantSlug);
+          const repeatedDraft: ClientCheckoutDraft = {
+            ...currentDraft,
+            orderType: order.orderType,
+            clientName: order.clientName,
+            clientPhone: order.clientPhone,
+            paymentMethod: order.paymentMethod,
+            ...(order.orderType === 'delivery'
+              ? {
+                  deliveryAddress: order.addressLine,
+                  deliveryLat: Number.isFinite(order.deliveryLat) ? Number(order.deliveryLat) : currentDraft.deliveryLat,
+                  deliveryLng: Number.isFinite(order.deliveryLng) ? Number(order.deliveryLng) : currentDraft.deliveryLng
+                }
+              : {}),
+            ...(order.orderType === 'dine_in' ? { boothName: order.addressLine } : {})
+          };
+
+          return {
+            carts: { ...state.carts, [order.restaurantSlug]: orderItemsToCart(order.items) },
+            checkoutDrafts: { ...state.checkoutDrafts, [order.restaurantSlug]: repeatedDraft }
+          };
+        }),
       toggleFavoriteRestaurant: (restaurantId) =>
         set((state) => ({ favoriteRestaurantIds: toggleId(state.favoriteRestaurantIds, restaurantId) })),
       toggleFavoriteDish: (dishId) =>

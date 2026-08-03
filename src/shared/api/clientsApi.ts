@@ -762,8 +762,8 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
   if (!supabase) {
     return [{
       id: 'demo-banner',
-      name: 'Конкурс от WayCatalog',
-      title: 'Конкурс от WayCatalog',
+      name: 'Конкурс от WayYaam',
+      title: 'Конкурс от WayYaam',
       subtitle: 'Закажи на 1000₽ и выиграй приз',
       kind: 'contest',
       imageUrl: '',

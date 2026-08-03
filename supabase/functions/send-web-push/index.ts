@@ -1,5 +1,6 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
+import { prioritizeEligibleDrivers } from './premiumDispatch.ts';
 
 type WebhookEvent = {
   type?: string;
@@ -150,7 +151,7 @@ Deno.serve(async (request) => {
       } else {
         const { data: onlineDrivers } = await admin
           .from('drivers')
-          .select('id, city_name, service_settlements, max_active_deliveries')
+          .select('id, city_name, service_settlements, max_active_deliveries, is_premium')
           .eq('is_active', true)
           .eq('is_online', true);
         const onlineDriverRows = onlineDrivers ?? [];
@@ -185,10 +186,12 @@ Deno.serve(async (request) => {
           restaurantCourierIds = new Set((restaurantCouriers ?? []).map((courier) => asId(courier.driver_id)).filter(Boolean));
         }
 
-        const onlineDriverIds = onlineDriverRows
+        const eligibleDrivers = onlineDriverRows
           .filter((driver) => driverServesDeliveryLocation(driver, order?.delivery_city, order?.delivery_settlement))
           .filter((driver) => (activeCounts.get(driver.id) ?? 0) < Number(driver.max_active_deliveries ?? 1))
-          .filter((driver) => restaurantCourierIds === null || restaurantCourierIds.has(driver.id))
+          .filter((driver) => restaurantCourierIds === null || restaurantCourierIds.has(driver.id));
+        const priorityDrivers = prioritizeEligibleDrivers(eligibleDrivers);
+        const onlineDriverIds = priorityDrivers
           .map((driver) => driver.id)
           .filter(Boolean);
         if (onlineDriverIds.length > 0) {

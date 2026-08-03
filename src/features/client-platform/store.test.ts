@@ -1,8 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isLegacyDemoClientOrder } from './store';
-import type { ClientOrder } from './types';
+import type { ClientCheckoutDraft, ClientOrder } from './types';
+
+const installMemoryStorage = () => {
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key)
+    }
+  });
+};
+
+installMemoryStorage();
+const { isLegacyDemoClientOrder, useClientPlatformStore } = await import('./store');
 
 const demoOrder: ClientOrder = {
   id: 'WC-12345',
@@ -51,5 +65,60 @@ describe('client platform store migration helpers', () => {
       }),
       false
     );
+  });
+});
+
+describe('repeat order checkout restoration', () => {
+  it('restores the ordered cart and customer checkout information together', async () => {
+    const previousDraft: ClientCheckoutDraft = {
+      orderType: 'pickup',
+      clientName: 'Старое имя',
+      clientPhone: '+70000000000',
+      boothName: 'Кабинка №1',
+      addressId: 'address-home',
+      deliverySettlement: 'Цоци-Юрт',
+      deliveryAddress: 'Старый адрес',
+      deliveryLat: 43.2,
+      deliveryLng: 45.9,
+      deliveryAccuracyM: 12,
+      deliveryEntrance: '2',
+      deliveryFloor: '3',
+      deliveryApartment: '14',
+      deliveryIntercomCode: '14',
+      deliveryLandmark: 'Школа',
+      deliveryComment: 'Позвонить',
+      paymentMethod: 'cash'
+    };
+    const repeatedOrder: ClientOrder = {
+      ...demoOrder,
+      id: '11111111-1111-4111-8111-111111111111',
+      restaurantSlug: 'mangal',
+      restaurantName: 'Мангал',
+      orderType: 'delivery',
+      paymentMethod: 'qr',
+      addressLine: 'Цоци-Юрт, ул. Центральная, 12',
+      deliveryLat: 43.240696,
+      deliveryLng: 45.997684,
+      clientName: 'Адам',
+      clientPhone: '+79280000000',
+      items: [{ dishId: 'dish-tea', name: 'Чеченский чай', price: 200, quantity: 2 }]
+    };
+    useClientPlatformStore.setState({ carts: {}, checkoutDrafts: { mangal: previousDraft } });
+
+    useClientPlatformStore.getState().repeatOrder(repeatedOrder);
+
+    assert.deepEqual(useClientPlatformStore.getState().carts.mangal, [
+      { dishId: 'dish-tea', quantity: 2 }
+    ]);
+    assert.deepEqual(useClientPlatformStore.getState().checkoutDrafts.mangal, {
+      ...previousDraft,
+      orderType: 'delivery',
+      clientName: 'Адам',
+      clientPhone: '+79280000000',
+      deliveryAddress: 'Цоци-Юрт, ул. Центральная, 12',
+      deliveryLat: 43.240696,
+      deliveryLng: 45.997684,
+      paymentMethod: 'qr'
+    });
   });
 });

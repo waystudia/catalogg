@@ -472,7 +472,7 @@ function DashboardPage() {
       <header className="platform-page-head">
         <div>
           <h1>Главная</h1>
-          <p>Общая статистика WayCatalog, ресторанов и доставок</p>
+          <p>Общая статистика WayYaam, ресторанов и доставок</p>
         </div>
         <button type="button" onClick={() => void statsQuery.refetch()} disabled={statsQuery.isFetching}>
           <RefreshCcw />

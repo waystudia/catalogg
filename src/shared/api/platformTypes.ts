@@ -243,6 +243,7 @@ export type PlatformDriver = {
   serviceSettlements: string[];
   isActive: boolean;
   isOnline: boolean;
+  isPremium: boolean;
   status: string;
   rating: number;
   debt: number;
@@ -333,6 +334,7 @@ export type UpdateDriverPayload = {
   maxActiveDeliveries?: number;
   password?: string;
   isActive?: boolean;
+  isPremium?: boolean;
 };
 
 export type UpdateClientPayload = {

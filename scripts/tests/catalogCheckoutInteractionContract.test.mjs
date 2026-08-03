@@ -133,7 +133,7 @@ test('order submission stays disabled until contacts and both legal consents are
   );
   assert.match(
     checkoutSource,
-    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !acceptedOrderData \|\| !acceptedOrderTransfer\}/
+    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !isCheckoutAccountValid \|\| !acceptedOrderData \|\| !acceptedOrderTransfer\}/
   );
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
   assert.match(checkoutSource, /if \(!acceptedOrderData \|\| !acceptedOrderTransfer\)/);
@@ -156,10 +156,10 @@ test('successful checkout persists the profile and consent, then clears the cart
   assert.ok(whatsappIndex > submitIndex);
 });
 
-test('order consent is restored by legal-document version and shown in the profile', () => {
+test('order consent is restored by legal-document version without exposing legal evidence in the profile card', () => {
   assert.match(checkoutSource, /orderConsent\?\.version === CLIENT_ORDER_CONSENT_VERSION/);
   assert.match(checkoutSource, /useState\(hasCurrentOrderConsent\)/);
-  assert.match(clientPlatformSource, /Согласия подтверждены \{displayConsentDate\}/);
+  assert.doesNotMatch(clientPlatformSource, /Согласия подтверждены \{displayConsentDate\}/);
 });
 
 test('catalog removes the redundant order-information chip row and sauces have a safe fallback', () => {
@@ -171,4 +171,34 @@ test('upsell modal covers sticky catalog UI and uses compact two-column mobile c
   assert.match(appStyles, /\.flow-backdrop\s*\{[^}]*z-index:\s*60;/);
   assert.match(appStyles, /\.flow-modal > \.primary-wide,[\s\S]*min-height:\s*50px;[\s\S]*font-size:\s*16px;/);
   assert.match(appStyles, /@media \(max-width: 360px\)[\s\S]*\.flow-products\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
+});
+
+test('upsell quantities support several products and the sauce fallback can be selected', () => {
+  const upsellSource = appSource.slice(appSource.indexOf('function UpsellReminder'), appSource.indexOf('function AdminPanel'));
+  assert.match(upsellSource, /const items = useCartStore\(\(state\) => state\.items\)/);
+  assert.match(upsellSource, /const quantity = getProductCartQuantity\(items, product\.id\)/);
+  assert.match(upsellSource, /<span>\{quantity\}<\/span>/);
+  assert.doesNotMatch(upsellSource, /<span>1<\/span>/);
+  assert.match(upsellSource, /disabled=\{!hasSelectedSuggestions\}/);
+  assert.match(appSource, /isProductInCategory\(product, category\.id\) \|\|[\s\S]*isSauceCategory\(category\)[\s\S]*isSauceProduct\(product\)/);
+});
+
+test('checkout creates or opens the client account in place and clears both cart stores after success', () => {
+  assert.doesNotMatch(checkoutSource, /navigate\(buildClientAuthPath\(/);
+  assert.match(checkoutSource, /registerClientAccount/);
+  assert.match(checkoutSource, /loginClientAccount/);
+  assert.match(checkoutSource, /autoComplete="new-password"/);
+  assert.match(checkoutSource, /clearClientPlatformCart\(catalogSlug\);/);
+  assert.match(checkoutSource, /Аккаунт с этим номером уже существует/);
+});
+
+test('the platform cart uses the live restaurant cart and hides zero-quantity snapshots', () => {
+  const cartPageSource = clientPlatformSource.slice(
+    clientPlatformSource.indexOf('function PlatformCartPage'),
+    clientPlatformSource.indexOf('function EmptyState')
+  );
+  assert.match(cartPageSource, /const restaurantCartItems = useCartStore\(\(state\) => state\.items\)/);
+  assert.match(cartPageSource, /selectCartCount\(restaurantCartItems\)/);
+  assert.match(cartPageSource, /selectCartTotal\(restaurantCartItems\)/);
+  assert.match(cartPageSource, /summary\.quantity <= 0/);
 });

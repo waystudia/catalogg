@@ -18,7 +18,7 @@ export function CatalogLoadingScreen() {
     <main className="catalog-loading-screen" role="status" aria-live="polite">
       <section className="catalog-loading-screen__content">
         <img src={`${import.meta.env.BASE_URL}assets/logo/waycatalog-icon.svg`} alt="" />
-        <strong>WayCatalog</strong>
+        <strong>WayYaam</strong>
         <span>Загрузка каталога</span>
         <div className="catalog-loading-screen__track" aria-hidden="true">
           <i style={{ width: `${progress}%` }} />

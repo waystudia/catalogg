@@ -197,6 +197,12 @@ export const selectCartCount = (items: CartItem[]) =>
 export const selectCartTotal = (items: CartItem[]) =>
   items.reduce((total, item) => total + getCartItemTotal(item), 0);
 
+export const getProductCartQuantity = (items: CartItem[], productId: string) =>
+  items.reduce(
+    (quantity, item) => quantity + (item.product.id === productId ? item.quantity : 0),
+    0
+  );
+
 export const hasDrinkInCart = (items: CartItem[]) =>
   items.some((item) => item.product.drink_type !== undefined);
 

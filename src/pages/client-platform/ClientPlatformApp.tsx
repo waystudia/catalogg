@@ -2,12 +2,14 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { legalDocuments } from '../../shared/legalDocuments';
 import {
   ArrowLeft,
+  ArrowRight,
   Banknote,
   Bell,
   Bike,
   Building2,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   CircleUserRound,
   Clock,
@@ -28,15 +30,12 @@ import {
   Repeat2,
   RefreshCw,
   Search,
-  Settings,
-  ShieldCheck,
   ShoppingCart,
   Star,
   Store,
   Truck,
   User,
-  UserRoundCheck,
-  WalletCards
+  UserRoundCheck
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
@@ -46,12 +45,11 @@ import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSup
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
-  selectAllCartCount,
   selectCheckoutDraft,
   selectRestaurantCart,
   useClientPlatformStore
 } from '../../features/client-platform/store';
-import { selectCartCount, selectCartTotal, useCartStore } from '../../features/stores';
+import { selectCartCount, selectCartTotal, useCartStore, useOrderStore } from '../../features/stores';
 import type {
   ClientAddress,
   ClientCartLine,
@@ -107,6 +105,12 @@ import {
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
 import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import {
+  installGuideDismissedUntilKey,
+  resolveInstallGuideDevice,
+  shouldShowInstallGuide,
+  type InstallDevice
+} from '../../shared/pwaInstall';
 import './client-platform.css';
 
 const clientPlatformQueryClient = new QueryClient({
@@ -123,6 +127,7 @@ const emptyClientPlatformSnapshot: ClientPlatformSnapshot = {
   cities: [],
   categories: [],
   restaurants: [],
+  reviews: [],
   restaurantCategories: [],
   dishes: [],
   paymentSettings: [],
@@ -136,6 +141,15 @@ const emptyClientPlatformSnapshot: ClientPlatformSnapshot = {
   supportHint: ''
 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+
+const formatReviewCount = (count: number) => {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} отзывов`;
+  if (lastDigit === 1) return `${count} отзыв`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} отзыва`;
+  return `${count} отзывов`;
+};
 
 const orderTypeLabels: Record<ClientOrderType, string> = {
   dine_in: 'В зале',
@@ -254,6 +268,46 @@ const getCityRestaurantsPath = (cityId?: string) => cityId ? `/restaurants?city=
 const getDeliveryFee = (restaurant: ClientRestaurant, draft: ClientCheckoutDraft, summary: { subtotal: number }) =>
   draft.orderType === 'delivery' && summary.subtotal > 0 && summary.subtotal < restaurant.freeDeliveryFrom ? 120 : 0;
 
+const restoreRestaurantCartFromOrder = (snapshot: ClientPlatformSnapshot, order: ClientOrder) => {
+  const items = order.items.map((item) => {
+    const dish = snapshot.dishes.find((candidate) => candidate.id === item.dishId);
+    const categoryId = dish?.categorySlug ?? '';
+    return {
+      product: {
+        id: item.dishId,
+        title: item.name,
+        price: item.price,
+        description: dish?.description ?? '',
+        image_url: dish?.imageUrl ?? '',
+        ingredients: '',
+        weight: dish?.weight ?? '',
+        spicy_level: 0 as const,
+        serving: '',
+        is_popular: dish?.isPopular ?? false,
+        is_new: false,
+        is_hit: false,
+        is_hidden: false,
+        is_unlimited: true,
+        stock_count: dish?.stockCount ?? 999,
+        category_id: categoryId,
+        category_ids: categoryId ? [categoryId] : [],
+        pair_ids: []
+      },
+      quantity: item.quantity
+    };
+  });
+
+  useCartStore.setState({ items, updatedAt: items.length > 0 ? Date.now() : null });
+  useOrderStore.getState().setOrder({
+    mode: order.orderType === 'delivery' ? 'delivery' : order.orderType === 'pickup' ? 'takeaway' : 'hall',
+    clientName: order.clientName,
+    clientPhone: order.clientPhone,
+    deliveryAddress: order.orderType === 'delivery' ? order.addressLine : '',
+    deliveryLat: order.orderType === 'delivery' ? order.deliveryLat ?? null : null,
+    deliveryLng: order.orderType === 'delivery' ? order.deliveryLng ?? null : null
+  });
+};
+
 function usePlatformData() {
   return useQuery({
     queryKey: ['client-platform'],
@@ -266,8 +320,187 @@ function usePlatformData() {
 export function ClientPlatformApp() {
   return (
     <QueryClientProvider client={clientPlatformQueryClient}>
+      <PwaInstallGuide />
       <ClientPlatformContent />
     </QueryClientProvider>
+  );
+}
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
+const installSlides: Record<Exclude<InstallDevice, null>, Array<{ image: string; title: string; text: string }>> = {
+  ios: [
+    {
+      image: 'ios-share.jpg',
+      title: 'Нажмите «Поделиться»',
+      text: 'В Safari нажмите кнопку со стрелкой вверх в нижней панели.'
+    },
+    {
+      image: 'ios-home.jpg',
+      title: 'Выберите «На экран Домой»',
+      text: 'Прокрутите меню и нажмите выделенный пункт.'
+    },
+    {
+      image: 'ios-add.jpg',
+      title: 'Нажмите «Добавить»',
+      text: 'Значок WayYaam появится на экране телефона.'
+    }
+  ],
+  android: [
+    {
+      image: 'android-menu.jpg',
+      title: 'Откройте меню Chrome',
+      text: 'Нажмите три точки в правом верхнем углу.'
+    },
+    {
+      image: 'android-install.jpg',
+      title: 'Нажмите «Установить приложение»',
+      text: 'WayYaam появится среди приложений и на главном экране.'
+    }
+  ]
+};
+
+function PwaInstallGuide() {
+  const [device, setDevice] = useState<InstallDevice>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const nextDevice = resolveInstallGuideDevice({
+      userAgent: window.navigator.userAgent,
+      platform: window.navigator.platform,
+      maxTouchPoints: window.navigator.maxTouchPoints,
+      viewportWidth: window.innerWidth
+    });
+    const navigatorStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+    const installed = window.matchMedia('(display-mode: standalone)').matches || navigatorStandalone;
+    const dismissedUntil = Number(window.localStorage.getItem(installGuideDismissedUntilKey) ?? 0);
+    setDevice(nextDevice);
+    setIsOpen(shouldShowInstallGuide({ device: nextDevice, installed, dismissedUntil, now: Date.now() }));
+
+    const captureInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const finishInstall = () => {
+      window.localStorage.setItem(installGuideDismissedUntilKey, String(Number.MAX_SAFE_INTEGER));
+      setIsOpen(false);
+      setInstallPrompt(null);
+    };
+    window.addEventListener('beforeinstallprompt', captureInstallPrompt);
+    window.addEventListener('appinstalled', finishInstall);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', captureInstallPrompt);
+      window.removeEventListener('appinstalled', finishInstall);
+    };
+  }, []);
+
+  if (!isOpen || !device) return null;
+  const slides = installSlides[device];
+  const slide = slides[slideIndex];
+  const isLast = slideIndex === slides.length - 1;
+  const completeGuide = () => {
+    window.localStorage.setItem(installGuideDismissedUntilKey, String(Number.MAX_SAFE_INTEGER));
+    setIsOpen(false);
+  };
+  const changeSlide = (nextIndex: number) => setSlideIndex(Math.max(0, Math.min(slides.length - 1, nextIndex)));
+  const promptAndroidInstall = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === 'accepted') completeGuide();
+    setInstallPrompt(null);
+  };
+
+  return (
+    <div className="install-guide-backdrop" role="presentation">
+      <section className="install-guide" role="dialog" aria-modal="true" aria-labelledby="install-guide-title">
+        <span className="install-guide__eyebrow">Конкурсы · скидки · акции</span>
+        <h2 id="install-guide-title">Добавьте WayYaam на главный экран</h2>
+        <p className="install-guide__lead">
+          Чтобы участвовать в конкурсах WayYaam и быстрее узнавать о скидках и акциях, сохраните приложение на телефоне.
+        </p>
+        <div className="install-guide__devices" aria-label="Выберите телефон">
+          <button
+            className={device === 'ios' ? 'is-active' : ''}
+            type="button"
+            aria-pressed={device === 'ios'}
+            onClick={() => { setDevice('ios'); setSlideIndex(0); }}
+          >
+            iPhone
+          </button>
+          <button
+            className={device === 'android' ? 'is-active' : ''}
+            type="button"
+            aria-pressed={device === 'android'}
+            onClick={() => { setDevice('android'); setSlideIndex(0); }}
+          >
+            Android
+          </button>
+        </div>
+        <div
+          className="install-guide__slide"
+          onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }}
+          onTouchEnd={(event) => {
+            const start = touchStartX.current;
+            const end = event.changedTouches[0]?.clientX;
+            touchStartX.current = null;
+            if (start == null || end == null || Math.abs(end - start) < 45) return;
+            changeSlide(slideIndex + (end < start ? 1 : -1));
+          }}
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}assets/install-guide/${slide.image}`}
+            alt={slide.title}
+            width="575"
+            height="900"
+            loading={slideIndex === 0 ? 'eager' : 'lazy'}
+          />
+          <div>
+            <strong>{slide.title}</strong>
+            <small>{slide.text}</small>
+          </div>
+        </div>
+        <div className="install-guide__dots" aria-label="Шаги установки">
+          {slides.map((item, index) => (
+            <button
+              className={index === slideIndex ? 'is-active' : ''}
+              type="button"
+              onClick={() => changeSlide(index)}
+              aria-label={`Шаг ${index + 1}: ${item.title}`}
+              aria-current={index === slideIndex ? 'step' : undefined}
+              key={item.image}
+            />
+          ))}
+        </div>
+        <div className="install-guide__actions">
+          {slideIndex > 0 && (
+            <button className="install-guide__secondary" type="button" onClick={() => changeSlide(slideIndex - 1)}>
+              <ChevronLeft /> Назад
+            </button>
+          )}
+          {!isLast ? (
+            <button className="install-guide__primary" type="button" onClick={() => changeSlide(slideIndex + 1)}>
+              Дальше <ArrowRight />
+            </button>
+          ) : device === 'android' && installPrompt ? (
+            <button className="install-guide__primary" type="button" onClick={() => void promptAndroidInstall()}>
+              Установить WayYaam <ArrowRight />
+            </button>
+          ) : null}
+          {isLast && (
+            <button className="install-guide__primary" type="button" onClick={completeGuide}>
+              Продолжить на сайт
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -355,7 +588,16 @@ function PlatformLayout({
   active: 'home' | 'search' | 'cart' | 'orders' | 'profile';
   children: ReactNode;
 }) {
-  const cartCount = useClientPlatformStore((state) => selectAllCartCount(state.carts));
+  const platformCartCount = useClientPlatformStore((state) =>
+    Object.entries(state.carts)
+      .filter(([restaurantSlug]) => restaurantSlug !== 'mangal')
+      .reduce(
+        (total, [, lines]) => total + lines.reduce((quantity, line) => quantity + Math.max(0, line.quantity), 0),
+        0
+      )
+  );
+  const restaurantCartItems = useCartStore((state) => state.items);
+  const cartCount = platformCartCount + selectCartCount(restaurantCartItems);
 
   return (
     <div className="client-platform platform-theme">
@@ -1003,27 +1245,40 @@ function RestaurantCard({
     .join(' · ');
   const hasDelivery = restaurant.orderTypes.includes('delivery') &&
     (restaurant.deliveryProvider === 'platform' || restaurant.deliveryProvider === 'restaurant');
+  const favoriteRestaurantIds = useClientPlatformStore((state) => state.favoriteRestaurantIds);
+  const toggleFavoriteRestaurant = useClientPlatformStore((state) => state.toggleFavoriteRestaurant);
+  const isFavorite = favoriteRestaurantIds.includes(restaurant.id);
 
   return (
-    <Link className="restaurant-card" to={buildRestaurantPublicPath(restaurant)}>
-      <span className="restaurant-card__media">
-        <img src={restaurant.coverUrl} alt="" />
-        <span className="restaurant-card__favorite" aria-hidden="true"><Heart /></span>
-      </span>
-      <span className="restaurant-card__body">
-        <span className="restaurant-card__title">
-          <strong>{restaurant.name}</strong>
-          <small>
-            <Star /> {restaurant.rating.toFixed(1)}
-          </small>
+    <article className="restaurant-card">
+      <Link className="restaurant-card__link" to={buildRestaurantPublicPath(restaurant)}>
+        <span className="restaurant-card__media">
+          <img src={restaurant.coverUrl} alt="" />
         </span>
-        {categoryNames && <small>{categoryNames}</small>}
-        <b>{restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин · от {formatPrice(restaurant.minOrderAmount)}</b>
-        {hasDelivery && restaurant.freeDeliveryFrom > 0 && (
-          <em>Бесплатно от {Math.round(restaurant.freeDeliveryFrom).toLocaleString('ru-RU').replace(/\s/g, '')}р</em>
-        )}
-      </span>
-    </Link>
+        <span className="restaurant-card__body">
+          <span className="restaurant-card__title">
+            <strong>{restaurant.name}</strong>
+            <small>
+              <Star /> {restaurant.rating.toFixed(1)}
+            </small>
+          </span>
+          {categoryNames && <small>{categoryNames}</small>}
+          <b>{restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин · от {formatPrice(restaurant.minOrderAmount)}</b>
+          {hasDelivery && restaurant.freeDeliveryFrom > 0 && (
+            <em>Бесплатно от {Math.round(restaurant.freeDeliveryFrom).toLocaleString('ru-RU').replace(/\s/g, '')}р</em>
+          )}
+        </span>
+      </Link>
+      <button
+        className={isFavorite ? 'restaurant-card__favorite is-active' : 'restaurant-card__favorite'}
+        type="button"
+        onClick={() => toggleFavoriteRestaurant(restaurant.id)}
+        aria-label={isFavorite ? `Удалить ${restaurant.name} из избранного` : `Добавить ${restaurant.name} в избранное`}
+        aria-pressed={isFavorite}
+      >
+        <Heart />
+      </button>
+    </article>
   );
 }
 
@@ -1102,6 +1357,8 @@ function RestaurantArea({
         <PaymentPage snapshot={snapshot} restaurant={restaurant} />
       ) : section === 'order' ? (
         <OrderStatusPage snapshot={snapshot} restaurant={restaurant} orderId={orderId} />
+      ) : section === 'reviews' ? (
+        <RestaurantReviewsPage snapshot={snapshot} restaurant={restaurant} />
       ) : (
         <RestaurantCatalogPage snapshot={snapshot} restaurant={restaurant} />
       )}
@@ -1149,6 +1406,7 @@ function RestaurantCatalogPage({
   );
   const summary = calculateCartSummary(cartLines, dishes, 0);
   const ProviderIcon = providerIcons[restaurant.deliveryProvider];
+  const restaurantIsFavorite = favoriteRestaurantIds.includes(restaurant.id);
 
   return (
     <>
@@ -1158,19 +1416,21 @@ function RestaurantCatalogPage({
         <div className="restaurant-hero__content">
           <span className="restaurant-logo">{restaurant.logoUrl ? <img src={restaurant.logoUrl} alt="" /> : restaurant.name.slice(0, 1)}</span>
           <button
-            className={favoriteRestaurantIds.includes(restaurant.id) ? 'restaurant-round is-active' : 'restaurant-round'}
+            className={restaurantIsFavorite ? 'restaurant-round is-active' : 'restaurant-round'}
             type="button"
             onClick={() => toggleFavoriteRestaurant(restaurant.id)}
-            aria-label={`Добавить ${terms.placeAccusative} в избранное`}
+            aria-label={restaurantIsFavorite ? `Удалить ${terms.placeAccusative} из избранного` : `Добавить ${terms.placeAccusative} в избранное`}
+            aria-pressed={restaurantIsFavorite}
           >
             <Heart />
           </button>
           <h1>{restaurant.name}</h1>
           <p>{restaurant.description}</p>
           <div className="restaurant-facts">
-            <span>
-              <Star /> {restaurant.rating}
-            </span>
+            <Link className="restaurant-rating-link" to={`/${restaurant.slug}/reviews`}>
+              <Star /> {restaurant.rating.toFixed(1)}
+              <small>{formatReviewCount(restaurant.reviewCount)}</small>
+            </Link>
             <span>
               <Clock /> {restaurant.deliveryTimeFrom}-{restaurant.deliveryTimeTo} мин
             </span>
@@ -1254,6 +1514,50 @@ function RestaurantCatalogPage({
           <ChevronRight />
         </Link>
       )}
+    </>
+  );
+}
+
+function RestaurantReviewsPage({
+  snapshot,
+  restaurant
+}: {
+  snapshot: ClientPlatformSnapshot;
+  restaurant: ClientRestaurant;
+}) {
+  const reviews = snapshot.reviews.filter((review) => review.restaurantId === restaurant.id);
+
+  return (
+    <>
+      <RestaurantTopbar restaurant={restaurant} title="Отзывы" />
+      <main className="restaurant-content restaurant-reviews-page">
+        <section className="restaurant-review-summary">
+          <Star />
+          <strong>{restaurant.rating.toFixed(1)}</strong>
+          <span>{formatReviewCount(restaurant.reviewCount)}</span>
+        </section>
+        {reviews.length === 0 ? (
+          <section className="restaurant-reviews-empty">
+            <MessageCircle />
+            <strong>Отзывов пока нет</strong>
+            <p>Первый отзыв можно оставить в разделе «Мои заказы» после оформления заказа.</p>
+          </section>
+        ) : (
+          <section className="restaurant-review-list" aria-label={`Отзывы о ${restaurant.name}`}>
+            {reviews.map((review) => (
+              <article className="restaurant-review-card" key={review.id}>
+                <header>
+                  <strong>{review.clientName || 'Клиент WayYaam'}</strong>
+                  <span><Star /> {review.rating.toFixed(1)}</span>
+                </header>
+                <p>{review.comment}</p>
+                <time dateTime={review.createdAt}>{new Date(review.createdAt).toLocaleDateString('ru-RU')}</time>
+              </article>
+            ))}
+          </section>
+        )}
+        <Link className="restaurant-primary-button restaurant-primary-button--soft" to={`/r/${restaurant.slug}`}>Вернуться в меню</Link>
+      </main>
     </>
   );
 }
@@ -2215,7 +2519,7 @@ function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       <PageHeader title="Поддержка" backTo="/profile" />
       <section className="empty-state client-support-card">
         <MessageCircle />
-        <strong>Поддержка WayCatalog</strong>
+        <strong>Поддержка WayYaam</strong>
         {snapshot.supportHint && <p>{snapshot.supportHint}</p>}
         {snapshot.supportHours && <small>Время работы: {snapshot.supportHours}</small>}
         <a href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)} target="_blank" rel="noreferrer">
@@ -2237,7 +2541,6 @@ function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
-  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
@@ -2254,22 +2557,18 @@ function ProfilePage() {
   const [clientError, setClientError] = useState('');
   const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
   const [isSavingClient, setIsSavingClient] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
     { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/addresses', label: 'Адреса доставки', Icon: MapPin },
-    { to: '/profile/payments', label: 'Способы оплаты', Icon: WalletCards },
-    { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle },
-    { to: '/profile/settings', label: 'Настройки', Icon: Settings }
+    { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle }
   ];
-  const displayName = profile.name || 'Гость WayCatalog';
+  const displayName = profile.name || 'Гость WayYaam';
   const displayPhone = profile.phone || 'Телефон не указан';
   const displayAddress = addresses.find((address) => address.isDefault)?.addressLine ?? addresses[0]?.addressLine ?? '';
-  const displayConsentDate = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION
-    ? new Date(orderConsent.acceptedAt).toLocaleDateString('ru-RU')
-    : '';
   const returnToValue = searchParams.get('returnTo') ?? '';
   const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
     ? returnToValue
@@ -2355,7 +2654,8 @@ function ProfilePage() {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    setIsSigningOut(true);
     clearPwaResumePath();
     saveProfile({ name: '', phone: '' });
     setClientName('');
@@ -2366,8 +2666,9 @@ function ProfilePage() {
     setClientSession(null);
     setIsClientSessionChecking(false);
     setAccountOpen(false);
-    void logoutClientAccount();
-    void signOutPlatformAdmin();
+    await Promise.allSettled([logoutClientAccount(), signOutPlatformAdmin()]);
+    setIsSigningOut(false);
+    navigate('/profile', { replace: true });
   };
 
   return (
@@ -2386,9 +2687,6 @@ function ProfilePage() {
                 : 'Гостевой профиль · аккаунт ещё не создан'}
           </small>
           {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
-          {displayConsentDate && (
-            <small className="profile-card__consent"><ShieldCheck /> Согласия подтверждены {displayConsentDate}</small>
-          )}
         </span>
         <ChevronRight />
       </section>
@@ -2454,6 +2752,18 @@ function ProfilePage() {
                 required
               />
             </label>
+            <label className="field-label">
+              <span>Пароль</span>
+              <input
+                value={clientPassword}
+                onChange={(event) => setClientPassword(event.target.value)}
+                type="password"
+                autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
+                minLength={6}
+                maxLength={72}
+                required
+              />
+            </label>
             {clientAuthMode === 'register' && (
               <section className="legal-checkboxes" aria-label="Условия регистрации">
                 <label className="legal-checkbox">
@@ -2471,18 +2781,6 @@ function ProfilePage() {
                 <a href={legalDocuments.policy} target="_blank" rel="noreferrer">Политика обработки персональных данных</a>
               </section>
             )}
-            <label className="field-label">
-              <span>Пароль</span>
-              <input
-                value={clientPassword}
-                onChange={(event) => setClientPassword(event.target.value)}
-                type="password"
-                autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
-                minLength={6}
-                maxLength={72}
-                required
-              />
-            </label>
             {clientError && <small className="form-error">{clientError}</small>}
             {clientMessage && <small className="form-success">{clientMessage}</small>}
             {clientAuthMode === 'login' && (
@@ -2515,9 +2813,9 @@ function ProfilePage() {
             <ChevronRight />
           </Link>
         ))}
-        <button type="button" onClick={logout}>
+        <button type="button" onClick={() => void logout()} disabled={isSigningOut}>
           <LogOut />
-          <span>Выйти</span>
+          <span>{isSigningOut ? 'Выходим…' : 'Выйти'}</span>
           <ChevronRight />
         </button>
       </nav>
@@ -2527,6 +2825,7 @@ function ProfilePage() {
 
 function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const profile = useClientPlatformStore((state) => state.profile);
   const orders = useClientPlatformStore((state) => state.orders);
   const repeatOrder = useClientPlatformStore((state) => state.repeatOrder);
@@ -2574,12 +2873,14 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
     try {
       await saveClientReview({
+        orderId: order.id,
         restaurantId: restaurant?.id ?? '',
         clientName: profile.name || order.clientName,
         clientPhone: profile.phone || order.clientPhone,
         rating: reviewRating,
         comment: reviewComment
       });
+      await queryClient.invalidateQueries({ queryKey: ['client-platform'] });
       setReviewMessage('Отзыв отправлен');
       setReviewComment('');
       setReviewOrderId(null);
@@ -2610,9 +2911,9 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <small>{order.addressLine}</small>
       </span>
       <div className="order-card__actions">
-        <Link to={`/r/${order.restaurantSlug}/order/${order.id}`}>
+        <Link to={`/${order.restaurantSlug}/order/${order.id}`}>
           <ReceiptText />
-          Статус
+          Подробнее о заказе
         </Link>
         {restaurantMapHref && (
           <a href={restaurantMapHref} target="_blank" rel="noreferrer">
@@ -2624,7 +2925,8 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           type="button"
           onClick={() => {
             repeatOrder(order);
-            navigate(`/r/${order.restaurantSlug}/cart`);
+            restoreRestaurantCartFromOrder(snapshot, order);
+            navigate(`/${order.restaurantSlug}/checkout`);
           }}
         >
           <Repeat2 />
@@ -2852,7 +3154,35 @@ function ProfilePaymentsPage() {
 
 function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const carts = useClientPlatformStore((state) => state.carts);
-  const activeCarts = Object.entries(carts).filter(([, lines]) => lines.length > 0);
+  const restaurantCartItems = useCartStore((state) => state.items);
+  const restaurantCartCount = selectCartCount(restaurantCartItems);
+  const restaurantCartTotal = selectCartTotal(restaurantCartItems);
+  const platformCarts = Object.entries(carts).flatMap(([restaurantSlug, lines]) => {
+    if (restaurantSlug === 'mangal') return [];
+    const restaurant = getRestaurantBySlug(snapshot, restaurantSlug);
+    const dishes = getRestaurantDishes(snapshot, restaurantSlug);
+    const summary = calculateCartSummary(lines, dishes, 0);
+    if (!restaurant || summary.quantity <= 0) return [];
+    return [{
+      restaurantSlug,
+      restaurantName: restaurant.name,
+      quantity: summary.quantity,
+      total: summary.total,
+      href: `/r/${restaurantSlug}/cart`
+    }];
+  });
+  const activeCarts = [
+    ...(restaurantCartCount > 0
+      ? [{
+          restaurantSlug: 'mangal',
+          restaurantName: getRestaurantBySlug(snapshot, 'mangal')?.name ?? 'Мангал',
+          quantity: restaurantCartCount,
+          total: restaurantCartTotal,
+          href: '/mangal/checkout'
+        }]
+      : []),
+    ...platformCarts
+  ];
 
   return (
     <>
@@ -2861,23 +3191,16 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <EmptyState title="Корзина пуста" linkTo="/restaurants" linkText="Выбрать ресторан" />
       ) : (
         <div className="order-list">
-          {activeCarts.map(([restaurantSlug, lines]) => {
-            const restaurant = getRestaurantBySlug(snapshot, restaurantSlug);
-            const dishes = getRestaurantDishes(snapshot, restaurantSlug);
-            const summary = calculateCartSummary(lines, dishes, 0);
-            if (!restaurant) return null;
-
-            return (
-              <Link className="order-card order-card--link" to={`/r/${restaurantSlug}/cart`} key={restaurantSlug}>
+          {activeCarts.map((cart) => (
+              <Link className="order-card order-card--link" to={cart.href} key={cart.restaurantSlug}>
                 <span>
-                  <strong>{restaurant.name}</strong>
-                  <small>{summary.quantity} товара · {formatPrice(summary.total)}</small>
+                  <strong>{cart.restaurantName}</strong>
+                  <small>{cart.quantity} товара · {formatPrice(cart.total)}</small>
                   <em>Корзина хранится отдельно</em>
                 </span>
                 <ChevronRight />
               </Link>
-            );
-          })}
+          ))}
         </div>
       )}
     </>

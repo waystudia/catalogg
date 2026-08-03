@@ -314,6 +314,23 @@
   gap: 2px;
 }
 
+.platform-driver-row__identity .platform-driver-row__premium {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 3px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #fff7e6;
+  color: #b54708;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.platform-driver-row__premium svg {
+  width: 11px;
+}
+
 .platform-driver-row__identity strong,
 .platform-driver-row__identity small,
 .platform-driver-row__identity em {
@@ -573,6 +590,45 @@
 
 .platform-driver-form__wide {
   grid-column: 1 / -1;
+}
+
+.platform-driver-form label.platform-driver-form__premium {
+  display: grid;
+  grid-template-columns: 20px 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 66px;
+  border: 1px solid #ddd6fe;
+  border-radius: 13px;
+  padding: 10px 12px;
+  background: #f9f7ff;
+}
+
+.platform-driver-form__premium > input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--driver-purple);
+}
+
+.platform-driver-form__premium > svg {
+  width: 22px;
+  color: #d97706;
+}
+
+.platform-driver-form__premium > span {
+  display: grid;
+  gap: 2px;
+}
+
+.platform-driver-form__premium strong {
+  color: #101828;
+  font-size: 13px;
+}
+
+.platform-driver-form__premium small {
+  color: #667085;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .platform-driver-form__password {

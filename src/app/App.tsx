@@ -107,6 +107,7 @@ import {
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
 import {
+  getProductCartQuantity,
   isSauceProduct,
   selectCartCount,
   selectCartTotal,
@@ -162,6 +163,8 @@ import {
 } from '../shared/photoQuality';
 import { getBusinessTerms } from '../shared/businessTerminology';
 import { getRestaurantCatalogBackTarget } from '../shared/roleSessionSafety';
+import { summarizeRestaurantReviews } from '../features/client-platform/clientPlatformLogic';
+import type { ClientRestaurantReview } from '../features/client-platform/types';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -256,6 +259,38 @@ const loadCatalogWithTimeout = (slug: string) =>
   });
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const formatReviewCount = (count: number) => {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} отзывов`;
+  if (lastDigit === 1) return `${count} отзыв`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} отзыва`;
+  return `${count} отзывов`;
+};
+
+const loadCatalogReviews = async (catalogSlug: string): Promise<ClientRestaurantReview[]> => {
+  if (!supabase) return [];
+  const catalogId = await getCatalogIdBySlug(catalogSlug);
+  if (!catalogId) return [];
+
+  const { data, error } = await supabase
+    .from('client_reviews')
+    .select('id, restaurant_id, client_name, rating, comment, created_at')
+    .eq('restaurant_id', catalogId)
+    .eq('target_type', 'restaurant')
+    .eq('is_visible', true)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((review) => ({
+    id: String(review.id),
+    restaurantId: String(review.restaurant_id),
+    clientName: String(review.client_name ?? ''),
+    rating: Number(review.rating),
+    comment: String(review.comment ?? ''),
+    createdAt: String(review.created_at)
+  }));
+};
 type SettingsScreen =
   | 'settings'
   | 'settings-profile'
@@ -981,6 +1016,9 @@ function CatalogScreen({
   onDeleteProduct,
   onToggleProduct,
   onStockChange,
+  reviewRating,
+  reviewCount,
+  onReviews,
   flowAction
 }: {
   restaurant?: Restaurant;
@@ -996,6 +1034,9 @@ function CatalogScreen({
   onDeleteProduct: (productId: string) => void;
   onToggleProduct: (productId: string, key: ProductFlag) => void;
   onStockChange: (productId: string, stockCount: number) => void;
+  reviewRating: number;
+  reviewCount: number;
+  onReviews: () => void;
   flowAction?: FlowAction;
 }) {
   const terms = getBusinessTerms(restaurant?.business_type);
@@ -1111,7 +1152,9 @@ function CatalogScreen({
             </section>
             {(preparationLabel || freeDeliveryLabel) && (
               <section className="restaurant-menu-highlights" aria-label={`Информация о заведении: ${terms.place}`}>
-                <span><Star /> <strong>5.0</strong></span>
+                <button type="button" onClick={onReviews} aria-label={`Открыть отзывы: ${reviewRating.toFixed(1)}, ${formatReviewCount(reviewCount)}`}>
+                  <Star /> <strong>{reviewRating.toFixed(1)}</strong>
+                </button>
                 {preparationLabel && <span title={`Готовка ${preparationLabel}`}><Timer /> <strong>{preparationLabel}</strong></span>}
                 {freeDeliveryLabel && <span title={`Бесплатная доставка ${freeDeliveryLabel}`}><Truck /> <strong>{freeDeliveryLabel}</strong></span>}
               </section>
@@ -1239,6 +1282,46 @@ function CatalogScreen({
         <button className="flow-continue-bar" type="button" onClick={flowAction.onContinue}>
           Продолжить <ArrowRight />
         </button>
+      )}
+    </main>
+  );
+}
+
+function CatalogReviewsScreen({
+  restaurant,
+  reviews
+}: {
+  restaurant: Restaurant;
+  reviews: ClientRestaurantReview[];
+}) {
+  const summary = summarizeRestaurantReviews(reviews);
+
+  return (
+    <main className="screen catalog-reviews-screen">
+      <section className="catalog-review-summary">
+        <Star />
+        <strong>{summary.rating.toFixed(1)}</strong>
+        <span>{formatReviewCount(summary.reviewCount)}</span>
+      </section>
+      {reviews.length === 0 ? (
+        <section className="catalog-reviews-empty">
+          <MessageCircle />
+          <strong>Отзывов пока нет</strong>
+          <p>Первый отзыв можно оставить в разделе «Мои заказы» после оформления заказа.</p>
+        </section>
+      ) : (
+        <section className="catalog-review-list" aria-label={`Отзывы о ${restaurant.name}`}>
+          {reviews.map((review) => (
+            <article className="catalog-review-card" key={review.id}>
+              <header>
+                <strong>{review.clientName || 'Клиент WayYaam'}</strong>
+                <span><Star /> {review.rating.toFixed(1)}</span>
+              </header>
+              <p>{review.comment}</p>
+              <time dateTime={review.createdAt}>{new Date(review.createdAt).toLocaleDateString('ru-RU')}</time>
+            </article>
+          ))}
+        </section>
       )}
     </main>
   );
@@ -1584,10 +1667,17 @@ function ProductScreen({
   );
 }
 
+const isSauceCategory = (category: Category) => Boolean(
+  [category.id, category.slug, category.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase('ru-RU')
+    .match(/соус|sauce/)
+);
+
 function UpsellReminder({
   category,
   products,
-  selectedId,
   onSelect,
   onConfirm,
   onSkip,
@@ -1595,35 +1685,36 @@ function UpsellReminder({
 }: {
   category: Category;
   products: Product[];
-  selectedId?: string;
   onSelect: (product: Product) => void;
   onConfirm: () => void;
   onSkip: () => void;
   onDismiss: () => void;
 }) {
+  const items = useCartStore((state) => state.items);
   const add = useCartStore((state) => state.add);
   const decrement = useCartStore((state) => state.decrement);
   const isDrinks = category.kind === 'drink';
   const categorySuggestions = products.filter(
     (product) => !product.is_hidden && isProductInCategory(product, category.id)
   );
-  const isSauceCategory = [category.id, category.slug, category.name]
-    .filter(Boolean)
-    .join(' ')
-    .toLocaleLowerCase('ru-RU')
-    .match(/соус|sauce/);
   const suggestions = (
     categorySuggestions.length > 0
       ? categorySuggestions
-      : isSauceCategory
+      : isSauceCategory(category)
         ? products.filter((product) => !product.is_hidden && isSauceProduct(product))
         : []
   ).slice(0, 12);
-  const selectedProduct = suggestions.find((product) => product.id === selectedId);
+  const selectedSuggestions = suggestions.filter((product) => getProductCartQuantity(items, product.id) > 0);
+  const selectedSuggestionCount = selectedSuggestions.reduce(
+    (count, product) => count + getProductCartQuantity(items, product.id),
+    0
+  );
+  const hasSelectedSuggestions = selectedSuggestionCount > 0;
 
   const chooseProduct = (product: Product) => {
     add(product);
     onSelect(product);
+    playCartSound('add');
   };
 
   return (
@@ -1635,46 +1726,49 @@ function UpsellReminder({
         </button>
         {isDrinks ? <Coffee className="modal-icon" /> : <ChefHat className="modal-icon" />}
         <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
-        <p>Можно добавить к заказу одну из позиций перед оформлением.</p>
+        <p>Можно добавить к заказу одну или несколько позиций перед оформлением.</p>
         <div className="flow-products">
-          {suggestions.map((product) => (
-            <article
-              className={selectedId === product.id ? 'flow-product-card is-selected' : 'flow-product-card'}
-              key={product.id}
-            >
-              <SafeImage src={product.image_url} alt={product.title} />
-              <strong>{product.title}</strong>
-              <small>{formatPrice(product.price)}</small>
-              <div className="flow-product-card__stepper">
-                {selectedId === product.id && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        decrement(product.id);
-                        playCartSound('remove');
-                      }}
-                      aria-label={`Уменьшить ${product.title}`}
-                    >
-                      <Minus />
-                    </button>
-                    <span>1</span>
-                  </>
-                )}
-                <button type="button" onClick={() => chooseProduct(product)} aria-label={`Добавить ${product.title}`}>
-                  <Plus />
-                </button>
-              </div>
-            </article>
-          ))}
+          {suggestions.map((product) => {
+            const quantity = getProductCartQuantity(items, product.id);
+            return (
+              <article
+                className={quantity > 0 ? 'flow-product-card is-selected' : 'flow-product-card'}
+                key={product.id}
+              >
+                <SafeImage src={product.image_url} alt={product.title} />
+                <strong>{product.title}</strong>
+                <small>{formatPrice(product.price)}</small>
+                <div className="flow-product-card__stepper">
+                  {quantity > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          decrement(product.id);
+                          playCartSound('remove');
+                        }}
+                        aria-label={`Уменьшить ${product.title}`}
+                      >
+                        <Minus />
+                      </button>
+                      <span>{quantity}</span>
+                    </>
+                  )}
+                  <button type="button" onClick={() => chooseProduct(product)} aria-label={`Добавить ${product.title}`}>
+                    <Plus />
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
         {suggestions.length === 0 && (
           <p className="modal-empty">
             В этой категории пока нет товаров.
           </p>
         )}
-        {selectedProduct && <p className="flow-selected">Добавлено: {selectedProduct.title}</p>}
-        <button className="primary-wide" type="button" disabled={!selectedId} onClick={onConfirm}>
+        {hasSelectedSuggestions && <p className="flow-selected">Добавлено позиций: {selectedSuggestionCount}</p>}
+        <button className="primary-wide" type="button" disabled={!hasSelectedSuggestions} onClick={onConfirm}>
           Выбрать «{category.name}»
         </button>
         <button className="ghost-wide" type="button" onClick={onSkip}>
@@ -1748,7 +1842,7 @@ function AppContent({
   const navigate = useNavigate();
   const shareCurrentPage = useCallback(async () => {
     const url = window.location.href;
-    const title = document.title || 'WayCatalog';
+    const title = document.title || 'WayYaam';
     try {
       if (navigator.share) {
         await navigator.share({ title, url });
@@ -1792,6 +1886,14 @@ function AppContent({
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });
+  const { data: restaurantReviews = [] } = useQuery({
+    queryKey: ['restaurant-reviews', catalogSlug],
+    queryFn: () => loadCatalogReviews(catalogSlug),
+    staleTime: 60_000,
+    refetchOnMount: true,
+    refetchOnReconnect: true
+  });
+  const restaurantReviewSummary = summarizeRestaurantReviews(restaurantReviews);
   const themeStore = useThemeStore((state) => state.theme);
   const updateTheme = useThemeStore((state) => state.updateTheme);
   const isAdmin = useAuthStore((state) => state.isAdmin);
@@ -2371,7 +2473,13 @@ function AppContent({
 
   const selectFlowProduct = (product: Product) => {
     const category = activeFlowCategory;
-    if (!category || !isProductInCategory(product, category.id)) {
+    const belongsToFlowCategory = Boolean(
+      category && (
+        isProductInCategory(product, category.id) ||
+        (isSauceCategory(category) && isSauceProduct(product))
+      )
+    );
+    if (!category || !belongsToFlowCategory) {
       return;
     }
     setOrderFlow((current) => ({
@@ -2680,9 +2788,13 @@ function AppContent({
       ) : (
         <>
             <TopBar
-            title={screen === 'product' ? undefined : title}
-            canBack={screen !== 'home'}
+            title={routeSection === 'reviews' ? 'Отзывы' : screen === 'product' ? undefined : title}
+            canBack={routeSection === 'reviews' || screen !== 'home'}
             onBack={() => {
+              if (routeSection === 'reviews') {
+                navigate(`/${catalogSlug}`);
+                return;
+              }
               if (routeSection === 'dishes') {
                 openRestaurantAdminPath('admin-home');
                 return;
@@ -2694,8 +2806,8 @@ function AppContent({
               setScreen('home');
             }}
             onPlatformBack={() => navigate('/')}
-            onSearch={screen === 'home' ? openCatalogSearch : undefined}
-            onShare={screen === 'home' ? shareCurrentPage : undefined}
+            onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
+            onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
             onAdmin={() => setShowLogin(true)}
             logoUrl={catalog.restaurant.logo_url}
@@ -2705,7 +2817,11 @@ function AppContent({
             showCart
           />
 
-          {screen === 'home' && (
+          {routeSection === 'reviews' && !isAdmin && (
+            <CatalogReviewsScreen restaurant={catalog.restaurant} reviews={restaurantReviews} />
+          )}
+
+          {screen === 'home' && routeSection !== 'reviews' && (
             <CatalogScreen
               restaurant={catalog.restaurant}
               categories={catalog.categories}
@@ -2720,6 +2836,9 @@ function AppContent({
               onDeleteProduct={deleteProduct}
               onToggleProduct={toggleProduct}
               onStockChange={updateProductStock}
+              reviewRating={restaurantReviewSummary.rating}
+              reviewCount={restaurantReviewSummary.reviewCount}
+              onReviews={() => navigate(`/${catalogSlug}/reviews`)}
               flowAction={activeFlowCategory ? makeFlowAction(activeFlowCategory) : undefined}
             />
           )}
@@ -2737,6 +2856,9 @@ function AppContent({
               onDeleteProduct={deleteProduct}
               onToggleProduct={toggleProduct}
               onStockChange={updateProductStock}
+              reviewRating={restaurantReviewSummary.rating}
+              reviewCount={restaurantReviewSummary.reviewCount}
+              onReviews={() => navigate(`/${catalogSlug}/reviews`)}
               flowAction={activeFlowCategory?.kind !== 'drink' ? makeFlowAction(activeFlowCategory) : undefined}
             />
           )}
@@ -2846,7 +2968,6 @@ function AppContent({
         <UpsellReminder
           category={activeFlowCategory}
           products={catalog.products}
-          selectedId={orderFlow.selectedByCategory[activeFlowCategory.id]}
           onSelect={selectFlowProduct}
           onConfirm={continueOrderFlow}
           onSkip={continueOrderFlow}

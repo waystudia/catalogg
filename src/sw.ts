@@ -5,6 +5,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { buildNavigationCacheName, staleNavigationCacheNames } from './shared/pwaCachePolicy';
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision?: string | null }>;
@@ -14,15 +15,28 @@ skipWaiting();
 clientsClaim();
 cleanupOutdatedCaches();
 
+const precacheManifest = self.__WB_MANIFEST;
+const navigationCacheName = buildNavigationCacheName(precacheManifest);
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      staleNavigationCacheNames(cacheNames, navigationCacheName)
+        .map((cacheName) => caches.delete(cacheName))
+    );
+  })());
+});
+
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
-    cacheName: 'catalog-pages',
+    cacheName: navigationCacheName,
     networkTimeoutSeconds: 3
   })
 );
 
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(precacheManifest);
 
 registerRoute(
   ({ url, request }) => request.destination === 'image' && (
@@ -62,7 +76,7 @@ self.addEventListener('push', (event) => {
     payload = { body: event.data?.text() ?? '' };
   }
 
-  const title = payload.title || 'WayCatalog';
+  const title = payload.title || 'WayYaam';
   const options: NotificationOptions = {
     body: payload.body || 'Есть новое обновление',
     tag: payload.tag || 'waycatalog-update',

@@ -18,11 +18,12 @@ export default defineConfig(function (_a) {
                 filename: 'sw.ts',
                 registerType: 'autoUpdate',
                 injectRegister: false,
-                includeAssets: ['assets/logo/*.{png,svg}', 'robots.txt', 'placeholders/*.svg'],
+                includeAssets: ['assets/logo/*.{png,svg}', 'assets/install-guide/*.jpg', 'robots.txt', 'placeholders/*.svg'],
                 manifest: {
-                    name: 'WayCatalog',
-                    short_name: 'WayCatalog',
-                    description: 'WayCatalog — весь ассортимент в одном месте',
+                    name: 'WayYaam',
+                    short_name: 'WayYaam',
+                    description: 'WayYaam — рестораны, доставка, скидки и акции',
+                    lang: 'ru',
                     theme_color: '#6C5CE7',
                     background_color: '#F5F6F8',
                     id: base,
@@ -45,7 +46,7 @@ export default defineConfig(function (_a) {
                     ]
                 },
                 injectManifest: {
-                    globPatterns: ['**/*.{js,css,svg,ico,png,webp}'],
+                    globPatterns: ['**/*.{js,css,svg,ico,png,jpg,jpeg,webp}'],
                     globIgnores: ['index.html', 'assets/templates/confectionery/products/*.webp']
                 }
             })

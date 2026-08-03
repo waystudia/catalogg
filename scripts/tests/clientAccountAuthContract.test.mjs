@@ -10,12 +10,14 @@ const migrationFiles = fs
   .readdirSync('supabase/migrations')
   .filter((name) => name.endsWith('_add_client_password_accounts.sql'));
 
-test('client checkout requires a real account session', () => {
+test('client checkout can create a real account session without leaving checkout', () => {
   assert.match(appSource, /buildClientAuthPath\(`\/r\/\$\{restaurant\.slug\}\/checkout`\)/);
   assert.match(appSource, /Войти или зарегистрироваться/);
   assert.match(appSource, /restoreClientAccountSession\(\)/);
   assert.match(legacyCheckoutSource, /restoreClientAccountSession\(\)/);
-  assert.match(legacyCheckoutSource, /buildClientAuthPath\(`\/\$\{catalogSlug\}\/checkout`\)/);
+  assert.doesNotMatch(legacyCheckoutSource, /buildClientAuthPath\(`\/\$\{catalogSlug\}\/checkout`\)/);
+  assert.match(legacyCheckoutSource, /registerClientAccount/);
+  assert.match(legacyCheckoutSource, /loginClientAccount/);
   assert.match(restaurantAppSource, /routeSection === 'checkout'/);
 });
 

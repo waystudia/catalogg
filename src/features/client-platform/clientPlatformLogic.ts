@@ -11,6 +11,7 @@ import type {
   ClientPaymentStatus,
   ClientRestaurant
 } from './types';
+import type { ClientRestaurantReview } from './types';
 import { formatDeliveryLocationNote } from '../../shared/deliveryLocation';
 
 type RestaurantFilter = {
@@ -178,6 +179,13 @@ export const buildClientReviewPayload = (input: ClientReviewInput) => {
     comment
   };
 };
+
+export const summarizeRestaurantReviews = (reviews: readonly ClientRestaurantReview[]) => ({
+  rating: reviews.length === 0
+    ? 5
+    : Math.round((reviews.reduce((total, review) => total + review.rating, 0) / reviews.length) * 10) / 10,
+  reviewCount: reviews.length
+});
 
 export const calculateCartSummary = (
   lines: ClientCartLine[],

@@ -7,10 +7,11 @@ const image = (id: string, query: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=80&${query}`;
 
 export const clientPlatformSnapshot: ClientPlatformSnapshot = {
+  reviews: [],
   banners: [
     {
       id: 'banner-contest',
-      title: 'Конкурс от WayCatalog',
+      title: 'Конкурс от WayYaam',
       subtitle: 'Закажи на 1000₽ и выиграй приз',
       kind: 'contest',
       imageUrl: '',
@@ -61,6 +62,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       logoUrl: '',
       coverUrl: image('photo-1611143669185-af224c5e3252', 'sushi'),
       rating: 4.7,
+      reviewCount: 0,
       minOrderAmount: 500,
       freeDeliveryFrom: 1000,
       deliveryTimeFrom: 30,
@@ -93,6 +95,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       logoUrl: '',
       coverUrl: image('photo-1555939594-58d7cb561ad1', 'grill'),
       rating: 4.8,
+      reviewCount: 0,
       minOrderAmount: 700,
       freeDeliveryFrom: 1300,
       deliveryTimeFrom: 30,
@@ -125,6 +128,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       logoUrl: '',
       coverUrl: image('photo-1565299624946-b28f40a0ae38', 'pizza'),
       rating: 4.6,
+      reviewCount: 0,
       minOrderAmount: 500,
       freeDeliveryFrom: 1100,
       deliveryTimeFrom: 30,
@@ -157,6 +161,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       logoUrl: '',
       coverUrl: image('photo-1529692236671-f1f6cf9683ba', 'meat'),
       rating: 4.5,
+      reviewCount: 0,
       minOrderAmount: 600,
       freeDeliveryFrom: 1200,
       deliveryTimeFrom: 40,
@@ -189,6 +194,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       logoUrl: '',
       coverUrl: image('photo-1604908176997-125f25cc6f3d', 'rice'),
       rating: 4.6,
+      reviewCount: 0,
       minOrderAmount: 500,
       freeDeliveryFrom: 1000,
       deliveryTimeFrom: 30,
@@ -334,7 +340,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       recipientFullName: 'Исаев Ризван Магомедович',
       recipientPhone: '+7 928 000-00-01',
       paymentComment: 'Оплата заказа Rizih',
-      qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayCatalog%20Rizih%201470',
+      qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayYaam%20Rizih%201470',
       requireManualConfirmation: true
     },
     {
@@ -360,7 +366,7 @@ export const fallbackPaymentSettings: PaymentSettings = {
   bankName: 'Банк ресторана',
   recipientFullName: 'Получатель ресторана',
   recipientPhone: '+7 928 000-00-00',
-  paymentComment: 'Оплата заказа WayCatalog',
-  qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayCatalog',
+  paymentComment: 'Оплата заказа WayYaam',
+  qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=WayYaam',
   requireManualConfirmation: true
 };
