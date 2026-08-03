@@ -123,8 +123,8 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
                 src={image}
                 alt={activeIndex === 0 ? product.title : `${product.title}, фото ${activeIndex + 1}`}
                 loading={hero ? undefined : 'lazy'}
-                width={800}
-                height={600}
+                width={hero ? 1200 : 480}
+                height={hero ? 900 : 360}
                 fallbackKind={product.placeholder_kind}
                 draggable={false}
               />

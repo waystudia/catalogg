@@ -34,6 +34,16 @@ wayyaam.ru, www.wayyaam.ru {
     @appShell path / /index.html /sw.js /manifest.webmanifest
     header @appShell Cache-Control "no-cache"
 
+    # Public catalog photos previously pointed directly at Unsplash, which is
+    # unreliable for Russian mobile networks. Keep the client on this domain
+    # and let the production edge fetch the resized source image.
+    handle_path /media/unsplash/* {
+        reverse_proxy https://images.unsplash.com {
+            header_up Host images.unsplash.com
+            header_down Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+        }
+    }
+
     # A missing hashed module must be a real 404. Returning the application
     # shell here makes browsers reject it as JavaScript and leaves a blank PWA.
     handle /assets/* {
