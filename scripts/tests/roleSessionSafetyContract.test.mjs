@@ -26,6 +26,14 @@ test('restaurant, driver, and super admin sign-out actions require confirmation'
   assert.match(catalogAdmin, /confirmRoleSignOut\('заведения'\)/);
 });
 
+test('restaurant sign-out clears its scoped browser session before redirecting', async () => {
+  const supabase = await read('src/shared/supabase.ts');
+
+  assert.match(supabase, /getSupabaseAuthFallbackStorageKeys\('restaurant-admin'\)/);
+  assert.match(supabase, /localStorage\.removeItem/);
+  assert.match(supabase, /supabase\.auth\.signOut\(\{ scope: 'local' \}\)/);
+});
+
 test('sign-out controls are placed in settings rather than persistent navigation', async () => {
   const platform = await read('src/pages/platform-admin/PlatformAdminApp.tsx');
   const restaurantShell = await read('src/pages/catalog-admin/RestaurantAdminShell.tsx');

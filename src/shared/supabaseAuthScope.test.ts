@@ -10,6 +10,7 @@ describe('Supabase auth scopes', () => {
   it('keeps driver, restaurant and platform admin sessions independent', () => {
     assert.equal(getSupabaseAuthScope('#/driver/orders'), 'driver');
     assert.equal(getSupabaseAuthScope('#/mangal/settings'), 'restaurant-admin');
+    assert.equal(getSupabaseAuthScope('#/mangal/pos'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('/rizih/dashboard'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('#/admin/subscriptions'), 'platform-admin');
   });

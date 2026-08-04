@@ -6,7 +6,8 @@ const restaurantAdminSections = new Set([
   'orders',
   'scanner',
   'settings',
-  'payments'
+  'payments',
+  'pos'
 ]);
 
 const clientRoots = new Set([

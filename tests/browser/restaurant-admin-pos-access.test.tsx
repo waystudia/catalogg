@@ -6,6 +6,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { cabins, categories, products, restaurant } from '../../src/data/catalog';
 import { RestaurantAdminWorkspace } from '../../src/features/restaurant-admin/RestaurantAdminWorkspace';
 import { defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
+import { useAuthStore } from '../../src/features/stores';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
 import '../../src/app/styles.css';
 
@@ -91,4 +92,46 @@ test('POS uses a compact restaurant header and settings expose the hall editor',
   await screen.getByRole('button', { name: 'Настройки' }).click();
   await screen.getByRole('button', { name: 'Зал' }).click();
   expect(onOpenSeating).toHaveBeenCalledOnce();
+});
+
+test('restaurant settings exit confirms and invokes the active auth logout', async () => {
+  const originalLogout = useAuthStore.getState().logout;
+  const logout = vi.fn().mockResolvedValue(undefined);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  useAuthStore.setState({ logout });
+
+  try {
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/mangal/settings']}>
+          <RestaurantAdminWorkspace
+            catalogSlug="mangal"
+            restaurant={restaurant}
+            categories={categories}
+            cabins={cabins}
+            products={products}
+            orders={[]}
+            routeSection="settings"
+            paymentSettings={defaultPaymentSettings}
+            deliverySettings={defaultRestaurantDeliverySettings}
+            moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
+            onOpenScreen={() => undefined}
+            onOpenSeating={() => undefined}
+            onOpenCatalog={() => undefined}
+            onAddDish={() => undefined}
+            onOrderStatus={async () => undefined}
+            onRefreshOrders={() => undefined}
+            onSaveDeliverySettings={() => undefined}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await screen.getByRole('button', { name: 'Выход', exact: true }).click();
+    expect(confirm).toHaveBeenCalledWith('Выйти из аккаунта заведения?');
+    expect(logout).toHaveBeenCalledOnce();
+  } finally {
+    confirm.mockRestore();
+    useAuthStore.setState({ logout: originalLogout });
+  }
 });

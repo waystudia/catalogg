@@ -616,8 +616,17 @@ export async function signInAdmin(email: string, password: string, catalogSlug?:
 
 export async function signOutAdmin() {
   clearPwaResumePath();
+  if (typeof window !== 'undefined') {
+    try {
+      getSupabaseAuthFallbackStorageKeys('restaurant-admin').forEach((key) => {
+        window.localStorage.removeItem(key);
+      });
+    } catch {
+      // Leaving the restaurant area must still complete when storage is unavailable.
+    }
+  }
   if (!supabase) return;
-  await supabase.auth.signOut();
+  void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
 }
 
 async function resolveAdminSession(catalogSlug?: string, knownSession?: Session | null) {

@@ -157,9 +157,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
   logout: async () => {
     const { signOutAdmin } = await import('../shared/supabase');
-    await signOutAdmin();
-    set({ isAdmin: false });
-    redirectToClientHome();
+    try {
+      await signOutAdmin();
+    } finally {
+      set({ isAdmin: false });
+      redirectToClientHome();
+    }
   }
 }));
 
