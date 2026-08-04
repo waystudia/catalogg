@@ -237,7 +237,7 @@ values (
   'Мангал',
   'ресторан',
   '',
-  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=78&restaurant',
+  '/assets/mangal-demo/cover.webp',
   '79990000000',
   'https://instagram.com/',
   'ул. Центральная, 12',
@@ -255,14 +255,14 @@ on conflict (id) do update set
 
 insert into public.category (id, name, image, icon, kind, sort_order)
 values
-  ('chechen', 'Чеченские блюда', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'pot', 'food', 0),
-  ('pizza', 'Пиццы', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'pizza', 'food', 1),
-  ('fastfood', 'Фастфуд', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=78&burger', 'burger', 'food', 2),
-  ('grill', 'Мясо', 'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=900&q=78&kebab', 'flame', 'food', 3),
-  ('fridge', 'Напитки из холодильника', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&soda', 'bottle', 'drink', 4),
-  ('lemonades', 'Лимонады в графине', 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=900&q=78&lemonade', 'glass', 'drink', 5),
-  ('tea', 'Чай', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'tea', 'drink', 6),
-  ('cabins', 'Кабинки', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=78&restaurant', 'home', 'space', 7)
+  ('chechen', 'Чеченские блюда', '/assets/mangal-demo/products/zhizhig-galnash.webp', 'pot', 'food', 0),
+  ('pizza', 'Пиццы', '/assets/mangal-demo/products/four-seasons.webp', 'pizza', 'food', 1),
+  ('fastfood', 'Фастфуд', '/assets/mangal-demo/products/shawarma-combo.webp', 'burger', 'food', 2),
+  ('grill', 'Мясо', '/assets/mangal-demo/products/lamb-skewer.webp', 'flame', 'food', 3),
+  ('fridge', 'Напитки из холодильника', '/assets/mangal-demo/products/pepsi.webp', 'bottle', 'drink', 4),
+  ('lemonades', 'Лимонады в графине', '/assets/mangal-demo/products/strawberry-lemonade.webp', 'glass', 'drink', 5),
+  ('tea', 'Чай', '/assets/mangal-demo/products/chechen-tea.webp', 'tea', 'drink', 6),
+  ('cabins', 'Кабинки', '/assets/mangal-demo/cabins/cabin-1.webp', 'home', 'space', 7)
 on conflict (id) do update set
   name = excluded.name,
   image = excluded.image,
@@ -287,22 +287,29 @@ insert into public.product (
   is_popular, is_new, is_hit, is_hidden, stock_count, category_id, drink_type, pair_ids, sort_order
 )
 values
-  ('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=78&skewers', 'Баранина, специи, лук, соль, перец', '250 г', 2, 'с луком и соусом', true, false, true, false, 12, 'grill', null, array['chechen-tea', 'ayran', 'tarhun', 'signature-sauce'], 0),
-  ('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'Говядина, галушки, бульон, зелень', '420 г', 1, 'с чесночным соусом', true, false, false, false, 8, 'chechen', null, array['chechen-tea', 'ayran'], 1),
-  ('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 0, 'с томатным соусом', true, false, false, false, 9, 'pizza', null, array['coca-cola', 'sprite'], 2),
-  ('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=900&q=78&wrap', 'Курица, лаваш, овощи, картофель, соус', '360 г', 1, 'с картофелем', true, true, false, false, 16, 'fastfood', null, array['pepsi', 'fanta'], 3),
-  ('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=78&steak', 'Говядина, соль, перец, розмарин', '430 г', 1, 'с перечным соусом', false, false, true, false, 5, 'grill', null, array['blue-lagoon', 'signature-sauce'], 4),
-  ('grilled-vegetables', 'Овощи на мангале', 320, 'Сезонные овощи, приготовленные на углях.', 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=900&q=78&vegetables', 'Перец, баклажан, кабачок, томаты', '280 г', 0, 'с зеленью', true, false, false, false, 0, 'grill', null, array['ayran'], 5),
-  ('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=900&q=78&cola', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', 'Холодильник', '{}', 6),
-  ('pepsi', 'Pepsi', 120, 'Освежающий вкус с легкой сладостью.', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&pepsi', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', 'Холодильник', '{}', 7),
-  ('fanta', 'Fanta', 120, 'Апельсиновый вкус и яркое настроение.', 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?auto=format&fit=crop&w=900&q=78&orange soda', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 15, 'fridge', 'Холодильник', '{}', 8),
-  ('sprite', 'Sprite', 120, 'Лимонно-лаймовый вкус и свежесть.', 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?auto=format&fit=crop&w=900&q=78&sprite', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 18, 'fridge', 'Холодильник', '{}', 9),
-  ('ayran', 'Айран', 150, 'Освежающий кисломолочный напиток.', 'https://images.unsplash.com/photo-1564758565388-0d5da0cbb064?auto=format&fit=crop&w=900&q=78&ayran', 'Кисломолочный напиток, соль, мята', '250 мл', 0, 'охлажденный', true, false, false, false, 14, 'fridge', 'Айран', '{}', 10),
-  ('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'Зеленый чай, чабрец, травы', '450 мл', 0, 'в чайнике', true, false, false, false, 30, 'tea', 'Чай', '{}', 11),
-  ('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=78&strawberry lemonade', 'Клубника, лимон, мята, содовая', '450 мл', 0, 'со льдом', true, true, false, false, 10, 'lemonades', 'Лимонады', '{}', 12),
-  ('blue-lagoon', 'Синяя лагуна', 250, 'Яркий цитрусовый лимонад с легкими морскими нотками.', 'https://images.unsplash.com/photo-1536935338788-846bb9981813?auto=format&fit=crop&w=900&q=78&blue cocktail', 'Лимон, содовая, сироп блю кюрасао', '450 мл', 0, 'со льдом', false, false, false, false, 11, 'lemonades', 'Лимонады', '{}', 13),
-  ('tarhun', 'Лимонад тархун', 150, 'Домашний лимонад с ароматом тархуна.', 'https://images.unsplash.com/photo-1523371054106-bbf80586c38c?auto=format&fit=crop&w=900&q=78&green lemonade', 'Тархун, лимон, мята, содовая', '350 мл', 0, 'со льдом', false, false, false, false, 8, 'lemonades', 'Лимонады', '{}', 14),
-  ('signature-sauce', 'Соус фирменный', 80, 'Пикантный соус по авторскому рецепту.', 'https://images.unsplash.com/photo-1472476443507-c7a5948772fc?auto=format&fit=crop&w=900&q=78&sauce', 'Томаты, специи, чеснок', '60 г', 2, 'в соуснике', false, false, false, false, 30, 'grill', null, '{}', 15)
+  ('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', '/assets/mangal-demo/products/lamb-skewer.webp', 'Баранина, специи, лук, соль, перец', '250 г', 2, 'с луком и соусом', true, false, true, false, 12, 'grill', null, array['chechen-tea', 'ayran', 'tarhun', 'signature-sauce'], 0),
+  ('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', '/assets/mangal-demo/products/zhizhig-galnash.webp', 'Говядина, галушки, бульон, зелень', '420 г', 1, 'с чесночным соусом', true, false, false, false, 8, 'chechen', null, array['chechen-tea', 'ayran'], 1),
+  ('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', '/assets/mangal-demo/products/four-seasons.webp', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 0, 'с томатным соусом', true, false, false, false, 9, 'pizza', null, array['coca-cola', 'sprite'], 2),
+  ('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', '/assets/mangal-demo/products/shawarma-combo.webp', 'Курица, лаваш, овощи, картофель, соус', '360 г', 1, 'с картофелем', true, true, false, false, 16, 'fastfood', null, array['pepsi', 'fanta'], 3),
+  ('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', '/assets/mangal-demo/products/bone-steak.webp', 'Говядина, соль, перец, розмарин', '430 г', 1, 'с перечным соусом', false, false, true, false, 5, 'grill', null, array['blue-lagoon', 'signature-sauce'], 4),
+  ('grilled-vegetables', 'Овощи на мангале', 320, 'Сезонные овощи, приготовленные на углях.', '/assets/mangal-demo/products/grilled-vegetables.webp', 'Перец, баклажан, кабачок, томаты', '280 г', 0, 'с зеленью', true, false, false, false, 0, 'grill', null, array['ayran'], 5),
+  ('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', '/assets/mangal-demo/products/coca-cola.webp', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', 'Холодильник', '{}', 6),
+  ('pepsi', 'Pepsi', 120, 'Освежающий вкус с легкой сладостью.', '/assets/mangal-demo/products/pepsi.webp', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 20, 'fridge', 'Холодильник', '{}', 7),
+  ('fanta', 'Fanta', 120, 'Апельсиновый вкус и яркое настроение.', '/assets/mangal-demo/products/fanta.webp', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 15, 'fridge', 'Холодильник', '{}', 8),
+  ('sprite', 'Sprite', 120, 'Лимонно-лаймовый вкус и свежесть.', '/assets/mangal-demo/products/sprite.webp', 'Газированный напиток', '330 мл', 0, 'охлажденная', false, false, false, false, 18, 'fridge', 'Холодильник', '{}', 9),
+  ('ayran', 'Айран', 150, 'Освежающий кисломолочный напиток.', '/assets/mangal-demo/products/ayran.webp', 'Кисломолочный напиток, соль, мята', '250 мл', 0, 'охлажденный', true, false, false, false, 14, 'fridge', 'Айран', '{}', 10),
+  ('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', '/assets/mangal-demo/products/chechen-tea.webp', 'Зеленый чай, чабрец, травы', '450 мл', 0, 'в чайнике', true, false, false, false, 30, 'tea', 'Чай', '{}', 11),
+  ('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', '/assets/mangal-demo/products/strawberry-lemonade.webp', 'Клубника, лимон, мята, содовая', '450 мл', 0, 'со льдом', true, true, false, false, 10, 'lemonades', 'Лимонады', '{}', 12),
+  ('blue-lagoon', 'Синяя лагуна', 250, 'Яркий цитрусовый лимонад с легкими морскими нотками.', '/assets/mangal-demo/products/blue-lagoon.webp', 'Лимон, содовая, сироп блю кюрасао', '450 мл', 0, 'со льдом', false, false, false, false, 11, 'lemonades', 'Лимонады', '{}', 13),
+  ('tarhun', 'Лимонад тархун', 150, 'Домашний лимонад с ароматом тархуна.', '/assets/mangal-demo/products/tarhun.webp', 'Тархун, лимон, мята, содовая', '350 мл', 0, 'со льдом', false, false, false, false, 8, 'lemonades', 'Лимонады', '{}', 14),
+  ('signature-sauce', 'Соус фирменный', 80, 'Пикантный соус по авторскому рецепту.', '/assets/mangal-demo/products/signature-sauce.webp', 'Томаты, специи, чеснок', '60 г', 2, 'в соуснике', false, false, false, false, 30, 'grill', null, '{}', 15),
+  ('lipton-lemon', 'Lipton Лимон', 150, 'Холодный чай с освежающим лимонным вкусом.', '/assets/mangal-demo/products/lipton-lemon.webp', 'Чайный напиток, лимон', '500 мл', 0, 'охлажденный', false, true, false, false, 20, 'fridge', 'Холодильник', '{}', 16),
+  ('lipton-peach', 'Lipton Персик', 150, 'Холодный чай с мягким персиковым вкусом.', '/assets/mangal-demo/products/lipton-peach.webp', 'Чайный напиток, персик', '500 мл', 0, 'охлажденный', false, true, false, false, 20, 'fridge', 'Холодильник', '{}', 17),
+  ('orange-juice', 'Сок апельсиновый', 180, 'Натуральный апельсиновый сок.', '/assets/mangal-demo/products/orange-juice.webp', 'Апельсиновый сок', '250 мл', 0, 'охлажденный', false, true, false, false, 15, 'fridge', 'Соки', '{}', 18),
+  ('apple-juice', 'Сок яблочный', 180, 'Натуральный яблочный сок.', '/assets/mangal-demo/products/apple-juice.webp', 'Яблочный сок', '250 мл', 0, 'охлажденный', false, true, false, false, 15, 'fridge', 'Соки', '{}', 19),
+  ('cherry-juice', 'Сок вишнёвый', 180, 'Натуральный вишнёвый сок.', '/assets/mangal-demo/products/cherry-juice.webp', 'Вишнёвый сок', '250 мл', 0, 'охлажденный', false, true, false, false, 15, 'fridge', 'Соки', '{}', 20),
+  ('still-water', 'Вода без газа', 100, 'Питьевая негазированная вода.', '/assets/mangal-demo/products/still-water.webp', 'Питьевая вода', '500 мл', 0, 'охлажденная', false, false, false, false, 24, 'fridge', 'Вода', '{}', 21),
+  ('mineral-water', 'Вода газированная', 100, 'Питьевая газированная вода.', '/assets/mangal-demo/products/mineral-water.webp', 'Питьевая вода', '500 мл', 0, 'охлажденная', false, false, false, false, 24, 'fridge', 'Вода', '{}', 22)
 on conflict (id) do update set
   title = excluded.title,
   price = excluded.price,
@@ -340,10 +347,10 @@ on conflict do nothing;
 
 insert into public.cabin (id, title, capacity, feature, image_url, sort_order)
 values
-  ('cabin-1', 'Кабинка №1', 'до 4 гостей', 'Закрывается шторами', 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=78&private dining', 0),
-  ('cabin-2', 'Кабинка №2', 'до 4 гостей', 'Отдельная дверь', 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=78&restaurant booth', 1),
-  ('big-cabin', 'Большая кабинка', 'до 10 гостей', 'Отдельная дверь', 'https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=78&large restaurant table', 2),
-  ('main-hall', 'Общий зал', 'до 20 гостей', 'Открытое пространство', 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=78&restaurant hall', 3)
+  ('cabin-1', 'Кабинка №1', 'до 4 гостей', 'Закрывается шторами', '/assets/mangal-demo/cabins/cabin-1.webp', 0),
+  ('cabin-2', 'Кабинка №2', 'до 4 гостей', 'Отдельная дверь', '/assets/mangal-demo/cabins/cabin-2.webp', 1),
+  ('big-cabin', 'Большая кабинка', 'до 10 гостей', 'Отдельная дверь', '/assets/mangal-demo/cabins/big-cabin.webp', 2),
+  ('main-hall', 'Общий зал', 'до 20 гостей', 'Открытое пространство', '/assets/mangal-demo/cabins/main-hall.webp', 3)
 on conflict (id) do update set
   title = excluded.title,
   capacity = excluded.capacity,

@@ -45,14 +45,14 @@ begin
 
   insert into tmp_seed_categories (slug, name, image_url, icon, sort_order)
   values
-    ('chechen', 'Чеченские блюда', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'pot', 10),
-    ('pizza', 'Пиццы', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'pizza', 20),
-    ('fastfood', 'Фастфуд', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=900&q=78&burger', 'burger', 30),
-    ('grill', 'Мясо', 'https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=900&q=78&kebab', 'flame', 40),
-    ('fridge', 'Напитки из холодильника', 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=78&soda', 'bottle', 50),
-    ('lemonades', 'Лимонады в графине', 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=900&q=78&lemonade', 'glass', 60),
-    ('tea', 'Чай', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'tea', 70),
-    ('cabins', 'Кабинки', 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=78&restaurant', 'home', 80);
+    ('chechen', 'Чеченские блюда', '/assets/mangal-demo/products/zhizhig-galnash.webp', 'pot', 10),
+    ('pizza', 'Пиццы', '/assets/mangal-demo/products/four-seasons.webp', 'pizza', 20),
+    ('fastfood', 'Фастфуд', '/assets/mangal-demo/products/shawarma-combo.webp', 'burger', 30),
+    ('grill', 'Мясо', '/assets/mangal-demo/products/lamb-skewer.webp', 'flame', 40),
+    ('fridge', 'Напитки из холодильника', '/assets/mangal-demo/products/pepsi.webp', 'bottle', 50),
+    ('lemonades', 'Лимонады в графине', '/assets/mangal-demo/products/strawberry-lemonade.webp', 'glass', 60),
+    ('tea', 'Чай', '/assets/mangal-demo/products/chechen-tea.webp', 'tea', 70),
+    ('cabins', 'Кабинки', '/assets/mangal-demo/cabins/cabin-1.webp', 'home', 80);
 
   insert into public.categories (catalog_id, slug, name, image_url, icon, sort_order)
   select v_catalog_id, slug, name, image_url, icon, sort_order
@@ -68,14 +68,21 @@ begin
     category_slug, is_popular, is_new, is_promo, sort_order
   )
   values
-    ('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=78&skewers', 'Баранина, специи, лук, соль, перец', '250 г', 'с луком и соусом', 12, 'grill', true, false, true, 10),
-    ('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=900&q=78&soup', 'Говядина, галушки, бульон, зелень', '420 г', 'с чесночным соусом', 8, 'chechen', true, false, false, 20),
-    ('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?auto=format&fit=crop&w=900&q=78&pizza', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 'с томатным соусом', 9, 'pizza', true, false, false, 30),
-    ('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', 'https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=900&q=78&wrap', 'Курица, лаваш, овощи, картофель, соус', '360 г', 'с картофелем', 16, 'fastfood', true, true, false, 40),
-    ('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=78&steak', 'Говядина, соль, перец, розмарин', '430 г', 'с перечным соусом', 5, 'grill', false, false, true, 50),
-    ('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=900&q=78&cola', 'Газированный напиток', '330 мл', 'охлажденная', 20, 'fridge', false, false, false, 60),
-    ('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=78&tea', 'Зеленый чай, чабрец, травы', '450 мл', 'в чайнике', 30, 'tea', true, false, false, 70),
-    ('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=78&strawberry-lemonade', 'Клубника, лимон, мята, содовая', '450 мл', 'со льдом', 10, 'lemonades', true, true, false, 80);
+    ('lamb-skewer', 'Шашлык из баранины', 690, 'Сочный шашлык из баранины с пряными специями и луком.', '/assets/mangal-demo/products/lamb-skewer.webp', 'Баранина, специи, лук, соль, перец', '250 г', 'с луком и соусом', 12, 'grill', true, false, true, 10),
+    ('zhizhig-galnash', 'Жижиг-галнаш', 380, 'Традиционный чеченский суп с галушками из теста.', '/assets/mangal-demo/products/zhizhig-galnash.webp', 'Говядина, галушки, бульон, зелень', '420 г', 'с чесночным соусом', 8, 'chechen', true, false, false, 20),
+    ('four-seasons', 'Четыре сезона', 550, 'Пицца с ветчиной, грибами, оливками и артишоками.', '/assets/mangal-demo/products/four-seasons.webp', 'Тесто, сыр, томаты, ветчина, грибы, оливки', '520 г', 'с томатным соусом', 9, 'pizza', true, false, false, 30),
+    ('shawarma-combo', 'Комбо шаурма', 400, 'Шаурма с сочным мясом, овощами и картофелем.', '/assets/mangal-demo/products/shawarma-combo.webp', 'Курица, лаваш, овощи, картофель, соус', '360 г', 'с картофелем', 16, 'fastfood', true, true, false, 40),
+    ('bone-steak', 'Стейк на косточке', 1390, 'Сочный стейк из говядины на кости.', '/assets/mangal-demo/products/bone-steak.webp', 'Говядина, соль, перец, розмарин', '430 г', 'с перечным соусом', 5, 'grill', false, false, true, 50),
+    ('coca-cola', 'Coca-Cola', 120, 'Классический освежающий вкус.', '/assets/mangal-demo/products/coca-cola.webp', 'Газированный напиток', '330 мл', 'охлажденная', 20, 'fridge', false, false, false, 60),
+    ('chechen-tea', 'Чеченский чай', 200, 'Душистый зеленый чай с чабрецом и горными травами.', '/assets/mangal-demo/products/chechen-tea.webp', 'Зеленый чай, чабрец, травы', '450 мл', 'в чайнике', 30, 'tea', true, false, false, 70),
+    ('strawberry-lemonade', 'Клубничный лимонад', 220, 'Освежающий лимонад с клубникой и мятой.', '/assets/mangal-demo/products/strawberry-lemonade.webp', 'Клубника, лимон, мята, содовая', '450 мл', 'со льдом', 10, 'lemonades', true, true, false, 80),
+    ('lipton-lemon', 'Lipton Лимон', 150, 'Холодный чай с освежающим лимонным вкусом.', '/assets/mangal-demo/products/lipton-lemon.webp', 'Чайный напиток, лимон', '500 мл', 'охлажденный', 20, 'fridge', false, true, false, 90),
+    ('lipton-peach', 'Lipton Персик', 150, 'Холодный чай с мягким персиковым вкусом.', '/assets/mangal-demo/products/lipton-peach.webp', 'Чайный напиток, персик', '500 мл', 'охлажденный', 20, 'fridge', false, true, false, 100),
+    ('orange-juice', 'Сок апельсиновый', 180, 'Натуральный апельсиновый сок.', '/assets/mangal-demo/products/orange-juice.webp', 'Апельсиновый сок', '250 мл', 'охлажденный', 15, 'fridge', false, true, false, 110),
+    ('apple-juice', 'Сок яблочный', 180, 'Натуральный яблочный сок.', '/assets/mangal-demo/products/apple-juice.webp', 'Яблочный сок', '250 мл', 'охлажденный', 15, 'fridge', false, true, false, 120),
+    ('cherry-juice', 'Сок вишнёвый', 180, 'Натуральный вишнёвый сок.', '/assets/mangal-demo/products/cherry-juice.webp', 'Вишнёвый сок', '250 мл', 'охлажденный', 15, 'fridge', false, true, false, 130),
+    ('still-water', 'Вода без газа', 100, 'Питьевая негазированная вода.', '/assets/mangal-demo/products/still-water.webp', 'Питьевая вода', '500 мл', 'охлажденная', 24, 'fridge', false, false, false, 140),
+    ('mineral-water', 'Вода газированная', 100, 'Питьевая газированная вода.', '/assets/mangal-demo/products/mineral-water.webp', 'Питьевая вода', '500 мл', 'охлажденная', 24, 'fridge', false, false, false, 150);
 
   insert into public.products (
     catalog_id, category_id, slug, title, status, price, description, ingredients, weight, serving,
@@ -135,7 +142,7 @@ begin
 
   insert into public.bookable_resources (catalog_id, title, capacity, image_url, sort_order)
   values
-    (v_catalog_id, 'Кабинка №1', 4, 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=900&q=78&private-dining', 10),
-    (v_catalog_id, 'Кабинка №2', 4, 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?auto=format&fit=crop&w=900&q=78&restaurant-booth', 20),
-    (v_catalog_id, 'Большая кабинка', 10, 'https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=900&q=78&large-restaurant-table', 30);
+    (v_catalog_id, 'Кабинка №1', 4, '/assets/mangal-demo/cabins/cabin-1.webp', 10),
+    (v_catalog_id, 'Кабинка №2', 4, '/assets/mangal-demo/cabins/cabin-2.webp', 20),
+    (v_catalog_id, 'Большая кабинка', 10, '/assets/mangal-demo/cabins/big-cabin.webp', 30);
 end $$;
