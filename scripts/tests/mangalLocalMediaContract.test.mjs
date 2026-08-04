@@ -62,6 +62,19 @@ test('Mangal media migration is additive and replaces every remote demo image', 
   assert.match(sql, /Вода без газа[\s\S]*Вода газированная/);
 });
 
+test('Mangal restaurant gallery retires external cover URLs without removing uploaded covers', async () => {
+  const names = await readdir(new URL('supabase/migrations/', root));
+  const migrationName = names.find((name) => name.endsWith('_localize_mangal_restaurant_gallery.sql'));
+  assert.ok(migrationName, 'Mangal restaurant gallery migration is required');
+  const sql = await readFile(new URL(`supabase/migrations/${migrationName}`, root), 'utf8');
+
+  assert.doesNotMatch(sql, /\b(delete|truncate|drop)\b/i);
+  assert.match(sql, /update public\.catalog_sections/);
+  assert.match(sql, /jsonb_array_elements_text/);
+  assert.match(sql, /\/assets\/mangal-demo\/cover\.webp/);
+  assert.match(sql, /when image ~ '\^https\?:\/\/'/);
+});
+
 test('Mangal local WebP files stay within the lightweight mobile budget', async () => {
   const productsUrl = new URL('public/assets/mangal-demo/products/', root);
   const cabinsUrl = new URL('public/assets/mangal-demo/cabins/', root);
