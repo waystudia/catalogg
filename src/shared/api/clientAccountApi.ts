@@ -72,7 +72,7 @@ const legalDocumentHashes = {
   advertising_consent: '8b9026b9d5f2c9598c16f7785efb714face8862108e1e58f6a778ad202d7487e'
 } as const;
 
-const recordRegistrationLegalChoices = async (token: string, choices: ClientRegistrationLegalChoices) => {
+export const recordClientRegistrationLegalChoices = async (token: string, choices: ClientRegistrationLegalChoices) => {
   if (!supabase) return;
   const records = [
     ['user_agreement', choices.acceptedAgreement],
@@ -88,7 +88,7 @@ const recordRegistrationLegalChoices = async (token: string, choices: ClientRegi
       target_granted: granted,
       target_source: 'client_registration'
     });
-    if (error) throw new Error('Аккаунт создан, но юридическое подтверждение не записано. Обратитесь в поддержку до оформления заказа.');
+    if (error) throw new Error('Не удалось сохранить подтверждение условий. Проверьте интернет и попробуйте ещё раз.');
   }
 };
 
@@ -104,7 +104,7 @@ export async function registerClientAccount(input: ClientProfile & { password: s
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось создать клиентскую сессию.');
   saveClientSessionToken(token);
-  await recordRegistrationLegalChoices(token, input);
+  await recordClientRegistrationLegalChoices(token, input);
   return session;
 }
 

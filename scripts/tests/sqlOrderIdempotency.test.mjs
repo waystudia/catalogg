@@ -60,6 +60,11 @@ describe('public order idempotency SQL', () => {
     assert.match(functionSql, /returns jsonb/);
     assert.match(functionSql, /where o\.id = target_order_id/);
     assert.match(functionSql, /left join public\.deliveries/);
+    assert.match(functionSql, /'delivery_status', d\.status/);
+    assert.doesNotMatch(
+      functionSql,
+      /'delivery_status', coalesce\(d\.status, case when o\.fulfillment_type = 'delivery' then 'waiting_courier'/
+    );
     assert.match(sql, /grant execute on function public\.get_public_restaurant_order_status\(uuid\) to anon, authenticated/);
   });
 

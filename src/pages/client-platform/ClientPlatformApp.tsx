@@ -41,7 +41,7 @@ import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
+import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
@@ -164,7 +164,7 @@ const paymentMethodLabels: Record<ClientPaymentMethod, string> = {
 };
 
 const statusLabels: Record<ClientOrderStatus, string> = {
-  new: 'Новый',
+  new: 'Ожидает принятия',
   waiting_payment_confirmation: 'Ожидает подтверждения оплаты',
   payment_confirmed: 'Оплата подтверждена',
   accepted: 'Принят',
@@ -176,37 +176,6 @@ const statusLabels: Record<ClientOrderStatus, string> = {
   on_the_way: 'В пути',
   completed: 'Доставлен',
   canceled: 'Отменён'
-};
-
-const toClientOrderStatus = (status: string | undefined): ClientOrderStatus | undefined => {
-  if (!status) return undefined;
-  if (status === 'preparing') return 'cooking';
-  if (status === 'confirmed') return 'accepted';
-  if (status === 'waiting_courier') return 'waiting_driver';
-  if (status === 'assigned' || status === 'arrived_to_restaurant') return 'assigned_driver';
-  if (status === 'handed_over') return 'picked_up';
-  if (status === 'arrived_to_client') return 'on_the_way';
-  if (status === 'driver_assigned') return 'assigned_driver';
-  if (status === 'delivered') return 'completed';
-  if (status === 'cancelled') return 'canceled';
-  if (
-    status === 'new' ||
-    status === 'waiting_payment_confirmation' ||
-    status === 'payment_confirmed' ||
-    status === 'accepted' ||
-    status === 'cooking' ||
-    status === 'ready' ||
-    status === 'waiting_driver' ||
-    status === 'assigned_driver' ||
-    status === 'picked_up' ||
-    status === 'on_the_way' ||
-    status === 'completed' ||
-    status === 'canceled'
-  ) {
-    return status;
-  }
-
-  return undefined;
 };
 
 const providerIcons: Record<ClientDeliveryProvider, typeof Truck> = {
@@ -2323,7 +2292,7 @@ function OrderStatusPage({
 
     return subscribeClientOrderRealtime(order.id, (patch) => {
       syncOrderPatch(order.id, mergeClientOrderRealtimePatch({
-        status: toClientOrderStatus(patch.deliveryStatus ?? patch.status),
+        status: resolveClientOrderRealtimeStatus(patch.status, patch.deliveryStatus),
         paymentStatus: patch.paymentStatus,
         driverName: patch.driverName,
         driverPhone: patch.driverPhone,
@@ -2847,7 +2816,7 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     const unsubscribes = currentOrderIds.split('|').map((orderId) =>
       subscribeClientOrderRealtime(orderId, (patch) => {
         syncOrderPatch(orderId, mergeClientOrderRealtimePatch({
-          status: toClientOrderStatus(patch.deliveryStatus ?? patch.status),
+          status: resolveClientOrderRealtimeStatus(patch.status, patch.deliveryStatus),
           paymentStatus: patch.paymentStatus,
           driverName: patch.driverName,
           driverPhone: patch.driverPhone,

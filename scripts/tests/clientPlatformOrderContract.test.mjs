@@ -34,4 +34,10 @@ describe('client platform restaurant order contract', () => {
     assert.match(apiSource, /\.from\('category'\)/);
     assert.match(apiSource, /\.from\('product'\)/);
   });
+
+  it('shows a newly submitted order as waiting for restaurant acceptance', () => {
+    const appSource = readFileSync(resolve(repoRoot, 'src/pages/client-platform/ClientPlatformApp.tsx'), 'utf8');
+
+    assert.match(appSource, /new:\s*'Ожидает принятия'/);
+  });
 });

@@ -128,6 +128,59 @@ export const requireSavedRestaurantOrderId = (orderId: string | null) => {
   return orderId;
 };
 
+const toClientOrderStatus = (status: string | undefined): ClientOrderStatus | undefined => {
+  if (!status) return undefined;
+  if (status === 'preparing') return 'cooking';
+  if (status === 'confirmed') return 'accepted';
+  if (status === 'waiting_courier') return 'waiting_driver';
+  if (status === 'assigned' || status === 'arrived_to_restaurant' || status === 'driver_assigned') {
+    return 'assigned_driver';
+  }
+  if (status === 'handed_over') return 'picked_up';
+  if (status === 'arrived_to_client') return 'on_the_way';
+  if (status === 'delivered') return 'completed';
+  if (status === 'cancelled') return 'canceled';
+  if (
+    status === 'new' ||
+    status === 'waiting_payment_confirmation' ||
+    status === 'payment_confirmed' ||
+    status === 'accepted' ||
+    status === 'cooking' ||
+    status === 'ready' ||
+    status === 'waiting_driver' ||
+    status === 'assigned_driver' ||
+    status === 'picked_up' ||
+    status === 'on_the_way' ||
+    status === 'completed' ||
+    status === 'canceled'
+  ) {
+    return status;
+  }
+
+  return undefined;
+};
+
+const restaurantControlledOrderStatuses = new Set<ClientOrderStatus>([
+  'new',
+  'waiting_payment_confirmation',
+  'payment_confirmed',
+  'accepted',
+  'cooking',
+  'ready'
+]);
+
+export const resolveClientOrderRealtimeStatus = (
+  orderStatus: string | undefined,
+  deliveryStatus: string | undefined
+) => {
+  const normalizedOrderStatus = toClientOrderStatus(orderStatus);
+  if (normalizedOrderStatus && restaurantControlledOrderStatuses.has(normalizedOrderStatus)) {
+    return normalizedOrderStatus;
+  }
+
+  return toClientOrderStatus(deliveryStatus) ?? normalizedOrderStatus;
+};
+
 export const selectClientOrderForStatus = (
   orders: readonly ClientOrder[],
   restaurantSlug: string,

@@ -376,7 +376,7 @@ as $$
     'restaurant_lng', o.restaurant_lng_snapshot,
     'status', o.status,
     'payment_status', coalesce(o.payment_status, 'unpaid'),
-    'delivery_status', coalesce(d.status, case when o.fulfillment_type = 'delivery' then 'waiting_courier' else 'not_required' end),
+    'delivery_status', d.status,
     'driver_name', drv.name,
     'driver_phone', drv.phone,
     'subtotal', coalesce(o.subtotal, 0),

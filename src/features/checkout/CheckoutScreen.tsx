@@ -84,7 +84,9 @@ import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
 import {
+  getStoredClientSessionToken,
   loginClientAccount,
+  recordClientRegistrationLegalChoices,
   registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
@@ -1108,6 +1110,13 @@ export function CheckoutScreen({
                   const message = error instanceof Error ? error.message : '';
                   if (!message.includes('Аккаунт с этим номером уже существует')) throw error;
                   session = await loginClientAccount({ phone: profilePhone, password: clientPassword });
+                  const sessionToken = getStoredClientSessionToken();
+                  if (!sessionToken) throw new Error('Не удалось открыть клиентскую сессию.');
+                  await recordClientRegistrationLegalChoices(sessionToken, {
+                    acceptedAgreement: acceptedOrderData,
+                    acceptedPersonalData: acceptedOrderData,
+                    acceptedAdvertising: false
+                  });
                 }
                 setHasClientSession(true);
                 saveClientProfile({ name: session.name, phone: session.phone });

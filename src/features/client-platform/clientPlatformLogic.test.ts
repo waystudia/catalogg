@@ -15,6 +15,7 @@ import {
   filterRestaurants,
   filterRestaurantsWithCityFallback,
   getDeliveryProviderLabel,
+  resolveClientOrderRealtimeStatus,
   resolveCheckoutSettlement
 } from './clientPlatformLogic';
 import type { ClientCartLine, ClientDish, ClientRestaurant } from './types';
@@ -326,6 +327,22 @@ describe('client platform order persistence', () => {
         driverPhone: '+7 928 000-00-00'
       }
     );
+  });
+});
+
+describe('client platform realtime order status', () => {
+  it('keeps the restaurant status while delivery has not been dispatched', () => {
+    assert.equal(resolveClientOrderRealtimeStatus('new', 'waiting_courier'), 'new');
+    assert.equal(resolveClientOrderRealtimeStatus('accepted', 'waiting_courier'), 'accepted');
+    assert.equal(resolveClientOrderRealtimeStatus('cooking', 'waiting_courier'), 'cooking');
+    assert.equal(resolveClientOrderRealtimeStatus('ready', undefined), 'ready');
+  });
+
+  it('uses courier progress only after the restaurant dispatches the order', () => {
+    assert.equal(resolveClientOrderRealtimeStatus('waiting_driver', 'waiting_courier'), 'waiting_driver');
+    assert.equal(resolveClientOrderRealtimeStatus('waiting_driver', 'assigned'), 'assigned_driver');
+    assert.equal(resolveClientOrderRealtimeStatus('assigned_driver', 'assigned'), 'assigned_driver');
+    assert.equal(resolveClientOrderRealtimeStatus(undefined, 'waiting_courier'), 'waiting_driver');
   });
 });
 
