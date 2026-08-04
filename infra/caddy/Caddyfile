@@ -6,6 +6,7 @@
 
 {$PROXY_DOMAIN} {
     tls {
+        protocols tls1.2 tls1.2
         curves x25519
     }
 
@@ -29,6 +30,7 @@
 
 wayyaam.ru, www.wayyaam.ru {
     tls {
+        protocols tls1.2 tls1.2
         curves x25519
     }
 

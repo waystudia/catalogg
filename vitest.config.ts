@@ -4,6 +4,9 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    include: ['react-dom/client']
+  },
   test: {
     projects: [
       {
@@ -14,6 +17,7 @@ export default defineConfig({
         }
       },
       {
+        extends: true,
         test: {
           name: 'browser',
           include: ['tests/browser/**/*.test.tsx'],

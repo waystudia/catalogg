@@ -5,10 +5,16 @@ import test from 'node:test';
 const caddyfile = await readFile(new URL('../../infra/caddy/Caddyfile', import.meta.url), 'utf8');
 
 test('production TLS avoids the hybrid handshake that stalls mobile clients', () => {
-  const siteBlocks = caddyfile.match(/tls \{\s+curves x25519\s+\}/g) ?? [];
+  const x25519Curves = caddyfile.match(/curves x25519/g) ?? [];
 
-  assert.equal(siteBlocks.length, 2);
+  assert.equal(x25519Curves.length, 2);
   assert.doesNotMatch(caddyfile, /x25519mlkem768/);
+});
+
+test('production follows the provider workaround by serving TLS 1.2 only', () => {
+  const tls12OnlyBlocks = caddyfile.match(/tls \{\s+protocols tls1\.2 tls1\.2\s+curves x25519\s+\}/g) ?? [];
+
+  assert.equal(tls12OnlyBlocks.length, 2);
 });
 
 test('production disables cached HTTP/3 alternatives on unreliable mobile routes', () => {
