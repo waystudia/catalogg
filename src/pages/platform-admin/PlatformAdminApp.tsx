@@ -120,6 +120,11 @@ import { PlatformTemplatesPage } from '../../features/platform-admin-templates/P
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
+import {
+  getRestaurantModuleEntitlementByCatalog,
+  saveRestaurantModuleEntitlement,
+  type RestaurantModuleEntitlement
+} from '../../shared/api/restaurantModulesApi';
 import { getTemplateOptions } from '../../shared/api/templatesApi';
 import { copyText, getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -1288,10 +1293,20 @@ function EditClientForm({
   const [planId, setPlanId] = useState(client.planCode || 'trial');
   const [subscriptionStatus, setSubscriptionStatus] = useState(client.subscriptionStatus);
   const [subscriptionEndsAt, setSubscriptionEndsAt] = useState(client.subscriptionEndsAt?.slice(0, 10) ?? '');
+  const [moduleDraft, setModuleDraft] = useState<RestaurantModuleEntitlement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const settlementsQuery = useQuery({ queryKey: ['delivery-settlements'], queryFn: getDeliverySettlements });
+  const modulesQuery = useQuery({
+    queryKey: ['restaurant-module-entitlement', client.catalogId],
+    queryFn: () => getRestaurantModuleEntitlementByCatalog(client.catalogId)
+  });
   const cityOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.cityName.trim()).filter(Boolean)));
   const settlementOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.settlementName.trim()).filter(Boolean)));
+
+  useEffect(() => {
+    if (moduleDraft || !modulesQuery.data) return;
+    setModuleDraft(modulesQuery.data);
+  }, [moduleDraft, modulesQuery.data]);
 
   const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1317,6 +1332,9 @@ function EditClientForm({
         subscriptionStatus,
         subscriptionEndsAt: subscriptionEndsAt || null
       });
+      if (moduleDraft) {
+        await saveRestaurantModuleEntitlement(moduleDraft);
+      }
       toast.success('Клиент обновлён');
       onSuccess();
     } catch (error) {
@@ -1479,11 +1497,43 @@ function EditClientForm({
           </div>
         </section>
 
+        <section className="client-form-section client-module-access">
+          <h3>Дополнительные модули ресторана</h3>
+          <p>Включаются только для «{client.companyName}». Существующие блюда, категории, клиенты и заказы сохраняются.</p>
+          {modulesQuery.isLoading && <em>Загружаем текущие права…</em>}
+          {modulesQuery.isError && (
+            <div className="client-module-access__error">
+              Не удалось загрузить текущие права. Сохранение временно отключено.
+              <button type="button" onClick={() => void modulesQuery.refetch()}>Повторить</button>
+            </div>
+          )}
+          {moduleDraft && (
+            <div className="client-module-access__options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={moduleDraft.posEnabled}
+                  onChange={(event) => setModuleDraft({ ...moduleDraft, posEnabled: event.target.checked })}
+                />
+                <span><strong>Включить POS-кассу</strong><em>Касса, зал, столы и кабинки на базе действующего меню.</em></span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={moduleDraft.warehouseEnabled}
+                  onChange={(event) => setModuleDraft({ ...moduleDraft, warehouseEnabled: event.target.checked })}
+                />
+                <span><strong>Включить склад</strong><em>Отдельный модуль учёта без изменения текущих остатков.</em></span>
+              </label>
+            </div>
+          )}
+        </section>
+
         <footer className="client-form-footer">
           <button type="button" onClick={onClose}>
             Отмена
           </button>
-          <button type="submit" disabled={isSubmitting}>
+          <button type="submit" disabled={isSubmitting || modulesQuery.isLoading || modulesQuery.isError}>
             {isSubmitting ? 'Сохраняем...' : 'Сохранить изменения'}
           </button>
         </footer>

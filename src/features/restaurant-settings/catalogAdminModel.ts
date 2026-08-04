@@ -155,19 +155,24 @@ export const createTagDraft = (name = 'Новая метка'): CatalogTag => {
 };
 
 export type CabinMeta = {
+  kind: 'table' | 'cabin';
   status: 'active' | 'inactive';
   type: 'normal' | 'vip' | 'premium';
+  price: number;
 };
 
-export const defaultCabinMeta: CabinMeta = { status: 'active', type: 'normal' };
+export const defaultCabinMeta: CabinMeta = { kind: 'cabin', status: 'active', type: 'normal', price: 0 };
 
 export const parseCabinMeta = (feature?: string): CabinMeta => {
-  if (!feature) return defaultCabinMeta;
   try {
-    const parsed = JSON.parse(feature) as Partial<CabinMeta>;
+    const parsed = JSON.parse(feature ?? '') as Partial<CabinMeta>;
     return {
+      kind: parsed.kind === 'table' ? 'table' : 'cabin',
       status: parsed.status === 'inactive' ? 'inactive' : 'active',
-      type: parsed.type === 'vip' || parsed.type === 'premium' ? parsed.type : 'normal'
+      type: parsed.type === 'vip' || parsed.type === 'premium' ? parsed.type : 'normal',
+      price: Number.isFinite(parsed.price)
+        ? Math.max(0, parsed.price as number)
+        : 0
     };
   } catch {
     return defaultCabinMeta;
@@ -176,13 +181,38 @@ export const parseCabinMeta = (feature?: string): CabinMeta => {
 
 export const makeCabinFeature = (meta: CabinMeta) => JSON.stringify(meta);
 
-export const createCabinDraft = (): Cabin => ({
-  id: makeId('cabin'),
+export const createCabinDraft = (kind: CabinMeta['kind'] = 'cabin'): Cabin => ({
+  id: makeId(kind),
   title: '',
   capacity: '',
-  feature: makeCabinFeature(defaultCabinMeta),
+  feature: makeCabinFeature({ ...defaultCabinMeta, kind }),
   image_url: ''
 });
+
+export const createDefaultRestaurantTables = (): Cabin[] => Array.from({ length: 12 }, (_, index) => ({
+  id: `pos-table-${index + 1}`,
+  title: `Стол ${index + 1}`,
+  capacity: '2-4 человека',
+  feature: makeCabinFeature({ ...defaultCabinMeta, kind: 'table' }),
+  image_url: ''
+}));
+
+export const withDefaultRestaurantTables = (places: Cabin[]): Cabin[] =>
+  places.some((place) => parseCabinMeta(place.feature).kind === 'table')
+    ? places
+    : [...createDefaultRestaurantTables(), ...places];
+
+export const getActiveRestaurantTables = (places: Cabin[]): Cabin[] =>
+  withDefaultRestaurantTables(places).filter((place) => {
+    const meta = parseCabinMeta(place.feature);
+    return meta.kind === 'table' && meta.status === 'active';
+  });
+
+export const getActiveRestaurantCabins = (places: Cabin[]): Cabin[] =>
+  places.filter((place) => {
+    const meta = parseCabinMeta(place.feature);
+    return meta.kind === 'cabin' && meta.status === 'active';
+  });
 
 export const makeLoadingRestaurant = (catalogSlug: string): Restaurant => ({
   ...demoRestaurant,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "WayYaam Production Guard"
+  short_description: "Защита production от белого экрана"
+  default_prompt: "Use $wayyaam-production-white-screen-guard to verify and safely deploy WayYaam without reintroducing mobile white screens."

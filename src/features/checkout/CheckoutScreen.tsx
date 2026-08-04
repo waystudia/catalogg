@@ -36,7 +36,7 @@ import {
   useCartStore,
   useOrderStore
 } from '../stores';
-import { parseCabinMeta } from '../restaurant-settings/catalogAdminModel';
+import { getActiveRestaurantCabins } from '../restaurant-settings/catalogAdminModel';
 import { formatOrderPaymentMethodMarker } from '../restaurant-admin/orderPresentation';
 import { getClientCityId } from '../../shared/api/clientPlatformApi';
 import {
@@ -155,7 +155,7 @@ export function CheckoutScreen({
     ? Math.min(100, (total / freeDeliveryFrom) * 100)
     : 100;
   const activeCabins = useMemo(
-    () => cabins.filter((cabin) => parseCabinMeta(cabin.feature).status === 'active'),
+    () => getActiveRestaurantCabins(cabins),
     [cabins]
   );
   const availableModes = useMemo(() => {

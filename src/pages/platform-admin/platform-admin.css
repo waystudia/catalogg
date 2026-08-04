@@ -2045,6 +2045,67 @@
   font-weight: 500;
 }
 
+.client-module-access > p {
+  margin: -6px 0 0;
+  color: #667085;
+}
+
+.client-module-access__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.client-module-access__options > label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.client-module-access__options input[type='checkbox'] {
+  width: 20px;
+  min-height: 20px;
+  margin-top: 2px;
+  accent-color: var(--platform-accent);
+}
+
+.client-module-access__options span,
+.client-module-access__options strong,
+.client-module-access__options em {
+  display: block;
+}
+
+.client-module-access__options em {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.client-module-access__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #b42318;
+  background: #fef3f2;
+  font-weight: 700;
+}
+
+.client-module-access__error button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #fda29b;
+  border-radius: 9px;
+  background: #fff;
+  color: #b42318;
+  font-weight: 800;
+}
+
 .client-template-picker {
   grid-column: 1 / -1;
   min-width: 0;
@@ -2811,7 +2872,8 @@
   }
 
   .client-form-grid,
-  .client-form-grid--three {
+  .client-form-grid--three,
+  .client-module-access__options {
     grid-template-columns: 1fr;
   }
 

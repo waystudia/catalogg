@@ -3,6 +3,11 @@ import type { SubscriptionStatus } from '../../shared/api/platformTypes';
 export type RestaurantModulePackage = 'basic' | 'pos' | 'pos_warehouse' | 'full';
 export type RestaurantModuleAccessMode = 'disabled' | 'active' | 'read_only';
 
+export type RestaurantAdminModuleAccess = {
+  pos: RestaurantModuleAccessMode;
+  warehouse: RestaurantModuleAccessMode;
+};
+
 export type RestaurantModuleFeatures = {
   posEnabled: boolean;
   warehouseEnabled: boolean;
@@ -86,3 +91,18 @@ export const getModuleAccessMode = ({
   const currentPeriod = !endsAt || new Date(endsAt).getTime() > now.getTime();
   return currentStatus && currentPeriod ? 'active' : 'read_only';
 };
+
+export const getRestaurantAdminModuleAccess = ({
+  modules,
+  status,
+  endsAt,
+  now = new Date()
+}: {
+  modules: RestaurantModules;
+  status: SubscriptionStatus;
+  endsAt: string | null;
+  now?: Date;
+}): RestaurantAdminModuleAccess => ({
+  pos: getModuleAccessMode({ enabled: modules.posEnabled, status, endsAt, now }),
+  warehouse: getModuleAccessMode({ enabled: modules.warehouseEnabled, status, endsAt, now })
+});

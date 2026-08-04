@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDefaultRestaurantModules,
+  getRestaurantAdminModuleAccess,
   getModuleAccessMode,
   getRestaurantModulePackageFeatures
 } from '../../src/features/platform-admin-modules/restaurantModuleAccess';
@@ -80,5 +81,41 @@ describe('restaurant module subscriptions', () => {
     for (const status of ['past_due', 'expired', 'cancelled'] as const) {
       expect(getModuleAccessMode({ enabled: true, status, endsAt: null, now })).toBe('read_only');
     }
+  });
+
+  it('builds the restaurant cabinet access from that exact catalog entitlement', () => {
+    const modules = {
+      ...createDefaultRestaurantModules('catalog-mangal'),
+      posEnabled: true,
+      warehouseEnabled: false
+    };
+
+    expect(getRestaurantAdminModuleAccess({
+      modules,
+      status: 'active',
+      endsAt: null,
+      now: new Date('2026-08-04T12:00:00.000Z')
+    })).toEqual({
+      pos: 'active',
+      warehouse: 'disabled'
+    });
+  });
+
+  it('keeps enabled restaurant modules visible but read-only after expiry', () => {
+    const modules = {
+      ...createDefaultRestaurantModules('catalog-rizih'),
+      posEnabled: true,
+      warehouseEnabled: true
+    };
+
+    expect(getRestaurantAdminModuleAccess({
+      modules,
+      status: 'expired',
+      endsAt: '2026-08-01T00:00:00.000Z',
+      now: new Date('2026-08-04T12:00:00.000Z')
+    })).toEqual({
+      pos: 'read_only',
+      warehouse: 'read_only'
+    });
   });
 });

@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { copySupabaseSessionToScope } from '../supabaseAuthScope';
 import { clearPwaResumePath } from '../pwaSession';
+import type { SubscriptionStatus } from './platformTypes';
 
 export type CatalogAdminAccess = {
   hasSession: boolean;
@@ -10,6 +11,8 @@ export type CatalogAdminAccess = {
   role: 'owner' | 'admin' | 'editor' | 'viewer' | null;
   firstLogin: boolean;
   consentGiven: boolean;
+  subscriptionStatus: SubscriptionStatus;
+  subscriptionEndsAt: string | null;
   catalog: {
     id: string;
     name: string;
@@ -56,7 +59,7 @@ const mapCatalog = (row: CatalogRow): NonNullable<CatalogAdminAccess['catalog']>
 async function loadCatalogBySlug(slug: string) {
   if (!supabase) {
     return {
-      id: 'local-catalog',
+      id: `catalog-${slug}`,
       name: slug,
       slug,
       status: 'published' as const,
@@ -93,8 +96,10 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       isMember: true,
       email: 'client@catalog.app',
       role: 'owner',
-      firstLogin: localStorage.getItem('waycatalog:demo-consent-given') !== 'true',
-      consentGiven: localStorage.getItem('waycatalog:demo-consent-given') === 'true',
+      firstLogin: false,
+      consentGiven: true,
+      subscriptionStatus: 'active',
+      subscriptionEndsAt: null,
       catalog
     };
   }
@@ -109,6 +114,8 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       role: null,
       firstLogin: false,
       consentGiven: false,
+      subscriptionStatus: 'expired',
+      subscriptionEndsAt: null,
       catalog
     };
   }
@@ -121,6 +128,8 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       role: null,
       firstLogin: false,
       consentGiven: false,
+      subscriptionStatus: 'expired',
+      subscriptionEndsAt: null,
       catalog: null
     };
   }
@@ -134,7 +143,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       .maybeSingle(),
     supabase
       .from('clients')
-      .select('catalog_id, first_login, consent_given')
+      .select('catalog_id, first_login, consent_given, subscription_status, subscription_ends_at')
       .eq('owner_user_id', session.user.id)
       .maybeSingle()
   ]);
@@ -153,6 +162,8 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     role: (member?.role as CatalogRole | undefined) ?? (clientOwnsCatalog ? 'owner' : null),
     firstLogin: client?.first_login ?? false,
     consentGiven: client?.consent_given ?? true,
+    subscriptionStatus: (client?.subscription_status as SubscriptionStatus | undefined) ?? 'active',
+    subscriptionEndsAt: client?.subscription_ends_at ?? null,
     catalog
   };
 }

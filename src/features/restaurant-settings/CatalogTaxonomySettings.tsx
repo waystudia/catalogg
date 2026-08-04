@@ -28,41 +28,24 @@ import { categories as demoCategories } from '../../data/catalog';
 import type { Cabin, CatalogTag, Category, Product } from '../../entities/models';
 import { imageFileToDataUrl } from '../../shared/images';
 import { SafeImage } from '../../shared/SafeImage';
+import {
+  createCabinDraft,
+  defaultCabinMeta,
+  makeCabinFeature,
+  parseCabinMeta,
+  withDefaultRestaurantTables,
+  type CabinMeta
+} from './catalogAdminModel';
 
 type SettingsCatalogTab = 'tags' | 'cabins' | 'categories';
 type CategoryEditorMode = 'list' | 'edit' | 'add';
 type CabinEditorMode = 'list' | 'edit' | 'add';
-type CabinMeta = {
-  status: 'active' | 'inactive';
-  type: 'normal' | 'vip' | 'premium';
-};
 
 const makeId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const getProductCategoryIds = (product: Product) =>
   product.category_ids?.length ? product.category_ids : [product.category_id];
 const isProductInCategory = (product: Product, categoryId: string) =>
   getProductCategoryIds(product).includes(categoryId);
-const defaultCabinMeta: CabinMeta = { status: 'active', type: 'normal' };
-const parseCabinMeta = (feature?: string): CabinMeta => {
-  if (!feature) return defaultCabinMeta;
-  try {
-    const parsed = JSON.parse(feature) as Partial<CabinMeta>;
-    return {
-      status: parsed.status === 'inactive' ? 'inactive' : 'active',
-      type: parsed.type === 'vip' || parsed.type === 'premium' ? parsed.type : 'normal'
-    };
-  } catch {
-    return defaultCabinMeta;
-  }
-};
-const makeCabinFeature = (meta: CabinMeta) => JSON.stringify(meta);
-const createCabinDraft = (): Cabin => ({
-  id: makeId('cabin'),
-  title: '',
-  capacity: '',
-  feature: makeCabinFeature(defaultCabinMeta),
-  image_url: ''
-});
 const createCategoryDraft = (name = 'Новая категория'): Category => {
   const id = makeId('category');
   return {
@@ -163,23 +146,24 @@ export function CategoriesSettings({
     );
     onModeChange('list');
   };
+  const displayedCabins = withDefaultRestaurantTables(cabins);
   const moveCabin = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= cabins.length) return;
-    const next = [...cabins];
+    if (nextIndex < 0 || nextIndex >= displayedCabins.length) return;
+    const next = [...displayedCabins];
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     onChangeCabins(next);
   };
-  const editingCabin = editingCabinId ? cabins.find((cabin) => cabin.id === editingCabinId) : undefined;
+  const editingCabin = editingCabinId ? displayedCabins.find((cabin) => cabin.id === editingCabinId) : undefined;
   const saveCabin = (cabin: Cabin) => {
     const normalized = {
       ...cabin,
-      title: cabin.title.trim() || 'Новая кабинка',
+      title: cabin.title.trim() || (parseCabinMeta(cabin.feature).kind === 'table' ? 'Новый столик' : 'Новая кабинка'),
       capacity: cabin.capacity.trim() || '2-4 человека',
       feature: cabin.feature || makeCabinFeature(defaultCabinMeta)
     };
-    const exists = cabins.some((item) => item.id === normalized.id);
-    onChangeCabins(exists ? cabins.map((item) => (item.id === normalized.id ? normalized : item)) : [...cabins, normalized]);
+    const exists = displayedCabins.some((item) => item.id === normalized.id);
+    onChangeCabins(exists ? displayedCabins.map((item) => (item.id === normalized.id ? normalized : item)) : [...displayedCabins, normalized]);
     onCabinModeChange('list');
   };
   const saveTag = (tag: CatalogTag) => {
@@ -198,7 +182,7 @@ export function CategoriesSettings({
 
   const tabs = [
     ['tags', Tags, 'Метки'],
-    ['cabins', Store, 'Кабинки'],
+    ['cabins', Store, 'Столики и кабинки'],
     ['categories', Tags, 'Категории']
   ] as const;
 
@@ -230,9 +214,9 @@ export function CategoriesSettings({
         <CabinEditScreen
           cabin={cabinMode === 'edit' ? editingCabin : undefined}
           mode={cabinMode}
-          sortIndex={cabinMode === 'edit' && editingCabin ? cabins.findIndex((item) => item.id === editingCabin.id) : cabins.length}
+          sortIndex={cabinMode === 'edit' && editingCabin ? displayedCabins.findIndex((item) => item.id === editingCabin.id) : displayedCabins.length}
           onCancel={() => onCabinModeChange('list')}
-          onMove={cabinMode === 'edit' && editingCabin ? (direction) => moveCabin(cabins.findIndex((item) => item.id === editingCabin.id), direction) : undefined}
+          onMove={cabinMode === 'edit' && editingCabin ? (direction) => moveCabin(displayedCabins.findIndex((item) => item.id === editingCabin.id), direction) : undefined}
           onSave={saveCabin}
         />
       );
@@ -244,24 +228,25 @@ export function CategoriesSettings({
         <section className="category-settings-card">
           <div className="category-settings-tip">
             <Info />
-            <span>Выберите кабинку при оформлении заказа. Данные кабинки будут показаны в итоге заказа.</span>
+            <span>Добавляйте и редактируйте столики и кабинки. Активные места сразу доступны при оформлении заказа в кассе.</span>
           </div>
           <div className="category-list">
-            {cabins.map((cabin) => {
+            {displayedCabins.map((cabin) => {
               const meta = parseCabinMeta(cabin.feature);
               return (
-                <button className="category-list-card cabin-list-card" type="button" key={cabin.id} onClick={() => onCabinModeChange('edit', cabin.id)}>
+                <button aria-label={`Редактировать ${cabin.title}`} className="category-list-card cabin-list-card" type="button" key={cabin.id} onClick={() => onCabinModeChange('edit', cabin.id)}>
                   <SafeImage src={cabin.image_url} alt={cabin.title} className="category-list-card__image" />
                   <span className="category-list-card__content">
                     <strong>{cabin.title}</strong>
                     <small className={meta.status === 'active' ? 'cabin-state cabin-state--active' : 'cabin-state'}>
                       <i />
-                      {meta.status === 'active' ? 'Активна' : 'Неактивна'}
+                      {meta.status === 'active' ? 'Активно' : 'Неактивно'}
                     </small>
                     <span className={`cabin-type-badge cabin-type-badge--${meta.type}`}>
-                      {meta.type === 'vip' ? 'VIP' : meta.type === 'premium' ? 'Премиум' : 'Основная'}
+                      {meta.kind === 'table' ? 'Столик' : meta.type === 'vip' ? 'VIP' : meta.type === 'premium' ? 'Премиум' : 'Кабинка'}
                     </span>
                     <em>{cabin.capacity}</em>
+                    {meta.price > 0 && <em>{meta.price.toLocaleString('ru-RU')} ₽</em>}
                   </span>
                   <ArrowRight className="category-list-card__arrow" />
                 </button>
@@ -270,7 +255,7 @@ export function CategoriesSettings({
           </div>
           <button className="category-add-wide" type="button" onClick={() => onCabinModeChange('add')}>
             <Plus />
-            Добавить кабинку
+            Добавить место
           </button>
         </section>
       </main>
@@ -682,6 +667,7 @@ function CabinEditScreen({
   }, [cabin, mode]);
 
   const meta = parseCabinMeta(draft.feature);
+  const placeLabel = meta.kind === 'table' ? 'столика' : 'кабинки';
   const updateMeta = (patch: Partial<CabinMeta>) => {
     setDraft((current) => ({
       ...current,
@@ -693,10 +679,10 @@ function CabinEditScreen({
     <main className="settings-screen category-edit-screen">
       <section className="category-edit-card">
         <div className="category-edit-field">
-          <strong>Фото кабинки</strong>
+          <strong>Фото {placeLabel}</strong>
           {draft.image_url ? (
             <div className="category-edit-image">
-              <SafeImage src={draft.image_url} alt={draft.title || 'Фото кабинки'} />
+              <SafeImage src={draft.image_url} alt={draft.title || `Фото ${placeLabel}`} />
               <button type="button" onClick={() => setDraft({ ...draft, image_url: '' })} aria-label="Очистить фото">
                 <X />
               </button>
@@ -739,11 +725,24 @@ function CabinEditScreen({
           </div>
         </div>
 
+        <div className="category-edit-field">
+          <strong>Тип места</strong>
+          <div className="category-status-options">
+            <button className={meta.kind === 'table' ? 'is-active' : ''} type="button" onClick={() => updateMeta({ kind: 'table' })}>
+              Столик
+            </button>
+            <button className={meta.kind === 'cabin' ? 'is-active' : ''} type="button" onClick={() => updateMeta({ kind: 'cabin' })}>
+              Кабинка
+            </button>
+          </div>
+        </div>
+
         <label className="category-edit-field">
-          <strong>Название кабинки</strong>
+          <strong>Название {placeLabel}</strong>
           <input
+            aria-label="Название места"
             value={draft.title}
-            placeholder="Кабинка 2"
+            placeholder={meta.kind === 'table' ? 'Стол 2' : 'Кабинка 2'}
             onChange={(event) => setDraft({ ...draft, title: event.target.value })}
           />
         </label>
@@ -754,6 +753,19 @@ function CabinEditScreen({
             value={draft.capacity}
             placeholder="8-10 человек"
             onChange={(event) => setDraft({ ...draft, capacity: event.target.value })}
+          />
+        </label>
+
+        <label className="category-edit-field">
+          <strong>Цена {placeLabel}, ₽</strong>
+          <input
+            aria-label={`Цена ${placeLabel}`}
+            type="number"
+            min="0"
+            step="1"
+            value={meta.price || ''}
+            placeholder="0 — бесплатно"
+            onChange={(event) => updateMeta({ price: Math.max(0, Number(event.target.value) || 0) })}
           />
         </label>
 
@@ -770,7 +782,7 @@ function CabinEditScreen({
         </div>
 
         <div className="category-edit-field">
-          <strong>Тип кабинки</strong>
+          <strong>Категория места</strong>
           <div className="category-status-options">
             {[
               ['normal', 'Обычная'],
@@ -798,7 +810,7 @@ function CabinEditScreen({
         </div>
 
         <button className="category-save-button" type="button" onClick={() => onSave(draft)}>
-          {mode === 'add' ? 'Добавить кабинку' : 'Сохранить изменения'}
+          {mode === 'add' ? 'Добавить место' : 'Сохранить изменения'}
         </button>
         <button className="category-cancel-button" type="button" onClick={onCancel}>
           Отмена

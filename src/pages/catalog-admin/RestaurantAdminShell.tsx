@@ -1,17 +1,10 @@
 import {
   Bell,
-  Clock,
-  Copy,
-  CreditCard,
-  DatabaseBackup,
+  Calculator,
   Eye,
   EyeOff,
-  FileDown,
   Home,
-  ImagePlus,
-  LayoutGrid,
   MapPin,
-  LogOut,
   Menu,
   MoreVertical,
   Package,
@@ -21,36 +14,43 @@ import {
   RefreshCw,
   Search,
   Settings,
-  ShieldAlert,
   ShoppingBag,
-  SlidersHorizontal,
   Store,
   Tags,
   Trash2,
-  Truck,
   Upload,
   UtensilsCrossed,
   WalletCards
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
-import { categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
+import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
+import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
 import {
   deleteRestaurantTestOrder,
+  getRestaurantDeliverySettings,
   getRestaurantOrders,
+  createRestaurantOrderFromCart,
+  saveRestaurantDeliverySettings,
   subscribeToRestaurantOrdersRealtime,
   updateRestaurantOrderPaymentStatus,
   updateRestaurantOrderStatus,
+  type RestaurantDeliverySettings,
   type RestaurantOrder,
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
-import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/order/orderLifecycle';
-import { copyText, getCatalogPublicUrl } from '../../shared/platformUrls';
-import { loadCatalog } from '../../shared/supabase';
+import { getCatalogPublicUrl } from '../../shared/platformUrls';
+import {
+  loadCatalog,
+  replaceCatalogInSupabase,
+  savePhotoQualityToSupabase
+} from '../../shared/supabase';
+import { saveRestaurantPayments } from '../../shared/api/restaurantPaymentsApi';
+import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
+import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
 import type { CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import {
   getRestaurantOrderNotificationPermission,
@@ -59,8 +59,27 @@ import {
   showRestaurantOrderNotification
 } from '../../shared/restaurantOrderNotifications';
 import { playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
+import {
+  getRestaurantModuleEntitlementByCatalog
+} from '../../shared/api/restaurantModulesApi';
+import {
+  getRestaurantAdminModuleAccess,
+  type RestaurantAdminModuleAccess
+} from '../../features/platform-admin-modules/restaurantModuleAccess';
+import {
+  RestaurantPosPage,
+  type RestaurantPosOrderDraft
+} from '../../features/restaurant-pos/RestaurantPosPage';
+import { RestaurantWarehousePage } from '../../features/restaurant-pos/RestaurantWarehousePage';
+import { RestaurantOrdersBoard } from '../../features/restaurant-admin/RestaurantOrdersBoard';
+import {
+  ExistingRestaurantSettingsPage,
+  type ExistingRestaurantSettingsView
+} from '../../features/restaurant-admin/ExistingRestaurantSettingsPage';
+import { defaultRestaurantDeliverySettings } from '../../features/restaurant-settings';
+import type { CatalogBackupPayload } from '../../features/restaurant-settings/catalogAdminModel';
 
-type AdminSection = 'home' | 'catalog' | 'dishes' | 'orders' | 'stocks' | 'settings';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'settings';
 type SettingsSection =
   | 'hub'
   | 'profile'
@@ -75,15 +94,28 @@ type SettingsSection =
   | 'danger';
 type PaymentStatus = 'not_required' | 'cash_on_delivery' | 'awaiting_transfer' | 'client_marked_paid' | 'confirmed' | 'declined';
 
+const existingSettingsViews: Partial<Record<SettingsSection, ExistingRestaurantSettingsView>> = {
+  profile: 'profile',
+  taxonomy: 'categories',
+  design: 'design',
+  payments: 'payments',
+  delivery: 'delivery',
+  import: 'backup',
+  backups: 'backup'
+};
+
 type CatalogData = {
   restaurant: Restaurant;
   categories: Category[];
+  cabins: Cabin[];
   products: Product[];
   tags: CatalogTag[];
   theme: ThemeSettings;
+  photoQuality: PhotoQualitySettings;
 };
 
 type PaymentSettings = {
+  transferEnabled: boolean;
   enabled: boolean;
   requisiteType: 'phone' | 'card' | 'account';
   transferNumber: string;
@@ -100,22 +132,13 @@ type PaymentSettings = {
   clientHint: string;
 };
 
-const navItems: Array<{ id: AdminSection; label: string; icon: typeof Home }> = [
+const baseNavItems: Array<{ id: AdminSection; label: string; icon: typeof Home }> = [
   { id: 'home', label: 'Главная', icon: Home },
   { id: 'catalog', label: 'Каталог', icon: Store },
   { id: 'dishes', label: 'Блюда', icon: UtensilsCrossed },
   { id: 'orders', label: 'Заказы', icon: ShoppingBag },
   { id: 'stocks', label: 'Остатки', icon: Package },
   { id: 'settings', label: 'Настройки', icon: Settings }
-];
-
-const orderTabs: Array<{ id: 'all' | RestaurantOrderStatus; label: string }> = [
-  { id: 'all', label: 'Все' },
-  { id: 'new', label: 'Новые' },
-  { id: 'preparing', label: 'Готовятся' },
-  { id: 'on_the_way', label: 'В пути' },
-  { id: 'completed', label: 'Завершённые' },
-  { id: 'cancelled', label: 'Отменённые' }
 ];
 
 const orderStatusLabels: Record<RestaurantOrderStatus, string> = {
@@ -154,12 +177,6 @@ const orderPaymentStatusLabels: Record<RestaurantPaymentStatus, string> = {
   rejected: 'Отклонён'
 };
 
-const fulfillmentTypeLabels: Record<RestaurantOrder['fulfillmentType'], string> = {
-  delivery: 'Доставка',
-  takeaway: 'На вынос',
-  hall: 'В зале'
-};
-
 const orderStatusTones: Record<RestaurantOrderStatus, 'new' | 'work' | 'ready' | 'delivery' | 'done'> = {
   new: 'new',
   waiting_payment_confirmation: 'work',
@@ -195,6 +212,7 @@ const toRestaurantPaymentStatus = (status: PaymentStatus): RestaurantPaymentStat
 };
 
 const defaultPaymentSettings: PaymentSettings = {
+  transferEnabled: true,
   enabled: true,
   requisiteType: 'phone',
   transferNumber: '+7 999 000-00-00',
@@ -214,20 +232,6 @@ const defaultPaymentSettings: PaymentSettings = {
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const paymentStorageKey = (slug: string) => `waycatalog:${slug}:payment-settings`;
 const paymentStatusStorageKey = (slug: string) => `waycatalog:${slug}:payment-statuses`;
-
-function getOrderItemsCount(order: RestaurantOrder) {
-  return order.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
-}
-
-function getOrderLocationLabel(order: RestaurantOrder) {
-  return (
-    order.deliverySettlement ||
-    order.deliveryCity ||
-    order.deliveryAddress ||
-    order.cabinLabel ||
-    (order.fulfillmentType === 'takeaway' ? 'Самовывоз' : 'В зале')
-  );
-}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -296,16 +300,21 @@ export function RestaurantAdminShell({
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: demoRestaurant,
     categories: demoCategories,
+    cabins: demoCabins,
     products: demoProducts,
     tags: [],
-    theme: demoTheme
+    theme: demoTheme,
+    photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS
   });
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
+  const [moduleAccess, setModuleAccess] = useState<RestaurantAdminModuleAccess>({
+    pos: 'disabled',
+    warehouse: 'disabled'
+  });
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dishQuery, setDishQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [orderQuery, setOrderQuery] = useState('');
-  const [orderTab, setOrderTab] = useState<'all' | RestaurantOrderStatus>('all');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
@@ -315,12 +324,24 @@ export function RestaurantAdminShell({
   const [paymentStatuses, setPaymentStatuses] = useState<Record<string, PaymentStatus>>(() =>
     readJson(paymentStatusStorageKey(access.catalog?.slug ?? 'demo'), {})
   );
+  const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings>(defaultRestaurantDeliverySettings);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
 
   const slug = access.catalog?.slug ?? 'demo';
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
+  const navItems = useMemo(() => {
+    const items = [...baseNavItems];
+    if (moduleAccess.pos !== 'disabled') {
+      items.splice(1, 0, { id: 'pos', label: 'Касса', icon: Calculator });
+    }
+    if (moduleAccess.warehouse !== 'disabled') {
+      const ordersIndex = items.findIndex((item) => item.id === 'orders');
+      items.splice(ordersIndex + 1, 0, { id: 'warehouse', label: 'Склад', icon: Package });
+    }
+    return items;
+  }, [moduleAccess.pos, moduleAccess.warehouse]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -343,9 +364,11 @@ export function RestaurantAdminShell({
       setCatalogData({
         restaurant: catalog.restaurant,
         categories: catalog.categories.length ? catalog.categories : demoCategories,
+        cabins: catalog.cabins.length ? catalog.cabins : demoCabins,
         products: catalog.products.length ? catalog.products : demoProducts,
         tags: catalog.tags,
-        theme: catalog.theme
+        theme: catalog.theme,
+        photoQuality: catalog.photoQuality ?? DEFAULT_PHOTO_QUALITY_SETTINGS
       });
       const knownIds = knownOrderIdsRef.current;
       const newOrders = hasLoadedOrdersRef.current
@@ -386,6 +409,42 @@ export function RestaurantAdminShell({
   useEffect(() => {
     void refreshData();
   }, [refreshData]);
+
+  useEffect(() => {
+    let active = true;
+    void getRestaurantDeliverySettings(slug)
+      .then((settings) => {
+        if (active) setDeliverySettings(settings);
+      })
+      .catch(() => {
+        if (active) setDeliverySettings(defaultRestaurantDeliverySettings);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!access.catalog?.id) return;
+    let active = true;
+    void getRestaurantModuleEntitlementByCatalog(access.catalog.id)
+      .then((modules) => {
+        if (!active) return;
+        setModuleAccess(getRestaurantAdminModuleAccess({
+          modules,
+          status: access.subscriptionStatus,
+          endsAt: access.subscriptionEndsAt
+        }));
+      })
+      .catch((error) => {
+        if (!active) return;
+        setModuleAccess({ pos: 'disabled', warehouse: 'disabled' });
+        toast.error(error instanceof Error ? error.message : 'Не удалось проверить доступ к POS');
+      });
+    return () => {
+      active = false;
+    };
+  }, [access.catalog?.id, access.subscriptionEndsAt, access.subscriptionStatus]);
 
   useEffect(
     () => subscribeToRestaurantOrdersRealtime(access.catalog?.id, () => void refreshData()),
@@ -436,9 +495,7 @@ export function RestaurantAdminShell({
   });
   const filteredOrders = orders.filter((order) => {
     const text = `${order.orderNumber} ${order.clientName} ${order.clientPhone}`.toLowerCase();
-    const matchesQuery = text.includes(orderQuery.trim().toLowerCase());
-    const matchesTab = orderTab === 'all' || order.status === orderTab;
-    return matchesQuery && matchesTab;
+    return text.includes(orderQuery.trim().toLowerCase());
   });
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? orders[0] ?? null;
 
@@ -447,8 +504,36 @@ export function RestaurantAdminShell({
     setSettingsSection(nextSettingsSection);
   };
 
-  const updatePaymentSetting = <K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) => {
-    setPaymentSettings((current) => ({ ...current, [key]: value }));
+  const submitPosOrder = async (draft: RestaurantPosOrderDraft) => {
+    const cartItems = draft.items.flatMap((item) => {
+      const product = catalogData.products.find((candidate) => candidate.id === item.productId);
+      return product ? [{ product, quantity: item.quantity }] : [];
+    });
+    if (cartItems.length !== draft.items.length) {
+      throw new Error('Одно из блюд больше недоступно в текущем каталоге');
+    }
+    const paymentLabel = {
+      cash: 'Наличные',
+      card: 'Карта',
+      transfer: 'Перевод',
+      mixed: 'Смешанная оплата'
+    }[draft.paymentMethod];
+    await createRestaurantOrderFromCart({
+      slug,
+      items: cartItems,
+      fulfillmentType: draft.fulfillmentType,
+      cabinLabel: draft.tableLabel,
+      deliveryAddress: draft.deliveryAddress,
+      customerName: draft.customerName,
+      customerPhone: draft.customerPhone,
+      comment: [
+        `POS: ${paymentLabel}`,
+        draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '',
+        draft.comment
+      ].filter(Boolean).join(' · ')
+    });
+    await refreshData({ silent: true });
+    toast.success('POS-заказ добавлен в общий список заказов');
   };
 
   const updateOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus) => {
@@ -510,12 +595,97 @@ export function RestaurantAdminShell({
     }
   };
 
-  const onQrChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => updatePaymentSetting('qrUrl', String(reader.result ?? ''));
-    reader.readAsDataURL(file);
+  const persistCatalogChange = (payload: Parameters<typeof replaceCatalogInSupabase>[0], message = 'Настройки сохранены') => {
+    void replaceCatalogInSupabase(payload)
+      .then(() => toast.success(message))
+      .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сохранить настройки'));
+  };
+
+  const saveExistingRestaurant = (restaurant: Restaurant) => {
+    setCatalogData((current) => ({ ...current, restaurant }));
+    persistCatalogChange({ restaurant }, 'Профиль ресторана сохранён');
+  };
+
+  const saveExistingCategories = (categories: Category[]) => {
+    setCatalogData((current) => ({ ...current, categories }));
+    persistCatalogChange({ categories }, 'Категории сохранены');
+  };
+
+  const saveExistingCabins = (cabins: Cabin[]) => {
+    setCatalogData((current) => ({ ...current, cabins }));
+    persistCatalogChange({ cabins }, 'Кабинки сохранены');
+  };
+
+  const saveExistingTags = (tags: CatalogTag[]) => {
+    setCatalogData((current) => ({ ...current, tags }));
+    persistCatalogChange({ tags }, 'Метки сохранены');
+  };
+
+  const saveExistingTheme = (patch: Partial<ThemeSettings>) => {
+    const theme = { ...catalogData.theme, ...patch };
+    setCatalogData((current) => ({ ...current, theme }));
+    persistCatalogChange({ theme }, 'Дизайн сохранён');
+  };
+
+  const saveExistingPhotoQuality = async (photoQuality: PhotoQualitySettings) => {
+    setCatalogData((current) => ({ ...current, photoQuality }));
+    await savePhotoQualityToSupabase(slug, photoQuality);
+    toast.success('Качество фотографий сохранено');
+  };
+
+  const saveExistingPayments = (settings: RestaurantPaymentSettings) => {
+    setPaymentSettings((current) => ({
+      ...current,
+      ...settings,
+      transferEnabled: settings.transferEnabled,
+      enabled: settings.transferEnabled,
+      allowTransfer: settings.transferEnabled
+    }));
+    void saveRestaurantPayments(access.catalog?.id ?? slug, slug, settings)
+      .then(() => toast.success('Платежи сохранены'))
+      .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сохранить платежи'));
+  };
+
+  const saveExistingDelivery = (settings: RestaurantDeliverySettings) => {
+    setDeliverySettings(settings);
+    void saveRestaurantDeliverySettings(slug, settings)
+      .then(() => toast.success('Доставка сохранена'))
+      .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сохранить доставку'));
+  };
+
+  const importExistingSettings = (payload: CatalogBackupPayload) => {
+    setCatalogData((current) => ({
+      restaurant: payload.restaurant ?? current.restaurant,
+      categories: payload.categories ?? current.categories,
+      cabins: payload.cabins ?? current.cabins,
+      products: payload.products ?? current.products,
+      tags: payload.tags ?? current.tags,
+      theme: payload.theme ?? current.theme,
+      photoQuality: current.photoQuality
+    }));
+    persistCatalogChange({
+      restaurant: payload.restaurant,
+      categories: payload.categories,
+      cabins: payload.cabins,
+      products: payload.products,
+      tags: payload.tags,
+      theme: payload.theme
+    }, 'Каталог импортирован');
+  };
+
+  const existingPaymentSettings: RestaurantPaymentSettings = {
+    transferEnabled: paymentSettings.transferEnabled ?? paymentSettings.enabled,
+    requisiteType: paymentSettings.requisiteType,
+    transferNumber: paymentSettings.transferNumber,
+    bankName: paymentSettings.bankName,
+    lastName: paymentSettings.lastName,
+    firstName: paymentSettings.firstName,
+    middleName: paymentSettings.middleName,
+    displayName: paymentSettings.displayName,
+    qrUrl: paymentSettings.qrUrl,
+    comment: paymentSettings.comment,
+    allowCash: paymentSettings.allowCash,
+    requireConfirmation: paymentSettings.requireConfirmation
   };
 
   return (
@@ -592,6 +762,16 @@ export function RestaurantAdminShell({
               onNavigate={goTo}
             />
           )}
+          {section === 'pos' && moduleAccess.pos !== 'disabled' && (
+            <RestaurantPosPage
+              restaurantName={catalogData.restaurant.name}
+              categories={catalogData.categories}
+              cabins={catalogData.cabins}
+              products={catalogData.products}
+              accessMode={moduleAccess.pos}
+              onSubmitOrder={submitPosOrder}
+            />
+          )}
           {section === 'catalog' && (
             <CatalogPreviewPage
               restaurant={catalogData.restaurant}
@@ -618,16 +798,20 @@ export function RestaurantAdminShell({
               orders={filteredOrders}
               selectedOrder={selectedOrder}
               query={orderQuery}
-              tab={orderTab}
               paymentSettings={paymentSettings}
               paymentStatuses={paymentStatuses}
               recentOrderIds={recentOrderIds}
               onQueryChange={setOrderQuery}
-              onTabChange={setOrderTab}
               onSelectOrder={setSelectedOrderId}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
               onDelete={deleteOrder}
+            />
+          )}
+          {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
+            <RestaurantWarehousePage
+              restaurantName={catalogData.restaurant.name}
+              accessMode={moduleAccess.warehouse}
             />
           )}
           {section === 'stocks' && (
@@ -638,17 +822,28 @@ export function RestaurantAdminShell({
             />
           )}
           {section === 'settings' && (
-            <SettingsPage
-              section={settingsSection}
+            <ExistingRestaurantSettingsPage
+              key={settingsSection}
+              initialView={existingSettingsViews[settingsSection] ?? 'home'}
+              catalogSlug={slug}
               restaurant={catalogData.restaurant}
               categories={catalogData.categories}
+              cabins={catalogData.cabins}
+              tags={catalogData.tags}
               products={catalogData.products}
               theme={catalogData.theme}
-              paymentSettings={paymentSettings}
-              publicUrl={publicUrl}
-              onSectionChange={setSettingsSection}
-              onPaymentChange={updatePaymentSetting}
-              onQrChange={onQrChange}
+              photoQuality={catalogData.photoQuality}
+              paymentSettings={existingPaymentSettings}
+              deliverySettings={deliverySettings}
+              onSaveRestaurant={saveExistingRestaurant}
+              onSaveCategories={saveExistingCategories}
+              onSaveCabins={saveExistingCabins}
+              onSaveTags={saveExistingTags}
+              onSaveTheme={saveExistingTheme}
+              onSavePhotoQuality={saveExistingPhotoQuality}
+              onSavePayments={saveExistingPayments}
+              onSaveDelivery={saveExistingDelivery}
+              onImport={importExistingSettings}
               onSignOut={onSignOut}
             />
           )}
@@ -876,12 +1071,10 @@ function OrdersPage({
   orders,
   selectedOrder,
   query,
-  tab,
   paymentSettings,
   paymentStatuses,
   recentOrderIds,
   onQueryChange,
-  onTabChange,
   onSelectOrder,
   onStatusChange,
   onPaymentStatusChange,
@@ -890,52 +1083,27 @@ function OrdersPage({
   orders: RestaurantOrder[];
   selectedOrder: RestaurantOrder | null;
   query: string;
-  tab: 'all' | RestaurantOrderStatus;
   paymentSettings: PaymentSettings;
   paymentStatuses: Record<string, PaymentStatus>;
   recentOrderIds: Set<string>;
   onQueryChange: (query: string) => void;
-  onTabChange: (tab: 'all' | RestaurantOrderStatus) => void;
   onSelectOrder: (id: string) => void;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   onDelete: (order: RestaurantOrder) => Promise<void>;
 }) {
-  const orderGroups = useMemo(() => groupOrdersByDate(orders), [orders]);
-
   return (
     <div className="ra-orders-layout">
       <section className="ra-page-stack">
         <div className="ra-list-toolbar">
           <label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск заказа по номеру, имени или телефону" /></label>
         </div>
-        <div className="ra-tabs">
-          {orderTabs.map((item) => <button key={item.id} type="button" data-active={tab === item.id} onClick={() => onTabChange(item.id)}>{item.label}</button>)}
-        </div>
-        <section className="ra-orders-feed">
-          {orderGroups.map((group) => (
-            <div className="ra-order-group" key={group.key}>
-              <h3>{group.label}</h3>
-              <div>
-                {group.orders.map((order) => (
-                  <OrderSummaryCard
-                    key={order.id}
-                    order={order}
-                    active={selectedOrder?.id === order.id}
-                    highlighted={recentOrderIds.has(order.id)}
-                    onSelect={onSelectOrder}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-          {orders.length === 0 && (
-            <section className="ra-empty-orders">
-              <ShoppingBag />
-              <strong>Заказов нет</strong>
-            </section>
-          )}
-        </section>
+        <RestaurantOrdersBoard
+          orders={orders}
+          selectedOrderId={selectedOrder?.id ?? null}
+          recentOrderIds={recentOrderIds}
+          onSelectOrder={onSelectOrder}
+        />
       </section>
       {selectedOrder && (
         <OrderDetails
@@ -948,46 +1116,6 @@ function OrdersPage({
         />
       )}
     </div>
-  );
-}
-
-function OrderSummaryCard({
-  order,
-  active,
-  highlighted,
-  onSelect
-}: {
-  order: RestaurantOrder;
-  active: boolean;
-  highlighted: boolean;
-  onSelect: (id: string) => void;
-}) {
-  const statusTone = orderStatusTones[order.status];
-
-  return (
-    <button
-      className="ra-order-summary-card"
-      type="button"
-      data-active={active}
-      data-highlighted={highlighted}
-      onClick={() => onSelect(order.id)}
-    >
-      <span className="ra-order-summary-card__head">
-        <strong>#{order.orderNumber}</strong>
-        <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
-      </span>
-      <span className="ra-order-summary-card__meta">
-        {fulfillmentTypeLabels[order.fulfillmentType]} • {getOrderItemsCount(order)} поз.
-      </span>
-      <span className="ra-order-summary-card__address">{getOrderLocationLabel(order)}</span>
-      <span className="ra-order-summary-card__foot">
-        <strong>{formatPrice(order.total)}</strong>
-        <em data-tone={statusTone}>
-          {order.status === 'new' && <span aria-hidden="true" />}
-          {orderStatusLabels[order.status]}
-        </em>
-      </span>
-    </button>
   );
 }
 
@@ -1177,196 +1305,6 @@ function StocksPage({
           );
         })}
       </section>
-    </div>
-  );
-}
-
-function SettingsPage({
-  section,
-  restaurant,
-  categories,
-  products,
-  theme,
-  paymentSettings,
-  publicUrl,
-  onSectionChange,
-  onPaymentChange,
-  onQrChange,
-  onSignOut
-}: {
-  section: SettingsSection;
-  restaurant: Restaurant;
-  categories: Category[];
-  products: Product[];
-  theme: ThemeSettings;
-  paymentSettings: PaymentSettings;
-  publicUrl: string;
-  onSectionChange: (section: SettingsSection) => void;
-  onPaymentChange: <K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) => void;
-  onQrChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onSignOut: () => void;
-}) {
-  if (section === 'payments') {
-    return (
-      <PaymentsSettings
-        settings={paymentSettings}
-        onChange={onPaymentChange}
-        onQrChange={onQrChange}
-        onBack={() => onSectionChange('hub')}
-      />
-    );
-  }
-
-  if (section !== 'hub') {
-    return (
-      <div className="ra-page-stack">
-        <button className="ra-back-button" type="button" onClick={() => onSectionChange('hub')}>Назад к настройкам</button>
-        <section className="ra-card ra-settings-detail">
-          <h2>{settingsTitle(section)}</h2>
-          <SettingsDetail section={section} restaurant={restaurant} categories={categories} products={products} theme={theme} publicUrl={publicUrl} />
-        </section>
-      </div>
-    );
-  }
-
-  const cards: Array<{ id: SettingsSection; title: string; text: string; icon: typeof Home; danger?: boolean }> = [
-    { id: 'profile', title: 'Профиль ресторана', text: 'Название, описание, контакты, адрес', icon: Store },
-    { id: 'hours', title: 'Рабочие часы', text: 'Время работы ресторана и доставки', icon: Clock },
-    { id: 'taxonomy', title: 'Категории и метки', text: 'Управление категориями, метками и кабинками', icon: Tags },
-    { id: 'import', title: 'Импорт / Экспорт', text: 'Импорт и экспорт данных каталога', icon: FileDown },
-    { id: 'design', title: 'Дизайн каталога', text: 'Цвета, тема, внешний вид приложения', icon: SlidersHorizontal },
-    { id: 'backups', title: 'Резервные копии', text: 'Создание и восстановление бэкапов', icon: DatabaseBackup },
-    { id: 'catalog', title: 'Каталог', text: 'Настройки отображения каталога', icon: LayoutGrid },
-    { id: 'payments', title: 'Платежи', text: 'Перевод ресторану, номер, ФИО и QR', icon: CreditCard },
-    { id: 'delivery', title: 'Доставка', text: 'Параметры доставки и курьеров', icon: Truck },
-    { id: 'danger', title: 'Удаление данных', text: 'Удалить каталог и все данные', icon: ShieldAlert, danger: true }
-  ];
-
-  return (
-    <section className="ra-settings-grid">
-      {cards.map((card) => (
-        <button key={card.id} type="button" data-danger={card.danger} onClick={() => onSectionChange(card.id)}>
-          <card.icon />
-          <span><strong>{card.title}</strong><small>{card.text}</small></span>
-        </button>
-      ))}
-      <button type="button" data-danger onClick={onSignOut}>
-        <LogOut />
-        <span><strong>Выйти</strong><small>Завершить текущую сессию</small></span>
-      </button>
-    </section>
-  );
-}
-
-function settingsTitle(section: SettingsSection) {
-  const titles: Record<SettingsSection, string> = {
-    hub: 'Настройки',
-    profile: 'Профиль ресторана',
-    taxonomy: 'Категории и метки',
-    design: 'Дизайн каталога',
-    catalog: 'Каталог',
-    delivery: 'Доставка',
-    hours: 'Рабочие часы',
-    payments: 'Платежи',
-    import: 'Импорт / экспорт',
-    backups: 'Резервные копии',
-    danger: 'Удаление данных'
-  };
-  return titles[section];
-}
-
-function SettingsDetail({
-  section,
-  restaurant,
-  categories,
-  products,
-  theme,
-  publicUrl
-}: {
-  section: SettingsSection;
-  restaurant: Restaurant;
-  categories: Category[];
-  products: Product[];
-  theme: ThemeSettings;
-  publicUrl: string;
-}) {
-  if (section === 'profile') {
-    return <div className="ra-detail-grid"><span>Название<strong>{restaurant.name}</strong></span><span>Описание<strong>{restaurant.subtitle}</strong></span><span>WhatsApp<strong>{restaurant.whatsapp}</strong></span><span>Instagram<strong>{restaurant.instagram_url}</strong></span><span>Адрес<strong>{restaurant.address}</strong></span><span>Карта<strong>{restaurant.mapLink}</strong></span></div>;
-  }
-  if (section === 'taxonomy') {
-    return <div className="ra-detail-grid"><span>Категории<strong>{categories.length}</strong></span><span>Блюда<strong>{products.length}</strong></span><span>Фото категорий<strong>Подключены</strong></span><span>Кабинки<strong>В текущей сущности</strong></span></div>;
-  }
-  if (section === 'design') {
-    return <div className="ra-detail-grid"><span>Фон<strong>{theme.background_type}</strong></span><span>Основной цвет<strong>{theme.accent_color}</strong></span><span>Карточки<strong>{theme.product_card_color ?? theme.card_color}</strong></span><span>Скругление<strong>{theme.card_radius}px</strong></span></div>;
-  }
-  if (section === 'catalog') {
-    return <ToggleGrid labels={['Показывать рейтинг', 'Показывать время доставки', 'Бесплатная доставка от суммы', 'Показывать состав блюда', 'Показывать вес', 'Показывать остаток', 'Блок соцсетей', 'Нижний футер', 'Баннеры / акции', 'Популярное']} />;
-  }
-  if (section === 'delivery') {
-    return <ToggleGrid labels={['Включить доставку', 'Включить самовывоз', 'Заказ в зале', 'Свой курьер', 'Платформенные водители']} />;
-  }
-  if (section === 'hours') {
-    return <div className="ra-detail-grid"><span>Открытие<strong>09:00</strong></span><span>Закрытие<strong>22:00</strong></span><span>Вне графика<strong>Показывать предупреждение</strong></span></div>;
-  }
-  if (section === 'import' || section === 'backups') {
-    return <div className="ra-actions-row"><button type="button"><FileDown />Экспорт каталога</button><button type="button"><Upload />Импорт каталога</button><button type="button"><DatabaseBackup />Резервная копия</button><button type="button" onClick={() => void copyText(publicUrl).then(() => toast.success('Ссылка скопирована'))}><Copy />Ссылка</button></div>;
-  }
-  return <div className="ra-danger-zone"><p>Опасные действия требуют отдельного подтверждения.</p><button type="button">Очистить блюда</button><button type="button">Очистить заказы</button><button type="button">Удалить каталог</button></div>;
-}
-
-function ToggleGrid({ labels }: { labels: string[] }) {
-  return <div className="ra-toggle-grid">{labels.map((label) => <label key={label}><input type="checkbox" defaultChecked />{label}</label>)}</div>;
-}
-
-function PaymentsSettings({
-  settings,
-  onChange,
-  onQrChange,
-  onBack
-}: {
-  settings: PaymentSettings;
-  onChange: <K extends keyof PaymentSettings>(key: K, value: PaymentSettings[K]) => void;
-  onQrChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="ra-payments-layout">
-      <section className="ra-card ra-payment-form">
-        <button className="ra-back-button" type="button" onClick={onBack}>Назад к настройкам</button>
-        <h2>Реквизиты для перевода</h2>
-        <label><input type="checkbox" checked={settings.enabled} onChange={(event) => onChange('enabled', event.target.checked)} />Включить оплату переводом</label>
-        <div className="ra-form-grid">
-          <label>Тип реквизита<select value={settings.requisiteType} onChange={(event) => onChange('requisiteType', event.target.value as PaymentSettings['requisiteType'])}><option value="phone">Номер телефона</option><option value="card">Номер карты</option><option value="account">Счёт</option></select></label>
-          <label>Номер для перевода<input value={settings.transferNumber} onChange={(event) => onChange('transferNumber', event.target.value)} /></label>
-          <label>Банк / способ оплаты<input value={settings.bankName} onChange={(event) => onChange('bankName', event.target.value)} /></label>
-          <label>Фамилия<input value={settings.lastName} onChange={(event) => onChange('lastName', event.target.value)} /></label>
-          <label>Имя<input value={settings.firstName} onChange={(event) => onChange('firstName', event.target.value)} /></label>
-          <label>Отчество<input value={settings.middleName} onChange={(event) => onChange('middleName', event.target.value)} /></label>
-          <label>Отображаемое полное имя<input value={settings.displayName} onChange={(event) => onChange('displayName', event.target.value)} /></label>
-          <label>Комментарий к оплате<input value={settings.comment} onChange={(event) => onChange('comment', event.target.value)} /></label>
-        </div>
-        <label className="ra-upload-box"><ImagePlus />Загрузить или заменить QR<input type="file" accept="image/*" onChange={onQrChange} /></label>
-        <div className="ra-toggle-grid">
-          <label><input type="checkbox" checked={settings.allowCash} onChange={(event) => onChange('allowCash', event.target.checked)} />Разрешить наличные</label>
-          <label><input type="checkbox" checked={settings.allowTransfer} onChange={(event) => onChange('allowTransfer', event.target.checked)} />Разрешить перевод</label>
-          <label><input type="checkbox" checked={settings.requireConfirmation} onChange={(event) => onChange('requireConfirmation', event.target.checked)} />Требовать подтверждение рестораном</label>
-        </div>
-        <label>Текст подсказки клиенту<textarea value={settings.clientHint} onChange={(event) => onChange('clientHint', event.target.value)} /></label>
-      </section>
-      <aside className="ra-card ra-client-payment-preview">
-        <h3>Как увидит клиент</h3>
-        <strong>{formatPrice(1850)}</strong>
-        <p>Способ оплаты: перевод ресторану</p>
-        <dl>
-          <div><dt>Получатель</dt><dd>{settings.displayName}</dd></div>
-          <div><dt>Номер</dt><dd>{settings.transferNumber}</dd></div>
-          <div><dt>Банк</dt><dd>{settings.bankName}</dd></div>
-        </dl>
-        <div className="ra-qr-preview">{settings.qrUrl ? <img src={settings.qrUrl} alt="QR-код для перевода" /> : <QrCode />}</div>
-        <button type="button" onClick={() => void copyText(settings.transferNumber).then(() => toast.success('Номер скопирован'))}><Copy />Копировать номер</button>
-        <button type="button">Я оплатил</button>
-        <small>{settings.clientHint}</small>
-      </aside>
     </div>
   );
 }
