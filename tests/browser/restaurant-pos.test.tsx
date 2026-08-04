@@ -69,6 +69,31 @@ test('cashier creates a draft from the existing restaurant catalog', async () =>
   await expect.element(screen.getByRole('button', { name: 'Оформить заказ' })).toBeEnabled();
 });
 
+test('selected dish card shows its current cart quantity in the bottom-right corner', async () => {
+  const screen = await render(
+    <RestaurantPosPage
+      restaurantName="Мангал"
+      categories={categories}
+      cabins={[]}
+      products={[product({})]}
+      accessMode="active"
+    />
+  );
+
+  await screen.getByRole('button', { name: 'Открыть категорию Горячее' }).click();
+  const dishCard = screen.getByRole('button', { name: 'Добавить Жижиг-галнаш' });
+
+  await expect.element(screen.getByLabelText('Жижиг-галнаш в заказе: 1')).not.toBeInTheDocument();
+  await dishCard.click();
+  await expect.element(screen.getByLabelText('Жижиг-галнаш в заказе: 1')).toBeVisible();
+  await dishCard.click();
+  await expect.element(screen.getByLabelText('Жижиг-галнаш в заказе: 2')).toBeVisible();
+  await screen.getByRole('button', { name: 'Уменьшить Жижиг-галнаш' }).click();
+  await expect.element(screen.getByLabelText('Жижиг-галнаш в заказе: 1')).toBeVisible();
+  await screen.getByRole('button', { name: 'Уменьшить Жижиг-галнаш' }).click();
+  await expect.element(screen.getByLabelText('Жижиг-галнаш в заказе: 1')).not.toBeInTheDocument();
+});
+
 test('cashier calculates cash change and saves an unnamed customer as a numbered guest', async () => {
   const onSubmitOrder = vi.fn().mockResolvedValue(undefined);
   const screen = await render(

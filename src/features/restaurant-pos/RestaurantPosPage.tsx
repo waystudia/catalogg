@@ -71,11 +71,13 @@ function PosImage({ src, alt, className }: { src: string; alt: string; className
 
 function PosProductCard({
   product,
+  quantity,
   readOnly,
   onAdd,
   onShowDetails
 }: {
   product: Product;
+  quantity: number;
   readOnly: boolean;
   onAdd: () => void;
   onShowDetails: () => void;
@@ -105,6 +107,7 @@ function PosProductCard({
       type="button"
       aria-label={`Добавить ${product.title}`}
       aria-haspopup="dialog"
+      data-selected={quantity > 0}
       disabled={readOnly}
       onPointerDown={startLongPress}
       onPointerUp={clearLongPress}
@@ -125,6 +128,14 @@ function PosProductCard({
     >
       <PosImage src={product.image_url} alt="" className="restaurant-pos-product-card__image" />
       <strong>{product.title}</strong>
+      {quantity > 0 && (
+        <span
+          className="restaurant-pos-product-card__quantity"
+          aria-label={`${product.title} в заказе: ${quantity}`}
+        >
+          {quantity}
+        </span>
+      )}
     </button>
   );
 }
@@ -180,6 +191,10 @@ export function RestaurantPosPage({
     const matchesCategory = categoryId === null || categoryId === 'all' || product.category_id === categoryId;
     return matchesQuery && matchesCategory;
   }), [categoryId, normalizedQuery, products]);
+  const productQuantities = useMemo(
+    () => new Map(items.map((item) => [item.productId, item.quantity])),
+    [items]
+  );
 
   const total = getPosCartTotal(items);
   const cashReceived = Number.parseInt(cashInput, 10) || 0;
@@ -297,6 +312,7 @@ export function RestaurantPosPage({
                 <PosProductCard
                   key={product.id}
                   product={product}
+                  quantity={productQuantities.get(product.id) ?? 0}
                   readOnly={readOnly}
                   onAdd={() => addProduct(product)}
                   onShowDetails={() => setDetailsProduct(product)}
