@@ -512,12 +512,7 @@ export function RestaurantAdminShell({
     if (cartItems.length !== draft.items.length) {
       throw new Error('Одно из блюд больше недоступно в текущем каталоге');
     }
-    const paymentLabel = {
-      cash: 'Наличные',
-      card: 'Карта',
-      transfer: 'Перевод',
-      mixed: 'Смешанная оплата'
-    }[draft.paymentMethod];
+    const paymentLabel = draft.paymentMethod === 'cash' ? 'Наличные' : 'Перевод';
     await createRestaurantOrderFromCart({
       slug,
       items: cartItems,
@@ -528,6 +523,9 @@ export function RestaurantAdminShell({
       customerPhone: draft.customerPhone,
       comment: [
         `POS: ${paymentLabel}`,
+        draft.paymentMethod === 'cash' && draft.cashReceived > 0
+          ? `Получено: ${draft.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${draft.cashChange.toLocaleString('ru-RU')} ₽`
+          : '',
         draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '',
         draft.comment
       ].filter(Boolean).join(' · ')

@@ -59,6 +59,7 @@ export function RestaurantAdminWorkspace({
   deliverySettings,
   moduleAccess,
   onOpenScreen,
+  onOpenSeating,
   onOpenCatalog,
   onAddDish,
   onOrderStatus,
@@ -77,6 +78,7 @@ export function RestaurantAdminWorkspace({
   deliverySettings: RestaurantDeliverySettings | null;
   moduleAccess: RestaurantAdminModuleAccess;
   onOpenScreen: (screen: RestaurantAdminSettingsScreen) => void;
+  onOpenSeating: () => void;
   onOpenCatalog: () => void;
   onAddDish: () => void;
   onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => Promise<void>;
@@ -132,6 +134,10 @@ export function RestaurantAdminWorkspace({
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
     : null;
   const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
+  const nextPosGuestNumber = useMemo(() => orders.reduce((highest, order) => {
+    const match = order.clientName.match(/^Гость\s*№\s*(\d+)$/i);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0) + 1, [orders]);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status));
   const openTab = (nextTab: RestaurantAdminTab) => {
     setTab(nextTab);
@@ -176,12 +182,7 @@ export function RestaurantAdminWorkspace({
     if (cartItems.length !== draft.items.length) {
       throw new Error('Одно из блюд больше недоступно в текущем каталоге');
     }
-    const paymentLabel = {
-      cash: 'Наличные',
-      card: 'Карта',
-      transfer: 'Перевод',
-      mixed: 'Смешанная оплата'
-    }[draft.paymentMethod];
+    const paymentLabel = draft.paymentMethod === 'cash' ? 'Наличные' : 'Перевод';
     await createRestaurantOrderFromCart({
       slug: catalogSlug,
       items: cartItems,
@@ -192,6 +193,9 @@ export function RestaurantAdminWorkspace({
       customerPhone: draft.customerPhone,
       comment: [
         `POS: ${paymentLabel}`,
+        draft.paymentMethod === 'cash' && draft.cashReceived > 0
+          ? `Получено: ${draft.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${draft.cashChange.toLocaleString('ru-RU')} ₽`
+          : '',
         draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '',
         draft.comment
       ].filter(Boolean).join(' · ')
@@ -289,7 +293,7 @@ export function RestaurantAdminWorkspace({
       </aside>
 
       <div className="restaurant-admin__workspace">
-        <section className="restaurant-admin__hero">
+        <section className={tab === 'pos' ? 'restaurant-admin__hero restaurant-admin__hero--compact' : 'restaurant-admin__hero'}>
           <div>
             <span>Панель: {terms.placeLower}</span>
             <h1>{restaurant.name || terms.place}</h1>
@@ -498,6 +502,7 @@ export function RestaurantAdminWorkspace({
                 onProfile={() => onOpenScreen('settings-profile')}
                 onDesign={() => onOpenScreen('settings-design')}
                 onCategories={() => onOpenScreen('settings-categories')}
+                onSeating={onOpenSeating}
                 onPayments={() => onOpenScreen('settings-payments')}
                 onImport={() => onOpenScreen('settings-backup')}
                 onDelivery={() => setSettingsView('delivery')}
@@ -537,6 +542,7 @@ export function RestaurantAdminWorkspace({
               cabins={cabins}
               products={products}
               accessMode={moduleAccess.pos}
+              nextGuestNumber={nextPosGuestNumber}
               onSubmitOrder={submitPosOrder}
             />
           </section>

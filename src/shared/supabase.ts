@@ -7,7 +7,8 @@ import { confectioneryTemplate } from '../templates/confectionery';
 import { normalizeBusinessType } from './businessTerminology';
 import {
   categoryToLegacyPersistence,
-  normalizeLegacyCategory
+  normalizeLegacyCategory,
+  parseCabinMeta
 } from '../features/restaurant-settings/catalogAdminModel';
 import { catalogAccessAllowsAdmin } from './adminSession';
 import { clearPwaResumePath } from './pwaSession';
@@ -419,6 +420,9 @@ type PlatformCabinRow = {
   capacity: number;
   image_url: string | null;
   is_active?: boolean | null;
+  capacity_text?: string | null;
+  resource_type?: string | null;
+  price?: number | null;
 };
 
 const drinkCategorySlugs = new Set(['fridge', 'lemonades', 'tea']);
@@ -523,8 +527,13 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
 const mapPlatformCabin = (value: PlatformCabinRow): Cabin => ({
   id: value.id,
   title: value.title,
-  capacity: `до ${value.capacity} гостей`,
-  feature: JSON.stringify({ status: value.is_active === false ? 'inactive' : 'active', type: 'normal' }),
+  capacity: value.capacity_text?.trim() || `до ${value.capacity} гостей`,
+  feature: JSON.stringify({
+    kind: value.resource_type === 'table' ? 'table' : 'cabin',
+    status: value.is_active === false ? 'inactive' : 'active',
+    type: 'normal',
+    price: Math.max(0, Number(value.price) || 0)
+  }),
   image_url: value.image_url ?? ''
 });
 
@@ -770,7 +779,7 @@ export async function loadCatalog(catalogSlug?: string) {
       supabase.from('tags').select('id, slug, name, icon, color').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('bookable_resources')
-        .select('id, title, capacity, image_url, is_active')
+        .select('id, title, capacity, image_url, is_active, capacity_text, resource_type, price')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),
@@ -1428,12 +1437,13 @@ export async function replaceTagsInSupabase(values: CatalogTag[], options: { rem
 
 export async function replaceCabinsInSupabase(values: Cabin[]) {
   if (!supabase) return;
-  if (activePlatformCatalogId) {
+  if (activePlatformCatalogId && !activeCatalogIsLegacy) {
     const rows = values.map((value, index) => ({
       ...(uuidPattern.test(value.id) ? { id: value.id } : {}),
       catalog_id: activePlatformCatalogId,
       title: value.title,
       capacity: Number.parseInt(value.capacity, 10) || 1,
+      capacity_text: value.capacity,
       image_url: value.image_url,
       is_active: (() => {
         try {
@@ -1442,6 +1452,8 @@ export async function replaceCabinsInSupabase(values: Cabin[]) {
           return true;
         }
       })(),
+      resource_type: parseCabinMeta(value.feature).kind,
+      price: parseCabinMeta(value.feature).price,
       sort_order: index
     }));
     if (rows.length > 0) {

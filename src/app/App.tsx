@@ -2222,6 +2222,7 @@ function AppContent({
       if (settingsCatalogTab === 'cabins') {
         if (cabinEditor.mode === 'edit') return 'Редактировать кабинку';
         if (cabinEditor.mode === 'add') return 'Добавить кабинку';
+        return 'Зал: столики и кабинки';
       }
       if (categoryEditor.mode === 'edit') return 'Редактировать категорию';
       if (categoryEditor.mode === 'add') return 'Добавить категорию';
@@ -2724,6 +2725,12 @@ function AppContent({
       deliverySettings={deliverySettings}
       moduleAccess={restaurantModuleAccessQuery.data ?? disabledModuleAccess}
       onOpenScreen={setScreen}
+      onOpenSeating={() => {
+        setSettingsCatalogTab('cabins');
+        setCategoryEditor({ mode: 'list' });
+        setCabinEditor({ mode: 'list' });
+        setScreen('settings-categories');
+      }}
       onOpenCatalog={() => {
         setCatalogCategory('all');
         setScreen('catalog');

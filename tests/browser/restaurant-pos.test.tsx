@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import type { Cabin, Category, Product } from '../../src/entities/models';
@@ -65,8 +65,49 @@ test('cashier creates a draft from the existing restaurant catalog', async () =>
   await expect.element(screen.getByText('3 позиции')).toBeVisible();
   await screen.getByLabelText('Имя гостя').fill('Дуквах');
   await screen.getByRole('button', { name: 'В зале' }).click();
-  await screen.getByRole('button', { name: 'Карта' }).click();
+  await screen.getByRole('button', { name: 'Перевод' }).click();
   await expect.element(screen.getByRole('button', { name: 'Оформить заказ' })).toBeEnabled();
+});
+
+test('cashier calculates cash change and saves an unnamed customer as a numbered guest', async () => {
+  const onSubmitOrder = vi.fn().mockResolvedValue(undefined);
+  const screen = await render(
+    <RestaurantPosPage
+      restaurantName="Мангал"
+      categories={categories}
+      cabins={[]}
+      products={[product({})]}
+      accessMode="active"
+      nextGuestNumber={7}
+      onSubmitOrder={onSubmitOrder}
+    />
+  );
+
+  await screen.getByRole('button', { name: 'Открыть категорию Горячее' }).click();
+  await screen.getByRole('button', { name: 'Добавить Жижиг-галнаш' }).click();
+
+  await expect.element(screen.getByRole('button', { name: 'Карта' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Смешанная' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Перевод' })).toBeVisible();
+  await expect.element(screen.getByRole('region', { name: 'Расчёт сдачи' })).toBeVisible();
+
+  await screen.getByRole('button', { name: '5', exact: true }).click();
+  await screen.getByRole('button', { name: '0', exact: true }).click();
+  await screen.getByRole('button', { name: '0', exact: true }).click();
+  await screen.getByRole('button', { name: 'Сдача', exact: true }).click();
+
+  await expect.element(screen.getByText('Получено: 500 ₽', { exact: true })).toBeVisible();
+  await expect.element(screen.getByText('Сдача: 120 ₽', { exact: true })).toBeVisible();
+  await screen.getByRole('button', { name: 'Оформить заказ' }).click();
+
+  expect(onSubmitOrder).toHaveBeenCalledOnce();
+  expect(onSubmitOrder.mock.calls[0][0]).toMatchObject({
+    customerName: 'Гость №7',
+    customerPhone: '',
+    paymentMethod: 'cash',
+    cashReceived: 500,
+    cashChange: 120
+  });
 });
 
 test('current order stays compact so the dish catalog keeps the larger working area', async () => {

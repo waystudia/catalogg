@@ -72,6 +72,64 @@
   color: #fff;
 }
 
+.restaurant-pos-cash {
+  display: grid;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 8px;
+  background: #f8fafc;
+}
+
+.restaurant-pos-cash__display {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 7px;
+  padding: 0 9px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.restaurant-pos-cash__display strong[data-tone='change'] {
+  color: #047857;
+}
+
+.restaurant-pos-cash__display strong[data-tone='shortfall'] {
+  color: #b42318;
+}
+
+.restaurant-pos-cash__keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.restaurant-pos-cash__keypad button {
+  min-height: 32px;
+  border: 1px solid #d8dee9;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.restaurant-pos-cash__keypad .restaurant-pos-cash__clear,
+.restaurant-pos-cash__keypad .restaurant-pos-cash__change {
+  grid-column: span 3;
+}
+
+.restaurant-pos-cash__keypad .restaurant-pos-cash__change {
+  border-color: #5b3df4;
+  background: #5b3df4;
+  color: #fff;
+}
+
 .restaurant-pos-catalog {
   min-width: 0;
   padding: 10px;

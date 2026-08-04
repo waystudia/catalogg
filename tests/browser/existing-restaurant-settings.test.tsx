@@ -34,7 +34,7 @@ test('current admin reuses the existing settings without a second login', async 
 
   await expect.element(screen.getByRole('heading', { name: 'Настройки ресторана' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Профиль' })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Столики и кабинки' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Зал' })).toBeVisible();
   await expect.element(screen.getByRole('textbox', { name: 'Email' })).not.toBeInTheDocument();
 
   await screen.getByRole('button', { name: 'Профиль' }).click();
@@ -71,7 +71,7 @@ test('restaurant owner opens seating settings and edits a table used by POS', as
     />
   );
 
-  await screen.getByRole('button', { name: 'Столики и кабинки' }).click();
+  await screen.getByRole('button', { name: 'Зал' }).click();
   await expect.element(screen.getByRole('button', { name: 'Редактировать Стол 1', exact: true })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Редактировать Кабинка №1', exact: true })).toBeVisible();
 
@@ -112,7 +112,7 @@ test('restaurant owner saves an optional cabin price in the existing cabin setti
     />
   );
 
-  await screen.getByRole('button', { name: 'Столики и кабинки' }).click();
+  await screen.getByRole('button', { name: 'Зал' }).click();
   await screen.getByRole('button', { name: 'Редактировать Кабинка №1' }).click();
   await screen.getByLabelText('Цена кабинки').fill('750');
   await screen.getByRole('button', { name: 'Сохранить изменения' }).click();

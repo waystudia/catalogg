@@ -1,5 +1,5 @@
 import { ArrowLeft, Info, Minus, Plus, Search, ShoppingBag, Trash2, X } from 'lucide-react';
-import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Cabin, Category, Product } from '../../entities/models';
 import type { RestaurantModuleAccessMode } from '../platform-admin-modules/restaurantModuleAccess';
 import {
@@ -25,7 +25,9 @@ export type RestaurantPosOrderDraft = {
   cabinPrice: number;
   deliveryAddress: string;
   fulfillmentType: 'hall' | 'takeaway' | 'delivery';
-  paymentMethod: 'cash' | 'card' | 'transfer' | 'mixed';
+  paymentMethod: 'cash' | 'transfer';
+  cashReceived: number;
+  cashChange: number;
 };
 
 type RestaurantPosPageProps = {
@@ -34,6 +36,7 @@ type RestaurantPosPageProps = {
   cabins?: Cabin[];
   products: Product[];
   accessMode: RestaurantModuleAccessMode;
+  nextGuestNumber?: number;
   onSubmitOrder?: (draft: RestaurantPosOrderDraft) => Promise<void>;
 };
 
@@ -49,10 +52,10 @@ const fulfillmentOptions = [
 
 const paymentOptions = [
   { value: 'cash', label: 'Наличные' },
-  { value: 'card', label: 'Карта' },
-  { value: 'transfer', label: 'Перевод' },
-  { value: 'mixed', label: 'Смешанная' }
+  { value: 'transfer', label: 'Перевод' }
 ] as const;
+
+const cashKeypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0'] as const;
 
 function PosImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
@@ -132,6 +135,7 @@ export function RestaurantPosPage({
   cabins = [],
   products,
   accessMode,
+  nextGuestNumber = 1,
   onSubmitOrder
 }: RestaurantPosPageProps) {
   const [query, setQuery] = useState('');
@@ -147,8 +151,11 @@ export function RestaurantPosPage({
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState<RestaurantPosOrderDraft['fulfillmentType']>('hall');
   const [paymentMethod, setPaymentMethod] = useState<RestaurantPosOrderDraft['paymentMethod']>('cash');
+  const [cashInput, setCashInput] = useState('');
+  const [showCashChange, setShowCashChange] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const guestNumberRef = useRef(Math.max(1, nextGuestNumber));
   const readOnly = accessMode === 'read_only';
   const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
   const showCategories = categoryId === null && !normalizedQuery;
@@ -175,9 +182,16 @@ export function RestaurantPosPage({
   }), [categoryId, normalizedQuery, products]);
 
   const total = getPosCartTotal(items);
+  const cashReceived = Number.parseInt(cashInput, 10) || 0;
+  const cashChange = Math.max(0, cashReceived - total);
+  const cashShortfall = Math.max(0, total - cashReceived);
   const itemsCount = getPosCartItemsCount(items);
   const requiresDeliveryAddress = fulfillmentType === 'delivery' && !deliveryAddress.trim();
   const canSubmit = !readOnly && !isSubmitting && items.length > 0 && !requiresDeliveryAddress;
+
+  useEffect(() => {
+    guestNumberRef.current = Math.max(guestNumberRef.current, nextGuestNumber);
+  }, [nextGuestNumber]);
 
   const addProduct = (product: Product) => {
     if (readOnly) return;
@@ -197,17 +211,24 @@ export function RestaurantPosPage({
     try {
       await onSubmitOrder?.({
         items,
-        customerName: customerName.trim() || 'Гость',
+        customerName: customerName.trim() || `Гость №${guestNumberRef.current}`,
         customerPhone: customerPhone.trim(),
         comment: comment.trim(),
         tableLabel: fulfillmentType === 'hall' ? selectedPlaceLabel : '',
         cabinPrice: fulfillmentType === 'hall' && seatingMode === 'cabin' ? cabinPrice : 0,
         deliveryAddress: deliveryAddress.trim(),
         fulfillmentType,
-        paymentMethod
+        paymentMethod,
+        cashReceived: paymentMethod === 'cash' ? cashReceived : 0,
+        cashChange: paymentMethod === 'cash' ? cashChange : 0
       });
+      if (!customerName.trim()) guestNumberRef.current += 1;
       setItems([]);
+      setCustomerName('');
+      setCustomerPhone('');
       setComment('');
+      setCashInput('');
+      setShowCashChange(false);
       setMessage('Заказ оформлен и передан в общий список заказов');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Не удалось оформить заказ');
@@ -383,6 +404,63 @@ export function RestaurantPosPage({
                 <button type="button" key={option.value} data-active={paymentMethod === option.value} disabled={readOnly} onClick={() => setPaymentMethod(option.value)}>{option.label}</button>
               ))}
             </div>
+            {paymentMethod === 'cash' && (
+              <section className="restaurant-pos-cash" aria-label="Расчёт сдачи">
+                <div className="restaurant-pos-cash__display">
+                  <span>Получено: {formatPrice(cashReceived)}</span>
+                  {showCashChange && (
+                    <strong data-tone={cashShortfall > 0 ? 'shortfall' : 'change'}>
+                      {cashShortfall > 0 ? `Не хватает: ${formatPrice(cashShortfall)}` : `Сдача: ${formatPrice(cashChange)}`}
+                    </strong>
+                  )}
+                </div>
+                <div className="restaurant-pos-cash__keypad">
+                  {cashKeypad.map((key) => (
+                    <button
+                      type="button"
+                      key={key}
+                      disabled={readOnly}
+                      onClick={() => {
+                        setCashInput((current) => `${current}${key}`.replace(/^0+(?=\d)/, '').slice(0, 9));
+                        setShowCashChange(false);
+                      }}
+                    >
+                      {key}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    aria-label="Удалить цифру"
+                    disabled={readOnly || !cashInput}
+                    onClick={() => {
+                      setCashInput((current) => current.slice(0, -1));
+                      setShowCashChange(false);
+                    }}
+                  >
+                    ⌫
+                  </button>
+                  <button
+                    className="restaurant-pos-cash__clear"
+                    type="button"
+                    disabled={readOnly || !cashInput}
+                    onClick={() => {
+                      setCashInput('');
+                      setShowCashChange(false);
+                    }}
+                  >
+                    Очистить
+                  </button>
+                  <button
+                    className="restaurant-pos-cash__change"
+                    type="button"
+                    disabled={readOnly || cashReceived <= 0}
+                    onClick={() => setShowCashChange(true)}
+                  >
+                    Сдача
+                  </button>
+                </div>
+              </section>
+            )}
           </section>
 
           <footer>
