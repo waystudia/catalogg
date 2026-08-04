@@ -96,6 +96,7 @@ import {
   type StockTargets
 } from '../features/restaurant-settings/catalogAdminModel';
 import { RestaurantAdminWorkspace } from '../features/restaurant-admin/RestaurantAdminWorkspace';
+import type { RestaurantAdminModuleAccess } from '../features/platform-admin-modules/restaurantModuleAccess';
 import { LoginModal } from '../features/auth/LoginModal';
 import {
   darkThemePreset,
@@ -145,6 +146,7 @@ import {
   type RestaurantOrderStatus
 } from '../shared/api/restaurantOrdersApi';
 import { getRestaurantPaymentsBySlug, saveRestaurantPayments } from '../shared/api/restaurantPaymentsApi';
+import { getRestaurantAdminModuleAccessBySlug } from '../shared/api/restaurantModulesApi';
 import { BrandLogo } from '../shared/BrandLogo';
 import { SafeImage } from '../shared/SafeImage';
 import {
@@ -1937,6 +1939,16 @@ function AppContent({
   );
   const [loadingGraceExpired, setLoadingGraceExpired] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
+  const disabledModuleAccess: RestaurantAdminModuleAccess = { pos: 'disabled', warehouse: 'disabled' };
+  const restaurantModuleAccessQuery = useQuery({
+    queryKey: ['restaurant-admin-module-access', catalogSlug],
+    queryFn: () => getRestaurantAdminModuleAccessBySlug(catalogSlug),
+    enabled: isAdmin,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true
+  });
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
@@ -2703,12 +2715,14 @@ function AppContent({
       catalogSlug={catalogSlug}
       restaurant={catalog.restaurant}
       categories={catalog.categories}
+      cabins={catalog.cabins}
       products={catalog.products}
       orders={restaurantOrders}
       routeSection={routeSection}
       routeOrderId={routeOrderId}
       paymentSettings={paymentSettings}
       deliverySettings={deliverySettings}
+      moduleAccess={restaurantModuleAccessQuery.data ?? disabledModuleAccess}
       onOpenScreen={setScreen}
       onOpenCatalog={() => {
         setCatalogCategory('all');

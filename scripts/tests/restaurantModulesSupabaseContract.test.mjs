@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const migrationsDir = resolve(repoRoot, 'supabase/migrations');
 const migrationName = readdirSync(migrationsDir).find((name) => name.endsWith('_restaurant_modules.sql'));
+const ownerReadMigrationName = readdirSync(migrationsDir).find((name) => name.endsWith('_restaurant_module_owner_read_access.sql'));
 
 describe('restaurant module entitlement contract', () => {
   it('adds a default-off module table without rewriting existing order or catalog tables', () => {
@@ -39,5 +40,15 @@ describe('restaurant module entitlement contract', () => {
     assert.match(app, /<PlatformRestaurantModulesPage/);
     assert.match(app, /Модули ресторанов/);
     assert.match(api, /\.eq\('catalog_id', catalogId\)/);
+  });
+
+  it('lets the active restaurant owner read only the module row for the owned catalog', () => {
+    assert.ok(ownerReadMigrationName, 'restaurant module owner read migration is missing');
+    const sql = readFileSync(resolve(migrationsDir, ownerReadMigrationName), 'utf8');
+
+    assert.match(sql, /for select\s+to authenticated\s+using/i);
+    assert.match(sql, /client\.catalog_id\s*=\s*restaurant_modules\.catalog_id/i);
+    assert.match(sql, /client\.owner_user_id\s*=\s*\(select auth\.uid\(\)\)/i);
+    assert.doesNotMatch(sql, /for (insert|update|delete)|drop table|truncate|delete from/i);
   });
 });

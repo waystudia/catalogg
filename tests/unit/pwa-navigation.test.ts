@@ -92,6 +92,7 @@ describe('PWA navigation', () => {
     expect(buildRestaurantAdminTabPath('mangal', 'orders')).toBe('/mangal/orders');
     expect(buildRestaurantAdminTabPath('mangal', 'dishes')).toBe('/mangal/dishes');
     expect(buildRestaurantAdminTabPath('mangal', 'scanner')).toBe('/mangal/scanner');
+    expect(buildRestaurantAdminTabPath('mangal', 'pos')).toBe('/mangal/pos');
     expect(buildRestaurantAdminTabPath('mangal', 'settings')).toBe('/mangal/settings');
   });
 });

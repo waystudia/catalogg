@@ -3,16 +3,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowRight, Bell, ClipboardList, CreditCard, Home, Info, Package,
+  ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
   Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Utensils
 } from 'lucide-react';
-import type { Category, Product, Restaurant } from '../../entities/models';
+import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { useAuthStore } from '../stores';
 import { getCurrentStock } from '../restaurant-settings/catalogAdminModel';
 import { DeliverySettingsCard, SettingsHub, defaultRestaurantDeliverySettings } from '../restaurant-settings';
 import { ScannerPage } from '../../pages/scanner/ScannerPage';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import {
+  createRestaurantOrderFromCart,
   deleteRestaurantTestOrder,
   type RestaurantDeliverySettings,
   type RestaurantOrder,
@@ -36,6 +37,8 @@ import {
   getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
   playRestaurantAdminOrderSound, type AdminOrderFilter
 } from './orderPresentation';
+import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
+import type { RestaurantAdminModuleAccess } from '../platform-admin-modules/restaurantModuleAccess';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -46,12 +49,15 @@ export type RestaurantAdminSettingsScreen =
 export function RestaurantAdminWorkspace({
   catalogSlug,
   restaurant,
+  categories,
+  cabins,
   products,
   orders,
   routeSection,
   routeOrderId,
   paymentSettings,
   deliverySettings,
+  moduleAccess,
   onOpenScreen,
   onOpenCatalog,
   onAddDish,
@@ -62,12 +68,14 @@ export function RestaurantAdminWorkspace({
   catalogSlug: string;
   restaurant: Restaurant;
   categories: Category[];
+  cabins: Cabin[];
   products: Product[];
   orders: RestaurantOrder[];
   routeSection?: string;
   routeOrderId?: string;
   paymentSettings: RestaurantPaymentSettings;
   deliverySettings: RestaurantDeliverySettings | null;
+  moduleAccess: RestaurantAdminModuleAccess;
   onOpenScreen: (screen: RestaurantAdminSettingsScreen) => void;
   onOpenCatalog: () => void;
   onAddDish: () => void;
@@ -80,7 +88,7 @@ export function RestaurantAdminWorkspace({
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
-      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner'
+      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner' || routeSection === 'pos'
         ? routeSection
       : 'home'
   );
@@ -160,6 +168,38 @@ export function RestaurantAdminWorkspace({
     void requestRestaurantOrderNotificationPermission({ role: 'restaurant', catalogSlug }).then(setNotificationPermission);
   };
 
+  const submitPosOrder = async (draft: RestaurantPosOrderDraft) => {
+    const cartItems = draft.items.flatMap((item) => {
+      const product = products.find((candidate) => candidate.id === item.productId);
+      return product ? [{ product, quantity: item.quantity }] : [];
+    });
+    if (cartItems.length !== draft.items.length) {
+      throw new Error('Одно из блюд больше недоступно в текущем каталоге');
+    }
+    const paymentLabel = {
+      cash: 'Наличные',
+      card: 'Карта',
+      transfer: 'Перевод',
+      mixed: 'Смешанная оплата'
+    }[draft.paymentMethod];
+    await createRestaurantOrderFromCart({
+      slug: catalogSlug,
+      items: cartItems,
+      fulfillmentType: draft.fulfillmentType,
+      cabinLabel: draft.tableLabel,
+      deliveryAddress: draft.deliveryAddress,
+      customerName: draft.customerName,
+      customerPhone: draft.customerPhone,
+      comment: [
+        `POS: ${paymentLabel}`,
+        draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '',
+        draft.comment
+      ].filter(Boolean).join(' · ')
+    });
+    onRefreshOrders();
+    toast.success('POS-заказ добавлен в общий список заказов');
+  };
+
   useEffect(() => {
     if (notificationPermission !== 'granted' || !catalogSlug) return;
     void restoreRestaurantOrderNotificationSubscription({ role: 'restaurant', catalogSlug }).then(setNotificationPermission);
@@ -174,10 +214,14 @@ export function RestaurantAdminWorkspace({
       setTab('home');
       return;
     }
+    if (routeSection === 'pos') {
+      setTab(moduleAccess.pos === 'disabled' ? 'home' : 'pos');
+      return;
+    }
     if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
       setTab(routeSection);
     }
-  }, [routeSection]);
+  }, [moduleAccess.pos, routeSection]);
 
   useEffect(() => {
     if (!routeOrderId) return;
@@ -239,6 +283,7 @@ export function RestaurantAdminWorkspace({
           <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
           <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
           <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
+          {moduleAccess.pos !== 'disabled' && <button className={tab === 'pos' ? 'is-active' : ''} type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
         </nav>
       </aside>
@@ -313,11 +358,12 @@ export function RestaurantAdminWorkspace({
                 <ArrowRight />
               </button>
             </section>
-            <section className="admin-quick-actions">
+            <section className="admin-quick-actions" aria-label="Быстрые действия">
               <button type="button" onClick={onAddDish}><Plus />{terms.addItem}</button>
                 <button type="button" onClick={() => onOpenScreen('settings-stock')}><Package />Остатки</button>
                 <button type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
                 <button type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
+                {moduleAccess.pos !== 'disabled' && <button type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
               </section>
           </section>
         )}
@@ -479,6 +525,19 @@ export function RestaurantAdminWorkspace({
               onConfirmed={(orderId) => {
                 navigate(`/${catalogSlug}/order/${encodeURIComponent(orderId)}`, { replace: true });
               }}
+            />
+          </section>
+        )}
+
+        {tab === 'pos' && moduleAccess.pos !== 'disabled' && (
+          <section className="restaurant-admin__content">
+            <RestaurantPosPage
+              restaurantName={restaurant.name}
+              categories={categories}
+              cabins={cabins}
+              products={products}
+              accessMode={moduleAccess.pos}
+              onSubmitOrder={submitPosOrder}
             />
           </section>
         )}

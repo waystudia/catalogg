@@ -1,9 +1,12 @@
 import {
   createDefaultRestaurantModules,
+  getRestaurantAdminModuleAccess,
+  type RestaurantAdminModuleAccess,
   type RestaurantModules,
   type RestaurantModulePackage
 } from '../../features/platform-admin-modules/restaurantModuleAccess';
 import { getClients } from './clientsApi';
+import { getCatalogAdminAccess } from './catalogAdminApi';
 import type { SubscriptionStatus } from './platformTypes';
 import { supabase } from '../supabase';
 
@@ -129,4 +132,19 @@ export async function saveRestaurantModuleEntitlement(
     .single();
   if (error) throw new Error(error.message);
   return mapRow(data as RestaurantModulesRow);
+}
+
+export async function getRestaurantAdminModuleAccessBySlug(
+  catalogSlug: string
+): Promise<RestaurantAdminModuleAccess> {
+  const access = await getCatalogAdminAccess(catalogSlug);
+  if (!access.catalog || !access.hasSession) {
+    return { pos: 'disabled', warehouse: 'disabled' };
+  }
+  const modules = await getRestaurantModuleEntitlementByCatalog(access.catalog.id);
+  return getRestaurantAdminModuleAccess({
+    modules,
+    status: access.subscriptionStatus,
+    endsAt: access.subscriptionEndsAt
+  });
 }
