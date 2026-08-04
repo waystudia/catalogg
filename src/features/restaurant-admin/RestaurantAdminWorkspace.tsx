@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
-  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Utensils
+  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { useAuthStore } from '../stores';
@@ -97,6 +97,7 @@ export function RestaurantAdminWorkspace({
   const [filter, setFilter] = useState<AdminOrderFilter>('all');
   const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
@@ -160,6 +161,8 @@ export function RestaurantAdminWorkspace({
     });
   };
   const deleteOrder = async (order: RestaurantOrder) => {
+    if (deletingOrderId) return;
+    setDeletingOrderId(order.id);
     try {
       const deleted = await deleteRestaurantTestOrder(order);
       if (!deleted) throw new Error('Заказ уже удалён или не найден');
@@ -168,6 +171,8 @@ export function RestaurantAdminWorkspace({
       onRefreshOrders();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось удалить заказ');
+    } finally {
+      setDeletingOrderId(null);
     }
   };
   const enableOrderNotifications = () => {
@@ -469,21 +474,20 @@ export function RestaurantAdminWorkspace({
                                 </i>
                               </span>
                             </button>
-                            {import.meta.env.DEV && (
-                              <button
-                                className="admin-order-card__dev-delete"
-                                type="button"
-                                aria-label={`Удалить тестовый заказ ${order.orderNumber}`}
-                                title="Удалить тестовый заказ"
-                                onClick={() => {
-                                  if (window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) {
-                                    void deleteOrder(order);
-                                  }
-                                }}
-                              >
-                                ×
-                              </button>
-                            )}
+                            <button
+                              className="admin-order-card__delete"
+                              type="button"
+                              aria-label={`Удалить заказ ${order.orderNumber}`}
+                              title="Удалить заказ"
+                              disabled={deletingOrderId === order.id}
+                              onClick={() => {
+                                if (window.confirm(`Удалить заказ #${order.orderNumber} безвозвратно?`)) {
+                                  void deleteOrder(order);
+                                }
+                              }}
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </button>
                           </div>
                         ))}
                       </div>

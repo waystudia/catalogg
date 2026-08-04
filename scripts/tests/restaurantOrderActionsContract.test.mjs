@@ -91,6 +91,18 @@ describe('restaurant order action contract', () => {
     assert.doesNotMatch(catalogShell, /Удалить заказ из работы ресторана\?/);
   });
 
+  it('shows a confirmed trash action on every restaurant order card in production', async () => {
+    const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
+
+    assert.match(workspace, /group\.orders\.map\(\(order\) => \(/);
+    assert.match(workspace, /className="admin-order-card__delete"/);
+    assert.match(workspace, /aria-label=\{`Удалить заказ \$\{order\.orderNumber\}`\}/);
+    assert.match(workspace, /window\.confirm\(`Удалить заказ #\$\{order\.orderNumber\} безвозвратно\?`\)/);
+    assert.match(workspace, /disabled=\{deletingOrderId === order\.id\}/);
+    assert.match(workspace, /void deleteOrder\(order\)/);
+    assert.doesNotMatch(workspace, /import\.meta\.env\.DEV && \(/);
+  });
+
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const api = await read('src/shared/api/restaurantOrdersApi.ts');

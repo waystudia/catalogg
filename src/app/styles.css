@@ -1308,7 +1308,7 @@
   position: relative;
 }
 
-.admin-order-card__dev-delete {
+.admin-order-card__delete {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -1321,13 +1321,25 @@
   border-radius: 10px;
   background: #fff1f2;
   color: #d92d20;
-  font: inherit;
-  font-size: 20px;
-  font-weight: 900;
-  line-height: 1;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-.admin-order-card-shell:has(.admin-order-card__dev-delete) .admin-order-card__head {
+.admin-order-card__delete svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.3;
+}
+
+.admin-order-card__delete:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.admin-order-card__delete:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+.admin-order-card-shell:has(.admin-order-card__delete) .admin-order-card__head {
   padding-right: 34px;
 }
 
