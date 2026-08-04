@@ -37,6 +37,7 @@ import { toast } from 'sonner';
 import type { CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
 import {
+  deleteRestaurantTestOrder,
   getRestaurantOrders,
   subscribeToRestaurantOrdersRealtime,
   updateRestaurantOrderPaymentStatus,
@@ -460,6 +461,22 @@ export function RestaurantAdminShell({
     }
   };
 
+  const deleteOrder = async (order: RestaurantOrder) => {
+    try {
+      const deleted = await deleteRestaurantTestOrder(order);
+      if (!deleted) throw new Error('Заказ уже удалён или не найден');
+      setOrders((current) => current.filter((item) => item.id !== order.id));
+      setSelectedOrderId((current) => (current === order.id ? null : current));
+      setPaymentStatuses((current) => Object.fromEntries(
+        Object.entries(current).filter(([orderId]) => orderId !== order.id)
+      ));
+      knownOrderIdsRef.current.delete(order.id);
+      toast.success(`Заказ #${order.orderNumber} удалён`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить заказ');
+    }
+  };
+
   const setPaymentStatus = async (orderId: string, status: PaymentStatus) => {
     const order = orders.find((item) => item.id === orderId);
     const restaurantPaymentStatus = toRestaurantPaymentStatus(status);
@@ -610,6 +627,7 @@ export function RestaurantAdminShell({
               onSelectOrder={setSelectedOrderId}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
+              onDelete={deleteOrder}
             />
           )}
           {section === 'stocks' && (
@@ -866,7 +884,8 @@ function OrdersPage({
   onTabChange,
   onSelectOrder,
   onStatusChange,
-  onPaymentStatusChange
+  onPaymentStatusChange,
+  onDelete
 }: {
   orders: RestaurantOrder[];
   selectedOrder: RestaurantOrder | null;
@@ -880,6 +899,7 @@ function OrdersPage({
   onSelectOrder: (id: string) => void;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
+  onDelete: (order: RestaurantOrder) => Promise<void>;
 }) {
   const orderGroups = useMemo(() => groupOrdersByDate(orders), [orders]);
 
@@ -924,6 +944,7 @@ function OrdersPage({
           paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)}
           onStatusChange={onStatusChange}
           onPaymentStatusChange={onPaymentStatusChange}
+          onDelete={onDelete}
         />
       )}
     </div>
@@ -975,14 +996,27 @@ function OrderDetails({
   paymentSettings,
   paymentStatus,
   onStatusChange,
-  onPaymentStatusChange
+  onPaymentStatusChange,
+  onDelete
 }: {
   order: RestaurantOrder;
   paymentSettings: PaymentSettings;
   paymentStatus: PaymentStatus;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
+  onDelete: (order: RestaurantOrder) => Promise<void>;
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteOrder = async () => {
+    if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(order);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <aside className="ra-card ra-order-details">
       <header>
@@ -1096,20 +1130,15 @@ function OrderDetails({
           <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
         )}
         {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
-        {!['cancelled', 'canceled', 'completed'].includes(order.status) && (
-          <button
-            className="ra-order-actions__danger"
-            type="button"
-            onClick={() => {
-              if (window.confirm('Удалить заказ из работы ресторана?')) {
-                onStatusChange(order, 'cancelled');
-              }
-            }}
-          >
-            <Trash2 />
-            Удалить заказ
-          </button>
-        )}
+        <button
+          className="ra-order-actions__danger"
+          type="button"
+          disabled={isDeleting}
+          onClick={() => void deleteOrder()}
+        >
+          <Trash2 />
+          {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+        </button>
       </div>
     </aside>
   );

@@ -57,6 +57,7 @@ describe('restaurant order action contract', () => {
   it('lets an authenticated restaurant irreversibly delete any order from production order details', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
+    const catalogShell = await read('src/pages/catalog-admin/RestaurantAdminShell.tsx');
     const app = await read('src/app/App.tsx');
     const api = await read('src/shared/api/restaurantOrdersApi.ts');
     const migration = await read('supabase/migrations/20260730234824_development_delete_restaurant_order.sql');
@@ -76,6 +77,18 @@ describe('restaurant order action contract', () => {
     assert.match(migration, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon/);
     assert.match(restriction, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon, service_role/);
     assert.match(restriction, /grant execute on function public\.delete_restaurant_test_order\(uuid, uuid\) to authenticated/);
+    assert.match(catalogShell, /deleteRestaurantTestOrder/);
+    assert.match(catalogShell, /const deleteOrder = async \(order: RestaurantOrder\)/);
+    assert.match(catalogShell, /const deleted = await deleteRestaurantTestOrder\(order\)/);
+    assert.match(catalogShell, /if \(!deleted\) throw new Error\('Заказ уже удалён или не найден'\)/);
+    assert.match(catalogShell, /setOrders\(\(current\) => current\.filter\(\(item\) => item\.id !== order\.id\)\)/);
+    assert.match(catalogShell, /onDelete=\{deleteOrder\}/);
+    assert.match(catalogShell, /await onDelete\(order\)/);
+    assert.match(catalogShell, /Удалить заказ\? Это действие нельзя отменить\./);
+    assert.match(catalogShell, /if \(isDeleting \|\| !window\.confirm\('Удалить заказ\? Это действие нельзя отменить\.'\)\) return/);
+    assert.match(catalogShell, /disabled=\{isDeleting\}/);
+    assert.match(catalogShell, /isDeleting \? 'Удаляем\.\.\.' : 'Удалить заказ'/);
+    assert.doesNotMatch(catalogShell, /Удалить заказ из работы ресторана\?/);
   });
 
   it('keeps the assigned driver card visible throughout the restaurant order lifecycle', async () => {
