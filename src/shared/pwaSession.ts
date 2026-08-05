@@ -13,6 +13,7 @@ const reservedRootRoutes = new Set([
   'payments',
   'privacy',
   'profile',
+  'restaurant',
   'restaurants',
   'scanner'
 ]);

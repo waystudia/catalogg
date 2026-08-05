@@ -1,5 +1,6 @@
 import { CheckCircle2, LockKeyhole, LogOut, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type UIEvent } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import {
   confirmPersonalDataConsent,
@@ -292,6 +293,10 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
           }}
         />
     );
+  }
+
+  if (access.legalActivationStatus !== 'active') {
+    return <Navigate replace to="/restaurant/activation" />;
   }
 
   return (
