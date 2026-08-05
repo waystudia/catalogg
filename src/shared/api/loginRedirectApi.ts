@@ -14,7 +14,9 @@ const PROFILE_CHECK_TIMEOUT_MS = 10_000;
 const PROFILE_SERVICE_ERROR = 'Сервис профилей временно не отвечает. Повторите вход через несколько секунд.';
 
 const isRestaurantRedirect = (redirect: string) =>
-  redirect === '/admin' || /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
+  redirect === '/admin' ||
+  redirect === '/restaurant/activation' ||
+  /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
 
 export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLoginRole) => {
   if (!expectedRole) return;

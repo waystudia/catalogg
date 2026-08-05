@@ -238,6 +238,10 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
     );
   }
 
+  if (access.legalActivationStatus !== 'active') {
+    return <Navigate replace to="/restaurant/activation" />;
+  }
+
   return (
       <CatalogDashboard
         access={access}

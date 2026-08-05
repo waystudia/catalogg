@@ -5,6 +5,7 @@ describe('staff login role selection', () => {
   it('accepts the matching driver and restaurant destinations', () => {
     expect(() => assertExpectedLoginRole('/driver', 'driver')).not.toThrow();
     expect(() => assertExpectedLoginRole('/mangal/dashboard', 'restaurant')).not.toThrow();
+    expect(() => assertExpectedLoginRole('/restaurant/activation', 'restaurant')).not.toThrow();
   });
 
   it('explains when a restaurant account is entered under driver', () => {

@@ -18,6 +18,7 @@ import {
   CreditCard,
   Database,
   Eye,
+  FileKey2,
   FileText,
   Filter,
   GripVertical,
@@ -120,6 +121,7 @@ import { PlatformTemplatesPage } from '../../features/platform-admin-templates/P
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
+import { RestaurantActivationsAdminPage } from '../../features/platform-admin-activations/RestaurantActivationsAdminPage';
 import {
   getRestaurantModuleEntitlementByCatalog,
   saveRestaurantModuleEntitlement,
@@ -146,6 +148,7 @@ import './platform-admin.css';
 type PlatformRoute =
   | 'dashboard'
   | 'clients'
+  | 'activations'
   | 'client-signups'
   | 'settlements'
   | 'roads'
@@ -186,6 +189,7 @@ const platformQueryClient = new QueryClient({
 const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Icon: typeof Home }> = [
   { route: 'dashboard', label: 'Главная', detail: 'Дашборд', Icon: Home },
   { route: 'clients', label: 'Клиенты', detail: 'Список клиентов', Icon: Users },
+  { route: 'activations', label: 'Договоры и активации', detail: 'Подключение ресторанов', Icon: FileKey2 },
   { route: 'client-signups', label: 'Пользователи', detail: 'Клиенты приложения', Icon: UserRound },
   { route: 'analytics', label: 'Статистика', detail: 'Аудитория и заказы', Icon: BarChart3 },
   { route: 'settlements', label: 'География', detail: 'Сёла и заявки', Icon: MapPin },
@@ -258,6 +262,7 @@ const getCurrentPlatformPath = () => {
 
 const readRouteFromLocation = (): PlatformRoute => {
   const path = getCurrentPlatformPath();
+  if (path.includes('/admin/activations')) return 'activations';
   if (path.includes('/admin/catalogs')) return 'catalogs';
   if (path.includes('/admin/client-signups')) return 'client-signups';
   if (path.includes('/admin/analytics')) return 'analytics';
@@ -3339,6 +3344,9 @@ function PlatformAdminContent() {
           }}
         />
       );
+    }
+    if (route === 'activations') {
+      return <RestaurantActivationsAdminPage />;
     }
     if (route === 'templates') {
       return <PlatformTemplatesPage templates={templatesQuery.data ?? []} />;

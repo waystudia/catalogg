@@ -197,7 +197,7 @@ Deno.serve(async (request) => {
       if (catalogError || !createdCatalogId) throw catalogError ?? new Error('Could not create catalog from template.');
       catalogId = String(createdCatalogId);
 
-      const nextCatalogStatus = payload.status === 'inactive' || payload.status === 'blocked' ? 'draft' : 'published';
+      const nextCatalogStatus = 'draft';
       const { data: catalog, error: catalogFetchError } = await adminClient
         .from('catalogs')
         .update({ status: nextCatalogStatus, business_type: payload.businessType, template_type: payload.templateType })
@@ -247,6 +247,7 @@ Deno.serve(async (request) => {
           primary_city: payload.primaryCity ?? '',
           service_settlements: payload.serviceSettlements,
           status: payload.status ?? 'active',
+          legal_activation_status: 'draft',
           plan_code: payload.planId ?? 'trial',
           subscription_status: payload.subscriptionStatus ?? 'trial',
           subscription_ends_at: payload.subscriptionEndsAt || null,

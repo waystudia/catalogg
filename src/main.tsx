@@ -34,6 +34,11 @@ const PaymentsPage = lazy(() =>
 const ScannerPage = lazy(() =>
   import('./pages/scanner/ScannerPage').then((module) => ({ default: module.ScannerPage }))
 );
+const RestaurantActivationPage = lazy(() =>
+  import('./features/restaurant-activation/RestaurantActivationPage').then((module) => ({
+    default: module.RestaurantActivationPage
+  }))
+);
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -68,6 +73,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <Route path="/profile/*" element={<ClientPlatformApp />} />
           <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/scanner" element={<ScannerPage />} />
           <Route path="/:slug/scanner" element={<ScannerPage />} />

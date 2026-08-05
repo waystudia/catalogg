@@ -4,6 +4,17 @@ import { copySupabaseSessionToScope } from '../supabaseAuthScope';
 import { clearPwaResumePath } from '../pwaSession';
 import type { SubscriptionStatus } from './platformTypes';
 
+export type CatalogLegalActivationStatus =
+  | 'draft'
+  | 'configured'
+  | 'awaiting_acceptance'
+  | 'active'
+  | 'suspended'
+  | 'terminated'
+  | 'archived'
+  | 'legacy_review_required'
+  | 'reacceptance_required';
+
 export type CatalogAdminAccess = {
   hasSession: boolean;
   isMember: boolean;
@@ -13,6 +24,7 @@ export type CatalogAdminAccess = {
   consentGiven: boolean;
   subscriptionStatus: SubscriptionStatus;
   subscriptionEndsAt: string | null;
+  legalActivationStatus: CatalogLegalActivationStatus | null;
   catalog: {
     id: string;
     name: string;
@@ -100,6 +112,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       consentGiven: true,
       subscriptionStatus: 'active',
       subscriptionEndsAt: null,
+      legalActivationStatus: 'active',
       catalog
     };
   }
@@ -116,6 +129,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       consentGiven: false,
       subscriptionStatus: 'expired',
       subscriptionEndsAt: null,
+      legalActivationStatus: null,
       catalog
     };
   }
@@ -130,6 +144,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       consentGiven: false,
       subscriptionStatus: 'expired',
       subscriptionEndsAt: null,
+      legalActivationStatus: null,
       catalog: null
     };
   }
@@ -143,8 +158,8 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       .maybeSingle(),
     supabase
       .from('clients')
-      .select('catalog_id, first_login, consent_given, subscription_status, subscription_ends_at')
-      .eq('owner_user_id', session.user.id)
+      .select('catalog_id, owner_user_id, first_login, consent_given, subscription_status, subscription_ends_at, legal_activation_status')
+      .eq('catalog_id', catalog.id)
       .maybeSingle()
   ]);
 
@@ -153,7 +168,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
   if (error) throw new Error(error.message);
 
   if (clientError) throw new Error(clientError.message);
-  const clientOwnsCatalog = client?.catalog_id === catalog.id;
+  const clientOwnsCatalog = client?.catalog_id === catalog.id && client?.owner_user_id === session.user.id;
 
   return {
     hasSession: true,
@@ -164,6 +179,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     consentGiven: client?.consent_given ?? true,
     subscriptionStatus: (client?.subscription_status as SubscriptionStatus | undefined) ?? 'active',
     subscriptionEndsAt: client?.subscription_ends_at ?? null,
+    legalActivationStatus: (client?.legal_activation_status as CatalogLegalActivationStatus | undefined) ?? null,
     catalog
   };
 }
