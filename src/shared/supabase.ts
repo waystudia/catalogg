@@ -26,6 +26,7 @@ import {
   getSupabaseAuthStorageKey,
   getSupabaseAuthStorageKeyForRedirect
 } from './supabaseAuthScope';
+import { buildPasswordCredentials } from './loginIdentifier';
 
 type SupabaseConfig = {
   url?: string;
@@ -82,7 +83,7 @@ const isTransientAuthError = (error: unknown) => {
   );
 };
 
-export async function signInWithPasswordResilient(email: string, password: string) {
+export async function signInWithPasswordResilient(identifier: string, password: string) {
   if (!config.url || !config.anonKey || !supabase) {
     return { data: { session: null, user: null }, error: new Error('Supabase не настроен') };
   }
@@ -109,10 +110,9 @@ export async function signInWithPasswordResilient(email: string, password: strin
     });
 
     try {
-      const result = await loginClient.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password
-      });
+      const result = await loginClient.auth.signInWithPassword(
+        buildPasswordCredentials(identifier, password)
+      );
       if (!result.error && result.data.session) {
         const sessionResult = await supabase.auth.setSession({
           access_token: result.data.session.access_token,

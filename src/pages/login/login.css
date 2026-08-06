@@ -68,6 +68,31 @@
   color: #d92d20;
 }
 
+.login-page__methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  border-radius: 10px;
+  padding: 4px;
+  background: #f2f4f7;
+}
+
+.login-page__card .login-page__methods button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475467;
+  font: inherit;
+  font-weight: 900;
+}
+
+.login-page__card .login-page__methods button.is-active {
+  background: #ffffff;
+  color: #5b3df4;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
 .login-page__card button,
 .login-page__card a {
   display: inline-flex;

@@ -664,7 +664,7 @@ export function DriverApp() {
         <section className="driver-phone driver-auth-state">
           <User />
           <strong>Войдите как водитель</strong>
-          <small>Используйте email и пароль, которые выдал супер-админ.</small>
+          <small>Используйте телефон или email и пароль, которые выдал супер-админ.</small>
           <Link className="driver-primary driver-link-button" to="/login">
             Открыть вход
           </Link>

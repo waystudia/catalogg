@@ -52,6 +52,16 @@ const normalizeSettlements = (values?: string[]) =>
     )
   );
 
+const normalizeAuthPhone = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return `+7${digits}`;
+  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith('7')) return `+${digits}`;
+  if (value.trim().startsWith('+') && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  throw new Error('Phone is invalid.');
+};
+
 const assertPayload = (payload: UpdateDriverPayload) => {
   if (!payload.driverId) throw new Error('Driver id is required.');
   if (payload.name !== undefined && payload.name.trim().length < 2) throw new Error('Driver name is too short.');
@@ -103,6 +113,7 @@ Deno.serve(async (request) => {
     if (payload.photoUrl !== undefined) payload.photoUrl = payload.photoUrl.trim();
     if (payload.serviceSettlements !== undefined) payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
+    const authPhone = payload.phone !== undefined ? normalizeAuthPhone(payload.phone) : undefined;
 
     const { data: currentDriver, error: currentDriverError } = await adminClient
       .from('drivers')
@@ -118,14 +129,28 @@ Deno.serve(async (request) => {
       .single();
     if (currentUserError || !currentUser) throw currentUserError ?? new Error('Driver user not found.');
 
-    if (payload.password) {
-      const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(currentUser.auth_user_id, {
-        password: payload.password,
-        user_metadata: {
+    const authUpdates: {
+      password?: string;
+      phone?: string;
+      phone_confirm?: boolean;
+      user_metadata?: Record<string, string>;
+    } = {};
+    if (payload.password) authUpdates.password = payload.password;
+    if (authPhone) {
+      authUpdates.phone = authPhone;
+      authUpdates.phone_confirm = true;
+    }
+    if (payload.password || payload.name !== undefined) {
+      authUpdates.user_metadata = {
           full_name: payload.name ?? currentDriver.name ?? '',
           role: 'driver'
-        }
-      });
+      };
+    }
+    if (Object.keys(authUpdates).length > 0) {
+      const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(
+        currentUser.auth_user_id,
+        authUpdates
+      );
       if (authUpdateError) throw authUpdateError;
     }
 

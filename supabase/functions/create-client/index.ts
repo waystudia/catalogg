@@ -59,6 +59,16 @@ const normalizeSettlements = (values?: string[]) =>
     )
   );
 
+const normalizeAuthPhone = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return `+7${digits}`;
+  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith('7')) return `+${digits}`;
+  if (value.trim().startsWith('+') && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  throw new Error('Phone is invalid.');
+};
+
 const assertPayload = (payload: CreateClientPayload) => {
   const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   if (!payload.name?.trim() || payload.name.trim().length < 2) throw new Error('Client name is required.');
@@ -116,6 +126,7 @@ Deno.serve(async (request) => {
     payload.primaryCity = payload.primaryCity?.trim();
     payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
+    const authPhone = normalizeAuthPhone(payload.phone);
 
     const [
       { data: existingClientByEmail, error: existingClientError },
@@ -145,6 +156,7 @@ Deno.serve(async (request) => {
 
     const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
       email: payload.email,
+      ...(authPhone ? { phone: authPhone, phone_confirm: true } : {}),
       password: payload.password,
       email_confirm: true,
       user_metadata: {
