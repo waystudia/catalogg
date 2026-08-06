@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { PwaHomeRoute, PwaResumeTracker } from '../../src/PwaRoutes';
+import { PwaHomeRouteBase, PwaResumeTracker } from '../../src/PwaHomeRoute';
 
 vi.mock('../../src/shared/supabase', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/shared/supabase')>()),
@@ -31,7 +31,7 @@ test('explicitly pressing Главная is not undone by a saved PWA resume pat
       <LocationProbe />
       <Suspense fallback={<p>Загрузка...</p>}>
         <Routes>
-          <Route path="/" element={<PwaHomeRoute />} />
+          <Route path="/" element={<PwaHomeRouteBase homeElement={<p>Главная WayYaam</p>} />} />
           <Route path="/profile/*" element={<ClientProfileFixture />} />
         </Routes>
       </Suspense>

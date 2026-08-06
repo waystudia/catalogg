@@ -29,6 +29,7 @@ import { BrandLogo } from '../../shared/BrandLogo';
 import { SafeImage } from '../../shared/SafeImage';
 import { OrderDetailsPanel } from './OrderDetailsPanel';
 import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
+import { getCurrentBillingDebtStatus } from '../../shared/api/billingDebtApi';
 import { calculateRestaurantFinance } from './restaurantFinance';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
@@ -39,6 +40,7 @@ import {
 } from './orderPresentation';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
 import type { RestaurantAdminModuleAccess } from '../platform-admin-modules/restaurantModuleAccess';
+import { DebtControlBanner } from '../restaurant-billing/DebtControlBanner';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -120,12 +122,21 @@ export function RestaurantAdminWorkspace({
     queryFn: () => getCurrentRestaurantBillingTariff(catalogSlug),
     staleTime: 60_000
   });
+  const { data: billingDebtStatus = null } = useQuery({
+    queryKey: ['billing-debt-status', 'restaurant', catalogSlug],
+    queryFn: getCurrentBillingDebtStatus,
+    refetchInterval: 10_000,
+    retry: false
+  });
   const {
     grossRevenue: monthRevenue,
     platformDebt: restaurantDebt,
     courierExpense,
     netRevenue
   } = calculateRestaurantFinance(monthOrders, billingTariff);
+  const displayedRestaurantDebt = billingDebtStatus?.accountType === 'restaurant'
+    ? billingDebtStatus.debtAmount
+    : restaurantDebt;
   const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
   const filteredOrders =
     filter === 'all'
@@ -328,6 +339,7 @@ export function RestaurantAdminWorkspace({
 
         {tab === 'home' && (
           <section className="restaurant-admin__content">
+            <DebtControlBanner status={billingDebtStatus} accountLabel="ресторана" />
             <section className="admin-finance-summary">
               <header>
                 <h2>Финансы</h2>
@@ -344,9 +356,9 @@ export function RestaurantAdminWorkspace({
                   <strong>{monthOrders.length}</strong>
                   <ClipboardList />
                 </article>
-                <article data-tone={restaurantDebt > 0 ? 'debt' : 'ok'}>
+                <article data-tone={displayedRestaurantDebt > 0 ? 'debt' : 'ok'}>
                   <span>Долг платформе</span>
-                  <strong>{formatPrice(restaurantDebt)}</strong>
+                  <strong>{formatPrice(displayedRestaurantDebt)}</strong>
                   <CreditCard />
                 </article>
               </div>

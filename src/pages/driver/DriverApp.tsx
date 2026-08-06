@@ -81,6 +81,9 @@ import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
+import { getCurrentBillingDebtStatus, type BillingDebtStatus } from '../../shared/api/billingDebtApi';
+import { DebtControlBanner } from '../../features/restaurant-billing/DebtControlBanner';
+import { getDebtControlState } from '../../features/restaurant-billing/debtControl';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -379,6 +382,7 @@ export function DriverApp() {
   const completedDeliveryIds = useDriverStore((state) => state.completedDeliveryIds);
   const dismissedDeliveryIds = useDriverStore((state) => state.dismissedDeliveryIds);
   const [snapshot, setSnapshot] = useState<DriverDashboardSnapshot>(emptySnapshot);
+  const [billingDebtStatus, setBillingDebtStatus] = useState<BillingDebtStatus | null>(null);
   const [liveDriverLocation, setLiveDriverLocation] = useState<{
     lastLat: number;
     lastLng: number;
@@ -397,7 +401,10 @@ export function DriverApp() {
 
     const pendingLoad = (async () => {
       try {
-        const nextSnapshot = await getDriverDashboard();
+        const [nextSnapshot, nextDebtStatus] = await Promise.all([
+          getDriverDashboard(),
+          getCurrentBillingDebtStatus().catch(() => null)
+        ]);
         const visibleDeliveries = [
           nextSnapshot.activeDelivery,
           ...nextSnapshot.availableDeliveries
@@ -431,6 +438,7 @@ export function DriverApp() {
         knownDeliveryIdsRef.current = new Set(visibleDeliveries.map((offer) => offer.deliveryId));
         hasLoadedDeliveriesRef.current = true;
         setSnapshot(nextSnapshot);
+        setBillingDebtStatus(nextDebtStatus?.accountType === 'driver' ? nextDebtStatus : null);
         if (nextSnapshot.profile.id !== demoDriverId && nextSnapshot.profile.id !== selectedDriverId) {
           bindDriver(nextSnapshot.profile.id);
         }
@@ -652,7 +660,10 @@ export function DriverApp() {
 
     return localActiveDelivery ?? snapshot.activeDelivery;
   }, [localActiveDelivery, snapshot.activeDelivery]);
-  const availableDeliveries = snapshot.profile.isOnline
+  const debtControlState = billingDebtStatus
+    ? getDebtControlState({ ...billingDebtStatus })
+    : null;
+  const availableDeliveries = snapshot.profile.isOnline && !debtControlState?.blocksNewWork
     ? snapshot.availableDeliveries.filter(
         (delivery) =>
           !completedDeliveryIds.includes(delivery.deliveryId) &&
@@ -728,6 +739,7 @@ export function DriverApp() {
             snapshot={snapshot}
             activeDelivery={activeDelivery}
             availableDeliveries={availableDeliveries}
+            billingDebtStatus={billingDebtStatus}
             error={error}
             onRefresh={loadDashboard}
             onAvailabilityChanged={(isOnline) => {
@@ -774,6 +786,7 @@ function DriverHomeScreen({
   snapshot,
   activeDelivery,
   availableDeliveries,
+  billingDebtStatus,
   error,
   onRefresh,
   onAvailabilityChanged
@@ -782,6 +795,7 @@ function DriverHomeScreen({
   snapshot: DriverDashboardSnapshot;
   activeDelivery: DeliveryOffer | null;
   availableDeliveries: readonly DeliveryOffer[];
+  billingDebtStatus: BillingDebtStatus | null;
   error: string;
   onRefresh: () => Promise<boolean>;
   onAvailabilityChanged: (isOnline: boolean) => void;
@@ -893,6 +907,8 @@ function DriverHomeScreen({
       {error && <p className="driver-error">{error}</p>}
       {availabilityError && <p className="driver-error">{availabilityError}</p>}
       {refreshMessage && <p className="driver-refresh-status" role="status">{refreshMessage}</p>}
+
+      <DebtControlBanner status={billingDebtStatus} accountLabel="водителя" />
 
       <section className="driver-today-strip" aria-label="Статистика за сегодня">
         <DriverStat label="Сегодня" value={formatPrice(snapshot.stats.earningsToday)} />

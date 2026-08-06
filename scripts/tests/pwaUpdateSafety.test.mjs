@@ -91,6 +91,11 @@ test('the final worker activates immediately and unregisters itself', () => {
   assert.doesNotMatch(serviceWorkerSource, /clientsClaim\(\);/);
 });
 
+test('push notification links and icons follow the configured production base path', () => {
+  assert.match(serviceWorkerSource, /import\.meta\.env\.BASE_URL/);
+  assert.doesNotMatch(serviceWorkerSource, /['"]\/catalogg\//);
+});
+
 test('the replacement worker deletes every PWA cache and never serves pages or images', () => {
   assert.match(serviceWorkerSource, /addEventListener\('activate'/);
   assert.match(serviceWorkerSource, /caches\.keys\(\)/);

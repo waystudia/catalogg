@@ -8,6 +8,11 @@ declare const self: ServiceWorkerGlobalScope & {
 
 skipWaiting();
 
+const appBasePath = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+const notificationIconPath = `${appBasePath}assets/logo/wayyaam-icon-192.png`;
+
 // This final worker only retires every previously installed caching worker.
 // The application no longer registers a replacement worker.
 Object.freeze(self.__WB_MANIFEST);
@@ -40,10 +45,10 @@ self.addEventListener('push', (event) => {
   const options: NotificationOptions = {
     body: payload.body || 'Есть новое обновление',
     tag: payload.tag || 'waycatalog-update',
-    icon: '/catalogg/assets/logo/wayyaam-icon-192.png',
-    badge: '/catalogg/assets/logo/wayyaam-icon-192.png',
+    icon: notificationIconPath,
+    badge: notificationIconPath,
     requireInteraction: true,
-    data: { ...(payload.data ?? {}), url: payload.url || '/catalogg/' }
+    data: { ...(payload.data ?? {}), url: payload.url || appBasePath }
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -53,7 +58,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = typeof event.notification.data?.url === 'string'
     ? event.notification.data.url
-    : '/catalogg/';
+    : appBasePath;
 
   event.waitUntil((async () => {
     const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
