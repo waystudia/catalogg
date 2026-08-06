@@ -63,6 +63,7 @@ export type RestaurantActivationAdminSetupInput = Pick<RestaurantActivationAdmin
 export type RestaurantActivationAdminService = {
   list: () => Promise<RestaurantActivationAdminRow[]>;
   loadSetup: (clientId: string) => Promise<RestaurantActivationAdminSetup>;
+  uploadLogo: (clientId: string, file: File) => Promise<string>;
   saveSetup: (clientId: string, input: RestaurantActivationAdminSetupInput) => Promise<RestaurantActivationAdminSetup>;
   finishSetup: (clientId: string) => Promise<{ ready: boolean; missing: string[] }>;
   issueManualCode: (requestId: string) => Promise<{
@@ -211,6 +212,23 @@ export const restaurantActivationAdminApi: RestaurantActivationAdminService = {
     ensureSuccess(error);
     if (!data) throw new Error('Настройка ресторана не найдена.');
     return mapAdminSetup(data as AdminSetupRow);
+  },
+
+  async uploadLogo(clientId, file) {
+    if (!file.type.startsWith('image/')) throw new Error('Выберите изображение');
+    if (file.size > 6 * 1024 * 1024) throw new Error('Размер логотипа не должен превышать 6 МБ');
+    const client = requireSupabase();
+    const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    const safeClientId = clientId.replace(/[^a-zA-Z0-9-]/g, '') || 'restaurant';
+    const storagePath = `restaurant-activation-logos/${safeClientId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    const bucket = client.storage.from('platform-banner-media');
+    const { error } = await bucket.upload(storagePath, file, {
+      cacheControl: '31536000',
+      contentType: file.type,
+      upsert: false
+    });
+    ensureSuccess(error);
+    return bucket.getPublicUrl(storagePath).data.publicUrl;
   },
 
   async saveSetup(clientId, input) {

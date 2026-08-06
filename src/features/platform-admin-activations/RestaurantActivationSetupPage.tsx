@@ -1,4 +1,4 @@
-import { ArrowLeft, FileCheck2, Save, Send, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, FileCheck2, ImageUp, Save, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type {
   RestaurantActivationAdminService,
@@ -48,6 +48,7 @@ export function RestaurantActivationSetupPage({
   const [draft, setDraft] = useState<RestaurantActivationAdminSetupInput | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -79,6 +80,20 @@ export function RestaurantActivationSetupPage({
 
   const updateTariff = (field: keyof RestaurantActivationAdminTariff, value: string | number) => {
     setDraft((current) => current ? { ...current, tariff: { ...current.tariff, [field]: value } } : current);
+  };
+
+  const uploadLogo = async (file?: File) => {
+    if (!file) return;
+    setUploadingLogo(true);
+    setError('');
+    try {
+      const logoUrl = await service.uploadLogo(clientId, file);
+      setDraft((current) => current ? { ...current, logoUrl } : current);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Не удалось загрузить логотип.');
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const save = async (sendToOwner: boolean) => {
@@ -131,11 +146,33 @@ export function RestaurantActivationSetupPage({
         <section className="activation-setup-card">
           <div className="activation-setup-card__head"><strong>Ресторан и реквизиты</strong><span>Индивидуально для {setup.restaurantName}</span></div>
           <div className="activation-setup-grid">
-            <label className="is-wide">Логотип (URL)<input value={draft.logoUrl} onChange={(event) => setDraft({ ...draft, logoUrl: event.target.value })} /></label>
-            <label>Форма организации<input value={draft.profile.organizationType} onChange={(event) => updateProfile('organizationType', event.target.value)} placeholder="ИП или ООО" /></label>
+            <label className="activation-logo-picker is-wide">
+              Логотип ресторана
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="Выбрать логотип из медиатеки"
+                disabled={uploadingLogo}
+                onChange={(event) => void uploadLogo(event.target.files?.[0])}
+              />
+              <span><ImageUp /> {uploadingLogo ? 'Загружаем логотип…' : 'Выбрать из медиатеки'}</span>
+              <small>PNG, JPG, WEBP или другое изображение до 6 МБ.</small>
+            </label>
+            {draft.logoUrl && (
+              <div className="activation-logo-preview is-wide">
+                <img src={draft.logoUrl} alt={`Логотип ресторана ${setup.restaurantName}`} />
+              </div>
+            )}
+            <label>Форма организации
+              <select value={draft.profile.organizationType} onChange={(event) => updateProfile('organizationType', event.target.value)}>
+                <option value="">Выберите форму</option>
+                <option value="Самозанятый">Самозанятый</option>
+                <option value="ИП">ИП</option>
+                <option value="ООО">ООО</option>
+              </select>
+            </label>
             <label>Юридическое наименование<input value={draft.profile.legalName} onChange={(event) => updateProfile('legalName', event.target.value)} /></label>
             <label>ИНН<input inputMode="numeric" value={draft.profile.inn} onChange={(event) => updateProfile('inn', event.target.value)} /></label>
-            <label>ОГРН / ОГРНИП<input inputMode="numeric" value={draft.profile.ogrn} onChange={(event) => updateProfile('ogrn', event.target.value)} /></label>
             <label className="is-wide">Юридический адрес<input value={draft.profile.legalAddress} onChange={(event) => updateProfile('legalAddress', event.target.value)} /></label>
             <label className="is-wide">Фактический адрес<input value={draft.profile.actualAddress} onChange={(event) => updateProfile('actualAddress', event.target.value)} /></label>
             <label>Телефон ресторана<input type="tel" value={draft.profile.restaurantPhone} onChange={(event) => updateProfile('restaurantPhone', event.target.value)} /></label>
@@ -145,7 +182,6 @@ export function RestaurantActivationSetupPage({
             <label className="is-wide">Основание полномочий<input value={draft.profile.authorityBasis} onChange={(event) => updateProfile('authorityBasis', event.target.value)} placeholder="Устав, доверенность или свидетельство ИП" /></label>
             <label>Телефон подтверждения<input type="tel" value={draft.profile.primaryConfirmationPhone} onChange={(event) => updateProfile('primaryConfirmationPhone', event.target.value)} /></label>
             <label>Email подтверждения<input type="email" value={draft.profile.primaryConfirmationEmail} onChange={(event) => updateProfile('primaryConfirmationEmail', event.target.value)} /></label>
-            <label className="is-wide">Модель доставки<input value={draft.profile.deliveryModel} onChange={(event) => updateProfile('deliveryModel', event.target.value)} /></label>
           </div>
         </section>
 
