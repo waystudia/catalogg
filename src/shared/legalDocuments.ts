@@ -1,4 +1,36 @@
-export const LEGAL_VERSION = '1.0';
+export const legalDocumentReleases = {
+  user_agreement: {
+    version: '2.0',
+    publishedAt: '2026-08-06',
+    sha256: 'a6d0e28e0abb186ee879339a4a2b624eb6d99a5ca2fc8d3362b5ca12b9cca8b0'
+  },
+  restaurant_offer: {
+    version: '2.0',
+    publishedAt: '2026-08-06',
+    sha256: '2f130f153776feb1127823776bb3b9c9dd953d3257745e48a0987a9c15d36eac'
+  },
+  driver_offer: {
+    version: '2.0',
+    publishedAt: '2026-08-06',
+    sha256: '0c0f5c662c5d4b72b09776a380c9f59dca73c9a53a79252d07cc6d2fcaab223f'
+  },
+  client_consent: {
+    version: '1.0',
+    publishedAt: '2026-07-31',
+    sha256: '582d9449295f5b3dfb786d00cd5fa9781057b31fc99e9fdf24c491129640b4de'
+  },
+  advertising_consent: {
+    version: '1.0',
+    publishedAt: '2026-07-31',
+    sha256: '8b9026b9d5f2c9598c16f7785efb714face8862108e1e58f6a778ad202d7487e'
+  },
+  cookie_policy: {
+    version: '1.0',
+    publishedAt: '2026-07-31'
+  }
+} as const;
+
+export const LEGAL_VERSION = legalDocumentReleases.user_agreement.version;
 
 export const legalDocumentUrl = (fileName: string) => {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
@@ -18,4 +50,3 @@ export const legalDocuments = {
   driverOffer: legalDocumentUrl('10-driver-offer'),
   index: legalDocumentUrl('index')
 } as const;
-

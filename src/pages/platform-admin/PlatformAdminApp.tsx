@@ -70,7 +70,7 @@ import {
   updateClient
 } from '../../shared/api/clientsApi';
 import { createDriver, getDrivers, updateDriverProfile, updateDriverServiceSettlements } from '../../shared/api/driversApi';
-import { legalDocuments } from '../../shared/legalDocuments';
+import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import {
   getDeliveryPriceRequests,
@@ -1882,7 +1882,7 @@ export function LegacyDriversPage() {
         </section>
         <label className="legal-checkbox">
           <input type="checkbox" checked={driverConsentConfirmed} onChange={(event) => setDriverConsentConfirmed(event.target.checked)} required />
-          <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных и геолокацию</a>. Подтверждение администратора не заменяет серверную фиксацию действия водителя.</span>
+          <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту редакции {legalDocumentReleases.driver_offer.version}</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных и геолокацию</a>. Подтверждение администратора не заменяет серверную фиксацию действия водителя.</span>
         </label>
         <footer className="client-form-footer">
           <button type="submit" disabled={isSubmitting || !driverConsentConfirmed}>

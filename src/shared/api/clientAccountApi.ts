@@ -1,6 +1,6 @@
 import type { ClientProfile } from '../../features/client-platform/types';
 import { supabase } from '../supabase';
-import { LEGAL_VERSION } from '../legalDocuments';
+import { legalDocumentReleases } from '../legalDocuments';
 
 const clientSessionStorageKey = 'waycatalog-client-session';
 
@@ -65,13 +65,6 @@ type ClientRegistrationLegalChoices = {
   acceptedAdvertising: boolean;
 };
 
-// SHA-256 values bind the evidence record to the exact published HTML for version 1.0.
-const legalDocumentHashes = {
-  user_agreement: '2aa03ebab49c8240d99f49c6ab3a4bb70e199bfe7a1afde4688d4a0d5a194a48',
-  client_consent: '582d9449295f5b3dfb786d00cd5fa9781057b31fc99e9fdf24c491129640b4de',
-  advertising_consent: '8b9026b9d5f2c9598c16f7785efb714face8862108e1e58f6a778ad202d7487e'
-} as const;
-
 export const recordClientRegistrationLegalChoices = async (token: string, choices: ClientRegistrationLegalChoices) => {
   if (!supabase) return;
   const records = [
@@ -80,11 +73,12 @@ export const recordClientRegistrationLegalChoices = async (token: string, choice
     ['advertising_consent', choices.acceptedAdvertising]
   ] as const;
   for (const [code, granted] of records) {
+    const release = legalDocumentReleases[code];
     const { error } = await supabase.rpc('record_client_legal_consent', {
       client_session_token: token,
       target_document_code: code,
-      target_document_version: LEGAL_VERSION,
-      target_document_sha256: legalDocumentHashes[code],
+      target_document_version: release.version,
+      target_document_sha256: release.sha256,
       target_granted: granted,
       target_source: 'client_registration'
     });
