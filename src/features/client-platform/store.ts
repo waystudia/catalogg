@@ -29,6 +29,7 @@ type ClientPlatformStore = {
   saveProfile: (profile: ClientProfile) => void;
   recordOrderConsent: () => void;
   addAddress: (address: ClientAddress) => void;
+  replaceAddresses: (addresses: ClientAddress[]) => void;
   selectDraftAddress: (restaurantSlug: string, address: ClientAddress) => void;
   updateCheckoutDraft: (restaurantSlug: string, patch: Partial<ClientCheckoutDraft>) => void;
   setDraftOrderType: (restaurantSlug: string, orderType: ClientOrderType) => void;
@@ -152,6 +153,7 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
               .map((item) => ({ ...item, isDefault: false }))
           ]
         })),
+      replaceAddresses: (addresses) => set({ addresses }),
       selectDraftAddress: (restaurantSlug, address) =>
         set((state) => {
           const draft = getDraft(state.checkoutDrafts, restaurantSlug);

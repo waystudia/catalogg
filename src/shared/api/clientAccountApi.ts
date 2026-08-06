@@ -1,4 +1,4 @@
-import type { ClientProfile } from '../../features/client-platform/types';
+import type { ClientAddress, ClientProfile } from '../../features/client-platform/types';
 import { supabase } from '../supabase';
 import { legalDocumentReleases } from '../legalDocuments';
 
@@ -138,6 +138,37 @@ export async function restoreClientAccountSession() {
     return null;
   }
   return mapSession(data);
+}
+
+export async function getCurrentClientAddresses(): Promise<ClientAddress[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('client_addresses')
+    .select('id, title, address_line, lat, lng, accuracy_m, entrance, floor, apartment, intercom_code, landmark, comment, is_default')
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+
+  return (data ?? []).flatMap((row) => {
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+    return [{
+      id: row.id,
+      title: row.title || 'Адрес доставки',
+      addressLine: row.address_line,
+      lat,
+      lng,
+      accuracyM: row.accuracy_m == null ? null : Number(row.accuracy_m),
+      entrance: row.entrance ?? '',
+      floor: row.floor ?? '',
+      apartment: row.apartment ?? '',
+      intercomCode: row.intercom_code ?? '',
+      landmark: row.landmark ?? '',
+      comment: row.comment ?? '',
+      isDefault: row.is_default === true
+    }];
+  });
 }
 
 export async function logoutClientAccount() {

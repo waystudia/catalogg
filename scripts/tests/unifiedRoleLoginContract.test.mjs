@@ -59,3 +59,17 @@ test('a confirmed Auth client is bridged into the existing client account sessio
   assert.match(migration, /where client_account\.auth_user_id = auth\.uid\(\)/i);
   assert.match(migration, /role = 'client'[\s\S]*return '\/profile'/i);
 });
+
+test('client login hydrates server-side saved addresses into the existing checkout store', async () => {
+  const [clientAccountApi, clientPlatformApp, store] = await Promise.all([
+    read('src/shared/api/clientAccountApi.ts'),
+    read('src/pages/client-platform/ClientPlatformApp.tsx'),
+    read('src/features/client-platform/store.ts')
+  ]);
+
+  assert.match(clientAccountApi, /from\('client_addresses'\)/);
+  assert.match(clientAccountApi, /addressLine:\s*row\.address_line/);
+  assert.match(clientPlatformApp, /getCurrentClientAddresses\(\)/);
+  assert.match(clientPlatformApp, /replaceAddresses\(serverAddresses\)/);
+  assert.match(store, /replaceAddresses:\s*\(addresses\)\s*=>\s*set\(\{ addresses \}\)/);
+});
