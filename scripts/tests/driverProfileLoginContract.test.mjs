@@ -25,7 +25,8 @@ describe('driver login from the client profile', () => {
     assert.match(redirect, /PGRST202/i);
     assert.match(redirect, /expectedRole/);
     assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword\)/);
-    assert.match(profile, /aria-label="Способ входа"/);
+    assert.match(profile, /Телефон или почта/);
+    assert.doesNotMatch(profile, /profile-login-methods/);
     assert.doesNotMatch(profile, /Открыть единый вход/);
     assert.doesNotMatch(profile, /profile-role-grid/);
     assert.doesNotMatch(profile, /Войти как (?:клиент|ресторан|водитель)/);

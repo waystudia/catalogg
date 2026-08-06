@@ -3,6 +3,7 @@ import { legalDocuments } from '../../shared/legalDocuments';
 import {
   ArrowLeft,
   ArrowRight,
+  AtSign,
   Banknote,
   Bell,
   Bike,
@@ -14,10 +15,13 @@ import {
   CircleUserRound,
   Clock,
   ExternalLink,
+  Eye,
+  EyeOff,
   Grid2X2,
   Heart,
   Home,
   LocateFixed,
+  LockKeyhole,
   LogOut,
   MapPin,
   MessageCircle,
@@ -2521,7 +2525,7 @@ function ProfilePage() {
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
     clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
   );
-  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
   const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
@@ -2689,8 +2693,9 @@ function ProfilePage() {
       </section>
 
       <button
-        className="profile-cabinet-button"
+        className={`profile-cabinet-button${accountOpen ? ' is-open' : ''}`}
         type="button"
+        aria-expanded={accountOpen}
         onClick={() => setAccountOpen((value) => !value)}
       >
         <CircleUserRound />
@@ -2704,13 +2709,14 @@ function ProfilePage() {
       {accountOpen && (
         <section className="profile-account-panel">
           <form className="profile-inline-form" onSubmit={submitAccount}>
-            <div className="segment-control">
+            <div className="profile-auth-mode-switch" aria-label="Действие с аккаунтом">
               <button
                 className={clientAuthMode === 'login' ? 'is-active' : ''}
                 type="button"
                 onClick={() => {
                   setClientAuthMode('login');
                   setClientError('');
+                  setIsPasswordVisible(false);
                 }}
               >
                 Войти
@@ -2721,98 +2727,119 @@ function ProfilePage() {
                 onClick={() => {
                   setClientAuthMode('register');
                   setClientError('');
+                  setIsPasswordVisible(false);
                 }}
               >
                 Регистрация
               </button>
             </div>
+            <header className="profile-auth-copy">
+              <h2>{clientAuthMode === 'login' ? 'Вход в WayYaam' : 'Регистрация в WayYaam'}</h2>
+              <p>
+                {clientAuthMode === 'login'
+                  ? 'Для клиентов, ресторанов и водителей'
+                  : 'Создайте аккаунт клиента для заказов и избранного'}
+              </p>
+            </header>
             {clientAuthMode === 'register' && (
-              <label className="field-label">
-                <span>Имя</span>
-                <input
-                  value={clientName}
-                  onChange={(event) => setClientName(event.target.value)}
-                  placeholder="Ваше имя"
-                  autoComplete="name"
-                  required
-                />
-              </label>
+              <div className="profile-auth-field">
+                <label htmlFor="profile-auth-name">Имя</label>
+                <div className="profile-auth-input">
+                  <User aria-hidden="true" />
+                  <input
+                    id="profile-auth-name"
+                    value={clientName}
+                    onChange={(event) => setClientName(event.target.value)}
+                    placeholder="Ваше имя"
+                    autoComplete="name"
+                    required
+                  />
+                </div>
+              </div>
             )}
             {clientAuthMode === 'login' && (
               <>
-                <div className="segment-control profile-login-methods" aria-label="Способ входа">
-                  <button
-                    className={loginMethod === 'phone' ? 'is-active' : ''}
-                    type="button"
-                    onClick={() => {
-                      setLoginMethod('phone');
-                      setAccountIdentifier('');
-                      setClientError('');
-                    }}
-                  >
-                    Телефон
-                  </button>
-                  <button
-                    className={loginMethod === 'email' ? 'is-active' : ''}
-                    type="button"
-                    onClick={() => {
-                      setLoginMethod('email');
-                      setAccountIdentifier('');
-                      setClientError('');
-                    }}
-                  >
-                    Почта
-                  </button>
+                <div className="profile-auth-field">
+                  <label htmlFor="profile-auth-identifier">Телефон или почта</label>
+                  <div className="profile-auth-input">
+                    <AtSign aria-hidden="true" />
+                    <input
+                      id="profile-auth-identifier"
+                      value={accountIdentifier}
+                      onChange={(event) => setAccountIdentifier(event.target.value)}
+                      type="text"
+                      inputMode="email"
+                      autoComplete="username"
+                      placeholder="+7 928 000-00-00 или email"
+                      required
+                    />
+                  </div>
                 </div>
-                <label className="field-label">
-                  <span>{loginMethod === 'phone' ? 'Телефон' : 'Email'}</span>
-                  <input
-                    value={accountIdentifier}
-                    onChange={(event) => setAccountIdentifier(event.target.value)}
-                    type={loginMethod === 'email' ? 'email' : 'tel'}
-                    inputMode={loginMethod === 'email' ? 'email' : 'tel'}
-                    autoComplete={loginMethod === 'email' ? 'email' : 'tel'}
-                    placeholder={loginMethod === 'email' ? 'name@example.ru' : '+7 928 000-00-00'}
-                    required
-                  />
-                </label>
-                <label className="field-label">
-                  <span>Пароль</span>
-                  <input
-                    value={clientPassword}
-                    onChange={(event) => setClientPassword(event.target.value)}
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                  />
-                </label>
+                <div className="profile-auth-field">
+                  <label htmlFor="profile-auth-password">Пароль</label>
+                  <div className="profile-auth-input">
+                    <LockKeyhole aria-hidden="true" />
+                    <input
+                      id="profile-auth-password"
+                      value={clientPassword}
+                      onChange={(event) => setClientPassword(event.target.value)}
+                      type={isPasswordVisible ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      required
+                    />
+                    <button
+                      className="profile-auth-input__toggle"
+                      type="button"
+                      aria-label={isPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                      onClick={() => setIsPasswordVisible((value) => !value)}
+                    >
+                      {isPasswordVisible ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </div>
               </>
             )}
             {clientAuthMode === 'register' && (
               <>
-                <label className="field-label">
-                  <span>Телефон</span>
-                  <input
-                    value={accountIdentifier}
-                    onChange={(event) => setAccountIdentifier(event.target.value)}
-                    placeholder="+7"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    required
-                  />
-                </label>
-                <label className="field-label">
-                  <span>Пароль</span>
-                  <input
-                    value={clientPassword}
-                    onChange={(event) => setClientPassword(event.target.value)}
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    maxLength={72}
-                    required
-                  />
-                </label>
+                <div className="profile-auth-field">
+                  <label htmlFor="profile-register-phone">Телефон</label>
+                  <div className="profile-auth-input">
+                    <Phone aria-hidden="true" />
+                    <input
+                      id="profile-register-phone"
+                      value={accountIdentifier}
+                      onChange={(event) => setAccountIdentifier(event.target.value)}
+                      placeholder="+7 928 000-00-00"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="profile-auth-field">
+                  <label htmlFor="profile-register-password">Пароль</label>
+                  <div className="profile-auth-input">
+                    <LockKeyhole aria-hidden="true" />
+                    <input
+                      id="profile-register-password"
+                      value={clientPassword}
+                      onChange={(event) => setClientPassword(event.target.value)}
+                      type={isPasswordVisible ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      minLength={6}
+                      maxLength={72}
+                      required
+                    />
+                    <button
+                      className="profile-auth-input__toggle"
+                      type="button"
+                      aria-label={isPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                      onClick={() => setIsPasswordVisible((value) => !value)}
+                    >
+                      {isPasswordVisible ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                </div>
               </>
             )}
             {clientAuthMode === 'register' && (
@@ -2835,13 +2862,12 @@ function ProfilePage() {
             {clientError && <small className="form-error">{clientError}</small>}
             {clientMessage && <small className="form-success">{clientMessage}</small>}
             {clientAuthMode === 'login' && (
-              <button className="wide-action" type="submit" disabled={isSavingClient}>
-                <UserRoundCheck />
+              <button className="profile-auth-submit" type="submit" disabled={isSavingClient}>
                 {isSavingClient ? 'Входим...' : 'Войти'}
               </button>
             )}
             {clientAuthMode === 'register' && (
-              <button className="wide-action" type="submit" disabled={isSavingClient}>
+              <button className="profile-auth-submit" type="submit" disabled={isSavingClient}>
                 <UserRoundCheck />
                 {isSavingClient ? 'Проверяем...' : 'Зарегистрироваться'}
               </button>
