@@ -13,9 +13,12 @@ import {
   getRestaurantOwnCouriers,
   linkRestaurantCourierByEmail,
   removeRestaurantCourier,
+  updateRestaurantCourierType,
+  type RestaurantOwnCourier,
   type RestaurantDeliverySettings
 } from '../../shared/api/restaurantOrdersApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
+import { getCourierBillingRule, restaurantCourierTypeLabels, type RestaurantCourierType } from '../restaurant-billing/restaurantBillingRules';
 
 type DetailSection = null | 'couriers' | 'parameters' | 'zones' | 'qr';
 
@@ -26,22 +29,40 @@ const sectionTitles: Record<Exclude<DetailSection, null>, string> = {
   qr: 'QR-подтверждение'
 };
 
+export type RestaurantCourierService = {
+  list: (catalogSlug: string) => Promise<RestaurantOwnCourier[]>;
+  link: (catalogSlug: string, email: string, courierType: RestaurantCourierType) => Promise<RestaurantOwnCourier>;
+  setType: (catalogSlug: string, driverId: string, courierType: RestaurantCourierType) => Promise<void>;
+  remove: (catalogSlug: string, driverId: string) => Promise<void>;
+};
+
+const defaultCourierService: RestaurantCourierService = {
+  list: getRestaurantOwnCouriers,
+  link: linkRestaurantCourierByEmail,
+  setType: updateRestaurantCourierType,
+  remove: removeRestaurantCourier
+};
+
 export function DeliverySettingsCard({
   settings,
   catalogSlug,
   onSave,
   onOpenBackup,
-  onBack
+  onBack,
+  courierService = defaultCourierService
 }: {
   settings: RestaurantDeliverySettings;
   catalogSlug: string;
   onSave: (settings: RestaurantDeliverySettings) => void;
   onOpenBackup: () => void;
   onBack: () => void;
+  courierService?: RestaurantCourierService;
 }) {
   const [draft, setDraft] = useState(settings);
   const [section, setSection] = useState<DetailSection>(null);
   const [courierEmail, setCourierEmail] = useState('');
+  const [courierType, setCourierType] = useState<RestaurantCourierType | ''>('');
+  const [pendingCourierTypes, setPendingCourierTypes] = useState<Record<string, RestaurantCourierType | ''>>({});
   const [courierMessage, setCourierMessage] = useState('');
   const [isSavingCourier, setIsSavingCourier] = useState(false);
   const { data: directorySettlements = [] } = useQuery({
@@ -54,7 +75,7 @@ export function DeliverySettingsCard({
     refetch: refetchOwnCouriers
   } = useQuery({
     queryKey: ['restaurant-own-couriers', catalogSlug],
-    queryFn: () => getRestaurantOwnCouriers(catalogSlug),
+    queryFn: () => courierService.list(catalogSlug),
     enabled: section === 'couriers' && draft.use_own_courier,
     staleTime: 30_000
   });
@@ -110,8 +131,13 @@ export function DeliverySettingsCard({
     setIsSavingCourier(true);
     setCourierMessage('');
     try {
-      const courier = await linkRestaurantCourierByEmail(catalogSlug, normalizedEmail);
+      if (!courierType) {
+        setCourierMessage('Выберите тип курьера.');
+        return;
+      }
+      const courier = await courierService.link(catalogSlug, normalizedEmail, courierType);
       setCourierEmail('');
+      setCourierType('');
       setCourierMessage(`${courier.name} добавлен в курьеры ресторана.`);
       await refetchOwnCouriers();
     } catch (error) {
@@ -120,11 +146,26 @@ export function DeliverySettingsCard({
       setIsSavingCourier(false);
     }
   };
+  const classifyCourier = async (courier: RestaurantOwnCourier) => {
+    const selectedType = pendingCourierTypes[courier.driverId];
+    if (!selectedType) return;
+    setIsSavingCourier(true);
+    setCourierMessage('');
+    try {
+      await courierService.setType(catalogSlug, courier.driverId, selectedType);
+      setCourierMessage(`Тип курьера «${courier.name}» сохранён.`);
+      await refetchOwnCouriers();
+    } catch (error) {
+      setCourierMessage(error instanceof Error ? error.message : 'Не удалось сохранить тип курьера.');
+    } finally {
+      setIsSavingCourier(false);
+    }
+  };
   const removeCourier = async (driverId: string) => {
     setIsSavingCourier(true);
     setCourierMessage('');
     try {
-      await removeRestaurantCourier(catalogSlug, driverId);
+      await courierService.remove(catalogSlug, driverId);
       setCourierMessage('Курьер удалён из ресторана.');
       await refetchOwnCouriers();
     } catch (error) {
@@ -157,14 +198,42 @@ export function DeliverySettingsCard({
                     autoComplete="off"
                   />
                 </label>
-                <button type="button" disabled={isSavingCourier} onClick={() => void addCourier()}>
+                <label>
+                  Тип курьера
+                  <select value={courierType} onChange={(event) => setCourierType(event.target.value as RestaurantCourierType | '')}>
+                    <option value="">Выберите тип</option>
+                    <option value="staff_salaried">Штатный с зарплатой</option>
+                    <option value="independent">Самостоятельный без зарплаты</option>
+                  </select>
+                </label>
+                {courierType && <small className="restaurant-courier-rule">{getCourierBillingRule({ courierType, freeDeliveryThresholdReached: false }).payerLabel}</small>}
+                <button type="button" disabled={isSavingCourier || !courierType} onClick={() => void addCourier()}>
                   Добавить курьера
                 </button>
                 {courierMessage && <small role="status">{courierMessage}</small>}
                 <div className="restaurant-courier-list">
                   {ownCouriers.map((courier) => (
                     <article key={courier.driverId}>
-                      <span><strong>{courier.name}</strong><small>{courier.email}</small></span>
+                      <span>
+                        <strong>{courier.name}</strong><small>{courier.email}</small>
+                        <small className={courier.courierType ? 'restaurant-courier-type' : 'restaurant-courier-type is-missing'}>
+                          {courier.courierType ? restaurantCourierTypeLabels[courier.courierType] : 'Тип не выбран'}
+                        </small>
+                        {!courier.courierType && <small className="restaurant-courier-warning">Нельзя назначать на новые доставки, пока ресторан не выберет тип.</small>}
+                      </span>
+                      {!courier.courierType && (
+                        <span className="restaurant-courier-classifier">
+                          <label>
+                            <span>Тип для {courier.name}</span>
+                            <select aria-label={`Тип для ${courier.name}`} value={pendingCourierTypes[courier.driverId] ?? ''} onChange={(event) => setPendingCourierTypes((current) => ({ ...current, [courier.driverId]: event.target.value as RestaurantCourierType | '' }))}>
+                              <option value="">Выберите тип</option>
+                              <option value="staff_salaried">Штатный с зарплатой</option>
+                              <option value="independent">Самостоятельный без зарплаты</option>
+                            </select>
+                          </label>
+                          <button type="button" disabled={isSavingCourier || !pendingCourierTypes[courier.driverId]} aria-label={`Сохранить тип для ${courier.name}`} onClick={() => void classifyCourier(courier)}>Сохранить тип</button>
+                        </span>
+                      )}
                       <button
                         type="button"
                         disabled={isSavingCourier}
