@@ -80,6 +80,7 @@ import {
 } from '../../shared/api/clientPlatformApi';
 import {
   buildClientAuthPath,
+  getCurrentClientAddresses,
   hasStoredClientSession,
   logoutClientAccount,
   registerClientAccount,
@@ -2514,6 +2515,7 @@ function ProfilePage() {
   const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
+  const replaceAddresses = useClientPlatformStore((state) => state.replaceAddresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
   const [accountIdentifier, setAccountIdentifier] = useState(profile.phone);
@@ -2548,7 +2550,7 @@ function ProfilePage() {
     : '/profile';
 
   useEffect(() => {
-    void restoreClientAccountSession().then((session) => {
+    void restoreClientAccountSession().then(async (session) => {
       setClientSession(session);
       setIsClientSessionChecking(false);
       if (session) {
@@ -2556,9 +2558,11 @@ function ProfilePage() {
         setClientName(session.name);
         setAccountIdentifier(session.phone);
         setClientMessage('Вы вошли в аккаунт');
+        const serverAddresses = await getCurrentClientAddresses().catch(() => []);
+        if (serverAddresses.length > 0) replaceAddresses(serverAddresses);
       }
     });
-  }, [saveProfile]);
+  }, [replaceAddresses, saveProfile]);
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2595,6 +2599,8 @@ function ProfilePage() {
             setClientPassword('');
             setClientMessage('Вы вошли в аккаунт');
             setAccountOpen(false);
+            const serverAddresses = await getCurrentClientAddresses().catch(() => []);
+            if (serverAddresses.length > 0) replaceAddresses(serverAddresses);
           }
         }
 
