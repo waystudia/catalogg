@@ -781,6 +781,10 @@
   padding: 0 8px;
 }
 
+.restaurant-admin-sidebar .brand-logo--compact > img {
+  max-width: calc(100% - 1px);
+}
+
 .restaurant-admin-sidebar .brand-logo--compact > div {
   min-width: 0;
 }
@@ -10970,11 +10974,11 @@ a {
 
 @media (max-width: 720px) {
   .flow-backdrop.flow-backdrop--upsell {
-    padding-bottom: calc(163px + env(safe-area-inset-bottom));
+    padding-bottom: calc(183px + env(safe-area-inset-bottom));
   }
 
   .flow-backdrop--upsell .flow-modal {
-    max-height: calc(100dvh - 175px - env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 195px - env(safe-area-inset-bottom));
   }
 }
 
