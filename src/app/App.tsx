@@ -1732,7 +1732,7 @@ function UpsellReminder({
   };
 
   return (
-    <div className="modal-backdrop flow-backdrop">
+    <div className="modal-backdrop flow-backdrop flow-backdrop--upsell">
       <section className="flow-modal" role="dialog" aria-modal="true" aria-labelledby="flow-title">
         <div className="modal-handle" />
         <button className="flow-modal__close" type="button" onClick={onDismiss} aria-label="Закрыть">
