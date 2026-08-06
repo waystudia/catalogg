@@ -331,6 +331,22 @@
   font-weight: 700;
 }
 
+.restaurant-courier-linker select,
+.restaurant-courier-classifier select {
+  min-height: 42px;
+  border: 1px solid #d8e0ec;
+  border-radius: 12px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.restaurant-courier-linker > .restaurant-courier-rule {
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #eeebff;
+  color: #4930ce;
+}
+
 .restaurant-courier-list {
   display: grid;
   gap: 7px;
@@ -344,6 +360,7 @@
   border-radius: 12px;
   padding: 9px;
   background: #fff;
+  flex-wrap: wrap;
 }
 
 .restaurant-courier-list article span {
@@ -356,6 +373,42 @@
   color: #667085;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.restaurant-courier-list article .restaurant-courier-type {
+  width: fit-content;
+  margin-top: 4px;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eafaf0;
+  color: #18794e;
+  font-weight: 800;
+}
+
+.restaurant-courier-list article .restaurant-courier-type.is-missing,
+.restaurant-courier-list article .restaurant-courier-warning {
+  background: #fff2e5;
+  color: #b54708;
+}
+
+.restaurant-courier-list article .restaurant-courier-warning {
+  margin-top: 5px;
+  border-radius: 8px;
+  padding: 5px 7px;
+  white-space: normal;
+}
+
+.restaurant-courier-list article .restaurant-courier-classifier {
+  flex: 1 0 100%;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+}
+
+.restaurant-courier-classifier label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .restaurant-courier-list article button {

@@ -15,6 +15,7 @@ import {
 import { getConfiguredDeliveryPrice } from './deliveryPricingApi';
 import { resolveStoredDeliveryLocation } from '../deliveryLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
+import type { RestaurantCourierType } from '../../features/restaurant-billing/restaurantBillingRules';
 
 type MaybeArray<T> = T | T[];
 
@@ -175,6 +176,7 @@ export type RestaurantOwnCourier = {
   email: string;
   isPrimary: boolean;
   priority: number;
+  courierType: RestaurantCourierType | null;
 };
 
 const defaultDeliverySettings: RestaurantDeliverySettings = {
@@ -712,12 +714,14 @@ const mapRestaurantOwnCourier = (row: {
   driver_email: string | null;
   is_primary: boolean | null;
   priority: number | string | null;
+  courier_type: RestaurantCourierType | null;
 }): RestaurantOwnCourier => ({
   driverId: row.driver_id,
   name: row.driver_name?.trim() || 'Водитель',
   email: row.driver_email?.trim() || '',
   isPrimary: row.is_primary ?? false,
-  priority: Number(row.priority ?? 100)
+  priority: Number(row.priority ?? 100),
+  courierType: row.courier_type ?? null
 });
 
 export async function getRestaurantOwnCouriers(catalogSlug: string): Promise<RestaurantOwnCourier[]> {
@@ -733,21 +737,39 @@ export async function getRestaurantOwnCouriers(catalogSlug: string): Promise<Res
 
 export async function linkRestaurantCourierByEmail(
   catalogSlug: string,
-  email: string
+  email: string,
+  courierType: RestaurantCourierType
 ): Promise<RestaurantOwnCourier> {
   if (!supabase) {
-    return { driverId: 'driver-demo', name: 'Демо-водитель', email: email.trim(), isPrimary: false, priority: 10 };
+    return { driverId: 'driver-demo', name: 'Демо-водитель', email: email.trim(), courierType, isPrimary: false, priority: 10 };
   }
   const catalogId = await getCatalogIdBySlug(catalogSlug);
   if (!catalogId) throw new Error('Каталог ресторана не найден');
   const { data, error } = await supabase.rpc('link_restaurant_courier_by_email', {
     target_catalog_id: catalogId,
-    target_email: email.trim().toLowerCase()
+    target_email: email.trim().toLowerCase(),
+    target_courier_type: courierType
   });
   if (error) throw new Error(error.message);
   const row = (data as Array<Parameters<typeof mapRestaurantOwnCourier>[0]> | null)?.[0];
   if (!row) throw new Error('Не удалось привязать водителя');
   return mapRestaurantOwnCourier(row);
+}
+
+export async function updateRestaurantCourierType(
+  catalogSlug: string,
+  driverId: string,
+  courierType: RestaurantCourierType
+): Promise<void> {
+  if (!supabase) return;
+  const catalogId = await getCatalogIdBySlug(catalogSlug);
+  if (!catalogId) throw new Error('Каталог ресторана не найден');
+  const { error } = await supabase.rpc('update_restaurant_courier_type', {
+    target_catalog_id: catalogId,
+    target_driver_id: driverId,
+    target_courier_type: courierType
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function removeRestaurantCourier(catalogSlug: string, driverId: string) {
