@@ -36,6 +36,7 @@ import { useDriverStore } from '../../features/driver/store';
 import {
   getDriverDeliveryProgress,
   getDriverNextAction,
+  preferFreshDriverLocation,
   splitDriverHomeOffers
 } from '../../features/driver/dashboardPresentation';
 import {
@@ -378,6 +379,11 @@ export function DriverApp() {
   const completedDeliveryIds = useDriverStore((state) => state.completedDeliveryIds);
   const dismissedDeliveryIds = useDriverStore((state) => state.dismissedDeliveryIds);
   const [snapshot, setSnapshot] = useState<DriverDashboardSnapshot>(emptySnapshot);
+  const [liveDriverLocation, setLiveDriverLocation] = useState<{
+    lastLat: number;
+    lastLng: number;
+    lastLocationAt: string;
+  } | null>(null);
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(!supabase);
   const [hasDriverAccess, setHasDriverAccess] = useState(!supabase);
@@ -487,11 +493,12 @@ export function DriverApp() {
   }, [authChecked, hasDriverAccess, loadDashboard, selectedDriverId]);
 
   const profile: DriverProfile = {
-    ...snapshot.profile,
+    ...preferFreshDriverLocation(snapshot.profile, liveDriverLocation),
     status: localActiveDelivery ? 'busy' : snapshot.profile.status
   };
   const effectiveDriverId = hasDriverAccess ? selectedDriverId : '';
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
+  const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDelivery?.deliveryId);
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess || !effectiveDriverId) return;
@@ -520,7 +527,13 @@ export function DriverApp() {
   }, [authChecked, effectiveDriverId, hasDriverAccess, loadDashboard]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess || !snapshot.profile.isOnline || !effectiveDriverId || !navigator.geolocation) {
+    if (
+      !authChecked ||
+      !hasDriverAccess ||
+      (!snapshot.profile.isOnline && !hasTrackableDelivery) ||
+      !effectiveDriverId ||
+      !navigator.geolocation
+    ) {
       return undefined;
     }
 
@@ -535,18 +548,24 @@ export function DriverApp() {
       void updateDriverLocation(effectiveDriverId, location).catch(() => undefined);
     };
     const onPosition = (position: GeolocationPosition) => {
+      const lastLocationAt = new Date().toISOString();
       latestLocation = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy ?? null
       };
+      setLiveDriverLocation({
+        lastLat: position.coords.latitude,
+        lastLng: position.coords.longitude,
+        lastLocationAt
+      });
       setSnapshot((current) => ({
         ...current,
         profile: {
           ...current.profile,
           lastLat: position.coords.latitude,
           lastLng: position.coords.longitude,
-          lastLocationAt: new Date().toISOString()
+          lastLocationAt
         }
       }));
       const waitMs = Math.max(0, 5_000 - (Date.now() - lastSentAt));
@@ -570,7 +589,7 @@ export function DriverApp() {
       navigator.geolocation.clearWatch(watchId);
       if (pendingTimer !== null) window.clearTimeout(pendingTimer);
     };
-  }, [authChecked, effectiveDriverId, hasDriverAccess, snapshot.profile.isOnline]);
+  }, [authChecked, effectiveDriverId, hasDriverAccess, hasTrackableDelivery, snapshot.profile.isOnline]);
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess) return undefined;
@@ -689,7 +708,7 @@ export function DriverApp() {
         ) : route === 'active' ? (
           <DriverActiveScreen delivery={activeDelivery} />
         ) : route === 'map' ? (
-          <DriverMapScreen delivery={mapDelivery} profile={profile} />
+          <DriverMapScreen delivery={mapDelivery} profile={profile} onRefresh={loadDashboard} />
         ) : route === 'qr' ? (
           <DriverQrScreen delivery={activeDelivery} />
         ) : route === 'earnings' ? (
@@ -1803,18 +1822,31 @@ export function DriverRouteLegProgress({
   );
 }
 
-function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
+export function DriverMapScreen({
+  delivery,
+  profile,
+  onRefresh,
+  onConfirmRestaurantArrival
+}: {
+  delivery: DeliveryOffer | null;
+  profile: DriverProfile;
+  onRefresh?: () => Promise<boolean>;
+  onConfirmRestaurantArrival?: (deliveryId: string) => Promise<void>;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const [routeRefreshKey, setRouteRefreshKey] = useState(0);
   const [routeSummaryState, setRouteSummary] = useState<{ key: string; summary: DeliveryRouteSummary } | null>(null);
   const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [isConfirmingRestaurantArrival, setIsConfirmingRestaurantArrival] = useState(false);
+  const [workflowError, setWorkflowError] = useState('');
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
   const activeLeg = navigationStage?.activeLeg ?? 'restaurant';
   const routeLegKey = `${delivery?.deliveryId ?? 'none'}:${activeLeg}`;
-  const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
+  const mapData = useMemo(() => delivery ? getDriverDeliveryMapData(delivery) : null, [delivery]);
   const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
   const restaurantRouteStarted = Boolean(
@@ -1824,9 +1856,12 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
   const progress = delivery && !['waiting_courier', 'waiting_driver'].includes(delivery.status)
     ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted, delivery.businessType)
     : null;
-  const currentDriverPoint = profile.lastLat !== null && profile.lastLng !== null
-    ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
-    : null;
+  const currentDriverPoint = useMemo(
+    () => profile.lastLat !== null && profile.lastLng !== null
+      ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
+      : null,
+    [profile.lastLat, profile.lastLng]
+  );
   const yandexRouteUrl = delivery
     ? buildYandexMapsRouteAppUrl({
         to: navigationStage?.activeLeg === 'client'
@@ -1845,19 +1880,46 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
   const clientChatUrl = delivery?.clientPhone
     ? `https://wa.me/${delivery.clientPhone.replace(/\D/g, '')}`
     : '';
-  const currentRoutePoints = delivery
-    ? delivery.status === 'waiting_courier'
-      ? [
-          { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-          { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-        ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
-      : getDriverRoutePoints({
-          status: delivery.status,
-          driver: { lat: profile.lastLat, lng: profile.lastLng },
-          restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-          client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-        })
-    : [];
+  const currentRoutePoints = useMemo(
+    () => delivery
+      ? delivery.status === 'waiting_courier'
+        ? [
+            { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
+            { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
+          ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
+        : getDriverRoutePoints({
+            status: delivery.status,
+            driver: { lat: profile.lastLat, lng: profile.lastLng },
+            restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
+            client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
+          })
+      : [],
+    [delivery, mapData, profile.lastLat, profile.lastLng]
+  );
+  const activeRestaurantPoint = useMemo(
+    () => activeLeg === 'restaurant' && completeMapData && delivery
+      ? {
+          lat: completeMapData.restaurantLat,
+          lng: completeMapData.restaurantLng,
+          label: delivery.restaurantName,
+          address: delivery.restaurantAddress,
+          details: ['Точка A']
+        }
+      : null,
+    [activeLeg, completeMapData, delivery]
+  );
+  const activeClientPoint = useMemo(
+    () => activeLeg === 'client' && completeMapData && delivery
+      ? {
+          lat: completeMapData.deliveryLat,
+          lng: completeMapData.deliveryLng,
+          label: delivery.clientName || 'Клиент',
+          address: displayDeliveryAddress,
+          details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
+        }
+      : null,
+    [activeLeg, completeMapData, delivery, displayDeliveryAddress]
+  );
   const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
     setRouteSummary(summary ? { key: routeLegKey, summary } : null);
     if (!summary) return;
@@ -1871,6 +1933,25 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
   const routeTotalDistanceM = routeTotal?.key === routeLegKey
     ? Math.max(routeTotal.distanceM, remainingDistanceM)
     : remainingDistanceM;
+  const confirmRestaurantArrival = async () => {
+    if (!delivery || delivery.status !== 'assigned' || isConfirmingRestaurantArrival) return;
+    setIsConfirmingRestaurantArrival(true);
+    setWorkflowError('');
+    try {
+      if (onConfirmRestaurantArrival) {
+        await onConfirmRestaurantArrival(delivery.deliveryId);
+      } else {
+        await updateDeliveryProgress(delivery.deliveryId, 'arrived_to_restaurant');
+        updateLocalDeliveryStatus('arrived_to_restaurant');
+        await refreshDriverPickupQr(delivery.deliveryId);
+      }
+      await onRefresh?.();
+    } catch (arrivalError) {
+      setWorkflowError(arrivalError instanceof Error ? arrivalError.message : 'Не удалось отметить прибытие в ресторан');
+    } finally {
+      setIsConfirmingRestaurantArrival(false);
+    }
+  };
 
   return (
     <div className="driver-map-screen" data-sheet-expanded={sheetExpanded}>
@@ -1898,14 +1979,8 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
               className="driver-tracking-map"
               initialStyle="satellite"
               navigationMode
-              restaurant={{ lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
-              client={{
-                lat: completeMapData.deliveryLat,
-                lng: completeMapData.deliveryLng,
-                label: delivery.clientName || 'Клиент',
-                address: displayDeliveryAddress,
-                details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
-              }}
+              restaurant={activeRestaurantPoint}
+              client={activeClientPoint}
               routePoints={currentRoutePoints}
               followDriverHeading={currentDriverPoint !== null}
               driver={currentDriverPoint}
@@ -1953,7 +2028,18 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
                 <small>✓ Заказ принят</small>
                 <strong>{delivery.orderNumber}</strong>
               </span>
+              {delivery.status === 'assigned' && (
+                <button
+                  className="driver-map-sheet__arrival"
+                  type="button"
+                  disabled={isConfirmingRestaurantArrival}
+                  onClick={() => void confirmRestaurantArrival()}
+                >
+                  {isConfirmingRestaurantArrival ? 'Отмечаем…' : getBusinessTerms(delivery.businessType).driverArrival}
+                </button>
+              )}
             </header>
+            {workflowError && <small className="driver-map-sheet__error">{workflowError}</small>}
             <DriverRouteLegProgress
               activeLeg={activeLeg}
               restaurantName={delivery.restaurantName}
@@ -1976,7 +2062,17 @@ function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null
             </ol>
           )}
             <div className="driver-map-sheet__actions">
-              <a className="driver-map-sheet__yandex" href={yandexRouteUrl}>
+              <a
+                className="driver-map-sheet__yandex"
+                href={yandexRouteUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => {
+                  if (delivery.status === 'assigned') {
+                    window.sessionStorage.setItem(`driver-restaurant-route-started:${delivery.deliveryId}`, 'true');
+                  }
+                }}
+              >
                 <Navigation />
                 <span><strong>Яндекс Карты</strong><small>К ресторану и клиенту</small></span>
                 <ChevronRight />

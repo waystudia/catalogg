@@ -426,9 +426,11 @@ export function OrderDetailsPanel({
                     До подтверждения водитель не сможет нажать «Забрал заказ».
                   </p>
                   {!driverAtRestaurant && (
-                    <p>Статус водителя может обновляться с задержкой. Подтверждайте только после фактического получения денег.</p>
+                    <p>
+                      Сначала водитель должен нажать «Я в ресторане» на своей карте. После обновления статуса здесь станет доступно подтверждение наличных.
+                    </p>
                   )}
-                  <button type="button" disabled={isConfirmingCash} onClick={() => void confirmCashPayment()}>
+                  <button type="button" disabled={!driverAtRestaurant || isConfirmingCash} onClick={() => void confirmCashPayment()}>
                     {isConfirmingCash ? 'Подтверждаем...' : 'Подтвердить получение наличных'}
                   </button>
                 </>

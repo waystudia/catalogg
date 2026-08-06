@@ -4,10 +4,11 @@ import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
 import {
   DriverActiveScreen,
+  DriverMapScreen,
   DriverRouteLegProgress,
   DriverYandexNavigationActions
 } from '../../src/pages/driver/DriverApp';
-import type { DeliveryOffer } from '../../src/shared/api/deliveryApi';
+import type { DeliveryOffer, DriverProfile } from '../../src/shared/api/deliveryApi';
 
 const restaurant = {
   lat: 43.322,
@@ -31,6 +32,101 @@ const navigationDelivery = (status: 'assigned' | 'arrived_to_restaurant' | 'hand
   deliveryAddress: client.address,
   deliveryLat: client.lat,
   deliveryLng: client.lng
+});
+
+const activeDelivery = (status: DeliveryOffer['status']): DeliveryOffer => ({
+  businessType: 'restaurant',
+  deliveryId: 'delivery-map-1',
+  orderId: 'order-map-1',
+  orderNumber: 'M9584',
+  createdAt: '2026-08-06T10:40:00.000Z',
+  itemsCount: 2,
+  orderTotal: 780,
+  paymentLabel: 'Наличными',
+  restaurantLogoUrl: '',
+  routeEtaMin: 10,
+  paymentMethod: 'cash',
+  restaurantPaymentConfirmed: false,
+  pickupQrConfirmed: false,
+  restaurantName: 'Мангал',
+  restaurantAddress: restaurant.address,
+  deliveryAddress: client.address,
+  deliveryFee: 200,
+  distanceKm: 3.3,
+  status,
+  isAssignedToViewer: true,
+  itemsVisible: true,
+  routeToRestaurantUrl: 'https://yandex.ru/maps/?rtext=~43.322,45.705',
+  routeToClientUrl: 'https://yandex.ru/maps/?rtext=43.322,45.705~43.318123,45.698456',
+  restaurantLat: restaurant.lat,
+  restaurantLng: restaurant.lng,
+  deliveryLat: client.lat,
+  deliveryLng: client.lng,
+  clientName: 'Клиент',
+  clientPhone: '+7 928 000-00-00',
+  pickupQrToken: 'token'
+});
+
+const driverProfile: DriverProfile = {
+  id: 'driver-1',
+  name: 'Водитель',
+  phone: '+7 928 111-11-11',
+  vehicleInfo: 'Автомобиль',
+  carNumber: 'А001АА95',
+  payoutDetails: '',
+  debtAmount: 0,
+  photoUrl: '',
+  serviceSettlements: ['Курчалой'],
+  rating: 5,
+  status: 'busy',
+  isOnline: true,
+  lastLat: 43.319,
+  lastLng: 45.699,
+  lastLocationAt: '2026-08-06T10:42:00.000Z'
+};
+
+test('keeps the driver map on the active leg and lets the driver confirm restaurant arrival there', async () => {
+  window.sessionStorage.setItem('driver-restaurant-route-started:delivery-map-1', 'true');
+  const onConfirmRestaurantArrival = vi.fn(async () => undefined);
+  const screen = await render(
+    <MemoryRouter initialEntries={['/driver/map/delivery-map-1']}>
+      <main className="driver-app">
+        <section className="driver-phone driver-phone--map">
+          <DriverMapScreen
+            delivery={activeDelivery('assigned')}
+            profile={driverProfile}
+            onConfirmRestaurantArrival={onConfirmRestaurantArrival}
+          />
+        </section>
+      </main>
+    </MemoryRouter>
+  );
+
+  await expect.element(screen.getByRole('button', { name: 'Ресторан: Мангал' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Клиент: Клиент' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('link', { name: /Яндекс Карты/u })).toHaveAttribute('target', '_blank');
+
+  await screen.getByRole('button', { name: 'Я в ресторане' }).click();
+  expect(onConfirmRestaurantArrival).toHaveBeenCalledWith('delivery-map-1');
+});
+
+test('shows the client rather than the restaurant after the driver has picked up the order', async () => {
+  const screen = await render(
+    <MemoryRouter initialEntries={['/driver/map/delivery-map-1']}>
+      <main className="driver-app">
+        <section className="driver-phone driver-phone--map">
+          <DriverMapScreen
+            delivery={activeDelivery('handed_over')}
+            profile={driverProfile}
+            onConfirmRestaurantArrival={async () => undefined}
+          />
+        </section>
+      </main>
+    </MemoryRouter>
+  );
+
+  await expect.element(screen.getByRole('button', { name: 'Клиент: Клиент' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Ресторан: Мангал' })).not.toBeInTheDocument();
 });
 
 test('switches between street and labeled satellite maps and shows a routed summary', async () => {

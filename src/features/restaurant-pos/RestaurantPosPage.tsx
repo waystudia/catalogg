@@ -204,6 +204,15 @@ export function RestaurantPosPage({
   const requiresDeliveryAddress = fulfillmentType === 'delivery' && !deliveryAddress.trim();
   const canSubmit = !readOnly && !isSubmitting && items.length > 0 && !requiresDeliveryAddress;
 
+  const selectSeatingMode = (nextMode: 'table' | 'cabin') => {
+    setSeatingMode(nextMode);
+    if (nextMode === 'table') {
+      setSelectedCabinId('');
+      return;
+    }
+    setTableNumber('');
+  };
+
   useEffect(() => {
     guestNumberRef.current = Math.max(guestNumberRef.current, nextGuestNumber);
   }, [nextGuestNumber]);
@@ -326,25 +335,29 @@ export function RestaurantPosPage({
         <aside className="restaurant-pos-order" aria-label="Текущий заказ">
           <header>
             <div><h3>Текущий заказ</h3><small>{itemsCount} позиции</small></div>
-            <button type="button" aria-label="Очистить заказ" disabled={readOnly || items.length === 0} onClick={() => setItems([])}><Trash2 /></button>
+            <div className="restaurant-pos-order__header-actions">
+              <strong className="restaurant-pos-order__header-total" aria-label="Сумма текущего заказа">{formatPrice(total)}</strong>
+              <button type="button" aria-label="Очистить заказ" disabled={readOnly || items.length === 0} onClick={() => setItems([])}><Trash2 /></button>
+            </div>
           </header>
 
-          <div className="restaurant-pos-order__items">
-            {items.map((item) => (
-              <article key={item.productId}>
-                <div><strong>{item.title}</strong><small>{formatPrice(item.unitPrice)} × {item.quantity}</small></div>
-                <div>
-                  <button type="button" aria-label={`Уменьшить ${item.title}`} disabled={readOnly} onClick={() => setItems((current) => changePosCartItemQuantity(current, item.productId, -1))}><Minus /></button>
-                  <span>{item.quantity}</span>
-                  <button type="button" aria-label={`Увеличить ${item.title}`} disabled={readOnly} onClick={() => setItems((current) => changePosCartItemQuantity(current, item.productId, 1))}><Plus /></button>
-                </div>
-                <b>{formatPrice(item.unitPrice * item.quantity)}</b>
-              </article>
-            ))}
-            {items.length === 0 && <p>Добавьте блюда из каталога слева</p>}
-          </div>
+          <div className="restaurant-pos-order__body">
+            <div className="restaurant-pos-order__items">
+              {items.map((item) => (
+                <article key={item.productId}>
+                  <div><strong>{item.title}</strong><small>{formatPrice(item.unitPrice)} × {item.quantity}</small></div>
+                  <div>
+                    <button type="button" aria-label={`Уменьшить ${item.title}`} disabled={readOnly} onClick={() => setItems((current) => changePosCartItemQuantity(current, item.productId, -1))}><Minus /></button>
+                    <span>{item.quantity}</span>
+                    <button type="button" aria-label={`Увеличить ${item.title}`} disabled={readOnly} onClick={() => setItems((current) => changePosCartItemQuantity(current, item.productId, 1))}><Plus /></button>
+                  </div>
+                  <b>{formatPrice(item.unitPrice * item.quantity)}</b>
+                </article>
+              ))}
+              {items.length === 0 && <p>Добавьте блюда из каталога слева</p>}
+            </div>
 
-          <section className="restaurant-pos-customer">
+            <section className="restaurant-pos-customer">
             <h3>Гость (клиент)</h3>
             <div>
               <label>Имя<input aria-label="Имя гостя" value={customerName} onChange={(event) => setCustomerName(event.target.value)} disabled={readOnly} /></label>
@@ -360,8 +373,8 @@ export function RestaurantPosPage({
               <div className="restaurant-pos-seating">
                 {activeCabins.length > 0 && (
                   <div className="restaurant-pos-choice restaurant-pos-seating__mode">
-                    <button type="button" data-active={seatingMode === 'table'} disabled={readOnly} onClick={() => setSeatingMode('table')}>Столик</button>
-                    <button type="button" data-active={seatingMode === 'cabin'} disabled={readOnly} onClick={() => setSeatingMode('cabin')}>Кабинка</button>
+                    <button type="button" data-active={seatingMode === 'table'} disabled={readOnly} onClick={() => selectSeatingMode('table')}>Столик</button>
+                    <button type="button" data-active={seatingMode === 'cabin'} disabled={readOnly} onClick={() => selectSeatingMode('cabin')}>Кабинка</button>
                   </div>
                 )}
 
@@ -411,9 +424,9 @@ export function RestaurantPosPage({
 
             {fulfillmentType === 'delivery' && <label>Адрес доставки<input aria-label="Адрес доставки" value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} disabled={readOnly} /></label>}
             <label>Комментарий<textarea aria-label="Комментарий к заказу" value={comment} onChange={(event) => setComment(event.target.value)} disabled={readOnly} /></label>
-          </section>
+            </section>
 
-          <section className="restaurant-pos-payment">
+            <section className="restaurant-pos-payment">
             <h3>Способ оплаты</h3>
             <div className="restaurant-pos-choice">
               {paymentOptions.map((option) => (
@@ -477,7 +490,8 @@ export function RestaurantPosPage({
                 </div>
               </section>
             )}
-          </section>
+            </section>
+          </div>
 
           <footer>
             <div><span>Итого</span><strong>{formatPrice(total)}</strong></div>

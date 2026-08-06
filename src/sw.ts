@@ -40,8 +40,8 @@ self.addEventListener('push', (event) => {
   const options: NotificationOptions = {
     body: payload.body || 'Есть новое обновление',
     tag: payload.tag || 'waycatalog-update',
-    icon: '/catalogg/assets/logo/icon-192.png',
-    badge: '/catalogg/assets/logo/icon-192.png',
+    icon: '/catalogg/assets/logo/wayyaam-icon-192.png',
+    badge: '/catalogg/assets/logo/wayyaam-icon-192.png',
     requireInteraction: true,
     data: { ...(payload.data ?? {}), url: payload.url || '/catalogg/' }
   };

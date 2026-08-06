@@ -34,13 +34,13 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           icons: [
             {
-              src: 'assets/logo/icon-192.png',
+              src: 'assets/logo/wayyaam-icon-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'assets/logo/icon-512.png',
+              src: 'assets/logo/wayyaam-icon-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'

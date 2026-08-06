@@ -61,7 +61,7 @@ test('cashier creates a draft from the existing restaurant catalog', async () =>
   await screen.getByRole('button', { name: 'Увеличить Жижиг-галнаш' }).click();
   await screen.getByRole('button', { name: 'Добавить Чай облепиховый' }).click();
 
-  await expect.element(screen.getByText('910 ₽')).toBeVisible();
+  await expect.element(screen.getByLabelText('Сумма текущего заказа')).toHaveTextContent('910 ₽');
   await expect.element(screen.getByText('3 позиции')).toBeVisible();
   await screen.getByLabelText('Имя гостя').fill('Дуквах');
   await screen.getByRole('button', { name: 'В зале' }).click();
@@ -135,25 +135,47 @@ test('cashier calculates cash change and saves an unnamed customer as a numbered
   });
 });
 
-test('current order stays compact so the dish catalog keeps the larger working area', async () => {
-  await page.viewport(1024, 900);
+test('current order stays compact inside a landscape tablet viewport', async () => {
+  await page.viewport(1011, 628);
   const screen = await render(
-    <RestaurantPosPage
-      restaurantName="Мангал"
-      categories={categories}
-      cabins={[]}
-      products={[product({})]}
-      accessMode="active"
-    />
+    <div style={{ height: '628px' }}>
+      <RestaurantPosPage
+        restaurantName="Мангал"
+        categories={categories}
+        cabins={[]}
+        products={[
+          product({}),
+          product({ id: 'pizza', title: 'Пицца «Маргарита»', price: 400 }),
+          product({ id: 'wings', title: 'Острые крылышки', price: 1200 }),
+          product({ id: 'combo', title: 'Комбо', price: 700 }),
+          product({ id: 'fries', title: 'Картошка фри', price: 150 }),
+          product({ id: 'tea', title: 'Чай', price: 150 })
+        ]}
+        accessMode="active"
+      />
+    </div>
   );
+
+  await screen.getByRole('button', { name: 'Показать все блюда' }).click();
+  for (const title of ['Жижиг-галнаш', 'Пицца «Маргарита»', 'Острые крылышки', 'Комбо', 'Картошка фри', 'Чай']) {
+    await screen.getByRole('button', { name: `Добавить ${title}` }).click();
+  }
 
   const orderPanel = screen.getByRole('complementary', { name: 'Текущий заказ' }).element();
   const guestName = screen.getByLabelText('Имя гостя').element();
   const catalogPanel = screen.getByRole('region', { name: 'Каталог блюд' }).element();
+  const firstOrderRow = screen
+    .getByRole('complementary', { name: 'Текущий заказ' })
+    .getByText('Жижиг-галнаш', { exact: true })
+    .element()
+    .closest<HTMLElement>('article');
 
-  expect(orderPanel.getBoundingClientRect().width).toBeLessThanOrEqual(280);
+  expect(orderPanel.getBoundingClientRect().width).toBeLessThanOrEqual(320);
+  expect(orderPanel.getBoundingClientRect().height).toBeLessThanOrEqual(628);
+  expect(firstOrderRow).not.toBeNull();
+  expect(firstOrderRow!.getBoundingClientRect().height).toBeLessThanOrEqual(42);
   expect(guestName.getBoundingClientRect().height).toBeLessThanOrEqual(34);
-  expect(catalogPanel.getBoundingClientRect().width).toBeGreaterThan(orderPanel.getBoundingClientRect().width * 2);
+  expect(catalogPanel.getBoundingClientRect().width).toBeGreaterThan(orderPanel.getBoundingClientRect().width * 1.5);
 });
 
 test('expired POS stays visible without allowing new operations', async () => {
@@ -283,4 +305,9 @@ test('cashier chooses a numbered table or an active cabin from existing restaura
   await expect.element(screen.getByText('Кабинка закрыта')).not.toBeInTheDocument();
   await screen.getByRole('button', { name: 'Выбрать Кабинка №2' }).click();
   await expect.element(screen.getByText('Кабинка №2 · 750 ₽')).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Столик' }).click();
+  await expect.element(screen.getByLabelText('Номер столика')).toHaveValue('');
+  await screen.getByRole('button', { name: 'Кабинка' }).click();
+  await expect.element(screen.getByText('Кабинка №2 · 750 ₽')).not.toBeInTheDocument();
 });

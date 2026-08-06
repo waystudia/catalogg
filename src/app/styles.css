@@ -775,6 +775,53 @@
   color: #111827;
 }
 
+.restaurant-admin-sidebar .brand-logo--compact {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.restaurant-admin-sidebar .brand-logo--compact > div {
+  min-width: 0;
+}
+
+.restaurant-admin-sidebar .brand-logo--compact strong {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 24px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .restaurant-admin--pos {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .restaurant-admin--pos .restaurant-admin__workspace {
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 10px 12px 12px;
+  }
+
+  .restaurant-admin--pos .restaurant-admin__hero--compact {
+    min-height: 76px;
+    padding: 8px 14px;
+  }
+
+  .restaurant-admin--pos .restaurant-admin__content {
+    min-height: 0;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+}
+
 .restaurant-admin-sidebar nav {
   display: grid;
   align-content: start;
@@ -3326,6 +3373,20 @@ a {
 
 .brand-logo--compact strong {
   font-size: 34px;
+}
+
+.brand-logo--wayyaam > img {
+  width: min(100%, 300px);
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.brand-logo--wayyaam.brand-logo--compact > img {
+  width: min(100%, 138px);
+  height: auto;
+  border-radius: 0;
 }
 
 .screen-title {

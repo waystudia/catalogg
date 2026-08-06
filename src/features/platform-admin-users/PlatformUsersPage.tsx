@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Bike,
   ChevronRight,
   Download,
   Filter,
@@ -7,6 +8,8 @@ import {
   Plus,
   Search,
   ShoppingBag,
+  Store,
+  Trash2,
   UserRound,
   Users,
   WalletCards,
@@ -14,13 +17,16 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { createClientSignup, getPlatformUserDirectory } from '../../shared/api/clientsApi';
-import type { PlatformUserDirectoryItem } from '../../shared/api/platformTypes';
+import { createClientSignup, getClients, getPlatformUserDirectory } from '../../shared/api/clientsApi';
+import { getDrivers } from '../../shared/api/driversApi';
+import { deletePlatformUser, type PlatformUserDeletionTarget } from '../../shared/api/platformUsersApi';
+import type { PlatformClient, PlatformDriver, PlatformUserDirectoryItem } from '../../shared/api/platformTypes';
 import { downloadCsv, downloadXlsx, type ExportCell } from '../../shared/exportTable';
 import './platform-users.css';
 
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleDateString('ru-RU') : 'Нет заказов';
+type UserGroup = 'restaurants' | 'drivers' | 'clients';
 
 const exportHeaders = [
   'Имя',
@@ -50,7 +56,72 @@ const makeExportRows = (users: PlatformUserDirectoryItem[]): ExportCell[][] => u
   user.favoriteRestaurant
 ]);
 
-function PlatformUserDetails({ user, onClose }: { user: PlatformUserDirectoryItem; onClose: () => void }) {
+type PlatformAccountListItem = {
+  id: string;
+  kind: 'restaurant' | 'driver';
+  name: string;
+  contact: string;
+  location: string;
+  status: string;
+  createdAt: string;
+};
+
+const mapRestaurantAccount = (restaurant: PlatformClient): PlatformAccountListItem => ({
+  id: restaurant.id,
+  kind: 'restaurant',
+  name: restaurant.companyName,
+  contact: restaurant.phone || restaurant.email || 'Контакт не указан',
+  location: restaurant.primaryCity,
+  status: restaurant.status,
+  createdAt: restaurant.createdAt
+});
+
+const mapDriverAccount = (driver: PlatformDriver): PlatformAccountListItem => ({
+  id: driver.id,
+  kind: 'driver',
+  name: driver.name,
+  contact: driver.phone || driver.email || 'Контакт не указан',
+  location: driver.cityName,
+  status: driver.isActive ? 'Активен' : 'Отключён',
+  createdAt: driver.createdAt
+});
+
+function PlatformAccountList({
+  accounts,
+  onDelete
+}: {
+  accounts: PlatformAccountListItem[];
+  onDelete: (account: PlatformAccountListItem) => void;
+}) {
+  return (
+    <section className="platform-user-list platform-account-list">
+      <header><span>Пользователь</span><span>Местоположение</span><span>Статус</span><span>Регистрация</span></header>
+      {accounts.map((account) => (
+        <article key={account.id}>
+          <span className="platform-user-identity">
+            <i><UserRound /></i>
+            <span><b>{account.name}</b><small>{account.contact}</small></span>
+          </span>
+          <span>{account.location || 'Не указано'}</span>
+          <strong>{account.status}</strong>
+          <span>{formatDate(account.createdAt)}</span>
+          <button type="button" onClick={() => onDelete(account)} aria-label={`Удалить пользователя ${account.name}`}><Trash2 /></button>
+        </article>
+      ))}
+      {accounts.length === 0 && <p>В этой группе пользователи не найдены.</p>}
+    </section>
+  );
+}
+
+function PlatformUserDetails({
+  user,
+  onClose,
+  onDelete
+}: {
+  user: PlatformUserDirectoryItem;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
   return (
     <div className="platform-user-modal" role="dialog" aria-modal="true" aria-labelledby="platform-user-title">
       <button type="button" className="platform-user-modal__backdrop" onClick={onClose} aria-label="Закрыть карточку пользователя" />
@@ -60,7 +131,10 @@ function PlatformUserDetails({ user, onClose }: { user: PlatformUserDirectoryIte
             <small>Карточка клиента</small>
             <h2 id="platform-user-title">{user.name}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Закрыть"><X /></button>
+          <div className="platform-user-modal__actions">
+            {!user.id.startsWith('order-user-') && <button type="button" onClick={onDelete} aria-label={`Удалить пользователя ${user.name}`}><Trash2 /></button>}
+            <button type="button" onClick={onClose} aria-label="Закрыть"><X /></button>
+          </div>
         </header>
         <div className="platform-user-details-grid">
           <article>
@@ -102,13 +176,68 @@ function PlatformUserDetails({ user, onClose }: { user: PlatformUserDirectoryIte
   );
 }
 
-export function PlatformUsersPage() {
+type PendingUserDeletion = PlatformUserDeletionTarget & {
+  name: string;
+};
+
+const deletionLabels = {
+  restaurant: { title: 'Удалить ресторан?', noun: 'ресторана' },
+  driver: { title: 'Удалить водителя?', noun: 'водителя' },
+  client: { title: 'Удалить клиента?', noun: 'клиента' }
+} as const;
+
+function DeleteUserDialog({
+  target,
+  deleting,
+  onCancel,
+  onConfirm
+}: {
+  target: PendingUserDeletion;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const label = deletionLabels[target.kind];
+  return (
+    <div className="platform-user-modal platform-user-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="platform-user-delete-title">
+      <button type="button" className="platform-user-modal__backdrop" onClick={onCancel} aria-label="Отменить удаление" />
+      <section>
+        <header>
+          <div><small>Подтверждение удаления</small><h2 id="platform-user-delete-title">{label.title}</h2></div>
+          <button type="button" onClick={onCancel} aria-label="Закрыть"><X /></button>
+        </header>
+        <div className="platform-user-delete-modal__warning"><Trash2 /><div><strong>{target.name}</strong><p>Доступ {label.noun} будет удалён. Заказы и история сохранятся.</p></div></div>
+        <footer>
+          <button type="button" onClick={onCancel} disabled={deleting}>Отмена</button>
+          <button type="button" className="is-danger" onClick={onConfirm} disabled={deleting}>{deleting ? 'Удаляем…' : 'Удалить пользователя'}</button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+export function PlatformUsersPage({
+  deleteUser = deletePlatformUser
+}: {
+  deleteUser?: (target: PlatformUserDeletionTarget) => Promise<void>;
+} = {}) {
   const queryClient = useQueryClient();
+  const restaurantsQuery = useQuery({
+    queryKey: ['platform-user-restaurants'],
+    queryFn: () => getClients({ page: 1, pageSize: 1000, status: 'all', payment: 'all', templateId: 'all' }),
+    staleTime: 15_000
+  });
+  const driversQuery = useQuery({
+    queryKey: ['platform-user-drivers'],
+    queryFn: getDrivers,
+    staleTime: 15_000
+  });
   const directoryQuery = useQuery({
     queryKey: ['platform-user-directory'],
     queryFn: getPlatformUserDirectory,
     staleTime: 15_000
   });
+  const [activeGroup, setActiveGroup] = useState<UserGroup>('restaurants');
   const [search, setSearch] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [settlement, setSettlement] = useState('all');
@@ -122,12 +251,40 @@ export function PlatformUsersPage() {
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [savingUser, setSavingUser] = useState(false);
+  const [pendingDeletion, setPendingDeletion] = useState<PendingUserDeletion | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
   const directory = directoryQuery.data;
+  const clientAccounts = useMemo(
+    () => (directory?.users ?? []).filter((user) => !user.id.startsWith('order-user-')),
+    [directory]
+  );
+
+  const filteredRestaurants = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase('ru-RU');
+    return (restaurantsQuery.data?.data ?? []).filter((restaurant) => !normalizedSearch || [
+      restaurant.companyName,
+      restaurant.ownerName,
+      restaurant.phone,
+      restaurant.email,
+      restaurant.primaryCity
+    ].join(' ').toLocaleLowerCase('ru-RU').includes(normalizedSearch));
+  }, [restaurantsQuery.data, search]);
+
+  const filteredDrivers = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase('ru-RU');
+    return (driversQuery.data ?? []).filter((driver) => !normalizedSearch || [
+      driver.name,
+      driver.phone,
+      driver.email,
+      driver.cityName,
+      driver.carNumber
+    ].join(' ').toLocaleLowerCase('ru-RU').includes(normalizedSearch));
+  }, [driversQuery.data, search]);
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('ru-RU');
     const now = Date.now();
-    return (directory?.users ?? []).filter((user) => {
+    return clientAccounts.filter((user) => {
       if (normalizedSearch && ![user.name, user.phone, user.email, user.cityName]
         .join(' ')
         .toLocaleLowerCase('ru-RU')
@@ -145,9 +302,15 @@ export function PlatformUsersPage() {
       }
       return true;
     });
-  }, [directory, maximumSpent, minimumSpent, orderState, period, restaurantId, search, settlement]);
+  }, [clientAccounts, maximumSpent, minimumSpent, orderState, period, restaurantId, search, settlement]);
 
   const exportRows = makeExportRows(filteredUsers);
+  const totalUsers = (restaurantsQuery.data?.count ?? 0) + (driversQuery.data?.length ?? 0) + clientAccounts.length;
+  const activeQuery = activeGroup === 'restaurants'
+    ? restaurantsQuery
+    : activeGroup === 'drivers'
+      ? driversQuery
+      : directoryQuery;
   const addUser = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSavingUser(true);
@@ -164,35 +327,71 @@ export function PlatformUsersPage() {
       setSavingUser(false);
     }
   };
+  const confirmDeleteUser = async () => {
+    if (!pendingDeletion || deletingUser) return;
+    setDeletingUser(true);
+    try {
+      await deleteUser({ kind: pendingDeletion.kind, id: pendingDeletion.id });
+      setSelectedUser(null);
+      setPendingDeletion(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['platform-user-restaurants'] }),
+        queryClient.invalidateQueries({ queryKey: ['platform-user-drivers'] }),
+        queryClient.invalidateQueries({ queryKey: ['platform-user-directory'] })
+      ]);
+      toast.success('Пользователь удалён');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось удалить пользователя');
+    } finally {
+      setDeletingUser(false);
+    }
+  };
 
   return (
     <main className="platform-page platform-users-page">
       <header className="platform-page-head">
         <div>
           <h1>Пользователи</h1>
-          <p>Клиентская база · {directory?.users.length ?? 0} пользователей</p>
+          <p>Рестораны, водители и клиенты · {totalUsers} пользователей</p>
         </div>
-        <button type="button" onClick={() => setAddOpen(true)}>
-          <Plus />Добавить
-        </button>
+        {activeGroup === 'clients' && (
+          <button type="button" onClick={() => setAddOpen(true)}>
+            <Plus />Добавить
+          </button>
+        )}
       </header>
 
-      <section className="platform-user-stats">
-        <article><span><Users /></span><small>Пользователи</small><strong>{directory?.users.length ?? 0}</strong></article>
-        <article><span><ShoppingBag /></span><small>Заказы</small><strong>{directory?.totalOrders ?? 0}</strong></article>
-        <article><span><WalletCards /></span><small>Выручка</small><strong>{formatMoney(directory?.totalRevenue ?? 0)}</strong></article>
+      <section className="platform-user-groups" role="tablist" aria-label="Группы пользователей">
+        <button type="button" role="tab" aria-selected={activeGroup === 'restaurants'} onClick={() => setActiveGroup('restaurants')}>
+          <span><Store /></span><small>Рестораны</small><strong>{restaurantsQuery.data?.count ?? 0}</strong>
+        </button>
+        <button type="button" role="tab" aria-selected={activeGroup === 'drivers'} onClick={() => setActiveGroup('drivers')}>
+          <span><Bike /></span><small>Водители</small><strong>{driversQuery.data?.length ?? 0}</strong>
+        </button>
+        <button type="button" role="tab" aria-selected={activeGroup === 'clients'} onClick={() => setActiveGroup('clients')}>
+          <span><Users /></span><small>Клиенты</small><strong>{clientAccounts.length}</strong>
+        </button>
       </section>
 
-      <section className="platform-user-toolbar">
+      {activeGroup === 'clients' && (
+        <section className="platform-user-stats platform-user-stats--analytics">
+          <article><span><ShoppingBag /></span><small>Заказы</small><strong>{directory?.totalOrders ?? 0}</strong></article>
+          <article><span><WalletCards /></span><small>Выручка</small><strong>{formatMoney(directory?.totalRevenue ?? 0)}</strong></article>
+        </section>
+      )}
+
+      <section className={`platform-user-toolbar${activeGroup === 'clients' ? '' : ' platform-user-toolbar--search-only'}`}>
         <label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Имя, телефон или email" /></label>
-        <button type="button" className={filtersOpen ? 'is-active' : ''} onClick={() => setFiltersOpen((value) => !value)}><Filter /><span>Фильтр</span></button>
-        <div className="platform-user-export">
-          <button type="button" onClick={() => downloadCsv('waycatalog-users', exportHeaders, exportRows)}><Download /><span>CSV</span></button>
-          <button type="button" onClick={() => void downloadXlsx('waycatalog-users', 'Пользователи', exportHeaders, exportRows)}><span>XLSX</span></button>
-        </div>
+        {activeGroup === 'clients' && <button type="button" className={filtersOpen ? 'is-active' : ''} onClick={() => setFiltersOpen((value) => !value)}><Filter /><span>Фильтр</span></button>}
+        {activeGroup === 'clients' && (
+          <div className="platform-user-export">
+            <button type="button" onClick={() => downloadCsv('waycatalog-users', exportHeaders, exportRows)}><Download /><span>CSV</span></button>
+            <button type="button" onClick={() => void downloadXlsx('waycatalog-users', 'Пользователи', exportHeaders, exportRows)}><span>XLSX</span></button>
+          </div>
+        )}
       </section>
 
-      {filtersOpen && (
+      {activeGroup === 'clients' && filtersOpen && (
         <section className="platform-user-filters">
           <label>Населённый пункт<select value={settlement} onChange={(event) => setSettlement(event.target.value)}><option value="all">Все</option>{directory?.settlements.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
           <label>Ресторан<select value={restaurantId} onChange={(event) => setRestaurantId(event.target.value)}><option value="all">Все</option>{directory?.restaurants.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
@@ -203,9 +402,9 @@ export function PlatformUsersPage() {
         </section>
       )}
 
-      {directoryQuery.isLoading && <div className="platform-state">Загружаем клиентскую базу…</div>}
-      {directoryQuery.isError && <div className="platform-state">Не удалось загрузить пользователей.<button type="button" onClick={() => void directoryQuery.refetch()}>Повторить</button></div>}
-      {!directoryQuery.isLoading && !directoryQuery.isError && (
+      {activeQuery.isLoading && <div className="platform-state">Загружаем пользователей…</div>}
+      {activeQuery.isError && <div className="platform-state">Не удалось загрузить пользователей.<button type="button" onClick={() => void activeQuery.refetch()}>Повторить</button></div>}
+      {activeGroup === 'clients' && !directoryQuery.isLoading && !directoryQuery.isError && (
         <section className="platform-user-list">
           <header><span>Пользователь</span><span>Заказы</span><span>Потрачено</span><span>Последний заказ</span></header>
           {filteredUsers.map((user) => (
@@ -223,8 +422,14 @@ export function PlatformUsersPage() {
           {filteredUsers.length === 0 && <p>По выбранным условиям пользователи не найдены.</p>}
         </section>
       )}
+      {activeGroup === 'restaurants' && !restaurantsQuery.isLoading && !restaurantsQuery.isError && (
+        <PlatformAccountList accounts={filteredRestaurants.map(mapRestaurantAccount)} onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })} />
+      )}
+      {activeGroup === 'drivers' && !driversQuery.isLoading && !driversQuery.isError && (
+        <PlatformAccountList accounts={filteredDrivers.map(mapDriverAccount)} onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })} />
+      )}
 
-      {selectedUser && <PlatformUserDetails user={selectedUser} onClose={() => setSelectedUser(null)} />}
+      {selectedUser && <PlatformUserDetails user={selectedUser} onClose={() => setSelectedUser(null)} onDelete={() => setPendingDeletion({ kind: 'client', id: selectedUser.id, name: selectedUser.name })} />}
       {addOpen && (
         <div className="platform-user-modal platform-user-add-modal" role="dialog" aria-modal="true" aria-labelledby="platform-user-add-title">
           <button type="button" className="platform-user-modal__backdrop" onClick={() => setAddOpen(false)} aria-label="Закрыть" />
@@ -241,6 +446,7 @@ export function PlatformUsersPage() {
           </section>
         </div>
       )}
+      {pendingDeletion && <DeleteUserDialog target={pendingDeletion} deleting={deletingUser} onCancel={() => setPendingDeletion(null)} onConfirm={() => void confirmDeleteUser()} />}
     </main>
   );
 }

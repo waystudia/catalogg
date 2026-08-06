@@ -15,6 +15,28 @@ export const splitDriverHomeOffers = <T>(offers: readonly T[]) => ({
   hiddenOffersCount: Math.max(0, offers.length - 3)
 });
 
+export type DriverLocationSnapshot = {
+  readonly lastLat: number | null;
+  readonly lastLng: number | null;
+  readonly lastLocationAt: string | null;
+};
+
+const locationTimestamp = (location: DriverLocationSnapshot) => {
+  const timestamp = Date.parse(location.lastLocationAt!);
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+};
+
+export const preferFreshDriverLocation = <T extends DriverLocationSnapshot>(
+  serverProfile: T,
+  currentPhoneLocation: DriverLocationSnapshot | null
+): T => {
+  if (!currentPhoneLocation || locationTimestamp(serverProfile) > locationTimestamp(currentPhoneLocation)) {
+    return serverProfile;
+  }
+
+  return { ...serverProfile, ...currentPhoneLocation };
+};
+
 export type DriverNextAction =
   | {
       readonly label: string;
