@@ -9298,6 +9298,11 @@ a {
     height: 36px;
   }
 
+  .product-tile__stepper.has-quantity .add-button {
+    width: 30px;
+    height: 30px;
+  }
+
   .product-tile__stepper {
     width: 100%;
     gap: 3px;
@@ -10809,6 +10814,7 @@ a {
   }
 
   .product-tile__stepper-button,
+  .product-tile__stepper.has-quantity .add-button,
   .product-tile .add-button {
     width: 24px;
     height: 24px;
@@ -10894,5 +10900,29 @@ a {
 
   .checkout-screen .checkout-order-card__bottom strong {
     font-size: 16px;
+  }
+}
+
+.flow-backdrop.flow-backdrop--upsell {
+  z-index: 14;
+}
+
+@media (max-width: 720px) {
+  .flow-backdrop.flow-backdrop--upsell {
+    padding-bottom: calc(163px + env(safe-area-inset-bottom));
+  }
+
+  .flow-backdrop--upsell .flow-modal {
+    max-height: calc(100dvh - 175px - env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 360px) {
+  .flow-backdrop.flow-backdrop--upsell {
+    padding-bottom: calc(137px + env(safe-area-inset-bottom));
+  }
+
+  .flow-backdrop--upsell .flow-modal {
+    max-height: calc(100dvh - 143px - env(safe-area-inset-bottom));
   }
 }
