@@ -77,7 +77,6 @@ import {
 import {
   buildClientAuthPath,
   hasStoredClientSession,
-  loginClientAccount,
   logoutClientAccount,
   registerClientAccount,
   restoreClientAccountSession
@@ -88,7 +87,6 @@ import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
-import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
@@ -104,7 +102,7 @@ import {
   normalizeDeliveryCoordinates,
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
-import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import { clearPwaResumePath } from '../../shared/pwaSession';
 import {
   installGuideDismissedUntilKey,
   resolveInstallGuideDevice,
@@ -2558,6 +2556,10 @@ function ProfilePage() {
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (clientAuthMode === 'login') {
+      navigate(`/login?returnTo=${encodeURIComponent(clientReturnTo)}`);
+      return;
+    }
     const identifier = accountIdentifier.trim();
     const nextProfile = { name: clientName.trim(), phone: identifier };
 
@@ -2584,37 +2586,20 @@ function ProfilePage() {
     }
 
     try {
-      if (clientAuthMode === 'login' && identifier.includes('@')) {
-        const redirect = await resolveLoginRedirect(identifier, clientPassword);
-        if (!redirect || redirect === '/') {
-          await signOutPlatformAdmin();
-          throw new Error('Аккаунт не привязан к кабинету ресторана или водителя.');
-        }
-        const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
-        setClientPassword('');
-        rememberPwaResumePath(targetPath);
-        navigate(targetPath, { replace: true });
-        return;
-      }
-
-      const session = clientAuthMode === 'register'
-        ? await registerClientAccount({
-            ...nextProfile,
-            password: clientPassword,
-            acceptedAgreement: acceptedClientAgreement,
-            acceptedPersonalData: acceptedClientConsent,
-            acceptedAdvertising
-          })
-        : await loginClientAccount({ phone: nextProfile.phone, password: clientPassword });
+      const session = await registerClientAccount({
+        ...nextProfile,
+        password: clientPassword,
+        acceptedAgreement: acceptedClientAgreement,
+        acceptedPersonalData: acceptedClientConsent,
+        acceptedAdvertising
+      });
       saveProfile({ name: session.name, phone: session.phone });
       setClientSession(session);
       setClientName(session.name);
       setAccountIdentifier(session.phone);
       setClientPassword('');
-      if (clientAuthMode === 'register') {
-        window.localStorage.setItem('wayyaam:advertising-preference:1.0', acceptedAdvertising ? 'granted' : 'denied');
-      }
-      setClientMessage(clientAuthMode === 'register' ? 'Аккаунт создан' : 'Вход выполнен');
+      window.localStorage.setItem('wayyaam:advertising-preference:1.0', acceptedAdvertising ? 'granted' : 'denied');
+      setClientMessage('Аккаунт создан');
       navigate(clientReturnTo, { replace: true });
     } catch (error) {
       setClientError(error instanceof Error ? error.message : 'Не удалось войти.');
@@ -2710,29 +2695,33 @@ function ProfilePage() {
                 />
               </label>
             )}
-            <label className="field-label">
-              <span>{clientAuthMode === 'register' ? 'Телефон' : 'Телефон или почта'}</span>
-              <input
-                value={accountIdentifier}
-                onChange={(event) => setAccountIdentifier(event.target.value)}
-                placeholder={clientAuthMode === 'register' ? '+7' : '+7 или name@example.ru'}
-                inputMode={clientAuthMode === 'register' ? 'tel' : 'text'}
-                autoComplete={clientAuthMode === 'register' ? 'tel' : 'username'}
-                required
-              />
-            </label>
-            <label className="field-label">
-              <span>Пароль</span>
-              <input
-                value={clientPassword}
-                onChange={(event) => setClientPassword(event.target.value)}
-                type="password"
-                autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
-                minLength={6}
-                maxLength={72}
-                required
-              />
-            </label>
+            {clientAuthMode === 'register' && (
+              <>
+                <label className="field-label">
+                  <span>Телефон</span>
+                  <input
+                    value={accountIdentifier}
+                    onChange={(event) => setAccountIdentifier(event.target.value)}
+                    placeholder="+7"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    required
+                  />
+                </label>
+                <label className="field-label">
+                  <span>Пароль</span>
+                  <input
+                    value={clientPassword}
+                    onChange={(event) => setClientPassword(event.target.value)}
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={6}
+                    maxLength={72}
+                    required
+                  />
+                </label>
+              </>
+            )}
             {clientAuthMode === 'register' && (
               <section className="legal-checkboxes" aria-label="Условия регистрации">
                 <label className="legal-checkbox">
@@ -2753,18 +2742,19 @@ function ProfilePage() {
             {clientError && <small className="form-error">{clientError}</small>}
             {clientMessage && <small className="form-success">{clientMessage}</small>}
             {clientAuthMode === 'login' && (
-              <small className="form-muted">
-                Клиенты входят по телефону. Рестораны и водители — по почте, выданной администратором.
-              </small>
+              <>
+                <small className="form-muted">Все типы аккаунтов входят через одну защищённую панель.</small>
+                <Link className="wide-action" to={`/login?returnTo=${encodeURIComponent(clientReturnTo)}`}>
+                  <UserRoundCheck /> Открыть единый вход
+                </Link>
+              </>
             )}
-            <button className="wide-action" type="submit" disabled={isSavingClient}>
-              <UserRoundCheck />
-              {isSavingClient
-                ? 'Проверяем...'
-                : clientAuthMode === 'register'
-                  ? 'Зарегистрироваться'
-                  : 'Войти'}
-            </button>
+            {clientAuthMode === 'register' && (
+              <button className="wide-action" type="submit" disabled={isSavingClient}>
+                <UserRoundCheck />
+                {isSavingClient ? 'Проверяем...' : 'Зарегистрироваться'}
+              </button>
+            )}
             {clientAuthMode === 'register' && (
               <small className="form-muted">
                 Регистрация создаёт аккаунт клиента. Аккаунты ресторанов и водителей выдаёт администратор.

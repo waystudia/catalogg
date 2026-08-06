@@ -49,7 +49,7 @@ import {
   X
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
 import {
@@ -97,7 +97,6 @@ import {
 } from '../features/restaurant-settings/catalogAdminModel';
 import { RestaurantAdminWorkspace } from '../features/restaurant-admin/RestaurantAdminWorkspace';
 import type { RestaurantAdminModuleAccess } from '../features/platform-admin-modules/restaurantModuleAccess';
-import { LoginModal } from '../features/auth/LoginModal';
 import {
   darkThemePreset,
   DesignEditor,
@@ -1920,7 +1919,6 @@ function AppContent({
   const [drinkCategory, setDrinkCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
@@ -2764,7 +2762,7 @@ function AppContent({
           onBack={() => navigate(`/${catalogSlug}`)}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
-          onAdmin={() => setShowLogin(true)}
+          onAdmin={() => navigate('/login')}
           logoUrl={catalog.restaurant.logo_url}
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
@@ -2801,11 +2799,7 @@ function AppContent({
       <Toaster richColors position="top-center" />
       {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (
         adminSessionChecked ? (
-          <LoginModal
-            catalogSlug={catalogSlug}
-            onClose={() => setScreen('home')}
-            onSuccess={() => openRestaurantAdminPath(screen === 'settings-payments' ? 'settings-payments' : 'admin-home')}
-          />
+          <Navigate to="/login" replace />
         ) : (
           <main className="restaurant-session-check" role="status" aria-live="polite">
             <span />
@@ -2840,7 +2834,7 @@ function AppContent({
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
             onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
-            onAdmin={() => setShowLogin(true)}
+            onAdmin={() => navigate('/login')}
             logoUrl={catalog.restaurant.logo_url}
             restaurantName={catalog.restaurant.name}
             restaurantSubtitle={catalog.restaurant.subtitle}
@@ -2985,16 +2979,6 @@ function AppContent({
           setAdminEditor(null);
         }}
       />
-      {showLogin && (
-        <LoginModal
-          catalogSlug={catalogSlug}
-          onClose={() => setShowLogin(false)}
-          onSuccess={() => {
-            setShowLogin(false);
-            openRestaurantAdminPath('admin-home');
-          }}
-        />
-      )}
       {orderFlow.step !== 'done' && activeFlowCategory && screen !== 'catalog' && screen !== 'drinks' && (
         <UpsellReminder
           category={activeFlowCategory}

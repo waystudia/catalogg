@@ -25,7 +25,6 @@ import {
   Home,
   Image as ImageIcon,
   KeyRound,
-  LockKeyhole,
   LayoutTemplate,
   LogOut,
   MapPin,
@@ -53,6 +52,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
+import { Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import {
   createClient,
@@ -91,7 +91,7 @@ import {
   getPlatformContentPages,
   savePlatformContentPage
 } from '../../shared/api/platformContentApi';
-import { getPlatformAdminAccess, signInPlatformAdmin, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
+import { getPlatformAdminAccess, signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import type {
   PlatformDriver,
   PlatformBannerAdmin,
@@ -3241,70 +3241,8 @@ function PlaceholderPage({ route }: { route: PlatformRoute }) {
   );
 }
 
-function PlatformLoginState({ onSuccess }: { onSuccess: () => void }) {
-  const [email, setEmail] = useState('studiacatalog@outlook.com');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const access = await signInPlatformAdmin(email, password);
-      if (!access.isPlatformAdmin) {
-        toast.error('Пользователь вошёл, но не найден в platform_admins');
-        return;
-      }
-      toast.success('Вход выполнен');
-      onSuccess();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось войти');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <main className="platform-login">
-      <Toaster richColors position="top-center" />
-      <form className="platform-login__card" onSubmit={onSubmit}>
-        <span className="platform-login__icon">
-          <LockKeyhole />
-        </span>
-        <h1>Вход суперадмина</h1>
-        <p>Введите email и пароль пользователя, который добавлен в таблицу platform_admins.</p>
-        <label>
-          Email
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            type="email"
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label>
-          Пароль
-          <span className="platform-login__password">
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              required
-            />
-            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Показать пароль">
-              <Eye />
-            </button>
-          </span>
-        </label>
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Проверяем...' : 'Войти'}
-        </button>
-      </form>
-    </main>
-  );
+function PlatformLoginState() {
+  return <Navigate to="/login" replace />;
 }
 
 function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut: () => void }) {
@@ -3440,7 +3378,7 @@ function PlatformAdminContent() {
   }
 
   if (!platformAdminQuery.data?.hasSession) {
-    return <PlatformLoginState onSuccess={() => void platformAdminQuery.refetch()} />;
+    return <PlatformLoginState />;
   }
 
   if (!platformAdminQuery.data.isPlatformAdmin) {

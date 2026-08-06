@@ -6,6 +6,8 @@ const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.t
 const legacyCheckoutSource = fs.readFileSync('src/features/checkout/CheckoutScreen.tsx', 'utf8');
 const restaurantAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientAccountApi.ts', 'utf8');
+const loginPageSource = fs.readFileSync('src/pages/login/LoginPage.tsx', 'utf8');
+const loginRedirectSource = fs.readFileSync('src/shared/api/loginRedirectApi.ts', 'utf8');
 const migrationFiles = fs
   .readdirSync('supabase/migrations')
   .filter((name) => name.endsWith('_add_client_password_accounts.sql'));
@@ -21,11 +23,13 @@ test('client checkout can create a real account session without leaving checkout
   assert.match(restaurantAppSource, /routeSection === 'checkout'/);
 });
 
-test('client profile supports separate registration and login flows', () => {
+test('client profile keeps registration and sends login through the unified panel', () => {
   assert.match(appSource, /registerClientAccount/);
-  assert.match(appSource, /loginClientAccount/);
   assert.match(appSource, /type="password"/);
   assert.match(appSource, /Зарегистрироваться/);
+  assert.match(appSource, /Открыть единый вход/);
+  assert.match(loginPageSource, /resolveUnifiedLogin/);
+  assert.match(loginRedirectSource, /loginClientAccount/);
   assert.match(appSource, /Аккаунт защищён паролем/);
   assert.match(appSource, /Гостевой профиль/);
 });

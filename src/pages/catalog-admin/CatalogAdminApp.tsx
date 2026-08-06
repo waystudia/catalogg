@@ -1,10 +1,10 @@
-import { CheckCircle2, LockKeyhole, LogOut, RefreshCw, ShieldAlert } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type FormEvent, type UIEvent } from 'react';
+import { CheckCircle2, LogOut, RefreshCw, ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type UIEvent } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import {
   confirmPersonalDataConsent,
   getCatalogAdminAccess,
-  signInCatalogAdmin,
   signOutCatalogAdmin,
   type CatalogAdminAccess
 } from '../../shared/api/catalogAdminApi';
@@ -18,60 +18,8 @@ type CatalogAdminAppProps = {
   slug: string;
 };
 
-function CatalogLogin({
-  slug,
-  catalogName,
-  onSuccess
-}: {
-  slug: string;
-  catalogName: string;
-  onSuccess: (access: CatalogAdminAccess) => void;
-}) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    try {
-      const access = await signInCatalogAdmin(slug, email, password);
-      if (!access.isMember) {
-        toast.error('У этого пользователя нет доступа к каталогу');
-        return;
-      }
-      toast.success('Вход выполнен');
-      onSuccess(access);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось войти');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <main className="catalog-admin-login">
-      <Toaster richColors position="top-center" />
-      <form className="catalog-admin-login__card" onSubmit={onSubmit}>
-        <span>
-          <LockKeyhole />
-        </span>
-        <h1>{catalogName}</h1>
-        <p>Войдите в админку своего каталога.</p>
-        <label>
-          Email
-          <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required />
-        </label>
-        <label>
-          Пароль
-          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required />
-        </label>
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Проверяем...' : 'Войти'}
-        </button>
-      </form>
-    </main>
-  );
+function CatalogLogin() {
+  return <Navigate to="/login" replace />;
 }
 
 function CatalogForbidden({
@@ -272,11 +220,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
 
   if (!access?.hasSession) {
     return (
-      <CatalogLogin
-        slug={slug}
-        catalogName={access?.catalog?.name ?? slug}
-        onSuccess={(nextAccess) => setAccess(nextAccess)}
-      />
+      <CatalogLogin />
     );
   }
 

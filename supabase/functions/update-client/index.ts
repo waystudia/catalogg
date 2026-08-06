@@ -57,6 +57,16 @@ const normalizeSettlements = (values?: string[]) =>
     )
   );
 
+const normalizeAuthPhone = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return `+7${digits}`;
+  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith('7')) return `+${digits}`;
+  if (value.trim().startsWith('+') && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  throw new Error('Phone is invalid.');
+};
+
 const assertPayload = (payload: UpdateClientPayload) => {
   if (!payload.clientId) throw new Error('Client id is required.');
   if (payload.companyName !== undefined && payload.companyName.trim().length < 2) {
@@ -118,6 +128,7 @@ Deno.serve(async (request) => {
     if (payload.primaryCity !== undefined) payload.primaryCity = payload.primaryCity.trim();
     if (payload.serviceSettlements !== undefined) payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
+    const authPhone = payload.phone !== undefined ? normalizeAuthPhone(payload.phone) : undefined;
 
     const { data: currentClient, error: currentClientError } = await adminClient
       .from('clients')
@@ -137,13 +148,24 @@ Deno.serve(async (request) => {
       if (existingEmail) throw new Error('Email already exists.');
     }
 
-    const authUpdates: { email?: string; password?: string; email_confirm?: boolean; user_metadata?: Record<string, string> } = {};
+    const authUpdates: {
+      email?: string;
+      password?: string;
+      phone?: string;
+      email_confirm?: boolean;
+      phone_confirm?: boolean;
+      user_metadata?: Record<string, string>;
+    } = {};
     if (payload.email && payload.email !== currentClient.email) {
       authUpdates.email = payload.email;
       authUpdates.email_confirm = true;
     }
     if (payload.password) {
       authUpdates.password = payload.password;
+    }
+    if (authPhone) {
+      authUpdates.phone = authPhone;
+      authUpdates.phone_confirm = true;
     }
     if (payload.ownerName !== undefined || payload.companyName !== undefined) {
       authUpdates.user_metadata = {

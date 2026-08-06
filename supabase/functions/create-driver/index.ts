@@ -49,6 +49,16 @@ const slugify = (value: string) =>
     .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/^-+|-+$/g, '') || 'city';
 
+const normalizeAuthPhone = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length === 10) return `+7${digits}`;
+  if (digits.length === 11 && digits.startsWith('8')) return `+7${digits.slice(1)}`;
+  if (digits.length === 11 && digits.startsWith('7')) return `+${digits}`;
+  if (value.trim().startsWith('+') && digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  throw new Error('Phone is invalid.');
+};
+
 const assertPayload = (payload: CreateDriverPayload) => {
   if (!payload.name?.trim() || payload.name.trim().length < 2) throw new Error('Driver name is required.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new Error('Email is invalid.');
@@ -98,6 +108,7 @@ Deno.serve(async (request) => {
     payload.carNumber = payload.carNumber?.trim();
     payload.photoUrl = payload.photoUrl?.trim();
     assertPayload(payload);
+    const authPhone = normalizeAuthPhone(payload.phone);
 
     const { data: existingUser, error: existingUserError } = await adminClient
       .from('users')
@@ -109,6 +120,7 @@ Deno.serve(async (request) => {
 
     const { data: createdAuthUser, error: createAuthError } = await adminClient.auth.admin.createUser({
       email: payload.email,
+      ...(authPhone ? { phone: authPhone, phone_confirm: true } : {}),
       password: payload.password,
       email_confirm: true,
       user_metadata: {

@@ -5,6 +5,8 @@ import {
   supabase
 } from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthScope } from '../supabaseAuthScope';
+import { loginClientAccount } from './clientAccountApi';
+import { normalizeLoginPhone } from '../loginIdentifier';
 
 export type StaffLoginRole = 'restaurant' | 'driver';
 
@@ -144,24 +146,24 @@ export async function resolveSessionRedirect(emailFallback = '', knownSession?: 
 }
 
 export async function resolveLoginRedirect(
-  email: string,
+  identifier: string,
   password: string,
   expectedRole?: StaffLoginRole
 ) {
   if (!supabase) {
     const redirect =
-      email.trim().toLowerCase() === 'admin' && password.trim() === '1234'
+      identifier.trim().toLowerCase() === 'admin' && password.trim() === '1234'
         ? '/mangal/dashboard'
         : null;
     if (redirect) assertExpectedLoginRole(redirect, expectedRole);
     return redirect;
   }
 
-  const { data, error } = await signInWithPasswordResilient(email, password);
+  const { data, error } = await signInWithPasswordResilient(identifier, password);
   if (error) {
     const message = error.message.toLowerCase();
     if (message.includes('invalid login credentials')) {
-      throw new Error('Неверный email или пароль.');
+      throw new Error('Неверный телефон, email или пароль.');
     }
     if (
       message.includes('timeout') ||
@@ -177,11 +179,41 @@ export async function resolveLoginRedirect(
     throw new Error(error.message);
   }
 
-  const redirect = await resolveSessionRedirect(email, data.session);
+  const redirect = await resolveSessionRedirect(identifier.includes('@') ? identifier : '', data.session);
   if (redirect) assertExpectedLoginRole(redirect, expectedRole);
   if (redirect) {
     preserveSupabaseSessionForRedirect(redirect);
     copySupabaseSessionToScope(getSupabaseAuthScope(redirect));
   }
   return redirect;
+}
+
+const isCredentialError = (error: unknown) =>
+  error instanceof Error && /неверн|invalid login credentials/i.test(error.message);
+
+export async function resolveUnifiedLogin(identifier: string, password: string) {
+  const normalizedIdentifier = identifier.trim();
+  const usesEmail = normalizedIdentifier.includes('@');
+
+  try {
+    const redirect = await resolveLoginRedirect(normalizedIdentifier, password);
+    if (redirect && redirect !== '/') return redirect;
+  } catch (error) {
+    if (usesEmail || !isCredentialError(error)) throw error;
+  }
+
+  if (usesEmail) {
+    throw new Error('Аккаунт не привязан к WayYaam.');
+  }
+
+  try {
+    await supabase?.auth.signOut({ scope: 'local' });
+    await loginClientAccount({ phone: normalizeLoginPhone(normalizedIdentifier), password });
+    return '/profile';
+  } catch (error) {
+    if (isCredentialError(error)) {
+      throw new Error('Неверный телефон, email или пароль.');
+    }
+    throw error;
+  }
 }

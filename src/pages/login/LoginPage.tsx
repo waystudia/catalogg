@@ -1,13 +1,15 @@
 import { LockKeyhole } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { resolveLoginRedirect } from '../../shared/api/loginRedirectApi';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import { rememberPwaResumePath } from '../../shared/pwaSession';
 import './login.css';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [searchParams] = useSearchParams();
+  const [method, setMethod] = useState<'phone' | 'email'>('phone');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,12 +19,20 @@ export function LoginPage() {
     setIsLoading(true);
     setError('');
     try {
-      const redirect = await resolveLoginRedirect(email, password);
+      const redirect = await resolveUnifiedLogin(identifier, password);
       if (!redirect) {
-        setError('Неверный email или пароль.');
+        setError('Неверный телефон, email или пароль.');
         return;
       }
-      const targetPath = redirect === '/admin' ? '/admin/clients' : redirect;
+      const requestedPath = searchParams.get('returnTo') ?? '';
+      const clientReturnTo = requestedPath.startsWith('/') && !requestedPath.startsWith('//')
+        ? requestedPath
+        : '/profile';
+      const targetPath = redirect === '/admin'
+        ? '/admin/clients'
+        : redirect === '/profile'
+          ? clientReturnTo
+          : redirect;
       rememberPwaResumePath(targetPath);
       navigate(targetPath, { replace: true });
     } catch (caught) {
@@ -36,11 +46,43 @@ export function LoginPage() {
     <main className="login-page">
       <form className="login-page__card" onSubmit={submit}>
         <span><LockKeyhole /></span>
-        <h1>Вход</h1>
-        <p>Один вход автоматически откроет нужный раздел.</p>
+        <h1>Единый вход WayYaam</h1>
+        <p>Клиенты · рестораны · водители · суперадмин</p>
+        <div className="login-page__methods" aria-label="Способ входа">
+          <button
+            className={method === 'phone' ? 'is-active' : ''}
+            type="button"
+            onClick={() => {
+              setMethod('phone');
+              setIdentifier('');
+              setError('');
+            }}
+          >
+            Телефон
+          </button>
+          <button
+            className={method === 'email' ? 'is-active' : ''}
+            type="button"
+            onClick={() => {
+              setMethod('email');
+              setIdentifier('');
+              setError('');
+            }}
+          >
+            Почта
+          </button>
+        </div>
         <label>
-          Email или телефон
-          <input value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
+          {method === 'phone' ? 'Телефон' : 'Email'}
+          <input
+            value={identifier}
+            onChange={(event) => setIdentifier(event.target.value)}
+            type={method === 'email' ? 'email' : 'tel'}
+            inputMode={method === 'email' ? 'email' : 'tel'}
+            autoComplete={method === 'email' ? 'email' : 'tel'}
+            placeholder={method === 'email' ? 'name@example.ru' : '+7 928 000-00-00'}
+            required
+          />
         </label>
         <label>
           Пароль
@@ -48,6 +90,7 @@ export function LoginPage() {
         </label>
         {error && <strong>{error}</strong>}
         <button type="submit" disabled={isLoading}>{isLoading ? 'Входим...' : 'Войти'}</button>
+        <Link to="/profile?clientAuth=1">Создать аккаунт клиента</Link>
         <Link to="/">На главную</Link>
       </form>
     </main>

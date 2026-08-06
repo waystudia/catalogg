@@ -19,17 +19,13 @@ describe('driver login from the client profile', () => {
     assert.match(supabase, /attempt < 2/);
     assert.match(supabase, /if \(attempt === 1\) break/);
     assert.match(supabase, /supabase\.auth\.setSession/);
-    assert.match(redirect, /signInWithPasswordResilient\(email, password\)/);
+    assert.match(redirect, /signInWithPasswordResilient\(identifier, password\)/);
     assert.match(redirect, /Сервис входа временно отвечает медленно/);
     assert.match(redirect, /Сервис профилей временно не отвечает/);
     assert.match(redirect, /PGRST202/i);
     assert.match(redirect, /expectedRole/);
-    assert.match(
-      profile,
-      /identifier\.includes\('@'\)[\s\S]*resolveLoginRedirect\(identifier, clientPassword\)/
-    );
-    assert.match(profile, /Телефон или почта/);
-    assert.match(profile, /Рестораны и водители — по почте, выданной администратором/);
+    assert.match(profile, /\/login\?returnTo=/);
+    assert.match(profile, /Все типы аккаунтов входят через одну защищённую панель/);
     assert.doesNotMatch(profile, /profile-role-grid/);
     assert.doesNotMatch(profile, /Войти как (?:клиент|ресторан|водитель)/);
     assert.doesNotMatch(profile, /Аккаунт водителя создаёт и выдаёт супер-админ/);
