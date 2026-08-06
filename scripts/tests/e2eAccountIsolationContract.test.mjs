@@ -95,3 +95,11 @@ test('idempotent seed provisions a full-featured permanent restaurant without co
   assert.match(seed, /'Тестовый адрес'[\s\S]*'Тестовая доставка WayYaam'/i);
   assert.doesNotMatch(seed, /WayYaam-E2E-(?:Client|Restaurant|Driver)-2026!/);
 });
+
+test('an authenticated client can restore only an address from the same data scope', async () => {
+  const migration = await read('supabase/migrations/20260807123000_restore_own_client_address_read.sql');
+
+  assert.match(migration, /user_id = public\.current_platform_user_id\(\)/i);
+  assert.match(migration, /is_test = public\.current_actor_is_test\(\)/i);
+  assert.doesNotMatch(migration, /for all|using \(true\)/i);
+});
