@@ -9,6 +9,7 @@ export type PlatformOrderStatsRow = {
   total_amount?: number | null;
   delivery_provider?: string | null;
   status?: string | null;
+  is_test_order?: boolean | null;
 };
 
 const canceledStatuses = new Set(['canceled', 'cancelled']);
@@ -26,8 +27,10 @@ export const summarizePlatformStats = (
   clients: PlatformClient[],
   orders: PlatformOrderStatsRow[]
 ): PlatformStats => {
+  const productionClients = clients.filter((client) => client.isTest !== true);
+  const productionOrders = orders.filter((order) => order.is_test_order !== true);
   const restaurantStatsById = new Map(
-    clients.map((client) => [
+    productionClients.map((client) => [
       client.catalogId || client.id,
       {
         id: client.catalogId || client.id,
@@ -42,7 +45,7 @@ export const summarizePlatformStats = (
     ])
   );
 
-  orders.forEach((order) => {
+  productionOrders.forEach((order) => {
     const restaurantId = getOrderRestaurantId(order);
     const current =
       restaurantStatsById.get(restaurantId) ??
@@ -71,17 +74,17 @@ export const summarizePlatformStats = (
     restaurantStatsById.set(restaurantId, current);
   });
 
-  const completedOrders = orders.filter((order) => !canceledStatuses.has(order.status ?? ''));
+  const completedOrders = productionOrders.filter((order) => !canceledStatuses.has(order.status ?? ''));
   const restaurantStats = Array.from(restaurantStatsById.values());
 
   return {
-    totalClients: clients.length,
-    activeCatalogs: clients.filter((client) => client.catalogStatus === 'published').length,
-    daysActive: clients.length > 0
+    totalClients: productionClients.length,
+    activeCatalogs: productionClients.filter((client) => client.catalogStatus === 'published').length,
+    daysActive: productionClients.length > 0
       ? Math.max(
           0,
           Math.floor(
-            (Date.now() - Math.min(...clients.map((client) => Date.parse(client.createdAt)).filter(Number.isFinite))) /
+            (Date.now() - Math.min(...productionClients.map((client) => Date.parse(client.createdAt)).filter(Number.isFinite))) /
               86_400_000
           )
         )
@@ -89,8 +92,8 @@ export const summarizePlatformStats = (
     monthlyRevenue: completedOrders.reduce((sum, order) => sum + getOrderAmount(order), 0),
     monthlyViews: 0,
     totalDebt: restaurantStats.reduce((sum, restaurant) => sum + restaurant.debt, 0),
-    totalOrders: orders.length,
-    driverDeliveries: orders.filter((order) => order.delivery_provider === 'platform').length,
+    totalOrders: productionOrders.length,
+    driverDeliveries: productionOrders.filter((order) => order.delivery_provider === 'platform').length,
     restaurantStats
   };
 };

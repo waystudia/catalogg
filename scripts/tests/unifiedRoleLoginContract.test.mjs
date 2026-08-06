@@ -45,3 +45,17 @@ test('restaurant and driver provisioning attaches a confirmed auth phone', async
     assert.match(source, /phone_confirm/);
   }
 });
+
+test('a confirmed Auth client is bridged into the existing client account session', async () => {
+  const [loginRedirect, clientAccountApi, migration] = await Promise.all([
+    read('src/shared/api/loginRedirectApi.ts'),
+    read('src/shared/api/clientAccountApi.ts'),
+    read('supabase/migrations/20260807120000_wayyaam_e2e_accounts.sql')
+  ]);
+
+  assert.match(loginRedirect, /loginCurrentAuthClientAccount\(\)/);
+  assert.match(clientAccountApi, /rpc\('login_current_auth_client_account'\)/);
+  assert.match(migration, /create or replace function public\.login_current_auth_client_account\(\)/i);
+  assert.match(migration, /where client_account\.auth_user_id = auth\.uid\(\)/i);
+  assert.match(migration, /role = 'client'[\s\S]*return '\/profile'/i);
+});

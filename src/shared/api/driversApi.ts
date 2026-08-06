@@ -136,8 +136,8 @@ export async function getPlatformDriverActivity(): Promise<PlatformDriverActivit
   }
 
   const [deliveriesResult, earningsResult] = await Promise.all([
-    supabase.from('deliveries').select('driver_id, status').not('driver_id', 'is', null).limit(5000),
-    supabase.from('earnings').select('driver_id, amount, net_amount').limit(5000)
+    supabase.from('deliveries').select('driver_id, status').eq('is_test', false).not('driver_id', 'is', null).limit(5000),
+    supabase.from('earnings').select('driver_id, amount, net_amount').eq('is_test', false).limit(5000)
   ]);
 
   const activity = new Map<string, PlatformDriverActivity>();

@@ -99,6 +99,7 @@ type ClientRow = {
   subscription_ends_at: string | null;
   created_at: string;
   business_type: string | null;
+  is_test?: boolean | null;
   catalogs?: {
     id?: string;
     name?: string;
@@ -211,7 +212,8 @@ const mapClient = (row: ClientRow): PlatformClient => ({
   templateVersion: row.catalogs?.template_versions?.version ?? 1,
   businessType: normalizeBusinessType(row.business_type),
   logoUrl: row.catalogs?.logo_url ?? '',
-  createdAt: row.created_at
+  createdAt: row.created_at,
+  isTest: row.is_test === true
 });
 
 const mapClientSignup = (row: ClientSignupRow): ClientSignup => ({
@@ -296,7 +298,7 @@ export async function getClients(params: ClientListParams): Promise<{ data: Plat
   let query = supabase
     .from('clients')
     .select(
-      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
+      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, is_test, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -328,7 +330,8 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   const [ordersResult, catalogsResult] = await Promise.all([
     supabase
       .from('orders')
-      .select('catalog_id, restaurant_id, total, total_amount, delivery_provider, status')
+      .select('catalog_id, restaurant_id, total, total_amount, delivery_provider, status, is_test_order')
+      .eq('is_test_order', false)
       .limit(1000),
     supabase
       .from('catalogs')
@@ -336,7 +339,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       .order('created_at', { ascending: false })
   ]);
   const fallbackOrdersResult = ordersResult.error
-    ? await supabase.from('orders').select('catalog_id, total, status').limit(1000)
+    ? await supabase.from('orders').select('catalog_id, total, status, is_test_order').eq('is_test_order', false).limit(1000)
     : null;
   const orderRows = ((ordersResult.data ?? fallbackOrdersResult?.data ?? []) as PlatformOrderStatsRow[]);
   const knownCatalogIds = new Set(clients.data.map((client) => client.catalogId).filter(Boolean));
@@ -415,6 +418,7 @@ export async function getPlatformAnalytics(): Promise<PlatformAnalytics> {
   const { data, error } = await supabase
     .from('orders')
     .select('client_name, client_phone, customer_name, customer_phone, fulfillment_type, order_type, delivery_city, delivery_settlement')
+    .eq('is_test_order', false)
     .order('created_at', { ascending: false })
     .limit(2000);
   if (error) throw error;
@@ -465,7 +469,7 @@ export async function getClientSignups(): Promise<ClientSignup[]> {
   if (signupsResult.error) throw signupsResult.error;
 
   const [profilesResult, clientOwnersResult, roleUsersResult, platformAdminsResult] = await Promise.all([
-    supabase.from('profiles').select('id, email, full_name, created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('profiles').select('id, email, full_name, created_at').eq('is_test', false).order('created_at', { ascending: false }).limit(100),
     supabase.from('clients').select('owner_user_id'),
     supabase.from('users').select('auth_user_id, role').not('auth_user_id', 'is', null),
     supabase.from('platform_admins').select('user_id')
@@ -554,6 +558,7 @@ export async function getPlatformUserDirectory(): Promise<PlatformUserDirectory>
   const { data, error } = await supabase
     .from('orders')
     .select('id, catalog_id, restaurant_id, client_name, client_phone, customer_name, customer_phone, delivery_city, delivery_settlement, total, total_amount, status, created_at, restaurants(name)')
+    .eq('is_test_order', false)
     .order('created_at', { ascending: false })
     .limit(2000);
   if (error) throw error;
@@ -874,6 +879,7 @@ export async function getPlatformContestTickets(contestId = 'all'): Promise<Plat
   const { data, error } = await supabase
     .from('orders')
     .select('id, client_name, client_phone, customer_name, customer_phone, delivery_city, delivery_settlement, total, total_amount, created_at, restaurants(name), order_items(quantity, dish_name_snapshot, title)')
+    .eq('is_test_order', false)
     .order('created_at', { ascending: false })
     .limit(500);
   if (error) return [];
