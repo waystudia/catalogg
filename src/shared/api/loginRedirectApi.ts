@@ -5,7 +5,7 @@ import {
   supabase
 } from '../supabase';
 import { copySupabaseSessionToScope, getSupabaseAuthScope } from '../supabaseAuthScope';
-import { loginClientAccount } from './clientAccountApi';
+import { loginClientAccount, loginCurrentAuthClientAccount } from './clientAccountApi';
 import { normalizeLoginPhone } from '../loginIdentifier';
 
 export type StaffLoginRole = 'restaurant' | 'driver';
@@ -199,7 +199,10 @@ export async function resolveUnifiedLogin(identifier: string, password: string) 
 
   try {
     const redirect = await resolveLoginRedirect(normalizedIdentifier, password);
-    if (redirect && redirect !== '/') return redirect;
+    if (redirect && redirect !== '/') {
+      if (redirect === '/profile') await loginCurrentAuthClientAccount();
+      return redirect;
+    }
   } catch (error) {
     if (usesEmail || !isCredentialError(error)) throw error;
   }

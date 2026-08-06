@@ -116,6 +116,17 @@ export async function loginClientAccount(input: { phone: string; password: strin
   return session;
 }
 
+export async function loginCurrentAuthClientAccount() {
+  if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
+  const { data, error } = await supabase.rpc('login_current_auth_client_account');
+  if (error) throw new Error(getRpcErrorMessage(error));
+  const session = mapSession(data);
+  const token = (data as ClientAccountRpcRow | null)?.session_token;
+  if (!session || typeof token !== 'string') throw new Error('Не удалось открыть клиентскую сессию.');
+  saveClientSessionToken(token);
+  return session;
+}
+
 export async function restoreClientAccountSession() {
   const token = getStoredClientSessionToken();
   if (!token || !supabase) return null;

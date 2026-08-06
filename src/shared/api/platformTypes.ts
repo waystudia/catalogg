@@ -43,6 +43,7 @@ export type PlatformClient = {
   businessType: BusinessType;
   logoUrl: string;
   createdAt: string;
+  isTest?: boolean;
 };
 
 export type ClientSignup = {

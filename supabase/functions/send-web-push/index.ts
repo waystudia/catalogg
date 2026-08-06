@@ -130,7 +130,7 @@ Deno.serve(async (request) => {
       const deliveryId = asId(record.id);
       const orderId = asId(record.order_id);
       const [{ data: order }, { data: delivery }] = await Promise.all([
-        admin.from('orders').select('catalog_id, restaurant_id, id, delivery_city, delivery_settlement').eq('id', orderId).maybeSingle(),
+        admin.from('orders').select('catalog_id, restaurant_id, id, delivery_city, delivery_settlement, is_test_order').eq('id', orderId).maybeSingle(),
         admin.from('deliveries').select('driver_id, status, delivery_provider').eq('id', deliveryId).maybeSingle()
       ]);
       const catalogId = asId(order?.catalog_id);
@@ -151,7 +151,7 @@ Deno.serve(async (request) => {
       } else {
         const { data: onlineDrivers } = await admin
           .from('drivers')
-          .select('id, city_name, service_settlements, max_active_deliveries, is_premium')
+          .select('id, city_name, service_settlements, max_active_deliveries, is_premium, is_test')
           .eq('is_active', true)
           .eq('is_online', true);
         const onlineDriverRows = onlineDrivers ?? [];
@@ -187,6 +187,7 @@ Deno.serve(async (request) => {
         }
 
         const eligibleDrivers = onlineDriverRows
+          .filter((driver) => Boolean(driver.is_test) === Boolean(order?.is_test_order))
           .filter((driver) => driverServesDeliveryLocation(driver, order?.delivery_city, order?.delivery_settlement))
           .filter((driver) => (activeCounts.get(driver.id) ?? 0) < Number(driver.max_active_deliveries ?? 1))
           .filter((driver) => restaurantCourierIds === null || restaurantCourierIds.has(driver.id));
