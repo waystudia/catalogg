@@ -483,10 +483,26 @@ function ClientPlatformContent() {
   const queryClient = useQueryClient();
   const location = useLocation();
   const { slug } = useParams();
+  const replaceAddresses = useClientPlatformStore((state) => state.replaceAddresses);
 
   useEffect(() => subscribeClientPlatformSnapshotRealtime(() => {
     void queryClient.invalidateQueries({ queryKey: ['client-platform'] });
   }), [queryClient]);
+
+  useEffect(() => {
+    if (!hasStoredClientSession()) return;
+
+    let isCurrent = true;
+    void getCurrentClientAddresses()
+      .then((addresses) => {
+        if (isCurrent) replaceAddresses(addresses);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [replaceAddresses]);
 
   if (location.pathname.startsWith('/r/')) {
     return <RestaurantArea snapshot={snapshot} slug={slug} />;
@@ -2515,7 +2531,6 @@ function ProfilePage() {
   const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
-  const replaceAddresses = useClientPlatformStore((state) => state.replaceAddresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
   const [clientName, setClientName] = useState(profile.name);
   const [accountIdentifier, setAccountIdentifier] = useState(profile.phone);
@@ -2558,11 +2573,9 @@ function ProfilePage() {
         setClientName(session.name);
         setAccountIdentifier(session.phone);
         setClientMessage('Вы вошли в аккаунт');
-        const serverAddresses = await getCurrentClientAddresses().catch(() => []);
-        if (serverAddresses.length > 0) replaceAddresses(serverAddresses);
       }
     });
-  }, [replaceAddresses, saveProfile]);
+  }, [saveProfile]);
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2599,8 +2612,6 @@ function ProfilePage() {
             setClientPassword('');
             setClientMessage('Вы вошли в аккаунт');
             setAccountOpen(false);
-            const serverAddresses = await getCurrentClientAddresses().catch(() => []);
-            if (serverAddresses.length > 0) replaceAddresses(serverAddresses);
           }
         }
 
