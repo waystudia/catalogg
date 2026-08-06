@@ -3,6 +3,7 @@ import {
   getDriverDeliveryProgress,
   getDriverGrossEarning,
   getDriverNextAction,
+  preferFreshDriverLocation,
   splitDriverHomeOffers
 } from '../../src/features/driver/dashboardPresentation';
 
@@ -63,5 +64,37 @@ describe('driver dashboard presentation', () => {
 
   it.each(['waiting_courier', 'delivered', 'failed'] as const)('does not advance %s', (status) => {
     expect(getDriverNextAction(status)).toBeNull();
+  });
+
+  it('keeps the freshest phone position when a dashboard refresh returns stale coordinates', () => {
+    const serverLocation = {
+      lastLat: 43.31,
+      lastLng: 45.68,
+      lastLocationAt: '2026-08-06T10:40:00.000Z'
+    };
+    const currentPhoneLocation = {
+      lastLat: 43.318123,
+      lastLng: 45.698456,
+      lastLocationAt: '2026-08-06T10:43:00.000Z'
+    };
+
+    expect(preferFreshDriverLocation(serverLocation, currentPhoneLocation)).toEqual(currentPhoneLocation);
+    expect(preferFreshDriverLocation(currentPhoneLocation, serverLocation)).toEqual(currentPhoneLocation);
+    expect(preferFreshDriverLocation(serverLocation, null)).toEqual(serverLocation);
+    expect(preferFreshDriverLocation(serverLocation, {
+      ...currentPhoneLocation,
+      lastLocationAt: serverLocation.lastLocationAt
+    })).toEqual({
+      ...currentPhoneLocation,
+      lastLocationAt: serverLocation.lastLocationAt
+    });
+    expect(preferFreshDriverLocation(
+      { ...serverLocation, lastLocationAt: null },
+      currentPhoneLocation
+    )).toEqual(currentPhoneLocation);
+    expect(preferFreshDriverLocation(
+      currentPhoneLocation,
+      { ...serverLocation, lastLocationAt: null }
+    )).toEqual(currentPhoneLocation);
   });
 });

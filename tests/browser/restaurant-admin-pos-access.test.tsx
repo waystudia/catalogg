@@ -56,7 +56,7 @@ test('enabled restaurant opens POS from the dashboard quick action under orders 
 });
 
 test('POS uses a compact restaurant header and settings expose the hall editor', async () => {
-  await page.viewport(1280, 900);
+  await page.viewport(1011, 628);
   const onOpenSeating = vi.fn();
   const screen = await render(
     <QueryClientProvider client={queryClient}>
@@ -86,8 +86,16 @@ test('POS uses a compact restaurant header and settings expose the hall editor',
 
   const panelLabel = screen.getByText('Панель: ресторан', { exact: true }).element();
   const hero = panelLabel.closest<HTMLElement>('.restaurant-admin__hero');
+  const admin = panelLabel.closest<HTMLElement>('.restaurant-admin');
+  const logoImage = screen.getByRole('img', { name: 'WayYaam' }).element();
+  const sidebar = logoImage.closest<HTMLElement>('.restaurant-admin-sidebar');
   expect(hero).not.toBeNull();
   expect(hero!.getBoundingClientRect().height).toBeLessThanOrEqual(110);
+  expect(admin).not.toBeNull();
+  expect(sidebar).not.toBeNull();
+  expect(admin!.scrollHeight).toBeLessThanOrEqual(628);
+  expect(window.getComputedStyle(admin!).overflow).toBe('hidden');
+  expect(logoImage.getBoundingClientRect().right).toBeLessThanOrEqual(sidebar!.getBoundingClientRect().right - 8);
 
   await screen.getByRole('button', { name: 'Настройки' }).click();
   await screen.getByRole('button', { name: 'Зал' }).click();

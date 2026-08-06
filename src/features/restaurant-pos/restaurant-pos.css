@@ -1,5 +1,6 @@
 .restaurant-pos-page {
   min-width: 0;
+  min-height: 0;
 }
 
 .restaurant-pos-page__header {
@@ -39,7 +40,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
   gap: 10px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .restaurant-pos-catalog,
@@ -347,7 +348,9 @@
   position: sticky;
   top: 78px;
   max-height: calc(100vh - 100px);
-  overflow-y: auto;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   padding: 9px;
 }
 
@@ -366,6 +369,17 @@
   align-items: center;
   padding-bottom: 8px;
   border-bottom: 1px solid #eaecf0;
+}
+
+.restaurant-pos-order__header-actions {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.restaurant-pos-order__header-total {
+  font-size: 16px;
+  white-space: nowrap;
 }
 
 .restaurant-pos-order h3,
@@ -412,6 +426,13 @@
   border-bottom: 1px solid #eaecf0;
 }
 
+.restaurant-pos-order__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .restaurant-pos-order__items > p {
   padding: 10px 4px;
   font-size: 11px;
@@ -424,12 +445,19 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
+  min-height: 36px;
 }
 
 .restaurant-pos-order__items article > div:first-child {
   min-width: 0;
   display: grid;
   gap: 3px;
+}
+
+.restaurant-pos-order__items article > div:first-child strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .restaurant-pos-order__items article small {
@@ -798,7 +826,70 @@
 
 @media (max-width: 1199px) {
   .restaurant-pos-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 280px);
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 320px);
+  }
+}
+
+@media (min-width: 901px) and (max-height: 760px) {
+  .restaurant-pos-page {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .restaurant-pos-page__header {
+    margin-bottom: 6px;
+  }
+
+  .restaurant-pos-page__header h2 {
+    font-size: 18px;
+  }
+
+  .restaurant-pos-layout,
+  .restaurant-pos-catalog,
+  .restaurant-pos-order {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .restaurant-pos-catalog {
+    overflow-y: auto;
+  }
+
+  .restaurant-pos-order {
+    position: static;
+    max-height: none;
+  }
+
+  .restaurant-pos-order__items {
+    gap: 2px;
+    padding: 5px 0;
+  }
+
+  .restaurant-pos-order__items article {
+    min-height: 34px;
+    gap: 6px;
+  }
+
+  .restaurant-pos-order__items article small {
+    font-size: 9px;
+  }
+
+  .restaurant-pos-order > header button,
+  .restaurant-pos-order__items article button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .restaurant-pos-customer,
+  .restaurant-pos-payment {
+    gap: 6px;
+    padding: 7px 0;
+  }
+
+  .restaurant-pos-order > footer {
+    padding-top: 7px;
+    background: #fff;
   }
 }
 

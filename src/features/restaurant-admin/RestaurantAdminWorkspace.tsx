@@ -284,7 +284,7 @@ export function RestaurantAdminWorkspace({
   }, [catalogSlug, orders, tab]);
 
   return (
-    <main className="restaurant-admin">
+    <main className={tab === 'pos' ? 'restaurant-admin restaurant-admin--pos' : 'restaurant-admin'}>
       <aside className="restaurant-admin-sidebar">
         <BrandLogo compact />
         <nav aria-label="Разделы админки">

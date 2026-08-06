@@ -108,6 +108,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
   const result = await supabase
     .from('drivers')
     .select('id, user_id, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, is_premium, status, rating, debt_amount, max_active_deliveries, created_at, users(email), cities(name)')
+    .neq('status', 'deleted')
     .order('created_at', { ascending: false });
 
   if (!result.error) {
@@ -117,6 +118,7 @@ export async function getDrivers(): Promise<PlatformDriver[]> {
   const fallback = await supabase
     .from('drivers')
     .select('id, user_id, email, name, phone, vehicle_info, car_number, photo_url, city_name, service_settlements, is_active, is_online, is_premium, status, rating, created_at')
+    .neq('status', 'deleted')
     .order('created_at', { ascending: false });
 
   if (fallback.error) throw fallback.error;

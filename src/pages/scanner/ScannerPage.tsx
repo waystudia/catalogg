@@ -109,7 +109,9 @@ export function ScannerPage({
         try {
           const confirmed = await confirmDeliveryPickupQr(parsed.deliveryId, parsed.token, slug);
           setScanState(confirmed ? 'success' : 'error');
-          setMessage(confirmed ? 'QR подтверждён. Водитель может забрать заказ' : 'QR не подходит');
+          setMessage(confirmed
+            ? 'QR подтверждён. Водитель может забрать заказ'
+            : 'QR не подходит: водитель ещё не отметил прибытие или код уже обновлён. Попросите водителя нажать «Я в ресторане» и открыть новый QR.');
           if (confirmed) {
             window.localStorage.setItem('waycatalog-driver-delivery-confirmed', `${parsed.deliveryId}:${Date.now()}`);
             const orderId = await getRestaurantOrderIdForDelivery(parsed.deliveryId);

@@ -119,7 +119,12 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(mapScreen, /Позвонить клиенту/);
     assert.match(mapScreen, /Написать клиенту/);
     assert.doesNotMatch(mapScreen, /getDriverNextAction/);
-    assert.doesNotMatch(mapScreen, /updateDeliveryProgress/);
+    assert.match(mapScreen, /updateDeliveryProgress\(delivery\.deliveryId, 'arrived_to_restaurant'\)/);
+    assert.match(mapScreen, /refreshDriverPickupQr\(delivery\.deliveryId\)/);
+    assert.match(mapScreen, /driver-map-sheet__arrival/);
+    assert.match(mapScreen, /target="_blank"/);
+    assert.match(mapScreen, /activeLeg === 'restaurant'/);
+    assert.match(mapScreen, /activeLeg === 'client'/);
     assert.match(driverCss, /\.driver-phone--map\s*\{[\s\S]*height:\s*100dvh/);
     assert.match(driverCss, /\.driver-map-sheet/);
     assert.match(driverCss, /height:\s*28dvh/);

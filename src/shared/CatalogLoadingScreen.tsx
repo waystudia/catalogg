@@ -17,7 +17,7 @@ export function CatalogLoadingScreen() {
   return (
     <main className="catalog-loading-screen" role="status" aria-live="polite">
       <section className="catalog-loading-screen__content">
-        <img src={`${import.meta.env.BASE_URL}assets/logo/waycatalog-icon.svg`} alt="" />
+        <img src={`${import.meta.env.BASE_URL}assets/logo/wayyaam-icon-192.png`} alt="" />
         <strong>WayYaam</strong>
         <span>Загрузка каталога</span>
         <div className="catalog-loading-screen__track" aria-hidden="true">

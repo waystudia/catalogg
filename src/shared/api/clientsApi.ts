@@ -464,15 +464,24 @@ export async function getClientSignups(): Promise<ClientSignup[]> {
 
   if (signupsResult.error) throw signupsResult.error;
 
-  const profilesResult = await supabase
-    .from('profiles')
-    .select('id, email, full_name, created_at')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const [profilesResult, clientOwnersResult, roleUsersResult, platformAdminsResult] = await Promise.all([
+    supabase.from('profiles').select('id, email, full_name, created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('clients').select('owner_user_id'),
+    supabase.from('users').select('auth_user_id, role').not('auth_user_id', 'is', null),
+    supabase.from('platform_admins').select('user_id')
+  ]);
   const signups = ((signupsResult.data ?? []) as ClientSignupRow[]).map(mapClientSignup);
-  const profileSignups = profilesResult.error
-    ? []
-    : ((profilesResult.data ?? []) as ProfileSignupRow[]).map(mapProfileSignup);
+  const excludedProfileIds = new Set<string>([
+    ...((clientOwnersResult.data ?? []) as Array<{ owner_user_id: string | null }>).map((row) => row.owner_user_id).filter((id): id is string => Boolean(id)),
+    ...((roleUsersResult.data ?? []) as Array<{ auth_user_id: string | null; role: string | null }>)
+      .filter((row) => row.role !== 'client')
+      .map((row) => row.auth_user_id)
+      .filter((id): id is string => Boolean(id)),
+    ...((platformAdminsResult.data ?? []) as Array<{ user_id: string | null }>).map((row) => row.user_id).filter((id): id is string => Boolean(id))
+  ]);
+  const profileSignups = profilesResult.error ? [] : ((profilesResult.data ?? []) as ProfileSignupRow[])
+    .filter((profile) => !excludedProfileIds.has(profile.id))
+    .map(mapProfileSignup);
   const seen = new Set(signups.map((signup) => signup.phone || signup.name));
 
   return [
