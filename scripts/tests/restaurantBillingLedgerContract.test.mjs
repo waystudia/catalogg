@@ -22,6 +22,12 @@ test('courier type is relationship-specific and existing links remain unclassifi
   assert.match(migrationSql, /courier_type is null[\s\S]*courier_type_required/);
 });
 
+test('courier RPC return types are replaced safely on an already-running production schema', () => {
+  const dropList = migrationSql.indexOf('drop function if exists public.get_restaurant_couriers_for_catalog(uuid)');
+  const createList = migrationSql.indexOf('create or replace function public.get_restaurant_couriers_for_catalog');
+  assert.ok(dropList >= 0 && dropList < createList, 'drop the old five-column RPC before creating the six-column version');
+});
+
 test('ledger is append-only, RLS-protected and idempotent per business event', () => {
   assert.match(migrationSql, /create table if not exists public\.billing_ledger_entries/);
   assert.match(migrationSql, /event_key text not null unique/);

@@ -90,6 +90,10 @@ drop trigger if exists earnings_normalize_restaurant_courier on public.earnings;
 create trigger earnings_normalize_restaurant_courier before insert or update on public.earnings
 for each row execute function public.normalize_restaurant_courier_earning();
 
+-- PostgreSQL cannot replace a RETURNS TABLE function when its OUT columns change.
+-- Remove the legacy five-column RPCs before publishing the classified six-column contract.
+drop function if exists public.link_restaurant_courier_by_email(uuid, text);
+drop function if exists public.get_restaurant_couriers_for_catalog(uuid);
 create or replace function public.get_restaurant_couriers_for_catalog(target_catalog_id uuid)
 returns table (driver_id uuid, driver_name text, driver_email text, is_primary boolean, priority smallint, courier_type text)
 language plpgsql stable security definer set search_path = public as $$
