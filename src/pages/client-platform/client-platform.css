@@ -2136,6 +2136,10 @@
   background: #ffffff;
 }
 
+.profile-login-methods {
+  margin-top: 2px;
+}
+
 .form-error,
 .form-success,
 .form-muted {

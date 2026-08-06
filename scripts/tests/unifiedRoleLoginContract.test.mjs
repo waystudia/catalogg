@@ -15,7 +15,8 @@ test('all role entry points use the shared phone-or-email login page', async () 
 
   assert.match(loginPage, /resolveUnifiedLogin\(identifier, password\)/);
   assert.match(loginPage, /'phone' \| 'email'/);
-  assert.match(loginPage, /Клиенты · рестораны · водители · суперадмин/);
+  assert.match(loginPage, /Клиенты · рестораны · водители/);
+  assert.doesNotMatch(loginPage, /Клиенты · рестораны · водители · суперадмин/);
   assert.doesNotMatch(app, /<LoginModal/);
   assert.match(catalogAdmin, /function CatalogLogin\(\)[\s\S]*<Navigate to="\/login" replace \/>/);
   assert.match(platformAdmin, /function PlatformLoginState\(\)[\s\S]*<Navigate to="\/login" replace \/>/);

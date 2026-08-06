@@ -24,8 +24,9 @@ describe('driver login from the client profile', () => {
     assert.match(redirect, /Сервис профилей временно не отвечает/);
     assert.match(redirect, /PGRST202/i);
     assert.match(redirect, /expectedRole/);
-    assert.match(profile, /\/login\?returnTo=/);
-    assert.match(profile, /Все типы аккаунтов входят через одну защищённую панель/);
+    assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+    assert.match(profile, /aria-label="Способ входа"/);
+    assert.doesNotMatch(profile, /Открыть единый вход/);
     assert.doesNotMatch(profile, /profile-role-grid/);
     assert.doesNotMatch(profile, /Войти как (?:клиент|ресторан|водитель)/);
     assert.doesNotMatch(profile, /Аккаунт водителя создаёт и выдаёт супер-админ/);

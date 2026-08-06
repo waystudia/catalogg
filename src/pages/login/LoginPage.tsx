@@ -47,7 +47,7 @@ export function LoginPage() {
       <form className="login-page__card" onSubmit={submit}>
         <span><LockKeyhole /></span>
         <h1>Единый вход WayYaam</h1>
-        <p>Клиенты · рестораны · водители · суперадмин</p>
+        <p>Клиенты · рестораны · водители</p>
         <div className="login-page__methods" aria-label="Способ входа">
           <button
             className={method === 'phone' ? 'is-active' : ''}

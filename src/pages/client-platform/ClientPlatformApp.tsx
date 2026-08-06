@@ -88,6 +88,7 @@ import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
+import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
@@ -102,7 +103,7 @@ import {
   normalizeDeliveryCoordinates,
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
-import { clearPwaResumePath } from '../../shared/pwaSession';
+import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
 import {
   installGuideDismissedUntilKey,
   resolveInstallGuideDevice,
@@ -2520,6 +2521,7 @@ function ProfilePage() {
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
     clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
   );
+  const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
   const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
@@ -2557,7 +2559,48 @@ function ProfilePage() {
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (clientAuthMode === 'login') {
-      navigate(`/login?returnTo=${encodeURIComponent(clientReturnTo)}`);
+      const identifier = accountIdentifier.trim();
+      setClientError('');
+      setClientMessage('');
+      if (!identifier || !clientPassword) {
+        setClientError('Введите телефон или почту и пароль.');
+        return;
+      }
+
+      setIsSavingClient(true);
+      try {
+        const redirect = await resolveUnifiedLogin(identifier, clientPassword);
+        if (!redirect) {
+          setClientError('Неверный телефон, email или пароль.');
+          return;
+        }
+
+        const targetPath = redirect === '/admin'
+          ? '/admin/clients'
+          : redirect === '/profile'
+            ? clientReturnTo
+            : redirect;
+
+        if (redirect === '/profile') {
+          const session = await restoreClientAccountSession();
+          if (session) {
+            setClientSession(session);
+            saveProfile({ name: session.name, phone: session.phone });
+            setClientName(session.name);
+            setAccountIdentifier(session.phone);
+            setClientPassword('');
+            setClientMessage('Вы вошли в аккаунт');
+            setAccountOpen(false);
+          }
+        }
+
+        rememberPwaResumePath(targetPath);
+        navigate(targetPath, { replace: true });
+      } catch (error) {
+        setClientError(error instanceof Error ? error.message : 'Не удалось войти.');
+      } finally {
+        setIsSavingClient(false);
+      }
       return;
     }
     const identifier = accountIdentifier.trim();
@@ -2695,6 +2738,56 @@ function ProfilePage() {
                 />
               </label>
             )}
+            {clientAuthMode === 'login' && (
+              <>
+                <div className="segment-control profile-login-methods" aria-label="Способ входа">
+                  <button
+                    className={loginMethod === 'phone' ? 'is-active' : ''}
+                    type="button"
+                    onClick={() => {
+                      setLoginMethod('phone');
+                      setAccountIdentifier('');
+                      setClientError('');
+                    }}
+                  >
+                    Телефон
+                  </button>
+                  <button
+                    className={loginMethod === 'email' ? 'is-active' : ''}
+                    type="button"
+                    onClick={() => {
+                      setLoginMethod('email');
+                      setAccountIdentifier('');
+                      setClientError('');
+                    }}
+                  >
+                    Почта
+                  </button>
+                </div>
+                <label className="field-label">
+                  <span>{loginMethod === 'phone' ? 'Телефон' : 'Email'}</span>
+                  <input
+                    value={accountIdentifier}
+                    onChange={(event) => setAccountIdentifier(event.target.value)}
+                    type={loginMethod === 'email' ? 'email' : 'tel'}
+                    inputMode={loginMethod === 'email' ? 'email' : 'tel'}
+                    autoComplete={loginMethod === 'email' ? 'email' : 'tel'}
+                    placeholder={loginMethod === 'email' ? 'name@example.ru' : '+7 928 000-00-00'}
+                    required
+                  />
+                </label>
+                <label className="field-label">
+                  <span>Пароль</span>
+                  <input
+                    value={clientPassword}
+                    onChange={(event) => setClientPassword(event.target.value)}
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+              </>
+            )}
             {clientAuthMode === 'register' && (
               <>
                 <label className="field-label">
@@ -2742,12 +2835,10 @@ function ProfilePage() {
             {clientError && <small className="form-error">{clientError}</small>}
             {clientMessage && <small className="form-success">{clientMessage}</small>}
             {clientAuthMode === 'login' && (
-              <>
-                <small className="form-muted">Все типы аккаунтов входят через одну защищённую панель.</small>
-                <Link className="wide-action" to={`/login?returnTo=${encodeURIComponent(clientReturnTo)}`}>
-                  <UserRoundCheck /> Открыть единый вход
-                </Link>
-              </>
+              <button className="wide-action" type="submit" disabled={isSavingClient}>
+                <UserRoundCheck />
+                {isSavingClient ? 'Входим...' : 'Войти'}
+              </button>
             )}
             {clientAuthMode === 'register' && (
               <button className="wide-action" type="submit" disabled={isSavingClient}>

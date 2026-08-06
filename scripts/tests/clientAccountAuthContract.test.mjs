@@ -23,11 +23,14 @@ test('client checkout can create a real account session without leaving checkout
   assert.match(restaurantAppSource, /routeSection === 'checkout'/);
 });
 
-test('client profile keeps registration and sends login through the unified panel', () => {
+test('client profile keeps registration and embeds the unified login panel', () => {
   assert.match(appSource, /registerClientAccount/);
   assert.match(appSource, /type="password"/);
   assert.match(appSource, /Зарегистрироваться/);
-  assert.match(appSource, /Открыть единый вход/);
+  assert.match(appSource, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+  assert.match(appSource, /aria-label="Способ входа"/);
+  assert.match(appSource, /loginMethod === 'email'/);
+  assert.doesNotMatch(appSource, /Открыть единый вход/);
   assert.match(loginPageSource, /resolveUnifiedLogin/);
   assert.match(loginRedirectSource, /loginClientAccount/);
   assert.match(appSource, /Аккаунт защищён паролем/);

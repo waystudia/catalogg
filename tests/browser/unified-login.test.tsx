@@ -13,7 +13,7 @@ test('one login panel serves every WayYaam account by phone or email', async () 
   await expect.element(screen.getByRole('heading', { name: 'Единый вход WayYaam' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Телефон' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Почта' })).toBeVisible();
-  await expect.element(screen.getByText('Клиенты · рестораны · водители · суперадмин')).toBeVisible();
+  await expect.element(screen.getByText('Клиенты · рестораны · водители')).toBeVisible();
 
   await screen.getByRole('button', { name: 'Почта' }).click();
   await expect.element(screen.getByLabelText('Email')).toBeVisible();
