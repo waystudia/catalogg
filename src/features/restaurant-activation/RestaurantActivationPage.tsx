@@ -1,4 +1,5 @@
 import {
+  ArrowLeft,
   Check,
   ChevronRight,
   Download,
@@ -85,6 +86,7 @@ export function RestaurantActivationPage({
   });
   const canRequestCode = Boolean(
     view?.bundleId &&
+    view.legalStatus === 'awaiting_acceptance' &&
     view.canAcceptLegalDocuments &&
     confirmationsComplete &&
     !requestId &&
@@ -93,9 +95,13 @@ export function RestaurantActivationPage({
 
   const details = useMemo(() => view ? [
     ['Ресторан', view.restaurant.name],
+    ['Форма организации', view.restaurant.organizationType],
     ['Юридическое наименование', view.restaurant.legalName],
     ['ИНН', view.restaurant.inn],
-    ['Адрес', view.restaurant.actualAddress],
+    ['ОГРН / ОГРНИП', view.restaurant.ogrn],
+    ['Юридический адрес', view.restaurant.legalAddress],
+    ['Фактический адрес', view.restaurant.actualAddress],
+    ['Руководитель', view.restaurant.directorFullName],
     ['Представитель', view.restaurant.representativeFullName],
     ['Основание полномочий', view.restaurant.authorityBasis],
     ['Телефон', view.restaurant.phone],
@@ -170,7 +176,10 @@ export function RestaurantActivationPage({
     <main className="restaurant-activation-page">
       <header className="restaurant-activation-header">
         <BrandLogo />
-        <button type="button" onClick={() => void service.signOut()}><LogOut /> Выйти</button>
+        <div className="restaurant-activation-header__actions">
+          <a aria-label="Вернуться в кабинет" href={`#/${view.catalogSlug}/dashboard`}><ArrowLeft /><span>В кабинет</span></a>
+          <button type="button" onClick={() => void service.signOut()}><LogOut /> Выйти</button>
+        </div>
       </header>
 
       <section className="restaurant-activation-hero">
@@ -193,9 +202,12 @@ export function RestaurantActivationPage({
         </section>
       ) : (
         <div className="restaurant-activation-layout">
+          {view.legalStatus !== 'awaiting_acceptance' && (
+            <div className="restaurant-activation-notice">Супер-администратор ещё настраивает реквизиты, тариф или пакет оферты. Вы можете проверить данные, но запрос кода откроется после завершения настройки.</div>
+          )}
           <section className="restaurant-activation-card">
             <div className="restaurant-activation-card__head">
-              <span>1</span><div><h2>Проверьте данные</h2><p>Значимые сведения останутся в снимке акцепта.</p></div>
+              <span>1</span><div><h2>Проверьте данные</h2><p>Реквизиты и индивидуальный тариф настроены для вашего ресторана и останутся в снимке акцепта.</p></div>
             </div>
             <dl className="restaurant-activation-details">
               {details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{valueOrDash(value)}</dd></div>)}
@@ -204,6 +216,13 @@ export function RestaurantActivationPage({
               <div className="restaurant-activation-tariff">
                 <strong>{view.tariff.name} · версия {view.tariff.version}</strong>
                 <span>{view.tariff.restaurantCommissionAmount} ₽ с заказа · {view.tariff.driverCommissionAmount} ₽ с доставки</span>
+                {(view.tariff.commissionRules || view.tariff.freePeriodTerms || view.tariff.individualTerms) && (
+                  <ul>
+                    {view.tariff.commissionRules && <li>{view.tariff.commissionRules}</li>}
+                    {view.tariff.freePeriodTerms && <li>{view.tariff.freePeriodTerms}</li>}
+                    {view.tariff.individualTerms && <li>{view.tariff.individualTerms}</li>}
+                  </ul>
+                )}
               </div>
             )}
           </section>

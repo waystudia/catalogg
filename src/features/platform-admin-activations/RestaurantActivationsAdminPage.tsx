@@ -5,6 +5,7 @@ import {
   type RestaurantActivationAdminRow,
   type RestaurantActivationAdminService
 } from './restaurantActivationAdminApi';
+import { RestaurantActivationSetupPage } from './RestaurantActivationSetupPage';
 import './restaurant-activations-admin.css';
 
 const statusLabels: Record<RestaurantActivationAdminRow['legalStatus'], string> = {
@@ -39,9 +40,12 @@ export function RestaurantActivationsAdminPage({
   const [rows, setRows] = useState<RestaurantActivationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | RestaurantActivationAdminRow['legalStatus']>('all');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [manualCode, setManualCode] = useState<{ code: string; restaurantName: string; expiresAt: string } | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(() => {
+    const match = window.location.hash.match(/^#\/admin\/activations\/([^/?]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,20 +68,9 @@ export function RestaurantActivationsAdminPage({
     [filter, rows]
   );
 
-  const finishSetup = async (row: RestaurantActivationAdminRow) => {
-    setMessage('');
-    setError('');
-    try {
-      const result = await service.finishSetup(row.clientId);
-      if (!result.ready) {
-        setMessage(`Настройка не завершена: ${result.missing.map((item) => missingLabels[item] ?? item).join('; ')}.`);
-        return;
-      }
-      setMessage(`${row.restaurantName}: отправлен на принятие договора.`);
-      await load();
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Не удалось завершить настройку.');
-    }
+  const openSetup = (row: RestaurantActivationAdminRow) => {
+    window.location.hash = `/admin/activations/${encodeURIComponent(row.clientId)}`;
+    setSelectedClientId(row.clientId);
   };
 
   const issueCode = async (row: RestaurantActivationAdminRow) => {
@@ -91,6 +84,20 @@ export function RestaurantActivationsAdminPage({
       setError(nextError instanceof Error ? nextError.message : 'Не удалось создать код.');
     }
   };
+
+  if (selectedClientId) {
+    return (
+      <RestaurantActivationSetupPage
+        clientId={selectedClientId}
+        service={service}
+        onBack={() => {
+          window.location.hash = '/admin/activations';
+          setSelectedClientId(null);
+          void load();
+        }}
+      />
+    );
+  }
 
   return (
     <main className="platform-page activation-admin-page">
@@ -117,7 +124,6 @@ export function RestaurantActivationsAdminPage({
 
       {loading && <div className="activation-admin-state">Загружаем рестораны...</div>}
       {error && <div className="activation-admin-message is-error" role="alert">{error}</div>}
-      {message && <div className="activation-admin-message">{message}</div>}
       {manualCode && (
         <section className="activation-admin-code" role="status">
           <ShieldAlert />
@@ -142,7 +148,7 @@ export function RestaurantActivationsAdminPage({
             )}
             <div className="activation-admin-actions">
               {row.legalStatus !== 'active' && (
-                <button type="button" onClick={() => void finishSetup(row)} aria-label={`Завершить настройку ${row.restaurantName}`}>Завершить настройку</button>
+                <button type="button" onClick={() => openSetup(row)} aria-label={`Завершить настройку ${row.restaurantName}`}>Завершить настройку</button>
               )}
               {row.pendingRequestId && (
                 <button type="button" className="is-primary" onClick={() => void issueCode(row)} aria-label={`Создать ручной код для ${row.restaurantName}`}>Создать ручной код</button>

@@ -15,9 +15,13 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
   memberRole: 'owner',
   restaurant: {
     name: 'Мангал',
+    organizationType: 'ИП',
     legalName: 'ИП Алиев Магомед Ахмедович',
     inn: '201234567890',
+    ogrn: '326200000000001',
+    legalAddress: 'г. Грозный, ул. Мира, 1',
     actualAddress: 'г. Грозный, ул. Примерная, 10',
+    directorFullName: 'Алиев Магомед Ахмедович',
     representativeFullName: 'Алиев Магомед Ахмедович',
     authorityBasis: 'Индивидуальный предприниматель',
     phone: '+7 928 000-00-00',
@@ -29,7 +33,10 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
     restaurantCommissionAmount: 30,
     driverCommissionAmount: 30,
     version: '1.0',
-    effectiveFrom: '2026-08-05'
+    effectiveFrom: '2026-08-05',
+    commissionRules: '30 ₽ за принятый заказ',
+    freePeriodTerms: null,
+    individualTerms: 'Первые 14 дней без абонентской платы'
   },
   bundleId: 'bundle-1',
   bundleVersion: '1.0',
@@ -74,6 +81,9 @@ test('owner reviews separate documents and confirmations before activating with 
   await expect.element(screen.getByRole('heading', { name: 'Активация ресторана в WayYaam' })).toBeVisible();
   await expect.element(screen.getByText('1 из 5')).toBeVisible();
   await expect.element(screen.getByText('ИП Алиев Магомед Ахмедович')).toBeVisible();
+  await expect.element(screen.getByText('326200000000001')).toBeVisible();
+  await expect.element(screen.getByText('Первые 14 дней без абонентской платы')).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: 'Вернуться в кабинет' })).toHaveAttribute('href', '#/mangal/dashboard');
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
 
   const checkboxes = screen.getByRole('checkbox');
@@ -122,6 +132,14 @@ test('restaurant remains blocked while the contract bundle has not been publishe
   const screen = await render(<RestaurantActivationPage service={service} />);
 
   await expect.element(screen.getByText(/пакет договора ещё не опубликован/i)).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
+});
+
+test('owner can review data but cannot request a code before the administrator sends the setup', async () => {
+  const service = activationService(activationView({ legalStatus: 'legacy_review_required' }));
+  const screen = await render(<RestaurantActivationPage service={service} />);
+
+  await expect.element(screen.getByText(/супер-администратор ещё настраивает реквизиты/i)).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
 });
 

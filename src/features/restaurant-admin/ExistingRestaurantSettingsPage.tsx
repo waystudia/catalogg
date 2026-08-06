@@ -25,6 +25,7 @@ import {
   SettingsHub
 } from '../restaurant-settings';
 import type { CatalogBackupPayload } from '../restaurant-settings/catalogAdminModel';
+import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
 
 export type ExistingRestaurantSettingsView =
   | 'home'
@@ -62,7 +63,9 @@ export function ExistingRestaurantSettingsPage({
   onSavePayments,
   onSaveDelivery,
   onImport,
-  onSignOut
+  onSignOut,
+  onActivate,
+  legalActivationStatus
 }: {
   initialView?: ExistingRestaurantSettingsView;
   catalogSlug: string;
@@ -85,6 +88,8 @@ export function ExistingRestaurantSettingsPage({
   onSaveDelivery: (settings: RestaurantDeliverySettings) => void;
   onImport: (payload: CatalogBackupPayload) => void;
   onSignOut: () => void;
+  onActivate?: () => void;
+  legalActivationStatus?: RestaurantLegalStatus | null;
 }) {
   const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
   const [catalogTab, setCatalogTab] = useState<SettingsCatalogTab>('categories');
@@ -109,6 +114,8 @@ export function ExistingRestaurantSettingsPage({
         onImport={() => setView('backup')}
         onDelivery={() => setView('delivery')}
         onLogout={onSignOut}
+        onActivate={onActivate}
+        activationStatus={legalActivationStatus}
       />
     );
   }

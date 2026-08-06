@@ -4,10 +4,12 @@ import {
   LogOut,
   Paintbrush,
   Armchair,
+  ShieldCheck,
   Tags,
   Truck,
   User
 } from 'lucide-react';
+import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
 
 export function SettingsHub({
   onProfile,
@@ -17,7 +19,9 @@ export function SettingsHub({
   onPayments,
   onImport,
   onDelivery,
-  onLogout
+  onLogout,
+  onActivate,
+  activationStatus
 }: {
   onProfile: () => void;
   onDesign: () => void;
@@ -27,10 +31,22 @@ export function SettingsHub({
   onImport: () => void;
   onDelivery: () => void;
   onLogout: () => void;
+  onActivate?: () => void;
+  activationStatus?: RestaurantLegalStatus | null;
 }) {
   return (
     <section className="admin-section-card restaurant-settings-hub">
       <h2>Настройки ресторана</h2>
+      {onActivate && activationStatus && activationStatus !== 'active' && (
+        <div className="restaurant-settings-activation">
+          <ShieldCheck />
+          <div>
+            <strong>Ресторан работает в тестовом режиме</strong>
+            <small>Проверьте меню и настройки, затем завершите юридическое подключение.</small>
+          </div>
+          <button type="button" onClick={onActivate}>Активировать ресторан</button>
+        </div>
+      )}
       <div className="restaurant-settings-tiles">
         <button type="button" onClick={onProfile}><User /><span>Профиль</span></button>
         <button type="button" onClick={onDesign}><Paintbrush /><span>Дизайн</span></button>

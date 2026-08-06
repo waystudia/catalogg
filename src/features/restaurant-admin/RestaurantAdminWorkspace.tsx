@@ -41,6 +41,7 @@ import {
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
 import type { RestaurantAdminModuleAccess } from '../platform-admin-modules/restaurantModuleAccess';
 import { DebtControlBanner } from '../restaurant-billing/DebtControlBanner';
+import { getCatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -126,6 +127,12 @@ export function RestaurantAdminWorkspace({
     queryKey: ['billing-debt-status', 'restaurant', catalogSlug],
     queryFn: getCurrentBillingDebtStatus,
     refetchInterval: 10_000,
+    retry: false
+  });
+  const { data: catalogAdminAccess = null } = useQuery({
+    queryKey: ['catalog-admin-access', catalogSlug],
+    queryFn: () => getCatalogAdminAccess(catalogSlug),
+    staleTime: 60_000,
     retry: false
   });
   const {
@@ -522,6 +529,8 @@ export function RestaurantAdminWorkspace({
                 onPayments={() => onOpenScreen('settings-payments')}
                 onImport={() => onOpenScreen('settings-backup')}
                 onDelivery={() => setSettingsView('delivery')}
+                onActivate={() => navigate('/restaurant/activation')}
+                activationStatus={catalogAdminAccess?.legalActivationStatus ?? null}
                 onLogout={() => {
                   if (confirmRoleSignOut('заведения')) void logout();
                 }}

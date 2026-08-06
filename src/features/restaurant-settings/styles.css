@@ -122,6 +122,57 @@
   font-size: 18px;
 }
 
+.restaurant-settings-activation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0;
+  border: 1px solid #d9d1ff;
+  border-radius: 18px;
+  padding: 14px;
+  background: #f6f3ff;
+}
+
+.restaurant-settings-activation > svg {
+  width: 24px;
+  height: 24px;
+  color: #5b3df4;
+}
+
+.restaurant-settings-activation > div {
+  display: grid;
+  gap: 3px;
+}
+
+.restaurant-settings-activation small {
+  color: #667085;
+  line-height: 1.35;
+}
+
+.restaurant-settings-activation button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 13px;
+  padding: 0 16px;
+  background: #5b3df4;
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .restaurant-settings-activation {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .restaurant-settings-activation button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
 .restaurant-settings-tiles,
 .delivery-settings-tiles {
   display: grid;

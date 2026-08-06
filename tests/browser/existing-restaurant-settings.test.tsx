@@ -2,9 +2,41 @@ import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { cabins, categories, products, restaurant, themeSettings } from '../../src/data/catalog';
 import { ExistingRestaurantSettingsPage } from '../../src/features/restaurant-admin/ExistingRestaurantSettingsPage';
-import { defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
+import { SettingsHub, defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS } from '../../src/shared/photoQuality';
+
+const settingsHubCallbacks = () => ({
+  onProfile: vi.fn(),
+  onDesign: vi.fn(),
+  onCategories: vi.fn(),
+  onSeating: vi.fn(),
+  onPayments: vi.fn(),
+  onImport: vi.fn(),
+  onDelivery: vi.fn(),
+  onLogout: vi.fn(),
+  onActivate: vi.fn()
+});
+
+test('restaurant owner starts activation from settings after testing the cabinet', async () => {
+  const callbacks = settingsHubCallbacks();
+  const screen = await render(
+    <SettingsHub {...callbacks} activationStatus="legacy_review_required" />
+  );
+
+  await expect.element(screen.getByText(/тестовом режиме/i)).toBeVisible();
+  await screen.getByRole('button', { name: 'Активировать ресторан' }).click();
+  expect(callbacks.onActivate).toHaveBeenCalledOnce();
+});
+
+test('active restaurant does not see a repeated activation action', async () => {
+  const callbacks = settingsHubCallbacks();
+  const screen = await render(
+    <SettingsHub {...callbacks} activationStatus="active" />
+  );
+
+  await expect.element(screen.getByRole('button', { name: 'Активировать ресторан' })).not.toBeInTheDocument();
+});
 
 test('current admin reuses the existing settings without a second login', async () => {
   const screen = await render(

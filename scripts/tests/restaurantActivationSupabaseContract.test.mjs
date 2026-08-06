@@ -10,6 +10,20 @@ const migrationName = readdirSync(new URL('../../supabase/migrations/', import.m
 const migration = migrationName
   ? readFileSync(new URL(`../../supabase/migrations/${migrationName}`, import.meta.url), 'utf8')
   : '';
+const demoEntryMigrationName = readdirSync(new URL('../../supabase/migrations/', import.meta.url))
+  .filter((name) => name.endsWith('_restaurant_demo_before_activation.sql'))
+  .sort()
+  .at(-1);
+const demoEntryMigration = demoEntryMigrationName
+  ? readFileSync(new URL(`../../supabase/migrations/${demoEntryMigrationName}`, import.meta.url), 'utf8')
+  : '';
+const adminSetupMigrationName = readdirSync(new URL('../../supabase/migrations/', import.meta.url))
+  .filter((name) => name.endsWith('_admin_restaurant_activation_setup.sql'))
+  .sort()
+  .at(-1);
+const adminSetupMigration = adminSetupMigrationName
+  ? readFileSync(new URL(`../../supabase/migrations/${adminSetupMigrationName}`, import.meta.url), 'utf8')
+  : '';
 const createClientFunction = readFileSync(
   new URL('../../supabase/functions/create-client/index.ts', import.meta.url),
   'utf8'
@@ -25,6 +39,14 @@ const catalogAdminSource = readFileSync(
 );
 const catalogAdminApiSource = readFileSync(
   new URL('../../src/shared/api/catalogAdminApi.ts', import.meta.url),
+  'utf8'
+);
+const settingsHubSource = readFileSync(
+  new URL('../../src/features/restaurant-settings/SettingsHub.tsx', import.meta.url),
+  'utf8'
+);
+const restaurantWorkspaceSource = readFileSync(
+  new URL('../../src/features/restaurant-admin/RestaurantAdminWorkspace.tsx', import.meta.url),
   'utf8'
 );
 
@@ -97,13 +119,50 @@ test('every public order insertion and public catalog read require active legal 
   assert.match(migration, /create policy "catalogs public read published"[\s\S]*can_catalog_accept_real_orders/i);
 });
 
-test('new restaurants and both application shells enter the activation workflow', () => {
+test('new restaurants remain inactive until they complete the activation workflow', () => {
   assert.match(createClientFunction, /legal_activation_status:\s*'draft'/i);
   assert.match(createClientFunction, /nextCatalogStatus\s*=\s*'draft'/i);
-  assert.match(migration, /function public\.resolve_current_login_redirect\([\s\S]*\/restaurant\/activation/i);
   assert.match(mainSource, /path="\/restaurant\/activation"/i);
   assert.match(platformAdminSource, /Договоры и активации/i);
   assert.match(catalogAdminApiSource, /legalActivationStatus/i);
   assert.match(catalogAdminApiSource, /legal_activation_status/i);
-  assert.match(catalogAdminSource, /legalActivationStatus[\s\S]*restaurant\/activation/i);
+});
+
+test('restaurant owner enters the demo cabinet first and starts legal activation from settings', () => {
+  assert.ok(demoEntryMigrationName, 'demo-before-activation migration must exist');
+  const redirectFunction = demoEntryMigration.match(
+    /function public\.resolve_current_login_redirect\(\)[\s\S]*?revoke all on function public\.resolve_current_login_redirect/i
+  )?.[0] ?? '';
+
+  assert.match(redirectFunction, /return '\/' \|\| target_slug \|\| '\/dashboard'/i);
+  assert.doesNotMatch(redirectFunction, /restaurant\/activation/i);
+  assert.doesNotMatch(
+    catalogAdminSource,
+    /if\s*\(access\.legalActivationStatus\s*!==\s*'active'\)[\s\S]{0,200}<Navigate[^>]+restaurant\/activation/i
+  );
+  assert.match(settingsHubSource, /Активировать ресторан/i);
+  assert.match(restaurantWorkspaceSource, /getCatalogAdminAccess\(catalogSlug\)/i);
+  assert.match(restaurantWorkspaceSource, /navigate\('\/restaurant\/activation'\)/i);
+});
+
+test('super administrator edits restaurant-specific activation data before owner acceptance', () => {
+  assert.ok(adminSetupMigrationName, 'admin restaurant activation setup migration must exist');
+  for (const functionName of [
+    'get_admin_restaurant_activation_setup',
+    'save_admin_restaurant_activation_setup',
+    'get_current_restaurant_activation_profile_details'
+  ]) {
+    assert.match(adminSetupMigration, new RegExp(`function public\\.${functionName}\\(`, 'i'));
+  }
+  assert.match(adminSetupMigration, /public\.is_platform_admin\(\)/i);
+  assert.match(
+    adminSetupMigration,
+    /function public\.save_admin_restaurant_activation_setup\([\s\S]*?if auth\.uid\(\) is null or not public\.is_platform_admin\(\)/i
+  );
+  assert.match(adminSetupMigration, /insert into public\.restaurant_legal_profiles/i);
+  assert.match(adminSetupMigration, /insert into public\.restaurant_tariffs/i);
+  assert.match(adminSetupMigration, /update public\.catalogs[\s\S]*logo_url/i);
+  assert.match(adminSetupMigration, /restaurant\.activation\.setup_updated/i);
+  assert.match(adminSetupMigration, /current_restaurant_client_id\(\)/i);
+  assert.doesNotMatch(adminSetupMigration, /service_role|supabase_service_role_key/i);
 });

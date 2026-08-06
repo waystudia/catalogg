@@ -23,6 +23,7 @@ import {
   WalletCards
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
@@ -295,6 +296,7 @@ export function RestaurantAdminShell({
   onSignOut: () => void;
   consentModal?: React.ReactNode;
 }) {
+  const navigate = useNavigate();
   const [section, setSection] = useState<AdminSection>('home');
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
   const [catalogData, setCatalogData] = useState<CatalogData>({
@@ -843,6 +845,8 @@ export function RestaurantAdminShell({
               onSaveDelivery={saveExistingDelivery}
               onImport={importExistingSettings}
               onSignOut={onSignOut}
+              onActivate={() => navigate('/restaurant/activation')}
+              legalActivationStatus={access.legalActivationStatus}
             />
           )}
         </section>

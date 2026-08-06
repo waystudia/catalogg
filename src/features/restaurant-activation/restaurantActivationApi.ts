@@ -26,9 +26,13 @@ export type RestaurantActivationView = {
   memberRole: RestaurantMemberRole;
   restaurant: {
     name: string;
+    organizationType?: string | null;
     legalName: string | null;
     inn: string | null;
+    ogrn?: string | null;
+    legalAddress?: string | null;
     actualAddress: string | null;
+    directorFullName?: string | null;
     representativeFullName: string | null;
     authorityBasis: string | null;
     phone: string | null;
@@ -41,6 +45,9 @@ export type RestaurantActivationView = {
     driverCommissionAmount: number;
     version: string;
     effectiveFrom: string | null;
+    freePeriodTerms?: string | null;
+    commissionRules?: string | null;
+    individualTerms?: string | null;
   } | null;
   bundleId: string | null;
   bundleVersion: string | null;
@@ -105,12 +112,25 @@ type ActivationRpcRow = {
   pending_request_id?: string | null;
 };
 
+type ActivationProfileDetailsRpcRow = {
+  organization_type?: string | null;
+  ogrn?: string | null;
+  legal_address?: string | null;
+  director_full_name?: string | null;
+  free_period_terms?: string | null;
+  commission_rules?: string | null;
+  individual_terms?: string | null;
+};
+
 const requireSupabase = () => {
   if (!supabase) throw new Error('Подключение к WayYaam временно недоступно.');
   return supabase;
 };
 
-const mapActivationView = (row: ActivationRpcRow): RestaurantActivationView => ({
+const mapActivationView = (
+  row: ActivationRpcRow,
+  details: ActivationProfileDetailsRpcRow = {}
+): RestaurantActivationView => ({
   clientId: row.client_id,
   catalogId: row.catalog_id,
   catalogSlug: row.catalog_slug,
@@ -119,9 +139,13 @@ const mapActivationView = (row: ActivationRpcRow): RestaurantActivationView => (
   memberRole: row.member_role,
   restaurant: {
     name: row.restaurant?.name ?? '',
+    organizationType: details.organization_type ?? null,
     legalName: row.restaurant?.legal_name ?? null,
     inn: row.restaurant?.inn ?? null,
+    ogrn: details.ogrn ?? null,
+    legalAddress: details.legal_address ?? null,
     actualAddress: row.restaurant?.actual_address ?? null,
+    directorFullName: details.director_full_name ?? null,
     representativeFullName: row.restaurant?.representative_full_name ?? null,
     authorityBasis: row.restaurant?.authority_basis ?? null,
     phone: row.restaurant?.phone ?? null,
@@ -134,7 +158,10 @@ const mapActivationView = (row: ActivationRpcRow): RestaurantActivationView => (
         restaurantCommissionAmount: Number(row.tariff.restaurant_commission_amount ?? 0),
         driverCommissionAmount: Number(row.tariff.driver_commission_amount ?? 0),
         version: row.tariff.version ?? '',
-        effectiveFrom: row.tariff.effective_from ?? null
+        effectiveFrom: row.tariff.effective_from ?? null,
+        freePeriodTerms: details.free_period_terms ?? null,
+        commissionRules: details.commission_rules ?? null,
+        individualTerms: details.individual_terms ?? null
       }
     : null,
   bundleId: row.bundle_id ?? null,
@@ -159,10 +186,14 @@ const rpcError = (error: { message?: string } | null) => {
 export const restaurantActivationApi: RestaurantActivationService = {
   async loadCurrent() {
     const client = requireSupabase();
-    const { data, error } = await client.rpc('get_current_restaurant_activation');
+    const [{ data, error }, { data: details, error: detailsError }] = await Promise.all([
+      client.rpc('get_current_restaurant_activation'),
+      client.rpc('get_current_restaurant_activation_profile_details')
+    ]);
     rpcError(error);
+    rpcError(detailsError);
     if (!data) throw new Error('Данные ресторана для активации не найдены.');
-    return mapActivationView(data as ActivationRpcRow);
+    return mapActivationView(data as ActivationRpcRow, (details ?? {}) as ActivationProfileDetailsRpcRow);
   },
 
   async markDocumentOpened(documentId) {
