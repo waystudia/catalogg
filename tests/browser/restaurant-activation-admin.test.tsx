@@ -63,6 +63,7 @@ const adminSetup = (overrides: Partial<RestaurantActivationAdminSetup> = {}): Re
 const adminService = (rows = [adminRow()]): RestaurantActivationAdminService => ({
   list: vi.fn(async () => rows),
   loadSetup: vi.fn(async () => adminSetup()),
+  uploadLogo: vi.fn(async () => 'https://cdn.wayyaam.ru/restaurant-logos/mangal.webp'),
   saveSetup: vi.fn(async (_clientId, input) => adminSetup({
     logoUrl: input.logoUrl,
     profile: input.profile,
@@ -102,6 +103,7 @@ test('restaurant-specific legal details and tariff are saved before owner accept
   const screen = await render(<RestaurantActivationsAdminPage service={service} />);
 
   await screen.getByRole('button', { name: 'Завершить настройку Мангал' }).click();
+  await screen.getByLabelText('Форма организации').selectOptions('Самозанятый');
   await screen.getByLabelText('Юридическое наименование').fill('ООО «Мангал Грозный»');
   await screen.getByLabelText('ИНН').fill('2011000000');
   await screen.getByLabelText('Версия тарифа').fill('2.1-mangal');
@@ -109,9 +111,69 @@ test('restaurant-specific legal details and tariff are saved before owner accept
 
   await expect.element(screen.getByText('Данные ресторана сохранены. Владелец увидит их перед принятием оферты.')).toBeVisible();
   expect(service.saveSetup).toHaveBeenCalledWith('client-1', expect.objectContaining({
-    profile: expect.objectContaining({ legalName: 'ООО «Мангал Грозный»', inn: '2011000000' }),
+    profile: expect.objectContaining({
+      organizationType: 'Самозанятый',
+      legalName: 'ООО «Мангал Грозный»',
+      inn: '2011000000',
+      ogrn: '326200000000001',
+      deliveryModel: 'WayYaam и курьеры ресторана'
+    }),
     tariff: expect.objectContaining({ version: '2.1-mangal' })
   }));
+});
+
+test('super administrator uploads a restaurant logo from the device and sees its preview', async () => {
+  const service = adminService();
+  const screen = await render(<RestaurantActivationsAdminPage service={service} />);
+
+  await screen.getByRole('button', { name: 'Завершить настройку Мангал' }).click();
+  const file = new File(['restaurant-logo'], 'mangal.webp', { type: 'image/webp' });
+  const input = screen.getByLabelText('Выбрать логотип из медиатеки').element() as HTMLInputElement;
+  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+
+  await expect.element(screen.getByRole('img', { name: 'Логотип ресторана Мангал' })).toHaveAttribute(
+    'src',
+    'https://cdn.wayyaam.ru/restaurant-logos/mangal.webp'
+  );
+  expect(service.uploadLogo).toHaveBeenCalledWith('client-1', file);
+});
+
+test('activation form offers supported legal types and omits restaurant-controlled fields', async () => {
+  const service = adminService();
+  const screen = await render(<RestaurantActivationsAdminPage service={service} />);
+
+  await screen.getByRole('button', { name: 'Завершить настройку Мангал' }).click();
+  const organization = screen.getByLabelText('Форма организации').element() as HTMLSelectElement;
+
+  expect(Array.from(organization.options, (option) => option.textContent)).toEqual([
+    'Выберите форму',
+    'Самозанятый',
+    'ИП',
+    'ООО'
+  ]);
+  await expect.element(screen.getByLabelText('ИНН')).toBeVisible();
+  expect(screen.getByLabelText('ОГРН / ОГРНИП').query()).toBeNull();
+  expect(screen.getByLabelText('Модель доставки').query()).toBeNull();
+  expect(screen.getByLabelText('Логотип (URL)').query()).toBeNull();
+});
+
+test('failed logo upload keeps the existing logo and shows the error', async () => {
+  const service = adminService();
+  vi.mocked(service.uploadLogo).mockRejectedValueOnce(new Error('Файл слишком большой'));
+  const screen = await render(<RestaurantActivationsAdminPage service={service} />);
+
+  await screen.getByRole('button', { name: 'Завершить настройку Мангал' }).click();
+  const file = new File(['restaurant-logo'], 'mangal.webp', { type: 'image/webp' });
+  const input = screen.getByLabelText('Выбрать логотип из медиатеки').element() as HTMLInputElement;
+  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+
+  await expect.element(screen.getByRole('alert')).toHaveTextContent('Файл слишком большой');
+  await expect.element(screen.getByRole('img', { name: 'Логотип ресторана Мангал' })).toHaveAttribute(
+    'src',
+    '/assets/mangal-logo.png'
+  );
 });
 
 test('manual code is revealed to the super administrator only for an owner request', async () => {

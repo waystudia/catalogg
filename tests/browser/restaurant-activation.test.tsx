@@ -143,6 +143,16 @@ test('owner can review data but cannot request a code before the administrator s
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
 });
 
+test('an account without ownership sees a clear activation access message', async () => {
+  const service = activationService();
+  vi.mocked(service.loadCurrent).mockRejectedValueOnce(new Error('access_denied'));
+  const screen = await render(<RestaurantActivationPage service={service} />);
+
+  await expect.element(screen.getByRole('heading', { name: 'Активация недоступна' })).toBeVisible();
+  await expect.element(screen.getByText(/войдите под аккаунтом владельца этого ресторана/i)).toBeVisible();
+  await expect.element(screen.getByText('access_denied', { exact: true })).not.toBeInTheDocument();
+});
+
 test('a retry after a lost response reuses the same activation idempotency key', async () => {
   const service = activationService();
   vi.mocked(service.requestCode)

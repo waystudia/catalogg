@@ -29,6 +29,7 @@ const valueOrDash = (value: string | number | null | undefined) =>
   value === null || value === undefined || value === '' ? 'Не указано' : String(value);
 
 const activationErrorMessages: Record<string, string> = {
+  access_denied: 'Войдите под аккаунтом владельца этого ресторана, чтобы продолжить активацию.',
   invalid_code: 'Код неверный. Проверьте цифры и попробуйте ещё раз.',
   code_locked: 'Превышено число попыток. Ввод временно заблокирован.',
   code_expired: 'Срок действия кода истёк. Запросите новый код через супер-администратора.',
@@ -67,7 +68,8 @@ export function RestaurantActivationPage({
       },
       (nextError: unknown) => {
         if (!active) return;
-        setError(nextError instanceof Error ? nextError.message : 'Не удалось загрузить активацию.');
+        const errorCode = nextError instanceof Error ? nextError.message : '';
+        setError(activationErrorMessages[errorCode] ?? (errorCode || 'Не удалось загрузить активацию.'));
         setLoading(false);
       }
     );

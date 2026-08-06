@@ -24,6 +24,13 @@ const adminSetupMigrationName = readdirSync(new URL('../../supabase/migrations/'
 const adminSetupMigration = adminSetupMigrationName
   ? readFileSync(new URL(`../../supabase/migrations/${adminSetupMigrationName}`, import.meta.url), 'utf8')
   : '';
+const dualRoleOwnerMigrationName = readdirSync(new URL('../../supabase/migrations/', import.meta.url))
+  .filter((name) => name.endsWith('_allow_dual_role_restaurant_owner_activation.sql'))
+  .sort()
+  .at(-1);
+const dualRoleOwnerMigration = dualRoleOwnerMigrationName
+  ? readFileSync(new URL(`../../supabase/migrations/${dualRoleOwnerMigrationName}`, import.meta.url), 'utf8')
+  : '';
 const createClientFunction = readFileSync(
   new URL('../../supabase/functions/create-client/index.ts', import.meta.url),
   'utf8'
@@ -165,4 +172,35 @@ test('super administrator edits restaurant-specific activation data before owner
   assert.match(adminSetupMigration, /restaurant\.activation\.setup_updated/i);
   assert.match(adminSetupMigration, /current_restaurant_client_id\(\)/i);
   assert.doesNotMatch(adminSetupMigration, /service_role|supabase_service_role_key/i);
+});
+
+test('a dual-role platform administrator may activate only a restaurant they actually own', () => {
+  assert.ok(dualRoleOwnerMigrationName, 'dual-role restaurant owner activation migration must exist');
+  for (const functionName of [
+    'get_current_restaurant_activation',
+    'get_current_restaurant_activation_profile_details',
+    'request_restaurant_activation_code',
+    'confirm_restaurant_activation'
+  ]) {
+    assert.match(dualRoleOwnerMigration, new RegExp(`function public\\.${functionName}\\(`, 'i'));
+  }
+
+  assert.match(dualRoleOwnerMigration, /owner_user_id\s*=\s*viewer_user_id/i);
+  assert.match(
+    dualRoleOwnerMigration,
+    /public\.is_platform_admin\(\)[\s\S]{0,180}owner_user_id\s*(?:<>|is distinct from)\s*viewer_user_id/i
+  );
+  assert.match(dualRoleOwnerMigration, /legal_acceptance_permission_required/i);
+  assert.match(dualRoleOwnerMigration, /where id = target_request_id and user_id = viewer_user_id/i);
+  assert.doesNotMatch(dualRoleOwnerMigration, /service_role|supabase_service_role_key/i);
+
+  for (const signature of [
+    'get_current_restaurant_activation\\(\\)',
+    'get_current_restaurant_activation_profile_details\\(\\)',
+    'request_restaurant_activation_code\\(uuid, jsonb, uuid\\[\\], jsonb, uuid\\)',
+    'confirm_restaurant_activation\\(uuid, text\\)'
+  ]) {
+    assert.match(dualRoleOwnerMigration, new RegExp(`revoke all on function public\\.${signature} from public, anon`, 'i'));
+    assert.match(dualRoleOwnerMigration, new RegExp(`grant execute on function public\\.${signature} to authenticated`, 'i'));
+  }
 });
