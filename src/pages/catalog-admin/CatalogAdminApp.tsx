@@ -11,7 +11,7 @@ import {
 } from '../../shared/api/catalogAdminApi';
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
-import { legalDocuments } from '../../shared/legalDocuments';
+import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
 import './catalog-admin.css';
 
@@ -201,7 +201,7 @@ function ConsentModal({
           <p><a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">Открыть оферту для ресторанов</a></p>
           <p><a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">Открыть согласие представителя ресторана</a></p>
           <p><a href={legalDocuments.policy} target="_blank" rel="noreferrer">Открыть политику обработки персональных данных</a></p>
-          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Подтверждение относится к редакции 1.0 от 31 июля 2026 года.</p>
+          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Оферта для ресторанов представлена в редакции {legalDocumentReleases.restaurant_offer.version} от 6 августа 2026 года.</p>
         </div>
 
         <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>

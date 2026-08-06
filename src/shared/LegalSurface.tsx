@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { legalDocuments, LEGAL_VERSION } from './legalDocuments';
+import { legalDocumentReleases, legalDocuments } from './legalDocuments';
 
-const COOKIE_CHOICE_KEY = `wayyaam:cookie-choice:${LEGAL_VERSION}`;
+const COOKIE_POLICY_VERSION = legalDocumentReleases.cookie_policy.version;
+const COOKIE_CHOICE_KEY = `wayyaam:cookie-choice:${COOKIE_POLICY_VERSION}`;
 
 type CookieChoice = 'necessary' | 'analytics';
 
 const saveCookieChoice = (choice: CookieChoice) => {
-  window.localStorage.setItem(COOKIE_CHOICE_KEY, JSON.stringify({ choice, version: LEGAL_VERSION, decidedAt: new Date().toISOString() }));
+  window.localStorage.setItem(COOKIE_CHOICE_KEY, JSON.stringify({ choice, version: COOKIE_POLICY_VERSION, decidedAt: new Date().toISOString() }));
   window.dispatchEvent(new CustomEvent('wayyaam:cookie-choice', { detail: choice }));
 };
 
@@ -52,4 +53,3 @@ export function LegalSurface() {
     </>
   );
 }
-

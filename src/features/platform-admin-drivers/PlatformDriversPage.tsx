@@ -37,7 +37,7 @@ import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import type { CreateDriverResult, PlatformDriver, PlatformDriverActivity } from '../../shared/api/platformTypes';
 import { downloadCsv, downloadXlsx } from '../../shared/exportTable';
 import { copyText } from '../../shared/platformUrls';
-import { legalDocuments } from '../../shared/legalDocuments';
+import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import './platform-drivers.css';
 
 type DriverFilter = 'all' | 'premium' | 'online' | 'offline' | 'debt';
@@ -288,7 +288,7 @@ function DriverForm({
         {!driver && (
           <label className="legal-checkbox platform-driver-form__wide">
             <input type="checkbox" checked={consentConfirmed} onChange={(event) => setConsentConfirmed(event.target.checked)} required />
-            <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на данные и геолокацию</a>. На первом входе действие должно быть зафиксировано сервером.</span>
+            <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту редакции {legalDocumentReleases.driver_offer.version}</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на данные и геолокацию</a>. На первом входе действие должно быть зафиксировано сервером.</span>
           </label>
         )}
       </div>
