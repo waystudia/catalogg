@@ -70,6 +70,7 @@ test('every authenticated client route hydrates server-side saved addresses into
   assert.match(clientAccountApi, /from\('client_addresses'\)/);
   assert.match(clientAccountApi, /addressLine:\s*row\.address_line/);
   assert.match(clientPlatformApp, /function ClientPlatformContent\(\)[\s\S]*hasStoredClientSession\(\)/);
+  assert.match(clientPlatformApp, /persist\.onFinishHydration\(hydrateAddresses\)/);
   assert.match(clientPlatformApp, /getCurrentClientAddresses\(\)/);
   assert.match(clientPlatformApp, /replaceAddresses\(addresses\)/);
   assert.match(store, /replaceAddresses:\s*\(addresses\)\s*=>\s*set\(\{ addresses \}\)/);

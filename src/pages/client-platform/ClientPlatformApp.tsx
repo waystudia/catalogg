@@ -493,14 +493,23 @@ function ClientPlatformContent() {
     if (!hasStoredClientSession()) return;
 
     let isCurrent = true;
-    void getCurrentClientAddresses()
-      .then((addresses) => {
-        if (isCurrent) replaceAddresses(addresses);
-      })
-      .catch(() => undefined);
+    const hydrateAddresses = () => {
+      void getCurrentClientAddresses()
+        .then((addresses) => {
+          if (isCurrent) replaceAddresses(addresses);
+        })
+        .catch(() => undefined);
+    };
+    const isStoreHydrated = useClientPlatformStore.persist.hasHydrated();
+    const unsubscribe = isStoreHydrated
+      ? undefined
+      : useClientPlatformStore.persist.onFinishHydration(hydrateAddresses);
+
+    if (isStoreHydrated) hydrateAddresses();
 
     return () => {
       isCurrent = false;
+      unsubscribe?.();
     };
   }, [replaceAddresses]);
 
