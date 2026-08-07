@@ -3,6 +3,7 @@ dist
 .env
 .env.*
 !.env.example
+!.env.e2e.example
 supabase/.env
 supabase/.env.*
 !supabase/.env.example
@@ -20,3 +21,5 @@ vitest.stryker.config.d.ts
 vitest.stryker.config.js
 .stryker-tmp
 .vitest-attachments
+artifacts/e2e/
+.env.e2e
