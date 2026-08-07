@@ -47,6 +47,10 @@ export const launchRole = async (config, role) => {
       errors.push(`requestfailed ${request.method()} ${request.url()}: ${request.failure()?.errorText}`);
     }
   });
+  page.on('request', (request) => {
+    const match = request.url().match(/\/rpc\/(create_[a-z0-9_]+)$/i);
+    if (match) log(role.toUpperCase(), `Order RPC: ${match[1]}`);
+  });
   page.on('response', (response) => {
     if (internalHost(config, response.url()) && response.status() >= 400) {
       errors.push(`HTTP ${response.status()} ${response.request().method()} ${response.url()}`);

@@ -117,7 +117,7 @@ describe('public restaurant order payload', () => {
   it('uses the legacy public order RPC when cart products have old text ids', () => {
     const items: CartItem[] = [{ product: product({ id: 'zhizhig-galnash' }), quantity: 1 }];
 
-    assert.equal(resolvePublicOrderRpcName(items), 'create_legacy_public_restaurant_order');
+    assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_legacy_restaurant_order');
   });
 
   it('uses the platform public order RPC when cart products have uuid ids', () => {
@@ -125,7 +125,7 @@ describe('public restaurant order payload', () => {
       { product: product({ id: '11111111-1111-4111-8111-111111111111' }), quantity: 1 }
     ];
 
-    assert.equal(resolvePublicOrderRpcName(items), 'create_public_restaurant_order');
+    assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_restaurant_order');
   });
 
   it('clamps persisted invalid quantities before sending the order to Supabase', () => {
@@ -238,44 +238,19 @@ describe('public restaurant order payload', () => {
     assert.equal('idempotency_key' in calls[1].args, false);
   });
 
-  it('keeps the order created when only the post-create location update is rejected', async () => {
-    const calls: Array<{ table: string; patch: Record<string, unknown> }> = [];
+  it('does not attempt an RLS-filtered browser update after the protected creation RPC', async () => {
     const client: PublicRestaurantOrderClient = {
       async rpc() {
         return { data: 'order-123', error: null };
       },
-      from(table) {
-        return {
-          update(patch) {
-            calls.push({ table, patch });
-            return {
-              async eq(column, value) {
-                assert.equal(column, 'id');
-                assert.equal(value, 'order-123');
-                return { error: new Error('new row violates row-level security policy') };
-              }
-            };
-          }
-        };
+      from() {
+        throw new Error('orders must be finalized by the creation RPC');
       }
     };
 
     const orderId = await createRestaurantOrderWithClient(client, 'catalog-1', orderInput());
 
     assert.equal(orderId, 'order-123');
-    assert.deepEqual(calls, [
-      {
-        table: 'orders',
-        patch: {
-          delivery_lat: 43.3181235,
-          delivery_lng: 45.6987654,
-          client_lat: 43.3181235,
-          client_lng: 45.6987654,
-          client_accuracy_m: 18,
-          delivery_address_snapshot: 'Грозный, Центр, ул. Мира, 1'
-        }
-      }
-    ]);
   });
 
   it('does not treat a failed public order RPC as a created order', async () => {
@@ -327,7 +302,7 @@ describe('public restaurant order payload', () => {
     const client: PublicRestaurantOrderClient = {
       async rpc(name, args) {
         calls.push({ name, args });
-        if (name === 'create_public_restaurant_order') {
+        if (name === 'create_client_platform_restaurant_order') {
           return { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } };
         }
         return { data: 'order-fallback', error: null };
@@ -350,7 +325,7 @@ describe('public restaurant order payload', () => {
     assert.equal(orderId, 'order-fallback');
     assert.deepEqual(
       calls.map((call) => call.name),
-      ['create_public_restaurant_order', 'create_public_order']
+      ['create_client_platform_restaurant_order', 'create_public_order']
     );
     assert.equal(calls[1].args.table_label, '');
     assert.equal(calls[1].args.comment, 'Координаты клиента: 43.3181235, 45.6987654 (точность 18 м)');

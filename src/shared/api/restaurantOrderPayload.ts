@@ -154,8 +154,8 @@ const formatSelectedChoices = (items: CartItem[]) => {
 
 export const resolvePublicOrderRpcName = (items: CartItem[]) =>
   items.every((item) => uuidPattern.test(item.product.id))
-    ? 'create_public_restaurant_order'
-    : 'create_legacy_public_restaurant_order';
+    ? 'create_client_platform_restaurant_order'
+    : 'create_client_platform_legacy_restaurant_order';
 
 export const normalizeRestaurantDeliverySettingsForSave = <T extends DeliverySettingsForSave>(settings: T) => ({
   ...settings,
@@ -256,21 +256,6 @@ const rpcShouldRetryWithoutIdempotencyKey = (error: unknown) => {
   return rpcIsMissing(error) || (text.includes('42702') && text.includes('idempotency_key') && text.includes('ambiguous'));
 };
 
-const buildLocationPatch = ({
-  fulfillmentType,
-  deliveryLat = null,
-  deliveryLng = null,
-  deliveryAccuracyM = null,
-  deliveryAddress = ''
-}: CreateRestaurantOrderFromCartInput): Record<string, unknown> => ({
-  delivery_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
-  delivery_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
-  client_lat: fulfillmentType === 'delivery' ? deliveryLat : null,
-  client_lng: fulfillmentType === 'delivery' ? deliveryLng : null,
-  client_accuracy_m: fulfillmentType === 'delivery' ? deliveryAccuracyM : null,
-  delivery_address_snapshot: fulfillmentType === 'delivery' ? deliveryAddress : null
-});
-
 export async function createRestaurantOrderWithClient(
   client: PublicRestaurantOrderClient,
   catalogId: string,
@@ -306,6 +291,7 @@ export async function createRestaurantOrderWithClient(
     client_address_comment: joinCommentParts(deliverySettlement, locationNote),
     comment: joinCommentParts(comment, formatSelectedChoices(items), locationNote),
     idempotency_key: idempotencyKey?.trim() || null,
+    payment_method: /\[payment_method:bank_transfer\]/i.test(comment) ? 'bank_transfer' : 'cash',
     items: buildPublicRestaurantOrderItems(items)
   };
   const rpcName = resolvePublicOrderRpcName(items);
@@ -334,30 +320,5 @@ export async function createRestaurantOrderWithClient(
   }
 
   if (error) throwSupabaseError(error);
-  const orderId = String(data);
-
-  try {
-    const { error: updateError } = await client
-      .from('orders')
-      .update(
-        buildLocationPatch({
-          slug: '',
-          items,
-          fulfillmentType,
-          deliveryLat,
-          deliveryLng,
-          deliveryAccuracyM,
-          deliveryAddress
-        })
-      )
-      .eq('id', orderId);
-
-    if (updateError) {
-      console.warn('Order was created, but delivery coordinates were not saved separately.', updateError);
-    }
-  } catch (locationUpdateError) {
-    console.warn('Order was created, but delivery coordinates were not saved separately.', locationUpdateError);
-  }
-
-  return orderId;
+  return String(data);
 }

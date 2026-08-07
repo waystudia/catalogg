@@ -83,6 +83,8 @@ export const createClientOrder = async (role, config, backend, startedAt) => {
     log('CLIENT', `Adding ${title}`);
     await page.getByRole('button', { name: `Добавить ${title}` }).first().click();
   }
+  const cookies = page.getByRole('button', { name: 'Только необходимые', exact: true });
+  if (await cookies.isVisible()) await cookies.click();
   await page.getByRole('button', { name: /В корзине/i }).click();
   const cart = page.getByRole('dialog', { name: 'Корзина' });
   await cart.getByText('760 ₽', { exact: true }).last().waitFor({ state: 'visible' });
@@ -132,12 +134,16 @@ export const advanceRestaurant = async (role, config, backend, orderId) => {
   }
   await screenshot(role, config, '03-restaurant-new-order.png');
   await clickAndWaitOrder(page, backend, orderId, 'Принять заказ', 'accepted');
+  await page.getByRole('button', { name: 'Готовятся', exact: true }).click();
+  await page.getByRole('button', { name: 'Начать готовить', exact: true }).waitFor({ state: 'visible' });
   await screenshot(role, config, '04-restaurant-accepted.png');
   await clickAndWaitOrder(page, backend, orderId, 'Начать готовить', 'preparing');
   await clickAndWaitOrder(page, backend, orderId, 'Заказ готов', 'ready');
   await clickAndWaitOrder(page, backend, orderId, 'Вызвать доставку', 'waiting_driver');
+  await page.getByRole('button', { name: 'В пути', exact: true }).click();
 
   if (config.delivery === 'platform') {
+    await page.getByRole('button', { name: 'Вызвать таксистов' }).waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'Вызвать таксистов' }).click();
     await page.getByText('Заказ отправлен всем доступным водителям').waitFor({ state: 'visible', timeout: 15_000 });
   } else if (config.delivery === 'restaurant') {

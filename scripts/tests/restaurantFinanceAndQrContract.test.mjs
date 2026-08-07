@@ -30,7 +30,7 @@ test('restaurant finance shows gross receipts and reads the configured platform 
   assert.match(migrationSql, /get_current_restaurant_billing_tariff/);
   assert.match(migrationSql, /settings\.restaurant_tariff_fixed/);
   assert.match(customTariffMigrationSql, /target_client_id/);
-  assert.match(customTariffMigrationSql, /subject_id in \(target_client_id::text, target_catalog_id::text\)/);
+  assert.match(customTariffMigrationSql, /subject_id in \(target_client_id, target_catalog_id\)/);
 });
 
 test('successful restaurant QR scan opens the matching order and closes the driver QR screen', () => {
