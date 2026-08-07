@@ -42,10 +42,15 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
   assert.equal(address.is_test, true);
 
   const products = unwrap(await sessions.client.from('products')
-    .select('id, title, price, status').eq('catalog_id', catalog.id), 'test menu');
-  const scenario = ['Чизбургер', 'Картофель фри', 'Coca-Cola', 'Сырный соус'];
-  for (const title of scenario) assert.equal(products.find((row) => row.title === title)?.status, 'active', `${title} unavailable`);
-  assert.equal(scenario.reduce((sum, title) => sum + Number(products.find((row) => row.title === title)?.price || 0), 0), 760);
+    .select('id, title, price, status, stock_count, is_unlimited').eq('catalog_id', catalog.id), 'test menu');
+  const scenario = ['Жижиг-галнаш', 'Комбо шаурма', 'Coca-Cola', 'Соус фирменный'];
+  for (const title of scenario) {
+    const product = products.find((row) => row.title === title);
+    assert.equal(product?.status, 'active', `${title} unavailable`);
+    assert.ok(product?.is_unlimited || Number(product?.stock_count) > 0, `${title} out of stock`);
+  }
+  const expectedSubtotal = scenario.reduce((sum, title) => sum + Number(products.find((row) => row.title === title)?.price || 0), 0);
+  assert.equal(expectedSubtotal, 980);
 
   const anonymousCatalog = unwrap(await sessions.anonymous.from('catalogs')
     .select('id').eq('slug', catalog.slug), 'anonymous isolation');
@@ -92,7 +97,7 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
     assert.equal(delivery.status, 'delivered');
     assert.equal(order.is_test_order, true);
     assert.equal(delivery.is_test, true);
-    assert.equal(Number(order.subtotal), 760);
+    assert.equal(Number(order.subtotal), expectedSubtotal);
     for (const field of ['accepted_at', 'ready_at', 'completed_at']) assert.ok(order[field], `order.${field} missing`);
     assert.ok(delivery.pickup_qr_confirmed_at, 'QR confirmation missing');
     assert.ok(delivery.delivered_at, 'delivery.delivered_at missing');
@@ -138,7 +143,7 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
   };
 
   return {
-    sessions, rpc, catalog, driver, settings, address, products, productionBefore, debtBefore,
+    sessions, rpc, catalog, driver, settings, address, products, scenario, expectedSubtotal, productionBefore, debtBefore,
     findCurrentOrder, getOrder, getDelivery, assertFinal,
     close: () => Promise.all(Object.values(sessions).map((client) => client.auth.signOut({ scope: 'local' })))
   };
