@@ -82,3 +82,39 @@ VITE_WEB_PUSH_PUBLIC_KEY
 ## Важное замечание
 
 MVP использует демо-CRUD элементы в интерфейсе. Следующий этап для реального ресторана: формы создания/редактирования, загрузка сжатых изображений в bucket `images` и SQL/RLS политики Supabase.
+
+## Visual E2E: CLIENT | RESTAURANT | DRIVER
+
+Visual E2E открывает три отдельных видимых процесса Chromium с независимыми cookies,
+localStorage и Supabase Auth-сессиями. Скопируйте `.env.e2e.example` в `.env.e2e`
+и заполните локальные secrets; `.env.e2e` игнорируется Git.
+
+```bash
+# Терминал 1: локальный WayYaam из корня домена
+VITE_BASE_PATH=/ npm run dev
+
+# Терминал 2: три авторизованных окна для ручного сценария
+npm run e2e:visual
+
+# Полный UI happy path с DB post-condition, QR replay и screenshots
+npm run e2e:visual:auto
+
+# Ручной visual-режим против production
+npm run e2e:visual:prod
+
+# Безопасно отменить только незавершённые is_test заказы
+npm run e2e:reset
+```
+
+Способ доставки передаётся после `--`: `--delivery=platform` (по умолчанию),
+`--delivery=restaurant` или `--delivery=fallback`. Обязательный автоматический happy
+path первой версии — платформенный водитель; все три режима доступны для ручной
+визуальной проверки возможностей ресторана.
+
+AUTO-скриншоты пишутся в `artifacts/e2e/`, а trace сохраняется туда при ошибке.
+`E2E_RECORD_VIDEO=true` включает отдельное видео CLIENT, RESTAURANT и DRIVER.
+На новом компьютере один раз выполните `npx playwright install chromium`.
+
+AUTO выводит PASS только после фактического завершения текущего заказа и доставки,
+отклонения чужого и повторного QR, двух изолированных начислений ровно по 30 ₽ и
+сравнения серверного снимка production-агрегатов до/после.
