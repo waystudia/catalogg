@@ -610,7 +610,7 @@ export function DriverApp() {
         refreshDriverDashboard();
       }
     };
-    const intervalId = window.setInterval(refreshWhenVisible, 10_000);
+    const intervalId = window.setInterval(refreshDriverDashboard, 10_000);
 
     window.addEventListener('focus', refreshWhenVisible);
     window.addEventListener('pageshow', refreshWhenVisible);

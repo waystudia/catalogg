@@ -12,6 +12,7 @@ import {
   selectClientOrderForStatus,
   buildSupportWhatsappUrl,
   calculateCartSummary,
+  calculateClientDeliveryFee,
   filterRestaurants,
   filterRestaurantsWithCityFallback,
   getDeliveryProviderLabel,
@@ -116,6 +117,23 @@ const restaurants: ClientRestaurant[] = [
     paymentMethods: ['cash']
   }
 ];
+
+describe('client delivery price', () => {
+  it('charges the default delivery price when free delivery is disabled', () => {
+    assert.equal(calculateClientDeliveryFee({ orderType: 'delivery', subtotal: 760, freeDeliveryFrom: 0 }), 120);
+  });
+
+  it('charges below the threshold and becomes free exactly at the configured boundary', () => {
+    assert.equal(calculateClientDeliveryFee({ orderType: 'delivery', subtotal: 899, freeDeliveryFrom: 900 }), 120);
+    assert.equal(calculateClientDeliveryFee({ orderType: 'delivery', subtotal: 900, freeDeliveryFrom: 900 }), 0);
+    assert.equal(calculateClientDeliveryFee({ orderType: 'delivery', subtotal: 901, freeDeliveryFrom: 900 }), 0);
+  });
+
+  it('does not charge delivery for an empty cart or non-delivery order', () => {
+    assert.equal(calculateClientDeliveryFee({ orderType: 'delivery', subtotal: 0, freeDeliveryFrom: 900 }), 0);
+    assert.equal(calculateClientDeliveryFee({ orderType: 'pickup', subtotal: 760, freeDeliveryFrom: 900 }), 0);
+  });
+});
 
 describe('client platform delivery order metadata', () => {
   it('includes captured coordinates in the atomic order RPC comment', () => {

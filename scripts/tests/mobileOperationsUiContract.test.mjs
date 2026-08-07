@@ -14,6 +14,10 @@ const restaurantOrderPresentation = readFileSync(
   new URL('../../src/features/restaurant-admin/orderPresentation.ts', import.meta.url),
   'utf8'
 );
+const restaurantAdminShellSource = readFileSync(
+  new URL('../../src/pages/catalog-admin/RestaurantAdminShell.tsx', import.meta.url),
+  'utf8'
+);
 const platformCss = readFileSync(
   new URL('../../src/pages/platform-admin/platform-admin.css', import.meta.url),
   'utf8'
@@ -148,6 +152,16 @@ describe('mobile operational interfaces', () => {
     assert.match(driverProfileMigration, /'debt_amount',\s*d\.debt_amount/);
     assert.match(driverSource, /Заработано/);
     assert.match(driverSource, /Долг платформе/);
+  });
+
+  it('keeps order polling active in background visual contexts when Realtime misses an event', () => {
+    assert.match(driverSource, /setInterval\(refreshDriverDashboard,\s*10_000\)/);
+    assert.doesNotMatch(
+      driverSource,
+      /const intervalId = window\.setInterval\(refreshWhenVisible,\s*10_000\)/
+    );
+    assert.match(restaurantAdminShellSource, /setInterval\(refreshSilently,\s*10_000\)/);
+    assert.match(appSource, /setInterval\(refreshOrders,\s*10_000\)/);
   });
 
   it('keeps navigation metrics on the map and limits navigation mode to four right-side controls', () => {
