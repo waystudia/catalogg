@@ -2018,7 +2018,7 @@ function AppContent({
         refreshOrders();
       }
     };
-    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    const intervalId = window.setInterval(refreshOrders, 10_000);
 
     window.addEventListener('focus', refreshWhenVisible);
     window.addEventListener('pageshow', refreshWhenVisible);

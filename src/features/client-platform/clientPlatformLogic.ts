@@ -265,6 +265,20 @@ export const calculateCartSummary = (
   );
 };
 
+export const calculateClientDeliveryFee = ({
+  orderType,
+  subtotal,
+  freeDeliveryFrom
+}: {
+  readonly orderType: ClientOrderType;
+  readonly subtotal: number;
+  readonly freeDeliveryFrom: number;
+}) => {
+  if (orderType !== 'delivery' || subtotal <= 0) return 0;
+  if (freeDeliveryFrom > 0 && subtotal >= freeDeliveryFrom) return 0;
+  return 120;
+};
+
 export const getDeliveryProviderLabel = (
   deliveryProvider: ClientDeliveryProvider,
   orderType: ClientOrderType = 'delivery'

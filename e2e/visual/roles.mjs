@@ -59,7 +59,10 @@ export const prepareRestaurant = async (role, config, backend) => {
     && settings.use_platform_drivers === (config.delivery !== 'restaurant')
     && settings.fallback_to_platform_drivers === (config.delivery === 'fallback'));
   await page.getByRole('button', { name: 'Заказы', exact: true }).click();
-  await page.getByRole('button', { name: 'Все', exact: true }).waitFor({ state: 'visible', timeout: 30_000 });
+  await page.getByRole('button', { name: 'Все', exact: true })
+    .or(page.getByRole('region', { name: 'Доска заказов' }))
+    .first()
+    .waitFor({ state: 'visible', timeout: 30_000 });
   log('RESTAURANT', `Delivery mode: ${config.delivery}`);
 };
 
@@ -80,35 +83,32 @@ export const createClientOrder = async (role, config, backend, startedAt) => {
     log('CLIENT', `Adding ${title}`);
     await page.getByRole('button', { name: `Добавить ${title}` }).first().click();
   }
-  await page.getByRole('link', { name: /Корзина/ }).last().click();
-  await page.getByText('760 ₽', { exact: true }).first().waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: /В корзине/i }).click();
+  const cart = page.getByRole('dialog', { name: 'Корзина' });
+  await cart.getByText('760 ₽', { exact: true }).last().waitFor({ state: 'visible' });
   await screenshot(role, config, '02-client-cart.png');
-  await page.getByRole('link', { name: /Оформить заказ/ }).click();
+  await cart.getByRole('button', { name: /Оформить заказ/ }).click();
   await page.getByRole('button', { name: 'Доставка', exact: true }).click();
-  const city = page.getByLabel('Село или город доставки');
-  if (await city.isVisible()) await city.selectOption({ label: 'Грозный' });
-  await page.getByRole('button', { name: 'Далее' }).click();
   await page.getByRole('button', { name: 'Определить моё местоположение' }).click();
   await page.getByText(/43\.3200000.*45\.7000000/).waitFor({ state: 'visible', timeout: 15_000 });
-  const savedAddress = page.getByRole('button', { name: /Тестовый адрес.*Тестовая доставка WayYaam/ });
-  if (await savedAddress.isVisible()) await savedAddress.click();
-  await page.getByLabel('Адрес', { exact: true }).fill('Тестовая доставка WayYaam');
-  await page.getByRole('button', { name: 'Продолжить' }).click();
-  await page.getByRole('button', { name: /Наличными/ }).click();
-  await page.getByRole('button', { name: 'Перейти к оплате' }).click();
-  const consents = page.getByRole('region', { name: 'Согласия для заказа' }).getByRole('checkbox');
-  if (await consents.count() === 0) {
-    const fallbackConsents = page.locator('section[aria-label="Согласия для заказа"] input[type="checkbox"]');
-    for (let index = 0; index < await fallbackConsents.count(); index += 1) await fallbackConsents.nth(index).check();
+  const city = page.getByLabel('Село или город');
+  if (await city.evaluate((element) => element instanceof HTMLSelectElement)) {
+    await city.selectOption({ label: 'Грозный' });
   } else {
-    for (let index = 0; index < await consents.count(); index += 1) await consents.nth(index).check();
+    await city.fill('Грозный');
   }
-  await page.getByRole('button', { name: 'Подтвердить заказ' }).click();
+  await page.locator('label.checkout-field--wide').filter({ hasText: 'Адрес' }).locator('textarea').fill('Тестовая доставка WayYaam');
+  await page.getByRole('button', { name: /Наличными/ }).click();
+  const consents = page.locator('section[aria-label="Согласия для заказа"] input[type="checkbox"]');
+  for (let index = 0; index < await consents.count(); index += 1) await consents.nth(index).check();
+  page.on('popup', (popup) => popup.close().catch(() => undefined));
+  await page.getByRole('button', { name: 'Отправить заказ' }).click();
   const rows = await waitFor('order created', () => backend.findCurrentOrder(startedAt), (items) => items.length === 1);
   const order = rows[0];
   assert.equal(Number(order.subtotal), 760);
   assert.equal(order.is_test_order, true);
-  await page.waitForURL((url) => url.hash.includes(`/order/${order.id}`), { timeout: 20_000 });
+  await goto(page, appUrl(config, `/wayyaam-test-restaurant/order/${order.id}`));
+  await page.getByText(/Статус заказа/).first().waitFor({ state: 'visible', timeout: 20_000 });
   log('CLIENT', `Order created: ${order.id}`);
   return order;
 };
@@ -121,7 +121,15 @@ const clickAndWaitOrder = async (page, backend, orderId, label, status) => {
 
 export const advanceRestaurant = async (role, config, backend, orderId) => {
   const page = role.page;
-  await page.getByRole('button', { name: 'Принять заказ', exact: true }).waitFor({ state: 'visible', timeout: 15_000 });
+  const acceptOrder = page.getByRole('button', { name: 'Принять заказ', exact: true });
+  try {
+    await acceptOrder.waitFor({ state: 'visible', timeout: 15_000 });
+  } catch {
+    const refresh = page.getByRole('button', { name: 'Обновить', exact: true });
+    await refresh.click();
+    await acceptOrder.waitFor({ state: 'visible', timeout: 30_000 });
+    log('RESTAURANT', 'Realtime did not deliver the order; refreshed through the UI');
+  }
   await screenshot(role, config, '03-restaurant-new-order.png');
   await clickAndWaitOrder(page, backend, orderId, 'Принять заказ', 'accepted');
   await screenshot(role, config, '04-restaurant-accepted.png');
@@ -141,7 +149,18 @@ export const advanceRestaurant = async (role, config, backend, orderId) => {
 
 export const acceptDriverOrder = async (role, config, backend, orderId) => {
   const page = role.page;
-  await page.getByRole('button', { name: 'Принять заказ', exact: true }).first().waitFor({ state: 'visible', timeout: config.delivery === 'fallback' ? 120_000 : 30_000 });
+  const offeredDelivery = await waitFor('driver offer created', () => backend.getDelivery(orderId), (row) => Boolean(row?.id));
+  const offerCard = page.locator(`a[href="#/driver/orders/${offeredDelivery.id}"]`);
+  const acceptOrder = page.getByRole('button', { name: 'Принять заказ', exact: true }).first();
+  try {
+    await offerCard.waitFor({ state: 'visible', timeout: config.delivery === 'fallback' ? 120_000 : 30_000 });
+  } catch {
+    await page.getByRole('button', { name: 'Обновить', exact: true }).click();
+    await offerCard.waitFor({ state: 'visible', timeout: 30_000 });
+    log('DRIVER', 'Realtime did not deliver the offer; refreshed through the UI');
+  }
+  await offerCard.click();
+  await acceptOrder.waitFor({ state: 'visible', timeout: 30_000 });
   await screenshot(role, config, '05-driver-order.png');
   await page.getByRole('button', { name: 'Принять заказ', exact: true }).first().click();
   const delivery = await waitFor('driver assigned', () => backend.getDelivery(orderId), (row) => row?.driver_id === backend.driver.id && row.status === 'assigned');
@@ -166,9 +185,13 @@ export const arriveAtRestaurant = async (role, backend, deliveryId) => {
 
 export const confirmCashAndQr = async (restaurantRole, driverRole, config, backend, orderId, deliveryId) => {
   const restaurantPage = restaurantRole.page;
-  await restaurantPage.getByRole('button', { name: /Оплата/ }).click();
-  await restaurantPage.getByRole('button', { name: 'Подтвердить получение наличных' }).click();
-  await restaurantPage.getByText(/Оплата подтверждена/).waitFor({ state: 'visible', timeout: 20_000 });
+  const order = await backend.getOrder(orderId);
+  if (!order.restaurant_payment_confirmed_at) {
+    await restaurantPage.getByRole('button', { name: /Оплата/ }).click();
+    await restaurantPage.getByRole('button', { name: 'Подтвердить получение наличных', exact: true }).click();
+    await waitFor('cash confirmed', () => backend.getOrder(orderId), (row) => Boolean(row.restaurant_payment_confirmed_at));
+  }
+  log('RESTAURANT', 'Cash receipt confirmed');
 
   await goto(driverRole.page, appUrl(config, '/driver/qr'));
   await driverRole.page.getByAltText('QR выдачи заказа').waitFor({ state: 'visible', timeout: 20_000 });

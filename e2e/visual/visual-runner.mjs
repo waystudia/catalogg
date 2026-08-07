@@ -50,7 +50,7 @@ try {
     await confirmCashAndQr(restaurant, driver, config, backend, order.id, delivery.id);
     await finishDriverDelivery(driver, config, backend, order.id);
 
-    await waitFor('client Realtime completed', async () => client.page.getByRole('heading', { name: /Доставлен|Завершён/ }).count(), (count) => count > 0, { timeout: 12_000 });
+    await waitFor('client Realtime completed', async () => client.page.getByRole('heading', { name: /Выполнен|Доставлен|Завершён/ }).count(), (count) => count > 0, { timeout: 12_000 });
     await screenshot(client, config, '09-client-completed.png');
     const final = await backend.assertFinal({ orderId: order.id, deliveryId: delivery.id });
 
@@ -66,6 +66,7 @@ try {
       qr: '✅ VERIFIED', realtime: '✅ CONNECTED'
     });
     log('FINANCE', 'Restaurant test debt +30 ₽; Driver test debt +30 ₽');
+    log('FINANCE', `Driver earned ${Number(final.finance.earning_amount)} ₽; net ${Number(final.finance.earning_net_amount)} ₽`);
     log('E2E', '✅ PRODUCTION DATA UNCHANGED');
     log('E2E', `✅ PASS order_id=${order.id}`);
     if (config.keepOpen) {

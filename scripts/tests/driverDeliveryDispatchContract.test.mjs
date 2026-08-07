@@ -91,7 +91,7 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(driverApp, /setOptimisticOnline\(nextOnline\)[\s\S]{0,200}await setDriverAvailability[\s\S]{0,100}void onRefresh\(\)/);
     assert.doesNotMatch(driverApp, /await setDriverAvailability[\s\S]{0,200}await onRefresh\(\)/);
     assert.match(driverApp, /if \(!authChecked \|\| !hasDriverAccess \|\| selectedDriverId === demoDriverId\) return/);
-    assert.match(driverApp, /window\.setInterval\(refreshWhenVisible, 10_000\)/);
+    assert.match(driverApp, /window\.setInterval\(refreshDriverDashboard, 10_000\)/);
   });
 
   it('loads the driver profile without a recursive drivers RLS query and makes manual refresh observable', () => {

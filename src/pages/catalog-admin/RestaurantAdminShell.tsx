@@ -462,7 +462,7 @@ export function RestaurantAdminShell({
         refreshSilently();
       }
     };
-    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    const intervalId = window.setInterval(refreshSilently, 10_000);
 
     window.addEventListener('focus', refreshWhenVisible);
     window.addEventListener('pageshow', refreshWhenVisible);

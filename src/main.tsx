@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
@@ -12,6 +13,8 @@ import {
 } from './PwaRoutes';
 import './app/styles.css';
 import './features/dish-editor/styles.css';
+
+const appQueryClient = new QueryClient();
 
 const ClientPlatformApp = lazy(() =>
   import('./pages/client-platform/ClientPlatformApp').then((module) => ({ default: module.ClientPlatformApp }))
@@ -60,32 +63,34 @@ restoreGitHubPagesRedirect();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <HashRouter>
-      <PwaResumeTracker />
-      <Suspense fallback={<CatalogLoadingScreen />}>
-        <Routes>
-          <Route path="/" element={<PwaHomeRoute />} />
-          <Route path="/city" element={<ClientPlatformApp />} />
-          <Route path="/categories" element={<ClientPlatformApp />} />
-          <Route path="/restaurants" element={<ClientPlatformApp />} />
-          <Route path="/cart" element={<ClientPlatformApp />} />
-          <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
-          <Route path="/profile/*" element={<ClientPlatformApp />} />
-          <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/scanner" element={<ScannerPage />} />
-          <Route path="/:slug/scanner" element={<ScannerPage />} />
-          <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
-          <Route path="/admin/payments" element={<PaymentsPage />} />
-          <Route path="/admin/*" element={<PlatformAdminApp />} />
-          <Route path="/driver/*" element={<DriverApp />} />
-          <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
-          <Route path="/:slug" element={<RestaurantPublicRoute />} />
-        </Routes>
-        <LegalSurface />
-      </Suspense>
-    </HashRouter>
+    <QueryClientProvider client={appQueryClient}>
+      <HashRouter>
+        <PwaResumeTracker />
+        <Suspense fallback={<CatalogLoadingScreen />}>
+          <Routes>
+            <Route path="/" element={<PwaHomeRoute />} />
+            <Route path="/city" element={<ClientPlatformApp />} />
+            <Route path="/categories" element={<ClientPlatformApp />} />
+            <Route path="/restaurants" element={<ClientPlatformApp />} />
+            <Route path="/cart" element={<ClientPlatformApp />} />
+            <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
+            <Route path="/profile/*" element={<ClientPlatformApp />} />
+            <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/scanner" element={<ScannerPage />} />
+            <Route path="/:slug/scanner" element={<ScannerPage />} />
+            <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
+            <Route path="/admin/payments" element={<PaymentsPage />} />
+            <Route path="/admin/*" element={<PlatformAdminApp />} />
+            <Route path="/driver/*" element={<DriverApp />} />
+            <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
+            <Route path="/:slug" element={<RestaurantPublicRoute />} />
+          </Routes>
+          <LegalSurface />
+        </Suspense>
+      </HashRouter>
+    </QueryClientProvider>
   </React.StrictMode>
 );

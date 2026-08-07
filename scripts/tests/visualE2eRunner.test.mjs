@@ -37,3 +37,25 @@ test('visual control plane is restricted to E2E actors and production aggregates
   assert.match(sql, /revoke all on function public\.reset_wayyaam_e2e_state\(\) from public, anon/i);
   assert.doesNotMatch(sql, /delete\s+from/i);
 });
+
+test('visual E2E checks delivery timestamps that exist in the production schema', async () => {
+  const backend = await readFile(new URL('../../e2e/visual/backend.mjs', import.meta.url), 'utf8');
+  assert.match(backend, /pickup_qr_confirmed_at, assigned_at, delivered_at/);
+  assert.doesNotMatch(backend, /pickup_qr_confirmed_at, accepted_at, completed_at/);
+  assert.match(backend, /delivery\.delivered_at/);
+});
+
+test('visual E2E cannot pass when the driver earned zero or finance rows were duplicated', async () => {
+  const backend = await readFile(new URL('../../e2e/visual/backend.mjs', import.meta.url), 'utf8');
+  const runner = await readFile(new URL('../../e2e/visual/visual-runner.mjs', import.meta.url), 'utf8');
+  assert.match(backend, /get_wayyaam_e2e_order_finance/);
+  assert.match(backend, /finance\.restaurant_charge_count,\s*1/);
+  assert.match(backend, /finance\.driver_charge_count,\s*1/);
+  assert.match(backend, /expectedPayoutLedgerCount/);
+  assert.match(backend, /finance\.driver_payout_count,\s*expectedPayoutLedgerCount/);
+  assert.match(backend, /Number\(finance\.earning_amount\)\s*>\s*0/);
+  assert.match(backend, /Number\(finance\.earning_commission\),\s*30/);
+  assert.match(backend, /finance\.expected_earning_amount/);
+  assert.match(backend, /Number\(finance\.earning_net_amount\)/);
+  assert.match(runner, /Driver earned.*earning_amount/);
+});

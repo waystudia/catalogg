@@ -73,16 +73,16 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
 
   const findCurrentOrder = async (startedAt) => {
     const rows = unwrap(await sessions.restaurant.from('orders')
-      .select('id, catalog_id, status, subtotal, total, delivery_fee, is_test_order, created_at, accepted_at, ready_at, completed_at')
+      .select('id, catalog_id, status, subtotal, total, delivery_fee, is_test_order, created_at, accepted_at, ready_at, completed_at, restaurant_payment_confirmed_at')
       .eq('catalog_id', catalog.id).eq('is_test_order', true).gte('created_at', startedAt)
       .order('created_at', { ascending: false }).limit(5), 'current order');
     return rows;
   };
   const getOrder = async (orderId) => unwrap(await sessions.restaurant.from('orders')
-    .select('id, status, subtotal, total, delivery_fee, is_test_order, accepted_at, ready_at, completed_at')
+    .select('id, status, subtotal, total, delivery_fee, is_test_order, accepted_at, ready_at, completed_at, restaurant_payment_confirmed_at')
     .eq('id', orderId).single(), 'order');
   const getDelivery = async (orderId) => unwrap(await sessions.restaurant.from('deliveries')
-    .select('id, order_id, driver_id, status, is_test, pickup_qr_token, pickup_qr_confirmed_at, accepted_at, completed_at')
+    .select('id, order_id, driver_id, status, is_test, pickup_qr_token, pickup_qr_confirmed_at, assigned_at, delivered_at')
     .eq('order_id', orderId).maybeSingle(), 'delivery');
 
   const assertFinal = async ({ orderId, deliveryId, productionBefore: snapshot = productionBefore }) => {
@@ -95,7 +95,7 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
     assert.equal(Number(order.subtotal), 760);
     for (const field of ['accepted_at', 'ready_at', 'completed_at']) assert.ok(order[field], `order.${field} missing`);
     assert.ok(delivery.pickup_qr_confirmed_at, 'QR confirmation missing');
-    assert.ok(delivery.completed_at, 'delivery.completed_at missing');
+    assert.ok(delivery.delivered_at, 'delivery.delivered_at missing');
     assert.equal(delivery.id, deliveryId);
 
     const debtAfter = {
@@ -107,25 +107,34 @@ export const createBackend = async (config, { requireProductionSnapshot = true }
     assert.equal(restaurantDelta, 30, 'restaurant test debt delta');
     assert.equal(driverDelta, 30, 'driver test debt delta');
 
-    const restaurantLedger = unwrap(await sessions.restaurant.from('billing_ledger_entries')
-      .select('event_key, entry_type, reason_code, amount, is_test').like('event_key', `%${orderId}%`), 'restaurant test ledger');
-    const driverLedger = unwrap(await sessions.driver.from('billing_ledger_entries')
-      .select('event_key, entry_type, reason_code, amount, is_test').like('event_key', `%${deliveryId}%`), 'driver test ledger');
-    const restaurantCharge = restaurantLedger.filter((row) => row.entry_type === 'charge' && row.reason_code === 'restaurant_order_commission');
-    const driverCharge = driverLedger.filter((row) => row.entry_type === 'charge' && row.reason_code === 'driver_delivery_commission');
-    assert.equal(restaurantCharge.length, 1, 'restaurant commission must be charged once');
-    assert.equal(driverCharge.length, 1, 'driver commission must be charged once');
-    assert.equal(Number(restaurantCharge[0].amount), 30);
-    assert.equal(Number(driverCharge[0].amount), 30);
-    const ledger = [...new Map([...restaurantLedger, ...driverLedger].map((row) => [row.event_key, row])).values()];
-    assert.ok(ledger.every((row) => row.is_test === true), 'non-test ledger row created');
-    assert.equal(new Set(restaurantLedger.map((row) => row.event_key)).size, restaurantLedger.length, 'duplicate restaurant ledger event');
-    assert.equal(new Set(driverLedger.map((row) => row.event_key)).size, driverLedger.length, 'duplicate driver ledger event');
+    const finance = await rpc('driver', 'get_wayyaam_e2e_order_finance', { target_order_id: orderId });
+    assert.equal(finance.order_is_test, true, 'order finance scope');
+    assert.equal(finance.delivery_is_test, true, 'delivery finance scope');
+    assert.equal(finance.earning_is_test, true, 'earning finance scope');
+    assert.equal(finance.restaurant_charge_count, 1, 'restaurant commission must be charged once');
+    assert.equal(finance.driver_charge_count, 1, 'driver commission must be charged once');
+    const expectedPayoutLedgerCount = Number(finance.delivery_fee) === 0 ? 1 : 0;
+    assert.equal(finance.driver_payout_count, expectedPayoutLedgerCount, 'unexpected free-delivery payout ledger count');
+    assert.equal(finance.earning_count, 1, 'driver earning must be recorded once');
+    assert.equal(Number(finance.restaurant_charge_amount), 30);
+    assert.equal(Number(finance.driver_charge_amount), 30);
+    assert.equal(Number(finance.earning_commission), 30);
+    assert.ok(Number(finance.earning_amount) > 0, 'driver earning must be positive');
+    assert.equal(Number(finance.earning_amount), Number(finance.expected_earning_amount));
+    if (expectedPayoutLedgerCount === 1) {
+      assert.equal(Number(finance.driver_payout_amount), Number(finance.earning_amount));
+    } else {
+      assert.equal(Number(finance.driver_payout_amount), 0);
+    }
+    assert.equal(
+      Number(finance.earning_net_amount),
+      Number(finance.earning_amount) - Number(finance.earning_commission)
+    );
 
     const productionAfter = await rpc('client', 'get_wayyaam_e2e_production_snapshot');
     assert.ok(snapshot, 'production snapshot was not captured before the run');
     assert.deepEqual(productionAfter, snapshot, 'production aggregates changed');
-    return { order, delivery, restaurantDelta, driverDelta, productionAfter };
+    return { order, delivery, finance, restaurantDelta, driverDelta, productionAfter };
   };
 
   return {
