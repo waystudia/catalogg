@@ -68,7 +68,7 @@ export const prepareRestaurant = async (role, config, backend) => {
 
 export const prepareClient = async (role, config) => {
   await goto(role.page, appUrl(config, '/r/wayyaam-test-restaurant'));
-  await role.page.getByText('WayYaam Test Restaurant', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
+  await role.page.getByText('Мангал тест', { exact: true }).first().waitFor({ state: 'visible', timeout: 30_000 });
   await screenshot(role, config, '01-client-restaurant.png');
 };
 
@@ -79,7 +79,7 @@ export const prepareDriver = async (role, config) => {
 
 export const createClientOrder = async (role, config, backend, startedAt) => {
   const page = role.page;
-  for (const title of ['Чизбургер', 'Картофель фри', 'Coca-Cola', 'Сырный соус']) {
+  for (const title of backend.scenario) {
     log('CLIENT', `Adding ${title}`);
     await page.getByRole('button', { name: `Добавить ${title}` }).first().click();
   }
@@ -87,17 +87,26 @@ export const createClientOrder = async (role, config, backend, startedAt) => {
   if (await cookies.isVisible()) await cookies.click();
   await page.getByRole('button', { name: /В корзине/i }).click();
   const cart = page.getByRole('dialog', { name: 'Корзина' });
-  await cart.getByText('760 ₽', { exact: true }).last().waitFor({ state: 'visible' });
+  await cart.getByText(`${backend.expectedSubtotal} ₽`, { exact: true }).last().waitFor({ state: 'visible' });
   await screenshot(role, config, '02-client-cart.png');
   await cart.getByRole('button', { name: /Оформить заказ/ }).click();
+  for (let step = 0; step < 3; step += 1) {
+    const continueWithoutUpsell = page.getByRole('button', { name: 'Продолжить без выбора', exact: true });
+    try {
+      await continueWithoutUpsell.waitFor({ state: 'visible', timeout: 1_500 });
+    } catch {
+      break;
+    }
+    await continueWithoutUpsell.click();
+  }
   await page.getByRole('button', { name: 'Доставка', exact: true }).click();
   await page.getByRole('button', { name: 'Определить моё местоположение' }).click();
-  await page.getByText(/43\.3200000.*45\.7000000/).waitFor({ state: 'visible', timeout: 15_000 });
+  await page.getByText(/43\.2473590.*45\.9805000/).waitFor({ state: 'visible', timeout: 15_000 });
   const city = page.getByLabel('Село или город');
   if (await city.evaluate((element) => element instanceof HTMLSelectElement)) {
-    await city.selectOption({ label: 'Грозный' });
+    await city.selectOption({ label: 'Цоци-Юрт' });
   } else {
-    await city.fill('Грозный');
+    await city.fill('Цоци-Юрт');
   }
   await page.locator('label.checkout-field--wide').filter({ hasText: 'Адрес' }).locator('textarea').fill('Тестовая доставка WayYaam');
   await page.getByRole('button', { name: /Наличными/ }).click();
@@ -107,7 +116,7 @@ export const createClientOrder = async (role, config, backend, startedAt) => {
   await page.getByRole('button', { name: 'Отправить заказ' }).click();
   const rows = await waitFor('order created', () => backend.findCurrentOrder(startedAt), (items) => items.length === 1);
   const order = rows[0];
-  assert.equal(Number(order.subtotal), 760);
+  assert.equal(Number(order.subtotal), backend.expectedSubtotal);
   assert.equal(order.is_test_order, true);
   await goto(page, appUrl(config, `/wayyaam-test-restaurant/order/${order.id}`));
   await page.getByText(/Статус заказа/).first().waitFor({ state: 'visible', timeout: 20_000 });
@@ -147,7 +156,7 @@ export const advanceRestaurant = async (role, config, backend, orderId) => {
     await page.getByRole('button', { name: 'Вызвать таксистов' }).click();
     await page.getByText('Заказ отправлен всем доступным водителям').waitFor({ state: 'visible', timeout: 15_000 });
   } else if (config.delivery === 'restaurant') {
-    await page.getByRole('button', { name: /WayYaam Test Driver.*Отправить/ }).click();
+    await page.getByRole('button', { name: /Дукат тест.*Отправить/ }).click();
   } else {
     log('RESTAURANT', 'Fallback timer is running; own courier does not accept');
   }

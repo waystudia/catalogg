@@ -31,7 +31,7 @@ export const launchRole = async (config, role) => {
     viewport: { width: 390, height: 844 },
     locale: 'ru-RU',
     timezoneId: 'Europe/Moscow',
-    geolocation: { latitude: 43.32, longitude: 45.7, accuracy: 10 },
+    geolocation: { latitude: 43.247359, longitude: 45.9805, accuracy: 10 },
     permissions: ['geolocation'],
     ...(config.recordVideo ? { recordVideo: { dir: videoDir, size: { width: 390, height: 844 } } } : {})
   });

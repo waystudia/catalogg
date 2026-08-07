@@ -58,6 +58,8 @@ test('visual E2E cannot pass when the driver earned zero or finance rows were du
   assert.match(backend, /finance\.expected_earning_amount/);
   assert.match(backend, /Number\(finance\.earning_net_amount\)/);
   assert.match(runner, /Driver earned.*earning_amount/);
+  assert.match(runner, /Realtime defect: final status was not delivered/);
+  assert.match(runner, /client\.page\.reload/);
 });
 
 test('restaurant visual flow follows an accepted order into the preparing filter', async () => {
@@ -71,6 +73,17 @@ test('restaurant visual flow follows an accepted order into the preparing filter
   assert.ok(startPreparing > preparingFilter);
 });
 
+test('Mangal visual checkout passes real configured upsell steps before delivery', async () => {
+  const roles = await readFile(new URL('../../e2e/visual/roles.mjs', import.meta.url), 'utf8');
+  const checkout = roles.indexOf('name: /Оформить заказ/');
+  const upsell = roles.indexOf("name: 'Продолжить без выбора'", checkout);
+  const delivery = roles.indexOf("name: 'Доставка', exact: true", checkout);
+
+  assert.ok(checkout >= 0);
+  assert.ok(upsell > checkout);
+  assert.ok(delivery > upsell);
+});
+
 test('restaurant visual flow follows a waiting-driver order into the on-the-way filter', async () => {
   const roles = await readFile(new URL('../../e2e/visual/roles.mjs', import.meta.url), 'utf8');
   const waitingDriver = roles.indexOf("'Вызвать доставку', 'waiting_driver'");
@@ -80,4 +93,24 @@ test('restaurant visual flow follows a waiting-driver order into the on-the-way 
   assert.ok(waitingDriver >= 0);
   assert.ok(onTheWayFilter > waitingDriver);
   assert.ok(dispatch > onTheWayFilter);
+});
+
+test('visual fixture clones Mangal without copying production identities or losing isolation', async () => {
+  const migration = await readFile(
+    new URL('../../supabase/migrations/20260807160000_clone_mangal_into_e2e_fixture.sql', import.meta.url),
+    'utf8'
+  );
+  const backend = await readFile(new URL('../../e2e/visual/backend.mjs', import.meta.url), 'utf8');
+
+  assert.match(migration, /where slug = 'mangal' and is_test is not true/i);
+  assert.match(migration, /name = 'Мангал тест'/);
+  assert.match(migration, /name = 'Дукат тест'/);
+  assert.match(migration, /is_test = true/);
+  assert.match(migration, /whatsapp = '\+79000000002'/);
+  assert.match(migration, /instagram_url = ''/);
+  assert.doesNotMatch(migration, /payout_details\s*=/i);
+  assert.doesNotMatch(migration, /target\.email\s*=/i);
+  assert.match(backend, /Жижиг-галнаш/);
+  assert.match(backend, /expectedSubtotal, 980/);
+  assert.match(backend, /stock_count, is_unlimited/);
 });

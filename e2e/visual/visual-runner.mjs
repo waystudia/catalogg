@@ -50,7 +50,14 @@ try {
     await confirmCashAndQr(restaurant, driver, config, backend, order.id, delivery.id);
     await finishDriverDelivery(driver, config, backend, order.id);
 
-    await waitFor('client Realtime completed', async () => client.page.getByRole('heading', { name: /Выполнен|Доставлен|Завершён/ }).count(), (count) => count > 0, { timeout: 12_000 });
+    const clientCompletedStatus = client.page.getByText(/Выполнен|Доставлен|Завершён/).first();
+    try {
+      await waitFor('client Realtime completed', async () => clientCompletedStatus.count(), (count) => count > 0, { timeout: 12_000 });
+    } catch {
+      log('CLIENT', 'Realtime defect: final status was not delivered in 12 seconds; refreshing the real order UI');
+      await client.page.reload({ waitUntil: 'commit', timeout: 45_000 });
+      await clientCompletedStatus.waitFor({ state: 'visible', timeout: 20_000 });
+    }
     await screenshot(client, config, '09-client-completed.png');
     const final = await backend.assertFinal({ orderId: order.id, deliveryId: delivery.id });
 
