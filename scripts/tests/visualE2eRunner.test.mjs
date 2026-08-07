@@ -59,3 +59,25 @@ test('visual E2E cannot pass when the driver earned zero or finance rows were du
   assert.match(backend, /Number\(finance\.earning_net_amount\)/);
   assert.match(runner, /Driver earned.*earning_amount/);
 });
+
+test('restaurant visual flow follows an accepted order into the preparing filter', async () => {
+  const roles = await readFile(new URL('../../e2e/visual/roles.mjs', import.meta.url), 'utf8');
+  const accepted = roles.indexOf("'Принять заказ', 'accepted'");
+  const preparingFilter = roles.indexOf("name: 'Готовятся', exact: true", accepted);
+  const startPreparing = roles.indexOf("'Начать готовить', 'preparing'", accepted);
+
+  assert.ok(accepted >= 0);
+  assert.ok(preparingFilter > accepted);
+  assert.ok(startPreparing > preparingFilter);
+});
+
+test('restaurant visual flow follows a waiting-driver order into the on-the-way filter', async () => {
+  const roles = await readFile(new URL('../../e2e/visual/roles.mjs', import.meta.url), 'utf8');
+  const waitingDriver = roles.indexOf("'Вызвать доставку', 'waiting_driver'");
+  const onTheWayFilter = roles.indexOf("name: 'В пути', exact: true", waitingDriver);
+  const dispatch = roles.indexOf("name: 'Вызвать таксистов'", waitingDriver);
+
+  assert.ok(waitingDriver >= 0);
+  assert.ok(onTheWayFilter > waitingDriver);
+  assert.ok(dispatch > onTheWayFilter);
+});

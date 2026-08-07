@@ -40,9 +40,9 @@ begin
     select tariff_type, tariff_percent, tariff_fixed
     from public.platform_custom_tariffs
     where subject_type = 'restaurant'
-      and subject_id in (target_client_id::text, target_catalog_id::text)
+      and subject_id in (target_client_id, target_catalog_id)
       and is_active
-    order by (subject_id = target_client_id::text) desc
+    order by (subject_id = target_client_id) desc
     limit 1
   ) custom on true
   where settings.id = 'global';

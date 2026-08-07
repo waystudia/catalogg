@@ -40,4 +40,20 @@ describe('client platform restaurant order contract', () => {
 
     assert.match(appSource, /new:\s*'Ожидает принятия'/);
   });
+
+  it('finalizes delivery price inside the protected creation RPC instead of an RLS-filtered browser update', () => {
+    const apiSource = readFileSync(resolve(repoRoot, 'src/shared/api/clientPlatformApi.ts'), 'utf8');
+    const migration = readFileSync(
+      resolve(repoRoot, 'supabase/migrations/20260807150000_finalize_client_platform_order.sql'),
+      'utf8'
+    );
+
+    assert.match(apiSource, /create_client_platform_restaurant_order/);
+    assert.match(apiSource, /create_client_platform_legacy_restaurant_order/);
+    assert.match(apiSource, /payment_method:\s*input\.draft\.paymentMethod/);
+    assert.doesNotMatch(apiSource, /\.from\('orders'\)[\s\S]{0,80}\.update\(/);
+    assert.match(migration, /resolved_delivery_fee := case[\s\S]*else 120/i);
+    assert.match(migration, /total = subtotal \+ resolved_delivery_fee/i);
+    assert.match(migration, /revoke all on function public\.finalize_created_client_platform_order\(uuid, text\)/i);
+  });
 });

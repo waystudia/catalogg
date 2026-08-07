@@ -410,36 +410,13 @@ const buildClientOrderItems = (lines: ClientCartLine[]): PublicOrderItemPayload[
 
 const resolveClientOrderRpcName = (items: readonly PublicOrderItemPayload[]) =>
   items.every((item) => uuidPattern.test(item.product_id))
-    ? 'create_public_restaurant_order'
-    : 'create_legacy_public_restaurant_order';
+    ? 'create_client_platform_restaurant_order'
+    : 'create_client_platform_legacy_restaurant_order';
 
 const fulfillmentTypeByOrderType: Record<ClientOrderType, 'hall' | 'takeaway' | 'delivery'> = {
   dine_in: 'hall',
   pickup: 'takeaway',
   delivery: 'delivery'
-};
-
-const deliveryProviderForOrder = (
-  orderType: ClientOrderType,
-  restaurantProvider: ClientDeliveryProvider
-): ClientDeliveryProvider => {
-  if (orderType === 'dine_in') return 'dine_in';
-  if (orderType === 'pickup') return 'pickup';
-  return restaurantProvider;
-};
-
-const initialPaymentStatus = (
-  orderType: ClientOrderType,
-  paymentMethod: ClientPaymentMethod
-): ClientPaymentStatus => {
-  if (paymentMethod === 'cash') return 'unpaid';
-  if (orderType === 'delivery') return 'waiting_confirmation';
-  return 'waiting_confirmation';
-};
-
-const initialOrderStatus = (orderType: ClientOrderType, paymentMethod: ClientPaymentMethod) => {
-  if (orderType === 'delivery' && paymentMethod !== 'cash') return 'waiting_payment_confirmation';
-  return 'new';
 };
 
 const errorText = (error: unknown) => {
@@ -509,6 +486,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
     client_address_comment: deliveryComment,
     comment: deliveryComment,
     idempotency_key: input.idempotencyKey?.trim() || null,
+    payment_method: input.draft.paymentMethod,
     items
   };
   let { data, error } = await supabase.rpc(rpcName, rpcArgs);
@@ -523,47 +501,6 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
 
   if (error) throw error;
   const orderId = String(data);
-  const deliveryProvider = deliveryProviderForOrder(input.draft.orderType, input.restaurant.deliveryProvider);
-  const paymentStatus = initialPaymentStatus(input.draft.orderType, input.draft.paymentMethod);
-  const status = initialOrderStatus(input.draft.orderType, input.draft.paymentMethod);
-
-  const updateResult = await supabase
-    .from('orders')
-    .update({
-      order_type: input.draft.orderType,
-      status,
-      payment_status: paymentStatus,
-      delivery_provider: deliveryProvider,
-      client_name: clientName,
-      client_phone: clientPhone,
-      delivery_address: input.draft.orderType === 'delivery' ? input.draft.deliveryAddress : null,
-      delivery_city: input.draft.orderType === 'delivery' ? deliverySettlement : null,
-      delivery_settlement: input.draft.orderType === 'delivery' ? deliverySettlement : null,
-      delivery_lat: input.draft.orderType === 'delivery' ? input.draft.deliveryLat : null,
-      delivery_lng: input.draft.orderType === 'delivery' ? input.draft.deliveryLng : null,
-      client_accuracy_m: input.draft.orderType === 'delivery' ? input.draft.deliveryAccuracyM : null,
-      delivery_address_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryAddress : null,
-      delivery_entrance_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryEntrance : null,
-      delivery_floor_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryFloor : null,
-      delivery_apartment_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryApartment : null,
-      delivery_intercom_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryIntercomCode : null,
-      delivery_landmark_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryLandmark : null,
-      delivery_comment_snapshot: input.draft.orderType === 'delivery' ? input.draft.deliveryComment : null,
-      client_lat: input.draft.orderType === 'delivery' ? input.draft.deliveryLat : null,
-      client_lng: input.draft.orderType === 'delivery' ? input.draft.deliveryLng : null,
-      restaurant_address_snapshot: input.restaurant.addressLine || input.restaurant.description,
-      restaurant_lat_snapshot: input.restaurant.lat,
-      restaurant_lng_snapshot: input.restaurant.lng,
-      delivery_comment: input.draft.orderType === 'delivery' ? input.draft.deliveryComment : null,
-      booth_name: input.draft.orderType === 'dine_in' ? input.draft.boothName : null,
-      delivery_fee: input.deliveryFee,
-      subtotal_amount: input.subtotal,
-      total_amount: input.total,
-      total: input.total
-    })
-    .eq('id', orderId);
-
-  if (updateResult.error) throw updateResult.error;
   return orderId;
 }
 
