@@ -3,7 +3,8 @@ import { describe, it } from 'node:test';
 import {
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthScope,
-  getSupabaseAuthStorageKeyForRedirect
+  getSupabaseAuthStorageKeyForRedirect,
+  handoffSupabaseSessionToScope
 } from './supabaseAuthScope';
 
 describe('Supabase auth scopes', () => {
@@ -33,6 +34,67 @@ describe('Supabase auth scopes', () => {
       'waycatalog-auth-platform-admin',
       'waycatalog-auth-login',
       'waycatalog-auth'
+    ]);
+  });
+
+  it('moves a completed login session into the destination role without leaving a refresh-token copy', () => {
+    const values = new Map<string, string>([
+      ['waycatalog-auth-login', 'fresh-superadmin-session'],
+      ['waycatalog-auth-driver', 'independent-driver-session']
+    ]);
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+          removeItem: (key: string) => values.delete(key),
+          setItem: (key: string, value: string) => values.set(key, value)
+        }
+      }
+    });
+
+    try {
+      handoffSupabaseSessionToScope('platform-admin');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    assert.equal(values.get('waycatalog-auth-platform-admin'), 'fresh-superadmin-session');
+    assert.equal(values.has('waycatalog-auth-login'), false);
+    assert.equal(values.get('waycatalog-auth-driver'), 'independent-driver-session');
+  });
+
+  it('does not disturb role sessions when there is no completed login session to hand off', () => {
+    const values = new Map<string, string>([
+      ['waycatalog-auth-driver', 'independent-driver-session']
+    ]);
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+          removeItem: (key: string) => values.delete(key),
+          setItem: (key: string, value: string) => values.set(key, value)
+        }
+      }
+    });
+
+    try {
+      handoffSupabaseSessionToScope('platform-admin');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    assert.deepEqual([...values.entries()], [
+      ['waycatalog-auth-driver', 'independent-driver-session']
     ]);
   });
 });
