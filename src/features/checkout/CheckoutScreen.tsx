@@ -80,6 +80,7 @@ import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { SafeImage } from '../../shared/SafeImage';
 import { loadCatalog } from '../../shared/supabase';
+import { buildRestaurantMapUrl } from '../../shared/restaurantLocation';
 import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
@@ -518,12 +519,19 @@ export function CheckoutScreen({
 
     return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
+  const restaurantMapUrl = buildRestaurantMapUrl({
+    lat: restaurant.lat,
+    lng: restaurant.lng,
+    mapLink: restaurant.mapLink,
+    city: configuredCity,
+    address: restaurant.address
+  });
   const openRestaurantMap = () => {
-    if (!restaurant.mapLink) {
+    if (!restaurantMapUrl) {
       alert('Карта не указана');
       return;
     }
-    window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
+    window.open(restaurantMapUrl, '_blank', 'noopener,noreferrer');
   };
   const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
 
@@ -600,6 +608,7 @@ export function CheckoutScreen({
           </div>
           <div className="restaurant-address">
             <span>Адрес ресторана</span>
+            {configuredCity && <small className="restaurant-address__city">{configuredCity}</small>}
             <strong>{restaurant.address || 'Адрес не указан'}</strong>
             <button className="map-link-button" type="button" onClick={openRestaurantMap}>
               <MapPin />

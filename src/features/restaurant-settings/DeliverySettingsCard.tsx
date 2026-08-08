@@ -18,6 +18,11 @@ import {
   type RestaurantDeliverySettings
 } from '../../shared/api/restaurantOrdersApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
+import {
+  getDeliveryCityOptions,
+  getDeliverySettlementOptions,
+  keepSettlementsAvailableForCity
+} from '../../shared/deliveryGeography';
 import { getCourierBillingRule, restaurantCourierTypeLabels, type RestaurantCourierType } from '../restaurant-billing/restaurantBillingRules';
 
 type DetailSection = null | 'couriers' | 'parameters' | 'zones' | 'qr';
@@ -96,23 +101,25 @@ export function DeliverySettingsCard({
   ) => {
     setDraft((current) => ({ ...current, [key]: value }));
   };
-  const placeOptions = useMemo(
-    () => Array.from(new Set(directorySettlements.flatMap((settlement) => [
-      settlement.cityName.trim(),
-      settlement.settlementName.trim()
-    ]).filter(Boolean))),
+  const cityOptions = useMemo(
+    () => getDeliveryCityOptions(directorySettlements),
     [directorySettlements]
   );
-  const directorySettlementOptions = useMemo(() => {
-    const city = draft.primary_city.trim().toLocaleLowerCase('ru-RU');
-    return directorySettlements
-      .filter((settlement) => {
-        const settlementCity = settlement.cityName.trim().toLocaleLowerCase('ru-RU');
-        return !city || !settlementCity || settlementCity === city;
-      })
-      .map((settlement) => settlement.settlementName)
-      .filter(Boolean);
-  }, [directorySettlements, draft.primary_city]);
+  const directorySettlementOptions = useMemo(
+    () => getDeliverySettlementOptions(directorySettlements, draft.primary_city),
+    [directorySettlements, draft.primary_city]
+  );
+  const changePrimaryCity = (primaryCity: string) => {
+    setDraft((current) => ({
+      ...current,
+      primary_city: primaryCity,
+      service_settlements: keepSettlementsAvailableForCity(
+        current.service_settlements,
+        directorySettlements,
+        primaryCity
+      )
+    }));
+  };
   const toggleDirectorySettlement = (value: string) => {
     setDraft((current) => ({
       ...current,
@@ -277,10 +284,19 @@ export function DeliverySettingsCard({
             </label>
             <label>
               Основной город
-              <select value={draft.primary_city} onChange={(event) => setText('primary_city', event.target.value)}>
-                <option value="">Выберите село или город</option>
-                {placeOptions.map((place) => <option value={place} key={place}>{place}</option>)}
+              <select value={draft.primary_city} onChange={(event) => changePrimaryCity(event.target.value)}>
+                <option value="">Выберите город</option>
+                {draft.primary_city && !cityOptions.includes(draft.primary_city) && (
+                  <option value={draft.primary_city}>{draft.primary_city}</option>
+                )}
+                {cityOptions.map((city) => <option value={city} key={city}>{city}</option>)}
               </select>
+              {draft.primary_city && (
+                <span className="delivery-settings-point-label">
+                  <MapPin aria-hidden="true" />
+                  <small>Точка ресторана: <strong>{draft.primary_city}</strong></small>
+                </span>
+              )}
             </label>
             <label className="delivery-settings-grid__wide">
               Сёла и районы обслуживания

@@ -524,8 +524,15 @@
 
 .delivery-directory-picker {
   display: flex;
+  max-height: 220px;
   flex-wrap: wrap;
   gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #d8e0ec;
+  border-radius: 12px;
+  padding: 8px;
+  background: #fff;
 }
 
 .delivery-directory-picker button {
@@ -547,4 +554,31 @@
 
 .delivery-directory-picker small {
   color: #667085;
+}
+
+.delivery-settings-point-label {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cddcff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: #f4f7ff;
+}
+
+.delivery-settings-point-label svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  color: #2563eb;
+}
+
+.delivery-settings-point-label small {
+  color: #344054;
+  font-weight: 650;
+}
+
+.delivery-settings-point-label strong {
+  color: #101828;
 }

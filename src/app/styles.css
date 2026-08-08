@@ -5922,6 +5922,16 @@ a {
   font-size: 16px;
 }
 
+.restaurant-address__city {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: color-mix(in srgb, var(--settings-card-text) 8%, transparent);
+  color: var(--settings-card-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .map-link-button {
   display: flex;
   min-height: 48px;

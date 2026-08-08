@@ -2167,6 +2167,94 @@
   font-weight: 500;
 }
 
+.client-geography-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.client-geography-point {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #cddcff;
+  border-radius: 12px;
+  padding: 9px 11px;
+  background: #f4f7ff;
+}
+
+.client-geography-point svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  color: #2563eb;
+}
+
+.client-form .client-geography-point small {
+  color: #334155;
+  font-weight: 600;
+}
+
+.client-form .client-geography-point strong {
+  color: #111827;
+}
+
+.client-geography-settlements {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.client-geography-settlements legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: #334155;
+  font-weight: 800;
+}
+
+.client-geography-settlements__list {
+  display: grid;
+  max-height: 220px;
+  gap: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  padding: 7px;
+  background: #fff;
+}
+
+.client-geography-settlements__list label {
+  grid-template-columns: 20px minmax(0, 1fr);
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  border-radius: 9px;
+  padding: 5px 8px;
+  font-weight: 650;
+}
+
+.client-geography-settlements__list label:has(input:checked) {
+  background: #eef3ff;
+  color: #1d4ed8;
+}
+
+.client-geography-settlements__list p {
+  margin: 0;
+  padding: 12px 9px;
+  color: #667085;
+  font-weight: 500;
+}
+
+.client-form .client-geography-settlements > small {
+  color: #2563eb;
+  font-weight: 650;
+}
+
 .client-module-access > p {
   margin: -6px 0 0;
   color: #667085;
@@ -2995,8 +3083,13 @@
 
   .client-form-grid,
   .client-form-grid--three,
-  .client-module-access__options {
+  .client-module-access__options,
+  .client-geography-fields {
     grid-template-columns: 1fr;
+  }
+
+  .client-geography-settlements__list {
+    max-height: 190px;
   }
 
   .client-template-picker__grid {
