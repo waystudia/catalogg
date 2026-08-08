@@ -63,3 +63,27 @@ export const copySupabaseSessionToScope = (scope: SupabaseAuthScope, serializedS
     // Supabase will keep using the in-memory session if storage is unavailable.
   }
 };
+
+export const handoffSupabaseSessionToScope = (
+  scope: SupabaseAuthScope,
+  serializedSession?: string | null
+) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const targetKey = getSupabaseAuthStorageKey(scope);
+    const sourceKeys = getSupabaseAuthFallbackStorageKeys(scope);
+    const session =
+      serializedSession ??
+      sourceKeys
+        .map((key) => window.localStorage.getItem(key))
+        .find(Boolean);
+    if (!session) return;
+
+    window.localStorage.setItem(targetKey, session);
+    sourceKeys
+      .filter((key) => key !== targetKey)
+      .forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // The authenticated client keeps its in-memory session until navigation completes.
+  }
+};

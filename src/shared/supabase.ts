@@ -24,7 +24,7 @@ import {
   getSupabaseAuthScope,
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthStorageKey,
-  getSupabaseAuthStorageKeyForRedirect
+  handoffSupabaseSessionToScope
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
 
@@ -67,6 +67,29 @@ export const supabase: SupabaseClient | null =
       })
     : null;
 
+const passwordLoginClient: SupabaseClient | null =
+  config.url && config.anonKey
+    ? createClient(config.url, config.anonKey, {
+        auth: {
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          persistSession: false,
+          storageKey: 'waycatalog-auth-password-login'
+        },
+        global: {
+          fetch: async (input, init) => {
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
+            try {
+              return await fetch(input, { ...init, signal: controller.signal });
+            } finally {
+              window.clearTimeout(timeoutId);
+            }
+          }
+        }
+      })
+    : null;
+
 const isTransientAuthError = (error: unknown) => {
   if (!error || typeof error !== 'object') return false;
   const value = error as { status?: unknown; message?: unknown; code?: unknown };
@@ -84,33 +107,14 @@ const isTransientAuthError = (error: unknown) => {
 };
 
 export async function signInWithPasswordResilient(identifier: string, password: string) {
-  if (!config.url || !config.anonKey || !supabase) {
+  if (!passwordLoginClient || !supabase) {
     return { data: { session: null, user: null }, error: new Error('Supabase не настроен') };
   }
 
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const loginClient = createClient(config.url, config.anonKey, {
-      auth: {
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false
-      },
-      global: {
-        fetch: async (input, init) => {
-          const controller = new AbortController();
-          const timeoutId = window.setTimeout(() => controller.abort(), 15_000);
-          try {
-            return await fetch(input, { ...init, signal: controller.signal });
-          } finally {
-            window.clearTimeout(timeoutId);
-          }
-        }
-      }
-    });
-
     try {
-      const result = await loginClient.auth.signInWithPassword(
+      const result = await passwordLoginClient.auth.signInWithPassword(
         buildPasswordCredentials(identifier, password)
       );
       if (!result.error && result.data.session) {
@@ -147,7 +151,7 @@ export const preserveSupabaseSessionForRedirect = (redirect: string) => {
   try {
     const serializedSession = window.localStorage.getItem(currentAuthStorageKey);
     if (!serializedSession) return;
-    window.localStorage.setItem(getSupabaseAuthStorageKeyForRedirect(redirect), serializedSession);
+    handoffSupabaseSessionToScope(getSupabaseAuthScope(redirect), serializedSession);
   } catch {
     // The active tab still keeps the authenticated session in memory.
   }

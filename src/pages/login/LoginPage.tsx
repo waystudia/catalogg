@@ -2,10 +2,17 @@ import { LockKeyhole } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
+import { redirectToRoleApp } from '../../shared/appNavigation';
 import { rememberPwaResumePath } from '../../shared/pwaSession';
 import './login.css';
 
-export function LoginPage() {
+type LoginPageProps = {
+  readonly navigateToRoleApp?: (path: string) => void;
+};
+
+export function LoginPage({
+  navigateToRoleApp = redirectToRoleApp
+}: LoginPageProps = {}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [method, setMethod] = useState<'phone' | 'email'>('phone');
@@ -34,6 +41,10 @@ export function LoginPage() {
           ? clientReturnTo
           : redirect;
       rememberPwaResumePath(targetPath);
+      if (redirect !== '/profile') {
+        navigateToRoleApp(targetPath);
+        return;
+      }
       navigate(targetPath, { replace: true });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Не удалось войти');

@@ -4,7 +4,6 @@ import {
   signInWithPasswordResilient,
   supabase
 } from '../supabase';
-import { copySupabaseSessionToScope, getSupabaseAuthScope } from '../supabaseAuthScope';
 import { loginClientAccount, loginCurrentAuthClientAccount } from './clientAccountApi';
 import { normalizeLoginPhone } from '../loginIdentifier';
 
@@ -185,7 +184,6 @@ export async function resolveLoginRedirect(
   if (redirect) assertExpectedLoginRole(redirect, expectedRole);
   if (redirect) {
     preserveSupabaseSessionForRedirect(redirect);
-    copySupabaseSessionToScope(getSupabaseAuthScope(redirect));
   }
   return redirect;
 }
