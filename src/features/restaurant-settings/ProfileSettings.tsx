@@ -295,7 +295,7 @@ export function ProfileSettings({
                 onSearchSelect={(result) => {
                   setDraft((current) => ({
                     ...current,
-                    address: current.address || result.label
+                    address: result.label
                   }));
                 }}
                 onDone={() => setIsRestaurantMapOpen(false)}

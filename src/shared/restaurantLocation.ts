@@ -27,6 +27,31 @@ export const makeRestaurantCoordinates = (lat: number | null, lng: number | null
 export const buildYandexMapLink = (lat: number, lng: number) =>
   `https://yandex.ru/maps/?ll=${lng},${lat}&z=16&pt=${lng},${lat},pm2rdm`;
 
+export const buildRestaurantMapUrl = ({
+  lat,
+  lng,
+  mapLink,
+  city,
+  address
+}: {
+  lat: number | null;
+  lng: number | null;
+  mapLink?: string | null;
+  city?: string | null;
+  address?: string | null;
+}) => {
+  const coordinates = makeRestaurantCoordinates(lat, lng);
+  if (coordinates) return buildYandexMapLink(coordinates.lat, coordinates.lng);
+
+  const explicitLink = mapLink?.trim();
+  if (explicitLink) return explicitLink;
+
+  const searchText = Array.from(
+    new Set([city, address].map((value) => value?.trim()).filter(Boolean))
+  ).join(', ');
+  return searchText ? `https://yandex.ru/maps/?text=${encodeURIComponent(searchText)}` : '';
+};
+
 const parseYandexLngLat = (value: string | null) => {
   const match = value?.match(/(-?\d+(?:[.,]\d+)?)\s*,\s*(-?\d+(?:[.,]\d+)?)/);
   if (!match) return null;

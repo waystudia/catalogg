@@ -2100,15 +2100,20 @@ function AppContent({
       void queryClient.invalidateQueries({ queryKey: catalogQueryKey });
     };
     const channel = client.channel(`catalog-refresh-${catalogSlug}`);
-    ['category', 'categories', 'product', 'products', 'restaurant', 'catalogs', 'catalog_tag', 'tags', 'theme_settings', 'catalog_theme_settings'].forEach((table) => {
+    ['category', 'categories', 'product', 'products', 'restaurant', 'restaurants', 'catalogs', 'catalog_tag', 'tags', 'theme_settings', 'catalog_theme_settings'].forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, refreshCatalog);
     });
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'restaurant_delivery_settings' },
+      refreshDeliverySettings
+    );
     channel.subscribe();
 
     return () => {
       void client.removeChannel(channel);
     };
-  }, [catalogQueryKey, catalogSlug]);
+  }, [catalogQueryKey, catalogSlug, refreshDeliverySettings]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });

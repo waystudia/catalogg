@@ -122,6 +122,7 @@ import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/Pl
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
 import { RestaurantActivationsAdminPage } from '../../features/platform-admin-activations/RestaurantActivationsAdminPage';
+import { ClientGeographyFields } from './ClientGeographyFields';
 import {
   getRestaurantModuleEntitlementByCatalog,
   saveRestaurantModuleEntitlement,
@@ -1004,8 +1005,6 @@ function CreateClientForm({
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const settlementsQuery = useQuery({ queryKey: ['delivery-settlements'], queryFn: getDeliverySettlements });
-  const cityOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.cityName.trim()).filter(Boolean)));
-  const settlementOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.settlementName.trim()).filter(Boolean)));
   const firstTemplate = templates[0];
   const {
     register,
@@ -1042,6 +1041,8 @@ function CreateClientForm({
   const templateVersionId = watch('templateVersionId');
   const businessType = watch('businessType');
   const adminConsentConfirmed = watch('adminConsentConfirmed');
+  const primaryCity = watch('primaryCity') ?? '';
+  const serviceSettlements = parseSettlementsInput(watch('serviceSettlementsText') ?? '');
   const selectedTemplate = templates.find((template) => template.templateVersionId === templateVersionId);
 
   const [lastAutoSlug, setLastAutoSlug] = useState('');
@@ -1270,13 +1271,6 @@ function CreateClientForm({
               <input {...register('phone')} placeholder="+7 999 000-00-00" inputMode="tel" />
             </label>
             <label>
-              Основной город
-              <input {...register('primaryCity')} placeholder="Например: Грозный" list="client-city-options" />
-              <datalist id="client-city-options">
-                {cityOptions.map((city) => <option value={city} key={city} />)}
-              </datalist>
-            </label>
-            <label>
               <span>
                 Тариф <b>*</b>
               </span>
@@ -1310,16 +1304,20 @@ function CreateClientForm({
               </select>
             </label>
           </div>
-          <label>
-            Села и районы обслуживания
-            <textarea
-              {...register('serviceSettlementsText')}
-              rows={4}
-              placeholder={'Одно село на строку\nЧерноречье\nБеркат-Юрт'}
-            />
-            <em>Эти населенные пункты можно будет использовать для маршрутизации заказов водителям.</em>
-            {settlementOptions.length > 0 && <em>Справочник: {settlementOptions.slice(0, 8).join(', ')}</em>}
-          </label>
+          <input type="hidden" {...register('primaryCity')} />
+          <input type="hidden" {...register('serviceSettlementsText')} />
+          <ClientGeographyFields
+            settlements={settlementsQuery.data ?? []}
+            primaryCity={primaryCity}
+            selectedSettlements={serviceSettlements}
+            onPrimaryCityChange={(city) => setValue('primaryCity', city, { shouldDirty: true, shouldValidate: true })}
+            onSelectedSettlementsChange={(settlements) => setValue(
+              'serviceSettlementsText',
+              formatSettlementsInput(settlements),
+              { shouldDirty: true, shouldValidate: true }
+            )}
+          />
+          <em>Выбранная география синхронизируется с доставкой ресторана и маршрутизацией водителей.</em>
         </section>
 
         <section className="client-form-section">
@@ -1383,8 +1381,6 @@ function EditClientForm({
     queryKey: ['restaurant-module-entitlement', client.catalogId],
     queryFn: () => getRestaurantModuleEntitlementByCatalog(client.catalogId)
   });
-  const cityOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.cityName.trim()).filter(Boolean)));
-  const settlementOptions = Array.from(new Set((settlementsQuery.data ?? []).map((settlement) => settlement.settlementName.trim()).filter(Boolean)));
 
   useEffect(() => {
     if (moduleDraft || !modulesQuery.data) return;
@@ -1473,24 +1469,14 @@ function EditClientForm({
               Телефон
               <input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" />
             </label>
-            <label>
-              Основной город
-              <input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} list="edit-client-city-options" />
-              <datalist id="edit-client-city-options">
-                {cityOptions.map((city) => <option value={city} key={city} />)}
-              </datalist>
-            </label>
           </div>
-          <label>
-            Села и районы обслуживания
-            <textarea
-              value={serviceSettlementsText}
-              onChange={(event) => setServiceSettlementsText(event.target.value)}
-              rows={4}
-              placeholder={'Одно село на строку\nЧерноречье\nБеркат-Юрт'}
-            />
-            {settlementOptions.length > 0 && <em>Справочник: {settlementOptions.slice(0, 8).join(', ')}</em>}
-          </label>
+          <ClientGeographyFields
+            settlements={settlementsQuery.data ?? []}
+            primaryCity={primaryCity}
+            selectedSettlements={parseSettlementsInput(serviceSettlementsText)}
+            onPrimaryCityChange={setPrimaryCity}
+            onSelectedSettlementsChange={(settlements) => setServiceSettlementsText(formatSettlementsInput(settlements))}
+          />
         </section>
 
         <section className="client-form-section">
