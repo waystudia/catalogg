@@ -416,7 +416,17 @@ function PlatformMobileNav({
   );
 }
 
-function StatsCards({ stats, variant = 'clients' }: { stats?: PlatformStats; variant?: 'clients' | 'dashboard' }) {
+type ClientStatsDrilldown = 'restaurants' | 'deliveries';
+
+function StatsCards({
+  stats,
+  variant = 'clients',
+  onDrilldown
+}: {
+  stats?: PlatformStats;
+  variant?: 'clients' | 'dashboard';
+  onDrilldown?: (drilldown: ClientStatsDrilldown) => void;
+}) {
   const items = variant === 'dashboard'
     ? [
         { label: 'Всего клиентов', value: stats?.totalClients ?? 0, Icon: Users },
@@ -427,18 +437,19 @@ function StatsCards({ stats, variant = 'clients' }: { stats?: PlatformStats; var
         { label: 'Доставки водителей', value: stats?.driverDeliveries ?? 0, Icon: Truck }
       ]
     : [
-        { label: 'Клиенты', value: stats?.totalClients ?? 0, Icon: Users },
+        { label: 'Клиенты', value: stats?.totalClients ?? 0, Icon: Users, drilldown: 'restaurants' as const },
         { label: 'Каталоги', value: stats?.activeCatalogs ?? 0, Icon: Store },
         { label: 'Выручка', value: formatMoney(stats?.monthlyRevenue ?? 0), Icon: CreditCard },
         { label: 'Дни', value: stats?.daysActive ?? 0, Icon: Activity },
         { label: 'Заказы', value: stats?.totalOrders ?? 0, Icon: Ticket },
-        { label: 'Доставки', value: stats?.driverDeliveries ?? 0, Icon: Truck }
+        { label: 'Доставки', value: stats?.driverDeliveries ?? 0, Icon: Truck, drilldown: 'deliveries' as const }
       ];
 
   return (
     <section className={variant === 'dashboard' ? 'platform-stats platform-stats--dashboard' : 'platform-stats'}>
-      {items.map(({ label, value, Icon }) => (
-        <article className="platform-stat" key={label}>
+      {items.map(({ label, value, Icon, ...item }) => {
+        const content = (
+          <>
           <span>
             <Icon />
           </span>
@@ -446,9 +457,76 @@ function StatsCards({ stats, variant = 'clients' }: { stats?: PlatformStats; var
             <small>{label}</small>
             <strong>{value}</strong>
           </div>
-        </article>
-      ))}
+          </>
+        );
+        return 'drilldown' in item && item.drilldown && onDrilldown ? (
+          <button className="platform-stat platform-stat--action" type="button" key={label} onClick={() => onDrilldown(item.drilldown)}>
+            {content}
+          </button>
+        ) : (
+          <article className="platform-stat" key={label}>{content}</article>
+        );
+      })}
     </section>
+  );
+}
+
+export function ClientStatsPanel({ stats }: { stats?: PlatformStats }) {
+  const [drilldown, setDrilldown] = useState<ClientStatsDrilldown | null>(null);
+  const restaurants = stats?.restaurantStats ?? [];
+  const title = drilldown === 'deliveries'
+    ? 'Доставки по ресторанам'
+    : 'Рестораны: выручка, заказы и долг';
+
+  useEffect(() => {
+    if (!drilldown) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrilldown(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [drilldown]);
+
+  return (
+    <>
+      <StatsCards stats={stats} onDrilldown={setDrilldown} />
+      {drilldown && (
+        <div className="platform-stat-dialog-backdrop" onMouseDown={() => setDrilldown(null)}>
+          <section
+            className="platform-stat-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <small>Подробная статистика</small>
+                <h2>{title}</h2>
+              </div>
+              <button type="button" aria-label="Закрыть" onClick={() => setDrilldown(null)}><X /></button>
+            </header>
+            <div className="platform-stat-dialog__list">
+              {restaurants.map((restaurant) => (
+                <article key={restaurant.id}>
+                  <strong>{restaurant.name}</strong>
+                  {drilldown === 'deliveries' ? (
+                    <span>Доставок: {restaurant.driverDeliveries}</span>
+                  ) : (
+                    <div>
+                      <span>{formatMoney(restaurant.revenue)}</span>
+                      <span>{restaurant.ordersCount} заказов</span>
+                      <span>Долг {formatMoney(restaurant.debt)}</span>
+                    </div>
+                  )}
+                </article>
+              ))}
+              {restaurants.length === 0 && <p>Данные появятся после первого заказа ресторана.</p>}
+            </div>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1651,7 +1729,7 @@ function ClientsPage({
           <span>Добавить клиента</span>
         </button>
       </header>
-      <StatsCards stats={statsQuery.data} />
+      <ClientStatsPanel stats={statsQuery.data} />
       <RestaurantRevenueSummary stats={statsQuery.data} />
       <ClientFilters
         search={search}
