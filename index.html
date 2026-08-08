@@ -15,48 +15,63 @@
       (() => {
         const retirementVersion = '20260803-network-only-v2';
         const retirementKey = `wayyaam:pwa-retirement:${retirementVersion}`;
-
-        try {
-          if (window.localStorage.getItem(retirementKey) === 'done') return;
-        } catch {
-          // Cleanup must still run when storage is unavailable in strict modes.
-        }
-
-        const cleanupTasks = [];
-
-        if ('serviceWorker' in navigator) {
-          cleanupTasks.push(
-            navigator.serviceWorker.getRegistrations().then(async (registrations) => {
-              const results = await Promise.allSettled(
-                registrations.map((registration) => registration.unregister())
-              );
-              return {
-                hadLegacyState: registrations.length > 0,
-                cleanupFailed: results.some((result) => result.status === 'rejected')
-              };
+        const isPushOnlyRegistration = (registration) => (
+          [registration.installing, registration.waiting, registration.active]
+            .filter(Boolean)
+            .some((worker) => {
+              try {
+                return new URL(worker.scriptURL).searchParams.get('mode') === 'push';
+              } catch {
+                return false;
+              }
             })
-          );
-        }
+        );
 
-        if ('caches' in window) {
-          cleanupTasks.push(
-            window.caches.keys().then(async (cacheNames) => {
-              const results = await Promise.allSettled(
-                cacheNames.map((cacheName) => window.caches.delete(cacheName))
-              );
-              return {
-                hadLegacyState: cacheNames.length > 0,
-                cleanupFailed: results.some((result) => result.status === 'rejected')
-              };
-            })
-          );
-        }
+        window.__WAYYAAM_PWA_RETIREMENT__ = (async () => {
+          try {
+            if (window.localStorage.getItem(retirementKey) === 'done') return true;
+          } catch {
+            // Cleanup must still run when storage is unavailable in strict modes.
+          }
 
-        void Promise.allSettled(cleanupTasks).then((results) => {
+          const cleanupTasks = [];
+
+          if ('serviceWorker' in navigator) {
+            cleanupTasks.push(
+              navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+                const legacyRegistrations = registrations.filter((registration) => (
+                  !isPushOnlyRegistration(registration)
+                ));
+                const results = await Promise.allSettled(
+                  legacyRegistrations.map((registration) => registration.unregister())
+                );
+                return {
+                  hadLegacyState: legacyRegistrations.length > 0,
+                  cleanupFailed: results.some((result) => result.status === 'rejected')
+                };
+              })
+            );
+          }
+
+          if ('caches' in window) {
+            cleanupTasks.push(
+              window.caches.keys().then(async (cacheNames) => {
+                const results = await Promise.allSettled(
+                  cacheNames.map((cacheName) => window.caches.delete(cacheName))
+                );
+                return {
+                  hadLegacyState: cacheNames.length > 0,
+                  cleanupFailed: results.some((result) => result.status === 'rejected')
+                };
+              })
+            );
+          }
+
+          const results = await Promise.allSettled(cleanupTasks);
           const cleanupFailed = results.some((result) => (
             result.status === 'rejected' || result.value.cleanupFailed
           ));
-          if (cleanupFailed) return;
+          if (cleanupFailed) return false;
 
           try {
             window.localStorage.setItem(retirementKey, 'done');
@@ -67,13 +82,14 @@
           const hadLegacyState = results.some((result) => (
             result.status === 'fulfilled' && result.value.hadLegacyState
           ));
-          if (!hadLegacyState) return;
+          if (!hadLegacyState) return true;
 
           const nextUrl = new URL(window.location.href);
-          if (nextUrl.searchParams.get('pwa-reset') === retirementVersion) return;
+          if (nextUrl.searchParams.get('pwa-reset') === retirementVersion) return true;
           nextUrl.searchParams.set('pwa-reset', retirementVersion);
           window.location.replace(nextUrl.toString());
-        });
+          return false;
+        })();
       })();
     </script>
   </head>

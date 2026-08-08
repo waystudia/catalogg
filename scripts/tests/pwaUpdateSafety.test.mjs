@@ -60,8 +60,16 @@ const runRetirementScenario = async (overrides = {}) => {
     serviceWorker: {
       async getRegistrations() {
         events.push({ type: 'getRegistrations' });
-        return scenario.registrations.map((registrationId) => ({
+        return scenario.registrations.map((registration) => ({
+          active: {
+            scriptURL: typeof registration === 'string'
+              ? 'https://wayyaam.ru/sw.js'
+              : registration.scriptUrl
+          },
           async unregister() {
+            const registrationId = typeof registration === 'string'
+              ? registration
+              : registration.id;
             events.push({ type: 'unregister', registrationId });
             if (scenario.failUnregister) throw new Error('unregister failed');
             return true;
@@ -76,8 +84,8 @@ const runRetirementScenario = async (overrides = {}) => {
   return events;
 };
 
-test('the application no longer installs a service worker', () => {
-  assert.doesNotMatch(mainSource, /navigator\.serviceWorker\.register/);
+test('the application primes the push-only service worker without reload lifecycle hooks', () => {
+  assert.match(mainSource, /ensurePushServiceWorkerRegistration/);
   assert.doesNotMatch(mainSource, /virtual:pwa-register/);
   assert.doesNotMatch(mainSource, /registerSW\(/);
   assert.doesNotMatch(mainSource, /controllerchange/);
@@ -85,9 +93,9 @@ test('the application no longer installs a service worker', () => {
   assert.doesNotMatch(mainSource, /updateSW\(true\)/);
 });
 
-test('the final worker activates immediately and unregisters itself', () => {
+test('the network-only worker activates immediately and remains registered for background push', () => {
   assert.match(serviceWorkerSource, /skipWaiting\(\);/);
-  assert.match(serviceWorkerSource, /self\.registration\.unregister\(\)/);
+  assert.doesNotMatch(serviceWorkerSource, /self\.registration\.unregister\(\)/);
   assert.doesNotMatch(serviceWorkerSource, /clientsClaim\(\);/);
 });
 
@@ -108,6 +116,8 @@ test('the replacement worker deletes every PWA cache and never serves pages or i
 test('the application shell retires stale workers and caches before a clean network reload', () => {
   assert.match(indexSource, /navigator\.serviceWorker\.getRegistrations\(\)/);
   assert.match(indexSource, /registration\.unregister\(\)/);
+  assert.match(indexSource, /searchParams\.get\('mode'\) === 'push'/);
+  assert.match(indexSource, /__WAYYAAM_PWA_RETIREMENT__/);
   assert.match(indexSource, /window\.caches\.keys\(\)/);
   assert.match(indexSource, /window\.caches\.delete\(cacheName\)/);
   assert.match(indexSource, /window\.location\.replace\(nextUrl\.toString\(\)\)/);
@@ -143,6 +153,22 @@ test('legacy PWA state is removed before the one required clean reload', async (
   assert.equal(events.at(-1)?.url, 'https://wayyaam.ru/?pwa-reset=20260803-network-only-v2#/mangal');
 });
 
+test('the current push-only worker survives retirement cleanup without a reload', async () => {
+  const events = await runRetirementScenario({
+    registrations: [{
+      id: 'push-worker',
+      scriptUrl: 'https://wayyaam.ru/sw.js?mode=push'
+    }]
+  });
+
+  assert.deepEqual(events.map(({ type }) => type), [
+    'readMarker',
+    'getRegistrations',
+    'getCacheNames',
+    'setMarker'
+  ]);
+});
+
 test('failed legacy cleanup is retried on the next launch without reloading', async () => {
   const events = await runRetirementScenario({
     registrations: ['legacy-worker'],
@@ -165,6 +191,10 @@ test('a completed retirement marker avoids all later PWA cleanup work', async ()
 
 test('strict storage modes still inspect PWA state without forcing a clean launch reload', async () => {
   const events = await runRetirementScenario({
+    registrations: [{
+      id: 'push-worker',
+      scriptUrl: 'https://wayyaam.ru/sw.js?mode=push'
+    }],
     failMarkerRead: true,
     failMarkerWrite: true
   });

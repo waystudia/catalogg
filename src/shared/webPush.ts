@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { ensurePushServiceWorkerRegistration } from './pushServiceWorker';
 import type { WebPushContext } from './webPushContext';
 
 export type { WebPushContext, WebPushRole } from './webPushContext';
@@ -38,7 +39,8 @@ const createPushSubscription = (registration: ServiceWorkerRegistration) =>
 export async function registerWebPushSubscription(context: WebPushContext): Promise<boolean> {
   if (!isWebPushSupported() || !supabase || !publicKey() || Notification.permission !== 'granted') return false;
 
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await ensurePushServiceWorkerRegistration();
+  if (!registration) return false;
   let subscription = await registration.pushManager.getSubscription();
   if (subscription && !subscriptionUsesPublicKey(subscription, publicKey())) {
     await subscription.unsubscribe();
@@ -83,7 +85,8 @@ export async function registerWebPushSubscription(context: WebPushContext): Prom
 
 export async function removeWebPushSubscription() {
   if (!isWebPushSupported() || !supabase) return;
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await ensurePushServiceWorkerRegistration();
+  if (!registration) return;
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
   await supabase.rpc('delete_web_push_subscription', { subscription_endpoint: subscription.endpoint });
