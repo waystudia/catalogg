@@ -433,6 +433,128 @@
   padding: 20px;
 }
 
+.platform-stat--action {
+  width: 100%;
+  border-color: #e5e7eb;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.platform-stat--action:hover,
+.platform-stat--action:focus-visible {
+  border-color: #6d55ef;
+  box-shadow: 0 0 0 3px rgba(91, 61, 244, 0.12), var(--platform-shadow);
+}
+
+.platform-stat-dialog-backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.platform-stat-dialog {
+  width: min(680px, 100%);
+  max-height: min(720px, calc(100dvh - 40px));
+  overflow: auto;
+  border-radius: 24px;
+  padding: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.platform-stat-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.platform-stat-dialog h2,
+.platform-stat-dialog p {
+  margin: 0;
+}
+
+.platform-stat-dialog header small {
+  color: var(--platform-muted);
+  font-weight: 700;
+}
+
+.platform-stat-dialog header button {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid #dbe1ea;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.platform-stat-dialog header button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.platform-stat-dialog__list {
+  display: grid;
+  gap: 10px;
+}
+
+.platform-stat-dialog__list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #e4e7ee;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.platform-stat-dialog__list article > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.platform-stat-dialog__list span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #f3f1ff;
+  color: #4f38cf;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .platform-stat-dialog-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .platform-stat-dialog {
+    width: 100%;
+    max-height: 82dvh;
+    border-radius: 24px 24px 0 0;
+    padding: 20px;
+  }
+
+  .platform-stat-dialog__list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .platform-stat-dialog__list article > div {
+    justify-content: flex-start;
+  }
+}
+
 .platform-stat > span {
   display: grid;
   width: 56px;
