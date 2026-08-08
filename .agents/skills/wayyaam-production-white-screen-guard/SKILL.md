@@ -24,8 +24,8 @@ Keep this skill project-local at `.agents/skills/wayyaam-production-white-screen
 Read these before changing or deploying an affected surface:
 
 - `index.html`: one-time legacy worker/cache retirement and visible loading shell.
-- `src/main.tsx`: application bootstrap; it must not register a service worker.
-- `src/sw.ts`: final cache-retirement worker; it deletes caches and unregisters itself.
+- `src/main.tsx` and `src/shared/pushServiceWorker.ts`: application bootstrap; they may register only the persistent network-only worker at `sw.js?mode=push` and must never reload the page on worker lifecycle events.
+- `src/sw.ts`: network-only Web Push worker; it deletes legacy caches, owns no fetch routes, and remains registered for background notifications.
 - `vite.config.ts`: root/base behavior and empty service-worker precache (`globPatterns: []`).
 - `infra/caddy/Caddyfile`: production TLS, h1/h2-only edge, cache headers, real asset 404s, and media proxy.
 - `infra/systemd/configure-wayyaam-tls-mss.sh` and `infra/systemd/wayyaam-tls-mss.service`: boot-persistent TCP MSS 1200 workaround.
@@ -43,13 +43,13 @@ If the worktree is behind `origin/main`, inspect the truth sources from both the
 
 ### PWA lifecycle
 
-- Never add automatic worker registration, `controllerchange` reloads, cache-first pages/images, or unconditional startup reloads.
+- Never add `controllerchange` reloads, cache-first pages/images, or unconditional startup reloads. The one allowed automatic registration is the network-only Web Push worker at `sw.js?mode=push`.
 - A clean first launch must not navigate twice.
-- Remove legacy registrations/caches before the one required cleanup reload only when legacy state actually exists.
+- Remove legacy caching registrations/caches before the one required cleanup reload only when legacy state actually exists. Preserve registrations whose worker URL has `mode=push`.
 - Do not mark cleanup complete after failed unregister/cache deletion; retry on the next launch without a reload loop.
 - Strict/private storage failure must not prevent startup or cause a reload loop.
 - Keep `sw.js`, `index.html`, `/`, and `manifest.webmanifest` network-fresh.
-- `src/sw.ts` still contains legacy push handlers, but new clients do not install it. Restoring background push requires an explicit design that preserves every no-cache/no-reload invariant; do not silently re-enable registration.
+- `src/sw.ts` handles background push and must remain registered. It must never register a `fetch` handler, precache application files, claim open clients, or unregister itself.
 
 ### Static releases and cache headers
 
@@ -94,7 +94,7 @@ If the worktree is behind `origin/main`, inspect the truth sources from both the
      scripts/tests/staticReleaseDeploy.test.mjs
    ```
 
-5. Verify `dist/index.html` references root `/assets/...`, the referenced files exist, and `dist/sw.js` contains no page/image cache routes.
+5. Verify `dist/index.html` references root `/assets/...`, the referenced files exist, and `dist/sw.js` contains no page/image cache routes or self-unregistration while the main bundle registers `sw.js?mode=push`.
 6. Before server mutation, verify the approved SSH identity, exact target, `current`, container health, Caddy restart policy, and available backup. Never print private keys or secrets.
 7. Upload `dist` to a unique incoming directory and switch with `/usr/local/sbin/deploy-wayyaam-static`. Do not remove the upload, old releases, backups, or shared assets.
 8. Do not reload Caddy for a static deployment. If Caddy config changed, validate the config first and apply only the approved targeted action.
@@ -116,6 +116,7 @@ Stop deployment or roll back `current` to the known-good release with explicit a
 
 - clean startup triggers a second navigation;
 - cleanup failure is marked complete;
+- the current push-only worker is removed, unregisters itself, or is never registered;
 - current `index.html` references a missing module;
 - the previous main asset is no longer 200;
 - an unknown `/assets/*.js` returns HTML or any status other than 404;
@@ -128,7 +129,7 @@ Never delete a failing release or old assets during rollback; preserve evidence 
 
 ## Fix Patterns
 
-- Stale PWA state: improve the retirement state machine and its simulation tests; do not add broad cache clearing on every launch.
+- Stale PWA state: improve the retirement state machine and its simulation tests; preserve the push-only worker and do not add broad runtime caching.
 - Mixed old HTML/new assets: preserve shared hashed assets and deploy an immutable release; do not weaken module MIME checks or return `index.html` for missing JS.
 - Mobile-only TLS stalls: compare live Caddy/systemd state to the checked-in contract, validate h1/h2, TLS 1.2, x25519, Alt-Svc clearing, and MSS 1200 before changing application code.
 - One browser works while another fails: compare active script hash, console errors, installed-worker state, response headers, and TLS reachability. Do not assume cache or device version without evidence.

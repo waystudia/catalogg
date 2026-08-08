@@ -8,56 +8,70 @@
       name="description"
       content="WayYaam — рестораны, доставка, скидки и акции"
     />
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/logo/favicon-32.png" />
-    <link rel="icon" type="image/svg+xml" href="/assets/logo/waycatalog-icon.svg" />
-    <link rel="apple-touch-icon" href="/assets/logo/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/logo/wayyaam-favicon-32.png" />
+    <link rel="apple-touch-icon" href="/assets/logo/wayyaam-icon-192.png" />
     <title>WayYaam</title>
     <script>
       (() => {
         const retirementVersion = '20260803-network-only-v2';
         const retirementKey = `wayyaam:pwa-retirement:${retirementVersion}`;
-
-        try {
-          if (window.localStorage.getItem(retirementKey) === 'done') return;
-        } catch {
-          // Cleanup must still run when storage is unavailable in strict modes.
-        }
-
-        const cleanupTasks = [];
-
-        if ('serviceWorker' in navigator) {
-          cleanupTasks.push(
-            navigator.serviceWorker.getRegistrations().then(async (registrations) => {
-              const results = await Promise.allSettled(
-                registrations.map((registration) => registration.unregister())
-              );
-              return {
-                hadLegacyState: registrations.length > 0,
-                cleanupFailed: results.some((result) => result.status === 'rejected')
-              };
+        const isPushOnlyRegistration = (registration) => (
+          [registration.installing, registration.waiting, registration.active]
+            .filter(Boolean)
+            .some((worker) => {
+              try {
+                return new URL(worker.scriptURL).searchParams.get('mode') === 'push';
+              } catch {
+                return false;
+              }
             })
-          );
-        }
+        );
 
-        if ('caches' in window) {
-          cleanupTasks.push(
-            window.caches.keys().then(async (cacheNames) => {
-              const results = await Promise.allSettled(
-                cacheNames.map((cacheName) => window.caches.delete(cacheName))
-              );
-              return {
-                hadLegacyState: cacheNames.length > 0,
-                cleanupFailed: results.some((result) => result.status === 'rejected')
-              };
-            })
-          );
-        }
+        window.__WAYYAAM_PWA_RETIREMENT__ = (async () => {
+          try {
+            if (window.localStorage.getItem(retirementKey) === 'done') return true;
+          } catch {
+            // Cleanup must still run when storage is unavailable in strict modes.
+          }
 
-        void Promise.allSettled(cleanupTasks).then((results) => {
+          const cleanupTasks = [];
+
+          if ('serviceWorker' in navigator) {
+            cleanupTasks.push(
+              navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+                const legacyRegistrations = registrations.filter((registration) => (
+                  !isPushOnlyRegistration(registration)
+                ));
+                const results = await Promise.allSettled(
+                  legacyRegistrations.map((registration) => registration.unregister())
+                );
+                return {
+                  hadLegacyState: legacyRegistrations.length > 0,
+                  cleanupFailed: results.some((result) => result.status === 'rejected')
+                };
+              })
+            );
+          }
+
+          if ('caches' in window) {
+            cleanupTasks.push(
+              window.caches.keys().then(async (cacheNames) => {
+                const results = await Promise.allSettled(
+                  cacheNames.map((cacheName) => window.caches.delete(cacheName))
+                );
+                return {
+                  hadLegacyState: cacheNames.length > 0,
+                  cleanupFailed: results.some((result) => result.status === 'rejected')
+                };
+              })
+            );
+          }
+
+          const results = await Promise.allSettled(cleanupTasks);
           const cleanupFailed = results.some((result) => (
             result.status === 'rejected' || result.value.cleanupFailed
           ));
-          if (cleanupFailed) return;
+          if (cleanupFailed) return false;
 
           try {
             window.localStorage.setItem(retirementKey, 'done');
@@ -68,17 +82,18 @@
           const hadLegacyState = results.some((result) => (
             result.status === 'fulfilled' && result.value.hadLegacyState
           ));
-          if (!hadLegacyState) return;
+          if (!hadLegacyState) return true;
 
           const nextUrl = new URL(window.location.href);
-          if (nextUrl.searchParams.get('pwa-reset') === retirementVersion) return;
+          if (nextUrl.searchParams.get('pwa-reset') === retirementVersion) return true;
           nextUrl.searchParams.set('pwa-reset', retirementVersion);
           window.location.replace(nextUrl.toString());
-        });
+          return false;
+        })();
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-DxPy2ZeP.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-F-ggvnXn.css">
+    <script type="module" crossorigin src="/assets/index-aGPeLSNZ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-0PDd0oEM.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body style="margin: 0; background: #f7f8fc">
     <div id="root">
@@ -87,7 +102,7 @@
       >
         <section style="display:grid;justify-items:center;width:min(100%,320px);text-align:center">
           <img
-            src="/assets/logo/waycatalog-icon.svg"
+            src="/assets/logo/wayyaam-icon-192.png"
             alt=""
             width="76"
             height="76"

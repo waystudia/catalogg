@@ -37,6 +37,10 @@ VITE_SUPABASE_ANON_KEY=...
 
 Background notifications require an installed PWA, HTTPS, notification permission granted from a button, and the Web Push migrations. Apply `supabase/web_push.sql` and `supabase/web_push_triggers.sql`, then deploy `send-web-push` with `--no-verify-jwt`.
 
+On iPhone and iPad, Web Push works in iOS/iPadOS 16.4 or later only for the Home Screen installation. Open the installed WayYaam icon, sign in to the restaurant, driver, or platform account, and tap the bell to grant notification permission. A normal Safari tab is not the iOS Web Push target.
+
+The application registers `sw.js?mode=push` as a persistent network-only worker. It has no page, image, or asset cache routes; removing or self-unregistering this worker breaks background delivery even when notification permission is already granted.
+
 Configure these Supabase secrets: `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `WEB_PUSH_WEBHOOK_SECRET`, and `PUBLIC_APP_URL`. The browser build must receive the matching `VITE_WEB_PUSH_PUBLIC_KEY`.
 
 The trigger migration already connects `orders` and `deliveries` to the Edge Function through `pg_net`; separate Database Webhooks are not needed. The endpoint used by the trigger is:

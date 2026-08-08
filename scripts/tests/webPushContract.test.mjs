@@ -13,6 +13,20 @@ describe('background web push contract', () => {
     assert.match(source, /clients\.openWindow/);
   });
 
+  it('registers a persistent push-only worker instead of waiting for a missing worker', async () => {
+    const [main, registration, webPush] = await Promise.all([
+      read('src/main.tsx'),
+      read('src/shared/pushServiceWorker.ts'),
+      read('src/shared/webPush.ts')
+    ]);
+    assert.match(main, /ensurePushServiceWorkerRegistration/);
+    assert.match(registration, /navigator\.serviceWorker\.register/);
+    assert.match(registration, /sw\.js\?mode=push/);
+    assert.doesNotMatch(registration, /controllerchange|location\.reload/);
+    assert.match(webPush, /ensurePushServiceWorkerRegistration/);
+    assert.doesNotMatch(webPush, /navigator\.serviceWorker\.ready/);
+  });
+
   it('keeps map tiles out of service-worker storage while retaining push support', async () => {
     const source = await read('src/sw.ts');
     assert.doesNotMatch(source, /CacheFirst|ExpirationPlugin|catalog-map-tiles/);

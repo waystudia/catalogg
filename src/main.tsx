@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
+import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker';
 import {
   CatalogAdminRoute,
   PwaHomeRoute,
@@ -60,6 +61,7 @@ const restoreGitHubPagesRedirect = () => {
 };
 
 restoreGitHubPagesRedirect();
+void ensurePushServiceWorkerRegistration();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

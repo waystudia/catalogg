@@ -13,15 +13,14 @@ const appBasePath = import.meta.env.BASE_URL.endsWith('/')
   : `${import.meta.env.BASE_URL}/`;
 const notificationIconPath = `${appBasePath}assets/logo/wayyaam-icon-192.png`;
 
-// This final worker only retires every previously installed caching worker.
-// The application no longer registers a replacement worker.
+// This worker stays network-only: it owns no fetch routes or precache, but it
+// must remain registered so iOS and other installed PWAs can receive Web Push.
 Object.freeze(self.__WB_MANIFEST);
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const cacheNames = await caches.keys();
     await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-    await self.registration.unregister();
   })());
 });
 
