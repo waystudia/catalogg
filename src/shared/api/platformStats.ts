@@ -13,7 +13,6 @@ export type PlatformOrderStatsRow = {
 };
 
 const canceledStatuses = new Set(['canceled', 'cancelled']);
-const defaultRestaurantCommissionRate = 0.07;
 
 const getOrderRestaurantId = (order: PlatformOrderStatsRow) =>
   order.catalog_id || order.restaurant_id || 'unknown-restaurant';
@@ -38,7 +37,7 @@ export const summarizePlatformStats = (
         name: client.catalogName || client.companyName,
         slug: client.catalogSlug,
         revenue: 0,
-        debt: 0,
+        debt: client.debtAmount,
         ordersCount: 0,
         driverDeliveries: 0
       }
@@ -65,7 +64,6 @@ export const summarizePlatformStats = (
     if (!isCanceled) {
       const orderAmount = getOrderAmount(order);
       current.revenue += orderAmount;
-      current.debt += Math.round(orderAmount * defaultRestaurantCommissionRate);
     }
     if (order.delivery_provider === 'platform') {
       current.driverDeliveries += 1;

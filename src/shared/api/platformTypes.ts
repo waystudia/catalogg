@@ -42,6 +42,7 @@ export type PlatformClient = {
   templateVersion: number;
   businessType: BusinessType;
   logoUrl: string;
+  debtAmount: number;
   createdAt: string;
   isTest?: boolean;
 };

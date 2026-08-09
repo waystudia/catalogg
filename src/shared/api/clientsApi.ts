@@ -41,6 +41,7 @@ const demoClients: PlatformClient[] = [
     templateVersion: 1,
     businessType: 'restaurant',
     logoUrl: '',
+    debtAmount: 0,
     createdAt: new Date().toISOString()
   },
   {
@@ -64,6 +65,7 @@ const demoClients: PlatformClient[] = [
     templateVersion: 2,
     businessType: 'restaurant',
     logoUrl: '',
+    debtAmount: 0,
     createdAt: new Date().toISOString()
   }
 ];
@@ -100,6 +102,7 @@ type ClientRow = {
   created_at: string;
   business_type: string | null;
   is_test?: boolean | null;
+  debt_amount?: number | string | null;
   catalogs?: {
     id?: string;
     name?: string;
@@ -213,6 +216,7 @@ const mapClient = (row: ClientRow): PlatformClient => ({
   templateVersion: row.catalogs?.template_versions?.version ?? 1,
   businessType: normalizeBusinessType(row.business_type),
   logoUrl: row.catalogs?.logo_url ?? '',
+  debtAmount: Number(row.debt_amount ?? 0),
   createdAt: row.created_at,
   isTest: row.is_test === true
 });
@@ -300,7 +304,7 @@ export async function getClients(params: ClientListParams): Promise<{ data: Plat
   let query = supabase
     .from('clients')
     .select(
-      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, is_test, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
+      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, is_test, debt_amount, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })
@@ -377,6 +381,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
       templateVersion: 1,
       businessType: normalizeBusinessType(catalog.business_type),
       logoUrl: catalog.logo_url ?? '',
+      debtAmount: 0,
       createdAt: catalog.created_at
     }));
 

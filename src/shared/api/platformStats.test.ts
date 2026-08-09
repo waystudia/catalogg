@@ -25,6 +25,7 @@ const clients: PlatformClient[] = [
     templateVersion: 1,
     businessType: 'restaurant',
     logoUrl: '',
+    debtAmount: 240,
     createdAt: '2026-07-01T00:00:00.000Z'
   },
   {
@@ -48,6 +49,7 @@ const clients: PlatformClient[] = [
     templateVersion: 1,
     businessType: 'restaurant',
     logoUrl: '',
+    debtAmount: 30,
     createdAt: '2026-07-02T00:00:00.000Z'
   }
 ];
@@ -79,7 +81,7 @@ describe('platform revenue stats', () => {
     assert.equal(stats.totalClients, 2);
     assert.equal(stats.activeCatalogs, 2);
     assert.equal(stats.monthlyRevenue, 1900);
-    assert.equal(stats.totalDebt, 133);
+    assert.equal(stats.totalDebt, 270);
     assert.equal(stats.totalOrders, 3);
     assert.equal(stats.driverDeliveries, 1);
     assert.deepEqual(
@@ -91,9 +93,20 @@ describe('platform revenue stats', () => {
         driverDeliveries: restaurant.driverDeliveries
       })),
       [
-        { slug: 'rizih', revenue: 1200, debt: 84, ordersCount: 2, driverDeliveries: 1 },
-        { slug: 'mangal', revenue: 700, debt: 49, ordersCount: 1, driverDeliveries: 0 }
+        { slug: 'rizih', revenue: 1200, debt: 240, ordersCount: 2, driverDeliveries: 1 },
+        { slug: 'mangal', revenue: 700, debt: 30, ordersCount: 1, driverDeliveries: 0 }
       ]
     );
+  });
+
+  it('shows the persisted ledger debt without recalculating it from order revenue', () => {
+    const stats = summarizePlatformStats(
+      [{ ...clients[0], debtAmount: 30 }],
+      [{ catalog_id: 'catalog-rizih', total_amount: 10_000, status: 'completed' }]
+    );
+
+    assert.equal(stats.monthlyRevenue, 10_000);
+    assert.equal(stats.totalDebt, 30);
+    assert.equal(stats.restaurantStats[0]?.debt, 30);
   });
 });
