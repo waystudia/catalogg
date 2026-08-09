@@ -177,6 +177,7 @@ type PlatformBannerRow = {
   action_label: string;
   content_position?: PlatformBanner['contentPosition'] | null;
   button_position?: PlatformBanner['buttonPosition'] | null;
+  display_duration_ms?: number | null;
   starts_at?: string | null;
   ends_at?: string | null;
   is_active: boolean;
@@ -708,7 +709,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .order('created_at', { ascending: false }),
       supabase
         .from('platform_banners')
-        .select('id, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, starts_at, ends_at, is_active, sort_order, platform_content_pages(slug)')
+        .select('id, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, display_duration_ms, starts_at, ends_at, is_active, sort_order, platform_content_pages(slug)')
         .eq('is_active', true)
         .order('sort_order'),
       supabase
@@ -987,6 +988,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
           actionLabel: banner.action_label || 'Заказать',
           contentPosition: banner.content_position ?? 'top-left',
           buttonPosition: banner.button_position ?? 'bottom-left',
+          displayDurationMs: Number(banner.display_duration_ms ?? 5000),
           isActive: banner.is_active
           };
         })

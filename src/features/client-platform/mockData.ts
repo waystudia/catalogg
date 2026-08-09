@@ -21,6 +21,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       actionLabel: 'Подробнее',
       contentPosition: 'top-left',
       buttonPosition: 'bottom-left',
+      displayDurationMs: 5000,
       isActive: true
     }
   ],

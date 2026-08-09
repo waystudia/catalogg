@@ -122,6 +122,7 @@ export type PlatformBannerAdmin = {
   actionLabel: string;
   contentPosition: PlatformBannerPosition;
   buttonPosition: PlatformBannerPosition;
+  displayDurationMs: number;
   startsAt: string | null;
   endsAt: string | null;
   sortOrder: number;

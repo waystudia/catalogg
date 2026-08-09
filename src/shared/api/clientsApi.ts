@@ -146,6 +146,7 @@ type PlatformBannerRow = {
   action_label: string;
   content_position?: PlatformBannerAdmin['contentPosition'] | null;
   button_position?: PlatformBannerAdmin['buttonPosition'] | null;
+  display_duration_ms?: number | null;
   starts_at?: string | null;
   ends_at?: string | null;
   sort_order: number;
@@ -248,6 +249,7 @@ const mapPlatformBanner = (row: PlatformBannerRow): PlatformBannerAdmin => ({
   actionLabel: row.action_label || 'Заказать',
   contentPosition: row.content_position ?? 'top-left',
   buttonPosition: row.button_position ?? 'bottom-left',
+  displayDurationMs: Number(row.display_duration_ms ?? 5000),
   startsAt: row.starts_at ?? null,
   endsAt: row.ends_at ?? null,
   sortOrder: row.sort_order,
@@ -764,6 +766,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
       actionLabel: 'Подробнее',
       contentPosition: 'top-left',
       buttonPosition: 'bottom-left',
+      displayDurationMs: 5000,
       startsAt: null,
       endsAt: null,
       sortOrder: 0,
@@ -773,7 +776,7 @@ export async function getPlatformBanners(): Promise<PlatformBannerAdmin[]> {
 
   const modernResult = await supabase
     .from('platform_banners')
-    .select('id, name, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, starts_at, ends_at, sort_order, is_active, platform_content_pages(slug)')
+    .select('id, name, title, subtitle, kind, image_url, background_color, link_url, page_id, action_label, content_position, button_position, display_duration_ms, starts_at, ends_at, sort_order, is_active, platform_content_pages(slug)')
     .order('sort_order');
   const legacyResult = modernResult.error
     ? await supabase
@@ -799,6 +802,7 @@ export async function savePlatformBanner(banner: Omit<PlatformBannerAdmin, 'id'>
     action_label: banner.actionLabel,
     content_position: banner.contentPosition,
     button_position: banner.buttonPosition,
+    display_duration_ms: banner.displayDurationMs,
     starts_at: banner.startsAt,
     ends_at: banner.endsAt,
     sort_order: banner.sortOrder,

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   getPromoAutoAdvanceDelay,
-  getPromoLoopResetIndex
+  getPromoLoopResetIndex,
+  normalizePromoDisplayDurationMs
 } from '../../src/features/client-platform/promoCarousel';
 
 describe('promo carousel timing', () => {
@@ -9,31 +10,44 @@ describe('promo carousel timing', () => {
     expect(getPromoAutoAdvanceDelay({
       bannerCount: 2,
       isVideo: true,
-      videoPlayedToEnd: false
+      videoPlayedToEnd: false,
+      displayDurationMs: 8000
     })).toBeNull();
     expect(getPromoAutoAdvanceDelay({
       bannerCount: 2,
       isVideo: true,
-      videoPlayedToEnd: true
-    })).toBe(1200);
+      videoPlayedToEnd: true,
+      displayDurationMs: 8000
+    })).toBe(8000);
   });
 
-  it('uses the normal interval for images and never advances a single banner', () => {
+  it('uses each banner interval for images and never advances a single banner', () => {
     expect(getPromoAutoAdvanceDelay({
       bannerCount: 2,
       isVideo: false,
-      videoPlayedToEnd: false
-    })).toBe(5000);
+      videoPlayedToEnd: false,
+      displayDurationMs: 9000
+    })).toBe(9000);
     expect(getPromoAutoAdvanceDelay({
       bannerCount: 1,
       isVideo: false,
-      videoPlayedToEnd: false
+      videoPlayedToEnd: false,
+      displayDurationMs: 9000
     })).toBeNull();
     expect(getPromoAutoAdvanceDelay({
       bannerCount: 1,
       isVideo: true,
-      videoPlayedToEnd: true
+      videoPlayedToEnd: true,
+      displayDurationMs: 9000
     })).toBeNull();
+  });
+
+  it('normalizes unsafe or missing timing values to the supported range', () => {
+    expect(normalizePromoDisplayDurationMs(undefined)).toBe(5000);
+    expect(normalizePromoDisplayDurationMs(Number.NaN)).toBe(5000);
+    expect(normalizePromoDisplayDurationMs(500)).toBe(2000);
+    expect(normalizePromoDisplayDurationMs(120000)).toBe(60000);
+    expect(normalizePromoDisplayDurationMs(7450)).toBe(7450);
   });
 });
 

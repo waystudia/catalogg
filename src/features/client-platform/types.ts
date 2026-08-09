@@ -225,6 +225,7 @@ export type PlatformBanner = {
   actionLabel: string;
   contentPosition: PlatformBannerPosition;
   buttonPosition: PlatformBannerPosition;
+  displayDurationMs: number;
   isActive: boolean;
 };
 

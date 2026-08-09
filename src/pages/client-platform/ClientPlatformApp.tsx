@@ -772,7 +772,8 @@ function PromoCarousel({ banners }: { banners: PlatformBanner[] }) {
   const autoAdvanceDelay = getPromoAutoAdvanceDelay({
     bannerCount: banners.length,
     isVideo: Boolean(activeBanner && isVideoMediaUrl(activeBanner.imageUrl)),
-    videoPlayedToEnd: activeBanner?.id === finishedVideoId
+    videoPlayedToEnd: activeBanner?.id === finishedVideoId,
+    displayDurationMs: activeBanner?.displayDurationMs
   });
 
   const syncCenteredVideoPlayback = useCallback((track: HTMLDivElement, displayedIndex: number) => {
