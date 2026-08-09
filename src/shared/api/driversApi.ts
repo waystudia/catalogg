@@ -7,6 +7,7 @@ import type {
   PlatformDriverActivity,
   UpdateDriverPayload
 } from './platformTypes';
+import type { RestaurantCourierType } from '../../features/restaurant-billing/restaurantBillingRules';
 
 type DriverRow = {
   id: string;
@@ -84,6 +85,7 @@ export type DriverRestaurantAssignment = {
   restaurantName: string;
   isPrimary: boolean;
   priority: number;
+  courierType: RestaurantCourierType | null;
 };
 
 async function getFunctionErrorMessage(error: unknown) {
@@ -276,7 +278,7 @@ export async function getDriverRestaurantAssignments(driverId: string): Promise<
       .order('name'),
     supabase
       .from('restaurant_couriers')
-      .select('restaurant_id, is_primary, priority, restaurants(name)')
+      .select('restaurant_id, is_primary, priority, courier_type, restaurants(name)')
       .eq('driver_id', driverId)
       .eq('is_active', true)
   ]);
@@ -289,6 +291,7 @@ export async function getDriverRestaurantAssignments(driverId: string): Promise<
     restaurant_id: string;
     is_primary: boolean | null;
     priority: number | null;
+    courier_type: RestaurantCourierType | null;
     restaurants?: { name?: string | null } | Array<{ name?: string | null }> | null;
   }>;
 
@@ -305,7 +308,8 @@ export async function getDriverRestaurantAssignments(driverId: string): Promise<
         restaurantId: assignment.restaurant_id,
         restaurantName: restaurant?.name ?? 'Ресторан',
         isPrimary: assignment.is_primary ?? false,
-        priority: Number(assignment.priority ?? 100)
+        priority: Number(assignment.priority ?? 100),
+        courierType: assignment.courier_type ?? null
       };
     })
   };
@@ -313,25 +317,18 @@ export async function getDriverRestaurantAssignments(driverId: string): Promise<
 
 export async function saveDriverRestaurantAssignments(
   driverId: string,
-  assignments: Array<{ restaurantId: string; isPrimary: boolean }>
+  assignments: DriverRestaurantAssignment[]
 ) {
   if (!supabase) return;
 
-  const deleteResult = await supabase
-    .from('restaurant_couriers')
-    .delete()
-    .eq('driver_id', driverId);
-  if (deleteResult.error) throw deleteResult.error;
-  if (assignments.length === 0) return;
-
-  const insertResult = await supabase.from('restaurant_couriers').insert(
-    assignments.map((assignment, index) => ({
+  const { error } = await supabase.rpc('save_driver_restaurant_assignments', {
+    target_driver_id: driverId,
+    target_assignments: assignments.map((assignment, index) => ({
       restaurant_id: assignment.restaurantId,
-      driver_id: driverId,
-      is_active: true,
       is_primary: assignment.isPrimary,
-      priority: assignment.isPrimary ? 1 : index + 10
+      priority: assignment.isPrimary ? 1 : Math.max(10, assignment.priority || index + 10),
+      courier_type: assignment.courierType
     }))
-  );
-  if (insertResult.error) throw insertResult.error;
+  });
+  if (error) throw error;
 }

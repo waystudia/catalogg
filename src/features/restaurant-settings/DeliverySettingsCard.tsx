@@ -154,16 +154,21 @@ export function DeliverySettingsCard({
     }
   };
   const classifyCourier = async (courier: RestaurantOwnCourier) => {
-    const selectedType = pendingCourierTypes[courier.driverId];
+    const selectedType = pendingCourierTypes[courier.driverId] ?? courier.courierType;
     if (!selectedType) return;
     setIsSavingCourier(true);
     setCourierMessage('');
     try {
       await courierService.setType(catalogSlug, courier.driverId, selectedType);
-      setCourierMessage(`Тип курьера «${courier.name}» сохранён.`);
       await refetchOwnCouriers();
+      setPendingCourierTypes((current) => {
+        const next = { ...current };
+        delete next[courier.driverId];
+        return next;
+      });
+      setCourierMessage(`Условия работы «${courier.name}» сохранены.`);
     } catch (error) {
-      setCourierMessage(error instanceof Error ? error.message : 'Не удалось сохранить тип курьера.');
+      setCourierMessage(error instanceof Error ? error.message : 'Не удалось сохранить условия работы.');
     } finally {
       setIsSavingCourier(false);
     }
@@ -210,7 +215,7 @@ export function DeliverySettingsCard({
                   <select value={courierType} onChange={(event) => setCourierType(event.target.value as RestaurantCourierType | '')}>
                     <option value="">Выберите тип</option>
                     <option value="staff_salaried">Штатный с зарплатой</option>
-                    <option value="independent">Самостоятельный без зарплаты</option>
+                    <option value="independent">Штатный без зарплаты</option>
                   </select>
                 </label>
                 {courierType && <small className="restaurant-courier-rule">{getCourierBillingRule({ courierType, freeDeliveryThresholdReached: false }).payerLabel}</small>}
@@ -228,19 +233,17 @@ export function DeliverySettingsCard({
                         </small>
                         {!courier.courierType && <small className="restaurant-courier-warning">Нельзя назначать на новые доставки, пока ресторан не выберет тип.</small>}
                       </span>
-                      {!courier.courierType && (
-                        <span className="restaurant-courier-classifier">
-                          <label>
-                            <span>Тип для {courier.name}</span>
-                            <select aria-label={`Тип для ${courier.name}`} value={pendingCourierTypes[courier.driverId] ?? ''} onChange={(event) => setPendingCourierTypes((current) => ({ ...current, [courier.driverId]: event.target.value as RestaurantCourierType | '' }))}>
-                              <option value="">Выберите тип</option>
-                              <option value="staff_salaried">Штатный с зарплатой</option>
-                              <option value="independent">Самостоятельный без зарплаты</option>
-                            </select>
-                          </label>
-                          <button type="button" disabled={isSavingCourier || !pendingCourierTypes[courier.driverId]} aria-label={`Сохранить тип для ${courier.name}`} onClick={() => void classifyCourier(courier)}>Сохранить тип</button>
-                        </span>
-                      )}
+                      <span className="restaurant-courier-classifier">
+                        <label>
+                          <span>Условия работы</span>
+                          <select aria-label={`Условия работы для ${courier.name}`} value={pendingCourierTypes[courier.driverId] ?? courier.courierType ?? ''} onChange={(event) => setPendingCourierTypes((current) => ({ ...current, [courier.driverId]: event.target.value as RestaurantCourierType | '' }))}>
+                            <option value="">Выберите условия</option>
+                            <option value="staff_salaried">Штатный с зарплатой</option>
+                            <option value="independent">Штатный без зарплаты</option>
+                          </select>
+                        </label>
+                        <button type="button" disabled={isSavingCourier || !pendingCourierTypes[courier.driverId] || pendingCourierTypes[courier.driverId] === courier.courierType} aria-label={`Сохранить условия для ${courier.name}`} onClick={() => void classifyCourier(courier)}>Сохранить</button>
+                      </span>
                       <button
                         type="button"
                         disabled={isSavingCourier}
