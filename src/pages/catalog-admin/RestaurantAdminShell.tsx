@@ -1138,7 +1138,7 @@ function OrderDetails({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteOrder = async () => {
-    if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
+    if (isDeleting || !window.confirm('Удалить тестовый заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
     try {
       await onDelete(order);
@@ -1260,15 +1260,17 @@ function OrderDetails({
           <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
         )}
         {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
-        <button
-          className="ra-order-actions__danger"
-          type="button"
-          disabled={isDeleting}
-          onClick={() => void deleteOrder()}
-        >
-          <Trash2 />
-          {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
-        </button>
+        {order.isTestOrder && (
+          <button
+            className="ra-order-actions__danger"
+            type="button"
+            disabled={isDeleting}
+            onClick={() => void deleteOrder()}
+          >
+            <Trash2 />
+            {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+          </button>
+        )}
       </div>
     </aside>
   );

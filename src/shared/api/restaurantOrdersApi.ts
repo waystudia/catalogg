@@ -55,6 +55,7 @@ export type RestaurantOrder = {
   id: string;
   orderNumber: string;
   catalogId: string;
+  isTestOrder?: boolean;
   clientName: string;
   clientPhone: string;
   fulfillmentType: RestaurantOrderFulfillment;
@@ -204,6 +205,7 @@ const defaultDeliverySettings: RestaurantDeliverySettings = {
 type OrderRow = {
   id: string;
   catalog_id: string;
+  is_test_order?: boolean | null;
   customer_name: string;
   customer_phone: string;
   fulfillment_type?: RestaurantOrderFulfillment;
@@ -327,6 +329,7 @@ const demoOrders: RestaurantOrder[] = [
     id: 'demo-order-1',
     orderNumber: '1024',
     catalogId: 'demo',
+    isTestOrder: true,
     clientName: 'Гость',
     clientPhone: '+7 999 000-00-00',
     fulfillmentType: 'hall',
@@ -379,6 +382,7 @@ const demoOrders: RestaurantOrder[] = [
 const orderSelect = `
   id,
   catalog_id,
+  is_test_order,
   customer_name,
   customer_phone,
   fulfillment_type,
@@ -454,6 +458,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     id: row.id,
     orderNumber: formatPublicOrderNumber(row.id, restaurantNameOrSlug),
     catalogId: row.catalog_id,
+    isTestOrder: row.is_test_order === true,
     clientName: row.customer_name,
     clientPhone: row.customer_phone,
     fulfillmentType: row.fulfillment_type ?? 'hall',

@@ -34,7 +34,8 @@ const activationErrorMessages: Record<string, string> = {
   code_locked: 'Превышено число попыток. Ввод временно заблокирован.',
   code_expired: 'Срок действия кода истёк. Запросите новый код через супер-администратора.',
   code_not_issued: 'Супер-администратор ещё не создал ручной код.',
-  stale_document_bundle: 'Редакция документов изменилась. Откройте актуальный пакет и подтвердите его заново.'
+  stale_document_bundle: 'Редакция документов изменилась. Откройте актуальный пакет и подтвердите его заново.',
+  restaurant_test_orders_must_be_deleted: 'Перед активацией удалите все тестовые заказы в кабинете ресторана.'
 };
 
 export function RestaurantActivationPage({
@@ -155,7 +156,8 @@ export function RestaurantActivationPage({
       }
       setActivated(true);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Не удалось активировать ресторан.');
+      const errorCode = nextError instanceof Error ? nextError.message : '';
+      setError(activationErrorMessages[errorCode] ?? (errorCode || 'Не удалось активировать ресторан.'));
     } finally {
       setSubmitting(false);
     }

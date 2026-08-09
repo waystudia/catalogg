@@ -55,7 +55,7 @@ describe('restaurant order action contract', () => {
     assert.match(overflowMenu, /Удалить заказ/);
   });
 
-  it('lets an authenticated restaurant irreversibly delete any order from production order details', async () => {
+  it('lets an authenticated restaurant irreversibly delete only test orders', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const catalogShell = await read('src/pages/catalog-admin/RestaurantAdminShell.tsx');
@@ -63,6 +63,7 @@ describe('restaurant order action contract', () => {
     const api = await read('src/shared/api/restaurantOrdersApi.ts');
     const migration = await read('supabase/migrations/20260730234824_development_delete_restaurant_order.sql');
     const restriction = await read('supabase/migrations/20260803195140_restrict_restaurant_order_deletion.sql');
+    const testOrderRestriction = await read('supabase/migrations/20260809090226_restaurant_preactivation_test_catalogs.sql');
 
     assert.doesNotMatch(app, /onOrderDelete=\{\(order\) => changeOrderStatus\(order, 'cancelled'/);
     assert.match(workspace, /const deleteOrder = async \(order: RestaurantOrder\)/);
@@ -70,6 +71,7 @@ describe('restaurant order action contract', () => {
     assert.match(workspace, /onDelete=\{\(\) => deleteOrder\(selectedVisibleOrder\)\}/);
     assert.match(panel, /onDelete: \(\) => Promise<void>/);
     assert.match(panel, /await onDelete\(\)/);
+    assert.match(panel, /order\.isTestOrder &&/);
     assert.match(panel, /Удалить заказ/);
     assert.match(panel, /Это действие нельзя отменить/);
     assert.match(api, /rpc\('delete_restaurant_test_order'/);
@@ -78,6 +80,7 @@ describe('restaurant order action contract', () => {
     assert.match(migration, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon/);
     assert.match(restriction, /revoke all on function public\.delete_restaurant_test_order\(uuid, uuid\) from public, anon, service_role/);
     assert.match(restriction, /grant execute on function public\.delete_restaurant_test_order\(uuid, uuid\) to authenticated/);
+    assert.match(testOrderRestriction, /and is_test_order is true/);
     assert.match(catalogShell, /deleteRestaurantTestOrder/);
     assert.match(catalogShell, /const deleteOrder = async \(order: RestaurantOrder\)/);
     assert.match(catalogShell, /const deleted = await deleteRestaurantTestOrder\(order\)/);
@@ -85,20 +88,22 @@ describe('restaurant order action contract', () => {
     assert.match(catalogShell, /setOrders\(\(current\) => current\.filter\(\(item\) => item\.id !== order\.id\)\)/);
     assert.match(catalogShell, /onDelete=\{deleteOrder\}/);
     assert.match(catalogShell, /await onDelete\(order\)/);
-    assert.match(catalogShell, /Удалить заказ\? Это действие нельзя отменить\./);
-    assert.match(catalogShell, /if \(isDeleting \|\| !window\.confirm\('Удалить заказ\? Это действие нельзя отменить\.'\)\) return/);
+    assert.match(catalogShell, /order\.isTestOrder &&/);
+    assert.match(catalogShell, /Удалить тестовый заказ\? Это действие нельзя отменить\./);
+    assert.match(catalogShell, /if \(isDeleting \|\| !window\.confirm\('Удалить тестовый заказ\? Это действие нельзя отменить\.'\)\) return/);
     assert.match(catalogShell, /disabled=\{isDeleting\}/);
     assert.match(catalogShell, /isDeleting \? 'Удаляем\.\.\.' : 'Удалить заказ'/);
     assert.doesNotMatch(catalogShell, /Удалить заказ из работы ресторана\?/);
   });
 
-  it('shows a confirmed trash action on every restaurant order card in production', async () => {
+  it('shows a confirmed trash action only on test restaurant order cards', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
 
     assert.match(workspace, /group\.orders\.map\(\(order\) => \(/);
+    assert.match(workspace, /order\.isTestOrder &&/);
     assert.match(workspace, /className="admin-order-card__delete"/);
     assert.match(workspace, /aria-label=\{`Удалить заказ \$\{order\.orderNumber\}`\}/);
-    assert.match(workspace, /window\.confirm\(`Удалить заказ #\$\{order\.orderNumber\} безвозвратно\?`\)/);
+    assert.match(workspace, /window\.confirm\(`Удалить тестовый заказ #\$\{order\.orderNumber\} безвозвратно\?`\)/);
     assert.match(workspace, /disabled=\{deletingOrderId === order\.id\}/);
     assert.match(workspace, /void deleteOrder\(order\)/);
     assert.doesNotMatch(workspace, /import\.meta\.env\.DEV && \(/);

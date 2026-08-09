@@ -493,20 +493,22 @@ export function RestaurantAdminWorkspace({
                                 </i>
                               </span>
                             </button>
-                            <button
-                              className="admin-order-card__delete"
-                              type="button"
-                              aria-label={`Удалить заказ ${order.orderNumber}`}
-                              title="Удалить заказ"
-                              disabled={deletingOrderId === order.id}
-                              onClick={() => {
-                                if (window.confirm(`Удалить заказ #${order.orderNumber} безвозвратно?`)) {
-                                  void deleteOrder(order);
-                                }
-                              }}
-                            >
-                              <Trash2 aria-hidden="true" />
-                            </button>
+                            {order.isTestOrder && (
+                              <button
+                                className="admin-order-card__delete"
+                                type="button"
+                                aria-label={`Удалить заказ ${order.orderNumber}`}
+                                title="Удалить тестовый заказ"
+                                disabled={deletingOrderId === order.id}
+                                onClick={() => {
+                                  if (window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) {
+                                    void deleteOrder(order);
+                                  }
+                                }}
+                              >
+                                <Trash2 aria-hidden="true" />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

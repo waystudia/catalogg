@@ -174,3 +174,20 @@ test('a retry after a lost response reuses the same activation idempotency key',
   expect(firstInput?.idempotencyKey).toBeTruthy();
   expect(secondInput?.idempotencyKey).toBe(firstInput?.idempotencyKey);
 });
+
+test('activation explains that every pre-activation test order must be deleted first', async () => {
+  const service = activationService(activationView({ pendingRequestId: 'request-1' }));
+  vi.mocked(service.confirmActivation).mockResolvedValueOnce({
+    ok: false,
+    error: 'restaurant_test_orders_must_be_deleted'
+  });
+  const screen = await render(<RestaurantActivationPage service={service} />);
+
+  await screen.getByLabelText('Шестизначный код').fill('123456');
+  await screen.getByRole('button', { name: 'Активировать ресторан' }).click();
+
+  await expect.element(
+    screen.getByRole('alert').getByText(/перед активацией удалите все тестовые заказы/i)
+  ).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Ресторан активирован' })).not.toBeInTheDocument();
+});

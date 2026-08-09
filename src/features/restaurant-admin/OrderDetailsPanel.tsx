@@ -249,14 +249,16 @@ export function OrderDetailsPanel({
                   Отменить заказ
                 </button>
               )}
-              <button
-                type="button"
-                data-danger="true"
-                disabled={isDeleting}
-                onClick={() => void deleteOrder()}
-              >
-                {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
-              </button>
+              {order.isTestOrder && (
+                <button
+                  type="button"
+                  data-danger="true"
+                  disabled={isDeleting}
+                  onClick={() => void deleteOrder()}
+                >
+                  {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+                </button>
+              )}
             </div>
           </details>
         </header>
