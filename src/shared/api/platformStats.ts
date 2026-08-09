@@ -1,4 +1,4 @@
-import type { PlatformClient, PlatformStats } from './platformTypes';
+import type { PlatformClient, PlatformRestaurantStats, PlatformStats } from './platformTypes';
 
 export type PlatformOrderStatsRow = {
   catalog_id?: string | null;
@@ -28,7 +28,7 @@ export const summarizePlatformStats = (
 ): PlatformStats => {
   const productionClients = clients.filter((client) => client.isTest !== true);
   const productionOrders = orders.filter((order) => order.is_test_order !== true);
-  const restaurantStatsById = new Map(
+  const restaurantStatsById = new Map<string, PlatformRestaurantStats>(
     productionClients.map((client) => [
       client.catalogId || client.id,
       {
@@ -38,6 +38,7 @@ export const summarizePlatformStats = (
         slug: client.catalogSlug,
         revenue: 0,
         debt: client.debtAmount,
+        testDebt: client.testDebtAmount ?? 0,
         ordersCount: 0,
         driverDeliveries: 0
       }

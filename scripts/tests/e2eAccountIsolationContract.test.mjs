@@ -83,9 +83,11 @@ test('platform debt analytics read the persisted production ledger balance', asy
     read('src/shared/api/platformStats.ts')
   ]);
 
-  assert.match(clientsApi, /is_test, debt_amount, created_at/);
+  assert.match(clientsApi, /is_test, debt_amount, test_debt_amount, created_at/);
   assert.match(clientsApi, /debtAmount:\s*Number\(row\.debt_amount \?\? 0\)/);
+  assert.match(clientsApi, /testDebtAmount:\s*Number\(row\.test_debt_amount \?\? 0\)/);
   assert.match(platformStats, /debt:\s*client\.debtAmount/);
+  assert.match(platformStats, /testDebt:\s*client\.testDebtAmount/);
   assert.doesNotMatch(platformStats, /defaultRestaurantCommissionRate|orderAmount \* 0\.07/);
 });
 

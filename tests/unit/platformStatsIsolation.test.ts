@@ -72,6 +72,16 @@ describe('platform statistics test-data isolation', () => {
     expect(stats.restaurantStats[0]?.debt).toBe(30);
   });
 
+  it('exposes preactivation test debt without adding it to production debt totals', () => {
+    const stats = summarizePlatformStats(
+      [client({ debtAmount: 60, testDebtAmount: 90 })],
+      [order()]
+    );
+
+    expect(stats.totalDebt).toBe(60);
+    expect(stats.restaurantStats[0]).toMatchObject({ debt: 60, testDebt: 90 });
+  });
+
   it('excludes the permanent test restaurant from production client and catalog totals', () => {
     const stats = summarizePlatformStats([
       client(),
