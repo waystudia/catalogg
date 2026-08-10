@@ -1,0 +1,244 @@
+.client-pairing-card,
+.client-browser-pairing {
+  box-sizing: border-box;
+  border: 1px solid #ded9ff;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #ffffff, #f4f1ff);
+  color: #171329;
+  box-shadow: 0 14px 34px rgb(52 35 128 / 12%);
+}
+
+.client-pairing-card *,
+.client-browser-pairing * {
+  box-sizing: border-box;
+}
+
+.client-pairing-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.client-pairing-card__icon,
+.client-browser-pairing__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: #ede9fe;
+  color: #5b3df4;
+}
+
+.client-pairing-card__icon svg,
+.client-browser-pairing__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.client-pairing-card__copy,
+.client-browser-pairing__copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.client-pairing-card__copy strong,
+.client-browser-pairing__copy strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.client-pairing-card__copy p,
+.client-browser-pairing__copy p,
+.client-browser-pairing__help p {
+  margin: 0;
+  color: #625d73;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.client-pairing-primary,
+.client-pairing-secondary {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 13px;
+  padding: 0 14px;
+  font: inherit;
+  font-weight: 900;
+}
+
+.client-pairing-primary {
+  grid-column: 1 / -1;
+  border: 0;
+  background: #5b3df4;
+  color: #ffffff;
+}
+
+.client-pairing-secondary {
+  grid-column: 1 / -1;
+  border: 1px solid #cdc5ff;
+  background: #ffffff;
+  color: #4b32d0;
+}
+
+.client-pairing-primary:disabled,
+.client-pairing-secondary:disabled {
+  opacity: .6;
+}
+
+.client-pairing-primary svg,
+.client-pairing-secondary svg {
+  width: 19px;
+  height: 19px;
+}
+
+.client-pairing-code {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  border-radius: 15px;
+  padding: 13px;
+  background: #ffffff;
+}
+
+.client-pairing-code > small {
+  color: #625d73;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.client-pairing-code button {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px dashed #a797ff;
+  border-radius: 12px;
+  padding: 0 13px;
+  background: #f7f5ff;
+  color: #37249b;
+}
+
+.client-pairing-code b {
+  font-size: clamp(19px, 6vw, 25px);
+  letter-spacing: .08em;
+}
+
+.client-browser-pairing {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin: 12px 0 18px;
+  padding: 15px;
+}
+
+.client-browser-pairing__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6d6880;
+}
+
+.client-browser-pairing__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.client-browser-pairing__copy {
+  padding-right: 27px;
+}
+
+.client-browser-pairing__form,
+.client-browser-pairing__help,
+.client-pairing-error,
+.client-pairing-success {
+  grid-column: 1 / -1;
+}
+
+.client-browser-pairing__form {
+  display: grid;
+  gap: 8px;
+}
+
+.client-browser-pairing__form label {
+  color: #312b46;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.client-browser-pairing__form input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #cfc8ec;
+  border-radius: 13px;
+  padding: 0 13px;
+  outline: 0;
+  background: #ffffff;
+  color: #211949;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.client-browser-pairing__form input:focus {
+  border-color: #5b3df4;
+  box-shadow: 0 0 0 3px rgb(91 61 244 / 13%);
+}
+
+.client-browser-pairing__help summary {
+  cursor: pointer;
+  color: #4b32d0;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.client-browser-pairing__help p {
+  padding-top: 7px;
+}
+
+.client-pairing-error,
+.client-pairing-success {
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.client-pairing-error {
+  color: #b42318;
+}
+
+.client-pairing-success {
+  color: #067647;
+}
+
+.is-spinning {
+  animation: client-pairing-spin 800ms linear infinite;
+}
+
+@keyframes client-pairing-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 520px) {
+  .client-browser-pairing {
+    margin-top: 8px;
+  }
+}

@@ -106,6 +106,7 @@ import {
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
+import { ClientBrowserPairingBanner } from '../features/client-pairing/ClientPairing';
 import {
   getProductCartQuantity,
   isSauceProduct,
@@ -2851,6 +2852,8 @@ function AppContent({
             showBrand={screen !== 'home'}
             showCart
           />
+
+          <ClientBrowserPairingBanner />
 
           {routeSection === 'reviews' && !isAdmin && (
             <CatalogReviewsScreen restaurant={catalog.restaurant} reviews={restaurantReviews} />

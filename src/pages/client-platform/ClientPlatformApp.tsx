@@ -96,6 +96,7 @@ import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
+import { ClientPwaPairingCodeCard } from '../../features/client-pairing/ClientPairing';
 import {
   chooseMoreAccuratePosition,
   DELIVERY_GEOLOCATION_OPTIONS,
@@ -108,7 +109,7 @@ import {
   normalizeDeliveryCoordinates,
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
-import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import { appIsRunningStandalone, clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
 import {
   installGuideDismissedUntilKey,
   resolveInstallGuideDevice,
@@ -2940,6 +2941,8 @@ function ProfilePage() {
           </form>
         </section>
       )}
+
+      {clientSession && appIsRunningStandalone() && <ClientPwaPairingCodeCard />}
 
       <nav className="profile-menu">
         {items.map(({ to, label, Icon }) => (
