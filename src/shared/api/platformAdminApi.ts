@@ -18,9 +18,11 @@ export async function getPlatformAdminAccess(knownSession?: Session | null): Pro
     };
   }
 
-  const session = knownSession !== undefined
-    ? knownSession
-    : (await supabase.auth.getSession()).data.session;
+  const sessionResult = knownSession !== undefined
+    ? { data: { session: knownSession }, error: null }
+    : await supabase.auth.getSession();
+  if (sessionResult.error) throw sessionResult.error;
+  const session = sessionResult.data.session;
   if (!session) {
     return {
       hasSession: false,

@@ -2051,17 +2051,21 @@ function AppContent({
 
   useEffect(() => {
     let isCurrentCatalog = true;
+    let sessionRetryTimeoutId: number | undefined;
     setAdminSessionChecked(false);
-    void hasAdminSession(catalogSlug).then((hasSession) => {
-      if (!isCurrentCatalog) return;
-      setAdmin(hasSession);
-      setAdminSessionChecked(true);
-    }).catch((error) => {
-      console.error('Restaurant session restoration failed', error);
-      if (!isCurrentCatalog) return;
-      setAdmin(false);
-      setAdminSessionChecked(true);
-    });
+    const restoreAdminSession = () => {
+      void hasAdminSession(catalogSlug).then((hasSession) => {
+        if (!isCurrentCatalog) return;
+        setAdmin(hasSession);
+        setAdminSessionChecked(true);
+      }).catch((error) => {
+        console.warn('Restaurant session restoration will retry', error);
+        if (!isCurrentCatalog) return;
+        setAdminSessionChecked(false);
+        sessionRetryTimeoutId = window.setTimeout(restoreAdminSession, 2_500);
+      });
+    };
+    restoreAdminSession();
     const unsubscribe = onAdminSessionChange((hasSession) => {
       if (!isCurrentCatalog) return;
       setAdmin(hasSession);
@@ -2069,6 +2073,7 @@ function AppContent({
     }, catalogSlug);
     return () => {
       isCurrentCatalog = false;
+      window.clearTimeout(sessionRetryTimeoutId);
       unsubscribe();
     };
   }, [catalogSlug, setAdmin]);

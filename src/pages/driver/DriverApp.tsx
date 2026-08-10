@@ -460,17 +460,18 @@ export function DriverApp() {
     if (!supabase) return;
 
     let isMounted = true;
-    void (async () => {
-      const hasSession = await hasDriverAuthSession();
-      if (!isMounted) return;
-
-      if (!hasSession) {
-        setHasDriverAccess(false);
-        setAuthChecked(true);
-        return;
-      }
-
+    let sessionRetryTimeoutId: number | undefined;
+    const restoreDriverSession = async () => {
       try {
+        const hasSession = await hasDriverAuthSession();
+        if (!isMounted) return;
+
+        if (!hasSession) {
+          setHasDriverAccess(false);
+          setAuthChecked(true);
+          return;
+        }
+
         const driverId = await getAuthenticatedDriverId();
         if (!isMounted) return;
         if (driverId) {
@@ -481,17 +482,19 @@ export function DriverApp() {
           setHasDriverAccess(false);
           setError('');
         }
+        setAuthChecked(true);
       } catch {
         if (!isMounted) return;
-        setHasDriverAccess(false);
-        setError('');
-      } finally {
-        if (isMounted) setAuthChecked(true);
+        setAuthChecked(false);
+        setError('Восстанавливаем вход водителя после потери связи...');
+        sessionRetryTimeoutId = window.setTimeout(restoreDriverSession, 2_500);
       }
-    })();
+    };
+    void restoreDriverSession();
 
     return () => {
       isMounted = false;
+      window.clearTimeout(sessionRetryTimeoutId);
     };
   }, [bindDriver]);
 
@@ -682,7 +685,8 @@ export function DriverApp() {
       <main className="driver-app">
         <section className="driver-phone driver-auth-state">
           <ClipboardList />
-          <strong>Проверяем вход водителя...</strong>
+          <strong>{error || 'Проверяем вход водителя...'}</strong>
+          {error && <small>Повторяем автоматически. Входить заново не нужно.</small>}
         </section>
       </main>
     );

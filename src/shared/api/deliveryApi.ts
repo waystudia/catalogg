@@ -582,7 +582,10 @@ export const getAuthenticatedDriverId = async (): Promise<string | null> => {
     2_000
   );
   const authUser = sessionData.session?.user;
-  if (sessionError || !authUser?.id) return null;
+  if (sessionError) {
+    throw new DriverActionError('Восстанавливаем сессию водителя после потери связи.', 'network');
+  }
+  if (!authUser?.id) return null;
   copySupabaseSessionToScope('driver');
   const metadataDriverId =
     typeof authUser.app_metadata?.driver_id === 'string' ? authUser.app_metadata.driver_id : '';
@@ -624,7 +627,9 @@ export const getAuthenticatedDriverId = async (): Promise<string | null> => {
     4_000
   );
 
-  if (driverError) return null;
+  if (driverError) {
+    throw new DriverActionError('Не удалось проверить профиль водителя. Повторяем подключение.', 'network');
+  }
   return typeof driverRow?.id === 'string' ? driverRow.id : null;
 };
 
@@ -632,16 +637,15 @@ export async function hasDriverAuthSession() {
   if (!supabase) return true;
   copySupabaseSessionToScope('driver');
 
-  try {
-    const { data, error } = await withDriverRequestTimeout(
-      supabase.auth.getSession(),
-      'Не удалось проверить сессию водителя.',
-      2_000
-    );
-    return !error && Boolean(data.session?.user?.id);
-  } catch {
-    return false;
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.auth.getSession(),
+    'Не удалось проверить сессию водителя.',
+    2_000
+  );
+  if (error) {
+    throw new DriverActionError('Восстанавливаем сессию водителя после потери связи.', 'network');
   }
+  return Boolean(data.session?.user?.id);
 }
 
 export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {

@@ -4,6 +4,7 @@ import {
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthScope,
   getSupabaseAuthStorageKeyForRedirect,
+  getSupabaseStartupAuthScope,
   handoffSupabaseSessionToScope
 } from './supabaseAuthScope';
 
@@ -22,6 +23,19 @@ describe('Supabase auth scopes', () => {
     assert.equal(getSupabaseAuthScope('#/mangal'), 'client');
     assert.equal(getSupabaseAuthScope('#/login'), 'login');
     assert.equal(getSupabaseAuthStorageKeyForRedirect('/driver'), 'waycatalog-auth-driver');
+  });
+
+  it('restores the saved role scope when an installed PWA starts from its root URL', () => {
+    assert.equal(getSupabaseStartupAuthScope('#/', '/driver/orders'), 'driver');
+    assert.equal(getSupabaseStartupAuthScope('', '/mangal/settings'), 'restaurant-admin');
+    assert.equal(getSupabaseStartupAuthScope('#/', '/admin/clients'), 'platform-admin');
+    assert.equal(getSupabaseStartupAuthScope('#/', '/profile/orders'), 'client');
+  });
+
+  it('never overrides an explicit login or direct role route with a stale resume path', () => {
+    assert.equal(getSupabaseStartupAuthScope('#/login', '/driver/orders'), 'login');
+    assert.equal(getSupabaseStartupAuthScope('#/admin/clients', '/driver/orders'), 'platform-admin');
+    assert.equal(getSupabaseStartupAuthScope('#/driver', '/mangal/settings'), 'driver');
   });
 
   it('never replaces a driver session with a client or admin account from another tab', () => {
