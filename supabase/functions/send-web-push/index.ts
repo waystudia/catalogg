@@ -1,4 +1,4 @@
-import { sendNotification } from 'npm:web-push-neo@0.1.2';
+import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
 import { selectPriorityDriverSubscriptions } from './premiumDispatch.ts';
 import { getRussianPushStatus } from './pushMessages.ts';
@@ -85,6 +85,7 @@ Deno.serve(async (request) => {
     const event = await request.json() as WebhookEvent;
     const record = event.record ?? {};
     const admin = createClient(supabaseUrl, serviceRoleKey);
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
     let subscriptions: Subscription[] = [];
     let title = 'WayCatalog';
@@ -230,18 +231,9 @@ Deno.serve(async (request) => {
     let sent = 0;
     for (const subscription of uniqueSubscriptions(subscriptions)) {
       try {
-        await sendNotification(
+        await webpush.sendNotification(
           { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-          payload,
-          {
-            TTL: 120,
-            urgency: 'high',
-            vapidDetails: {
-              subject: vapidSubject,
-              publicKey: vapidPublicKey,
-              privateKey: vapidPrivateKey
-            }
-          }
+          payload
         );
         sent += 1;
       } catch (error) {
