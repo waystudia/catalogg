@@ -1,4 +1,4 @@
-import { Check, Copy, Fingerprint, Link2, LoaderCircle, ShieldCheck, Smartphone, X } from 'lucide-react';
+import { Check, Copy, Fingerprint, Link2, LoaderCircle, ShieldCheck, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import {
   createClientBrowserPairingCode,
@@ -26,6 +26,9 @@ type CreateCode = () => Promise<ClientBrowserPairingCode>;
 type RedeemCode = (code: string) => Promise<ClientAccountSession>;
 type RegisterPasskey = () => Promise<unknown>;
 type SignInWithPasskey = () => Promise<ClientAccountSession>;
+
+const passkeyIllustration = (name: 'checkout-profile' | 'safari-profile' | 'pwa-return') =>
+  `${import.meta.env.BASE_URL}assets/passkey/${name}.webp`;
 
 const pairingDismissedKey = 'wayyaam:client-pairing-prompt-dismissed';
 
@@ -94,14 +97,105 @@ export function ClientPasskeyCard({
   );
 }
 
+export function ClientPasskeyRegistrationDialog({
+  open,
+  registerPasskey = registerClientPasskey,
+  onContinue
+}: {
+  open: boolean;
+  registerPasskey?: RegisterPasskey;
+  onContinue: (passkeyEnabled: boolean) => void;
+}) {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!open) return null;
+
+  const enableAndContinue = async () => {
+    setIsRegistering(true);
+    setError('');
+    try {
+      await registerPasskey();
+      onContinue(true);
+    } catch (cause) {
+      if (cause instanceof ClientPasskeyError && cause.code === 'already_registered') {
+        onContinue(true);
+        return;
+      }
+      setError(cause instanceof Error ? cause.message : 'Не удалось включить Face ID. Заказ можно оформить без него.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  return (
+    <div className="client-passkey-dialog-backdrop">
+      <section
+        className="client-passkey-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-passkey-checkout-title"
+      >
+        <img
+          className="client-passkey-illustration client-passkey-dialog__illustration"
+          src={passkeyIllustration('checkout-profile')}
+          alt="Заказ и профиль защищены входом по биометрии"
+          width="640"
+          height="640"
+        />
+        <div className="client-passkey-dialog__copy">
+          <span className="client-passkey-eyebrow">Профиль готов</span>
+          <h2 id="client-passkey-checkout-title">Следующий заказ — без пароля</h2>
+          <p>
+            Закрепите этот профиль через Face ID или отпечаток. Имя, телефон, история заказов,
+            конкурсы и акции останутся в одном аккаунте — даже по ссылке из WhatsApp.
+          </p>
+        </div>
+        <ul className="client-passkey-benefits" aria-label="Что сохранится в профиле">
+          <li><Check aria-hidden="true" /> Имя и телефон</li>
+          <li><Check aria-hidden="true" /> Заказы и участие в акциях</li>
+          <li><ShieldCheck aria-hidden="true" /> Биометрия остаётся на устройстве</li>
+        </ul>
+        {error && (
+          <small className="client-pairing-error" role="alert">
+            {error} Корзина и заказ сохранены.
+          </small>
+        )}
+        <button
+          className="client-pairing-primary"
+          type="button"
+          onClick={() => void enableAndContinue()}
+          disabled={isRegistering}
+          autoFocus
+        >
+          {isRegistering ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
+          {isRegistering ? 'Подтвердите на устройстве…' : 'Включить Face ID и оформить'}
+        </button>
+        <button
+          className="client-pairing-secondary"
+          type="button"
+          onClick={() => onContinue(false)}
+          disabled={isRegistering}
+        >
+          Не сейчас, оформить заказ
+        </button>
+      </section>
+    </div>
+  );
+}
+
 export function ClientPasskeySignInButton({
   signIn = signInClientWithPasskey,
   supported = clientPasskeyIsSupported(),
-  onSignedIn
+  onSignedIn,
+  label = 'Войти по Face ID',
+  pendingLabel = 'Подтвердите Face ID…'
 }: {
   signIn?: SignInWithPasskey;
   supported?: boolean;
   onSignedIn: (session: ClientAccountSession) => void;
+  label?: string;
+  pendingLabel?: string;
 }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState('');
@@ -124,10 +218,47 @@ export function ClientPasskeySignInButton({
     <div className="client-passkey-sign-in">
       <button className="client-pairing-primary" type="button" onClick={() => void submit()} disabled={isSigningIn}>
         {isSigningIn ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
-        {isSigningIn ? 'Подтвердите Face ID…' : 'Войти по Face ID'}
+        {isSigningIn ? pendingLabel : label}
       </button>
       {error && <small className="client-pairing-error" role="alert">{error}</small>}
     </div>
+  );
+}
+
+export function ClientPasskeyReturnPanel({
+  signIn = signInClientWithPasskey,
+  supported = clientPasskeyIsSupported(),
+  onSignedIn
+}: {
+  signIn?: SignInWithPasskey;
+  supported?: boolean;
+  onSignedIn: (session: ClientAccountSession) => void;
+}) {
+  if (!supported) return null;
+
+  return (
+    <section className="client-passkey-return" aria-labelledby="client-passkey-return-title">
+      <img
+        className="client-passkey-illustration client-passkey-return__illustration"
+        src={passkeyIllustration('pwa-return')}
+        alt="Возвращение в защищённый профиль WayYaam"
+        width="640"
+        height="640"
+      />
+      <div className="client-passkey-return__copy">
+        <span className="client-passkey-eyebrow">С возвращением</span>
+        <h3 id="client-passkey-return-title">Продолжите в своём профиле</h3>
+        <p>Подтвердите Face ID или отпечаток — пароль вводить не нужно.</p>
+      </div>
+      <ClientPasskeySignInButton
+        signIn={signIn}
+        supported={supported}
+        onSignedIn={onSignedIn}
+        label="Продолжить через Face ID"
+        pendingLabel="Подтвердите на устройстве…"
+      />
+      <small className="client-passkey-return__hint">Не вы? Ниже можно войти с другим номером и паролем.</small>
+    </section>
   );
 }
 
@@ -276,19 +407,31 @@ export function ClientBrowserPairingBanner({
       <button className="client-browser-pairing__close" type="button" onClick={dismiss} aria-label="Закрыть подсказку">
         <X aria-hidden="true" />
       </button>
-      <span className="client-browser-pairing__icon"><Smartphone aria-hidden="true" /></span>
+      <img
+        className="client-passkey-illustration client-browser-pairing__illustration"
+        src={passkeyIllustration('safari-profile')}
+        alt="Профиль, история заказов и участие в акциях открываются по Face ID"
+        width="640"
+        height="640"
+      />
       <div className="client-browser-pairing__copy">
-        <strong>Открыли ссылку из WhatsApp?</strong>
+        <span className="client-passkey-eyebrow">Ссылка открылась в Safari</span>
+        <strong>Откройте свой профиль WayYaam</strong>
         <p>
-          Войдите по Face ID — Safari откроет тот же профиль WayYaam, подставит имя и телефон и
-          сохранит участие в конкурсах и акциях.
+          Face ID вернёт имя, телефон и историю заказов. Участие в конкурсах и акциях останется
+          в том же профиле.
         </p>
       </div>
+
+      <ul className="client-passkey-benefits client-browser-pairing__benefits">
+        <li><Check aria-hidden="true" /> Данные сразу подставятся в заказ</li>
+        <li><Check aria-hidden="true" /> Ничего не потеряется и не создастся новый профиль</li>
+      </ul>
 
       {passkeySupported && (
         <button className="client-pairing-primary" type="button" onClick={() => void signIn()} disabled={isPasskeySigningIn}>
           {isPasskeySigningIn ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
-          {isPasskeySigningIn ? 'Подтвердите Face ID…' : 'Войти по Face ID'}
+          {isPasskeySigningIn ? 'Подтвердите на устройстве…' : 'Открыть мой профиль по Face ID'}
         </button>
       )}
 

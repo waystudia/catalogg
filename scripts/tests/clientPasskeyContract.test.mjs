@@ -52,3 +52,23 @@ test('an existing Passkey Auth session restores an expired custom client session
   assert.match(clientAccountApi, /if \(!token\) return restoreClientAccountFromAuthSession\(\)/);
   assert.match(clientAccountApi, /clearClientSession\(\);[\s\S]*return restoreClientAccountFromAuthSession\(\)/);
 });
+
+test('first checkout pauses once for an optional Passkey and then resumes the same order', async () => {
+  const [checkout, presentation] = await Promise.all([
+    read('src/features/checkout/CheckoutScreen.tsx'),
+    read('src/features/client-pairing/ClientPairing.tsx')
+  ]);
+
+  assert.match(checkout, /const shouldOfferPasskeyAfterAuth = !hasClientSession && clientPasskeyIsSupported\(\)/);
+  assert.match(checkout, /pendingOrderContinuationRef\.current = submitRestaurantOrder/);
+  assert.match(checkout, /setIsPasskeyCheckoutPromptOpen\(true\);\s*return;/);
+  assert.match(checkout, /<ClientPasskeyRegistrationDialog[\s\S]*onContinue=\{continuePendingOrder\}/);
+  assert.match(presentation, /Включить Face ID и оформить/);
+  assert.match(presentation, /Не сейчас, оформить заказ/);
+
+  assert.ok(
+    checkout.indexOf('pendingOrderContinuationRef.current = submitRestaurantOrder')
+      < checkout.lastIndexOf('submitRestaurantOrder();'),
+    'the exact pending order must be stored before checkout waits for the biometric choice'
+  );
+});
