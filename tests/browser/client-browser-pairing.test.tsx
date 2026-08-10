@@ -21,7 +21,8 @@ test('offers Face ID after the first checkout account is ready and then continue
   );
 
   await expect.element(screen.getByText('Следующий заказ — без пароля')).toBeVisible();
-  await expect.element(screen.getByAltText('Заказ и профиль защищены входом по биометрии')).toBeVisible();
+  await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).toBeVisible();
+  await expect.element(screen.getByText('Имя и телефон сохранены для этого заказа')).toBeVisible();
   await screen.getByRole('button', { name: 'Включить Face ID и оформить' }).click();
 
   expect(registered).toBe(1);
@@ -149,7 +150,8 @@ test('offers Face ID first when a WhatsApp link opens in Safari', async () => {
   );
 
   await expect.element(screen.getByText('Откройте свой профиль WayYaam')).toBeVisible();
-  await expect.element(screen.getByAltText('Профиль, история заказов и участие в акциях открываются по Face ID')).toBeVisible();
+  await expect.element(screen.getByRole('group', { name: 'Вернуть ваш профиль' })).toBeVisible();
+  await expect.element(screen.getByText('Закажите с тем же именем и номером телефона')).toBeVisible();
   await screen.getByRole('button', { name: 'Открыть мой профиль по Face ID' }).click();
   await expect.element(screen.getByText('Вы вошли как Адам. Имя и телефон будут подставлены в заказ.')).toBeVisible();
   expect(reloads).toBe(0);

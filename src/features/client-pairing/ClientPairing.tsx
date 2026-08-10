@@ -1,4 +1,19 @@
-import { Check, Copy, Fingerprint, Link2, LoaderCircle, ShieldCheck, X } from 'lucide-react';
+import {
+  Check,
+  CircleUserRound,
+  Copy,
+  Fingerprint,
+  Gift,
+  Globe2,
+  History,
+  Link2,
+  LoaderCircle,
+  LockKeyhole,
+  ReceiptText,
+  ShieldCheck,
+  Smartphone,
+  X
+} from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import {
   createClientBrowserPairingCode,
@@ -27,9 +42,6 @@ type RedeemCode = (code: string) => Promise<ClientAccountSession>;
 type RegisterPasskey = () => Promise<unknown>;
 type SignInWithPasskey = () => Promise<ClientAccountSession>;
 
-const passkeyIllustration = (name: 'checkout-profile' | 'safari-profile' | 'pwa-return') =>
-  `${import.meta.env.BASE_URL}assets/passkey/${name}.webp`;
-
 const pairingDismissedKey = 'wayyaam:client-pairing-prompt-dismissed';
 
 const readPairingDismissed = () => {
@@ -42,6 +54,60 @@ const formatExpiry = (expiresAt: string) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 };
+
+function ClientPasskeyProfilePreview({
+  context
+}: {
+  context: 'checkout' | 'safari' | 'pwa';
+}) {
+  const content = {
+    checkout: {
+      badge: 'Профиль создан',
+      title: 'Ваш профиль WayYaam',
+      description: 'Имя и телефон сохранены для этого заказа',
+      status: 'Можно защитить вход'
+    },
+    safari: {
+      badge: 'Ссылка из мессенджера',
+      title: 'Вернуть ваш профиль',
+      description: 'Закажите с тем же именем и номером телефона',
+      status: 'Нужен вход'
+    },
+    pwa: {
+      badge: 'Приложение WayYaam',
+      title: 'Ваш профиль сохранён',
+      description: 'Подтвердите, что это вы, и продолжайте',
+      status: 'Сессия завершилась'
+    }
+  }[context];
+
+  return (
+    <div className={`client-passkey-profile-preview client-passkey-profile-preview--${context}`} role="group" aria-label={content.title}>
+      <div className="client-passkey-profile-preview__bar">
+        <span>
+          {context === 'safari' ? <Globe2 aria-hidden="true" /> : <Smartphone aria-hidden="true" />}
+          {content.badge}
+        </span>
+        <small>{content.status}</small>
+      </div>
+      <div className="client-passkey-profile-preview__account">
+        <span className="client-passkey-profile-preview__avatar"><CircleUserRound aria-hidden="true" /></span>
+        <div>
+          <strong>{content.title}</strong>
+          <small>{content.description}</small>
+        </div>
+        <span className="client-passkey-profile-preview__lock">
+          {context === 'checkout' ? <ShieldCheck aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}
+        </span>
+      </div>
+      <div className="client-passkey-profile-preview__features" aria-label="Данные профиля">
+        <span><ReceiptText aria-hidden="true" /> Данные заказа</span>
+        <span><History aria-hidden="true" /> История</span>
+        <span><Gift aria-hidden="true" /> Акции</span>
+      </div>
+    </div>
+  );
+}
 
 export function ClientPasskeyCard({
   registerPasskey = registerClientPasskey,
@@ -136,13 +202,7 @@ export function ClientPasskeyRegistrationDialog({
         aria-modal="true"
         aria-labelledby="client-passkey-checkout-title"
       >
-        <img
-          className="client-passkey-illustration client-passkey-dialog__illustration"
-          src={passkeyIllustration('checkout-profile')}
-          alt="Заказ и профиль защищены входом по биометрии"
-          width="640"
-          height="640"
-        />
+        <ClientPasskeyProfilePreview context="checkout" />
         <div className="client-passkey-dialog__copy">
           <span className="client-passkey-eyebrow">Профиль готов</span>
           <h2 id="client-passkey-checkout-title">Следующий заказ — без пароля</h2>
@@ -238,13 +298,7 @@ export function ClientPasskeyReturnPanel({
 
   return (
     <section className="client-passkey-return" aria-labelledby="client-passkey-return-title">
-      <img
-        className="client-passkey-illustration client-passkey-return__illustration"
-        src={passkeyIllustration('pwa-return')}
-        alt="Возвращение в защищённый профиль WayYaam"
-        width="640"
-        height="640"
-      />
+      <ClientPasskeyProfilePreview context="pwa" />
       <div className="client-passkey-return__copy">
         <span className="client-passkey-eyebrow">С возвращением</span>
         <h3 id="client-passkey-return-title">Продолжите в своём профиле</h3>
@@ -407,13 +461,7 @@ export function ClientBrowserPairingBanner({
       <button className="client-browser-pairing__close" type="button" onClick={dismiss} aria-label="Закрыть подсказку">
         <X aria-hidden="true" />
       </button>
-      <img
-        className="client-passkey-illustration client-browser-pairing__illustration"
-        src={passkeyIllustration('safari-profile')}
-        alt="Профиль, история заказов и участие в акциях открываются по Face ID"
-        width="640"
-        height="640"
-      />
+      <ClientPasskeyProfilePreview context="safari" />
       <div className="client-browser-pairing__copy">
         <span className="client-passkey-eyebrow">Ссылка открылась в Safari</span>
         <strong>Откройте свой профиль WayYaam</strong>

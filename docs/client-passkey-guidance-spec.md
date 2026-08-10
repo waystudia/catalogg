@@ -41,15 +41,21 @@ Show a full explanation panel above the password form. Do not invoke biometrics 
 
 ## Visual system
 
-Raster illustrations contain no text, logos or controls. All copy and actions remain semantic HTML.
+The explanation is a working WayYaam interface, not an illustration. Every state uses semantic HTML,
+real buttons and the same profile-status component: context, profile state, retained data and the next action.
+The three-dimensional concept images are not part of the product.
 
-| Asset | Purpose |
-| --- | --- |
-| `public/assets/passkey/checkout-profile.webp` | first checkout and secure profile creation |
-| `public/assets/passkey/safari-profile.webp` | shared link, restored profile, history and contests |
-| `public/assets/passkey/pwa-return.webp` | returning to the installed PWA after time has passed |
+Panels use the existing WayYaam violet palette, a 24 px radius, compact profile cards and no inner
+scrolling. Screenshots for review must be captured from these running components at a 390 px viewport;
+they are documentation artifacts and are never displayed inside the application.
 
-Panels use the existing WayYaam violet palette, a 24 px radius, a compact 16:10 visual crop on mobile, and no inner scrolling.
+| Working state | Local preview | Screenshot |
+| --- | --- | --- |
+| First checkout | `#/__passkey-preview/checkout` | `docs/screenshots/passkey/checkout-face-id.png` |
+| Restaurant link in Safari | `#/__passkey-preview/safari` | `docs/screenshots/passkey/safari-face-id.png` |
+| Returning installed PWA | `#/__passkey-preview/pwa` | `docs/screenshots/passkey/pwa-face-id.png` |
+
+The preview routes exist only in the Vite development build and are omitted from production routing.
 
 ## Accessibility and security
 
