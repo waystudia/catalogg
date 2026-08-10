@@ -20,10 +20,10 @@ test('offers Face ID after the first checkout account is ready and then continue
     />
   );
 
-  await expect.element(screen.getByText('Следующий заказ — без пароля')).toBeVisible();
+  await expect.element(screen.getByText('Сохраните скидки')).toBeVisible();
   await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).toBeVisible();
-  await expect.element(screen.getByText('Имя и телефон сохранены для этого заказа')).toBeVisible();
-  await screen.getByRole('button', { name: 'Включить Face ID и оформить' }).click();
+  await expect.element(screen.getByText('Скидки, акции и история заказов')).toBeVisible();
+  await screen.getByRole('button', { name: 'Face ID и оформить' }).click();
 
   expect(registered).toBe(1);
   expect(continued).toBe(true);
@@ -38,7 +38,7 @@ test('keeps checkout available when the client skips biometric setup', async () 
     />
   );
 
-  await screen.getByRole('button', { name: 'Не сейчас, оформить заказ' }).click();
+  await screen.getByRole('button', { name: 'Оформить без Face ID' }).click();
   expect(continued).toBe(false);
 });
 
@@ -113,7 +113,7 @@ test('redeems the PWA code in Safari and confirms checkout profile autofill', as
     />
   );
 
-  await screen.getByRole('button', { name: 'Другой способ входа' }).click();
+  await screen.getByRole('button', { name: 'Другой способ' }).click();
   await screen.getByLabelText('Код из PWA').fill('a1b2-c3d4-e5f6');
   await screen.getByRole('button', { name: 'Подтвердить' }).click();
 
@@ -149,10 +149,10 @@ test('offers Face ID first when a WhatsApp link opens in Safari', async () => {
     />
   );
 
-  await expect.element(screen.getByText('Откройте свой профиль WayYaam')).toBeVisible();
-  await expect.element(screen.getByRole('group', { name: 'Вернуть ваш профиль' })).toBeVisible();
-  await expect.element(screen.getByText('Закажите с тем же именем и номером телефона')).toBeVisible();
-  await screen.getByRole('button', { name: 'Открыть мой профиль по Face ID' }).click();
+  await expect.element(screen.getByText('Войдите в профиль')).toBeVisible();
+  await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).toBeVisible();
+  await expect.element(screen.getByText('Скидки, акции и история заказов')).toBeVisible();
+  await screen.getByRole('button', { name: 'Войти по Face ID' }).click();
   await expect.element(screen.getByText('Вы вошли как Адам. Имя и телефон будут подставлены в заказ.')).toBeVisible();
   expect(reloads).toBe(0);
 });
@@ -172,8 +172,8 @@ test('offers a returning installed PWA client a clear biometric continuation pan
     />
   );
 
-  await expect.element(screen.getByText('Продолжите в своём профиле')).toBeVisible();
-  await expect.element(screen.getByText('Не вы? Ниже можно войти с другим номером и паролем.')).toBeVisible();
-  await screen.getByRole('button', { name: 'Продолжить через Face ID' }).click();
+  await expect.element(screen.getByText('Войдите в профиль')).toBeVisible();
+  await expect.element(screen.getByText('Или войдите по номеру и паролю.')).toBeVisible();
+  await screen.getByRole('button', { name: 'Войти по Face ID' }).click();
   expect(signedInName).toBe('Адам');
 });

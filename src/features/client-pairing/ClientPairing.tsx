@@ -62,22 +62,22 @@ function ClientPasskeyProfilePreview({
 }) {
   const content = {
     checkout: {
-      badge: 'Профиль создан',
+      badge: 'Профиль готов',
       title: 'Ваш профиль WayYaam',
-      description: 'Имя и телефон сохранены для этого заказа',
-      status: 'Можно защитить вход'
+      description: 'Скидки, акции и история заказов',
+      status: 'Face ID'
     },
     safari: {
-      badge: 'Ссылка из мессенджера',
-      title: 'Вернуть ваш профиль',
-      description: 'Закажите с тем же именем и номером телефона',
-      status: 'Нужен вход'
+      badge: 'Ссылка открыта',
+      title: 'Ваш профиль WayYaam',
+      description: 'Скидки, акции и история заказов',
+      status: 'Войти'
     },
     pwa: {
       badge: 'Приложение WayYaam',
       title: 'Ваш профиль сохранён',
-      description: 'Подтвердите, что это вы, и продолжайте',
-      status: 'Сессия завершилась'
+      description: 'Скидки, акции и история заказов',
+      status: 'Войти'
     }
   }[context];
 
@@ -101,7 +101,7 @@ function ClientPasskeyProfilePreview({
         </span>
       </div>
       <div className="client-passkey-profile-preview__features" aria-label="Данные профиля">
-        <span><ReceiptText aria-hidden="true" /> Данные заказа</span>
+        <span><ReceiptText aria-hidden="true" /> Скидки</span>
         <span><History aria-hidden="true" /> История</span>
         <span><Gift aria-hidden="true" /> Акции</span>
       </div>
@@ -147,7 +147,7 @@ export function ClientPasskeyCard({
         <p>
           {enabled
             ? 'Теперь этот профиль можно открыть через Face ID и в приложении WayYaam, и в Safari.'
-            : 'Подключите Face ID один раз. После этого ссылки из WhatsApp откроются с вашим профилем.'}
+            : 'Подключите Face ID, чтобы сохранять скидки, заказы и вход по ссылкам.'}
         </p>
       </div>
       <button className="client-pairing-primary" type="button" onClick={() => void enable()} disabled={isRegistering || enabled}>
@@ -204,18 +204,9 @@ export function ClientPasskeyRegistrationDialog({
       >
         <ClientPasskeyProfilePreview context="checkout" />
         <div className="client-passkey-dialog__copy">
-          <span className="client-passkey-eyebrow">Профиль готов</span>
-          <h2 id="client-passkey-checkout-title">Следующий заказ — без пароля</h2>
-          <p>
-            Закрепите этот профиль через Face ID или отпечаток. Имя, телефон, история заказов,
-            конкурсы и акции останутся в одном аккаунте — даже по ссылке из WhatsApp.
-          </p>
+          <h2 id="client-passkey-checkout-title">Сохраните скидки</h2>
+          <p>Face ID сохранит профиль для следующих заказов.</p>
         </div>
-        <ul className="client-passkey-benefits" aria-label="Что сохранится в профиле">
-          <li><Check aria-hidden="true" /> Имя и телефон</li>
-          <li><Check aria-hidden="true" /> Заказы и участие в акциях</li>
-          <li><ShieldCheck aria-hidden="true" /> Биометрия остаётся на устройстве</li>
-        </ul>
         {error && (
           <small className="client-pairing-error" role="alert">
             {error} Корзина и заказ сохранены.
@@ -229,7 +220,7 @@ export function ClientPasskeyRegistrationDialog({
           autoFocus
         >
           {isRegistering ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
-          {isRegistering ? 'Подтвердите на устройстве…' : 'Включить Face ID и оформить'}
+          {isRegistering ? 'Подтвердите на устройстве…' : 'Face ID и оформить'}
         </button>
         <button
           className="client-pairing-secondary"
@@ -237,7 +228,7 @@ export function ClientPasskeyRegistrationDialog({
           onClick={() => onContinue(false)}
           disabled={isRegistering}
         >
-          Не сейчас, оформить заказ
+          Оформить без Face ID
         </button>
       </section>
     </div>
@@ -300,18 +291,17 @@ export function ClientPasskeyReturnPanel({
     <section className="client-passkey-return" aria-labelledby="client-passkey-return-title">
       <ClientPasskeyProfilePreview context="pwa" />
       <div className="client-passkey-return__copy">
-        <span className="client-passkey-eyebrow">С возвращением</span>
-        <h3 id="client-passkey-return-title">Продолжите в своём профиле</h3>
-        <p>Подтвердите Face ID или отпечаток — пароль вводить не нужно.</p>
+        <h3 id="client-passkey-return-title">Войдите в профиль</h3>
+        <p>Все скидки, акции и заказы уже сохранены.</p>
       </div>
       <ClientPasskeySignInButton
         signIn={signIn}
         supported={supported}
         onSignedIn={onSignedIn}
-        label="Продолжить через Face ID"
+        label="Войти по Face ID"
         pendingLabel="Подтвердите на устройстве…"
       />
-      <small className="client-passkey-return__hint">Не вы? Ниже можно войти с другим номером и паролем.</small>
+      <small className="client-passkey-return__hint">Или войдите по номеру и паролю.</small>
     </section>
   );
 }
@@ -463,23 +453,15 @@ export function ClientBrowserPairingBanner({
       </button>
       <ClientPasskeyProfilePreview context="safari" />
       <div className="client-browser-pairing__copy">
-        <span className="client-passkey-eyebrow">Ссылка открылась в Safari</span>
-        <strong>Откройте свой профиль WayYaam</strong>
-        <p>
-          Face ID вернёт имя, телефон и историю заказов. Участие в конкурсах и акциях останется
-          в том же профиле.
-        </p>
+        <span className="client-passkey-eyebrow">Ваши скидки здесь</span>
+        <strong>Войдите в профиль</strong>
+        <p>Face ID вернёт акции, скидки и данные для заказа.</p>
       </div>
-
-      <ul className="client-passkey-benefits client-browser-pairing__benefits">
-        <li><Check aria-hidden="true" /> Данные сразу подставятся в заказ</li>
-        <li><Check aria-hidden="true" /> Ничего не потеряется и не создастся новый профиль</li>
-      </ul>
 
       {passkeySupported && (
         <button className="client-pairing-primary" type="button" onClick={() => void signIn()} disabled={isPasskeySigningIn}>
           {isPasskeySigningIn ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
-          {isPasskeySigningIn ? 'Подтвердите на устройстве…' : 'Открыть мой профиль по Face ID'}
+          {isPasskeySigningIn ? 'Подтвердите на устройстве…' : 'Войти по Face ID'}
         </button>
       )}
 
@@ -505,12 +487,12 @@ export function ClientBrowserPairingBanner({
       ) : (
         <button className="client-pairing-secondary" type="button" onClick={() => setIsOpen(true)}>
           <Link2 aria-hidden="true" />
-          Другой способ входа
+          Другой способ
         </button>
       )}
 
       <details className="client-browser-pairing__help">
-        <summary>Как открыть установленный WayYaam</summary>
+        <summary>Открыть приложение WayYaam</summary>
         <p>Закройте браузер и нажмите значок WayYaam на экране «Домой». iPhone не позволяет сайту надёжно открыть этот значок автоматически.</p>
       </details>
       {message && <small className="client-pairing-success" role="status">{message}</small>}

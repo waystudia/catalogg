@@ -8,9 +8,9 @@ Help a client understand why WayYaam asks for Face ID or a fingerprint, while ke
 
 | Scenario | Trigger | Primary message | Primary action | Fallback |
 | --- | --- | --- | --- | --- |
-| First checkout | A client enters a password, successfully creates or restores an account, and the device supports Passkeys | Save this profile so future restaurant links open with the same name, phone, history, contests and promotions | `Включить Face ID и оформить` | `Не сейчас, оформить заказ` |
-| Restaurant link in Safari | A mobile external browser has no client session | Open the existing profile instead of ordering as a new client | `Открыть мой профиль по Face ID` | Password login or the legacy one-time pairing code |
-| Returning installed PWA | The installed PWA no longer has a client session | Continue in the familiar profile without entering the password again | `Продолжить через Face ID` | Regular password login |
+| First checkout | A client enters a password, successfully creates or restores an account, and the device supports Passkeys | Keep discounts, promotions and orders in one profile | `Face ID и оформить` | `Оформить без Face ID` |
+| Restaurant link in Safari | A mobile external browser has no client session | Restore discounts, promotions and checkout data | `Войти по Face ID` | Password login or the legacy one-time pairing code |
+| Returning installed PWA | The installed PWA no longer has a client session | Return to saved benefits and orders | `Войти по Face ID` | Regular password login |
 
 On devices without Face ID the operating system may show Touch ID, an Android fingerprint, device PIN or another Passkey confirmation. Product copy uses `Face ID или отпечаток` where space allows.
 

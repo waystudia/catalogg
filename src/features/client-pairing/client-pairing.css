@@ -564,8 +564,17 @@
 }
 
 .client-passkey-preview-page .client-passkey-dialog-backdrop {
-  position: absolute;
+  position: static;
+  grid-column: 1 / -1;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
   backdrop-filter: none;
+}
+
+.client-passkey-preview-page .client-passkey-dialog {
+  width: 100%;
+  margin: 0;
 }
 
 .client-passkey-preview-page__header {
