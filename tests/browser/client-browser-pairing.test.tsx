@@ -3,9 +3,43 @@ import { render } from 'vitest-browser-react';
 import {
   ClientBrowserPairingBanner,
   ClientPasskeyCard,
+  ClientPasskeyRegistrationDialog,
+  ClientPasskeyReturnPanel,
   ClientPasskeySignInButton,
   ClientPwaPairingCodeCard
 } from '../../src/features/client-pairing/ClientPairing';
+
+test('offers Face ID after the first checkout account is ready and then continues the order', async () => {
+  let registered = 0;
+  let continued: boolean | null = null;
+  const screen = await render(
+    <ClientPasskeyRegistrationDialog
+      open
+      registerPasskey={async () => { registered += 1; }}
+      onContinue={(enabled) => { continued = enabled; }}
+    />
+  );
+
+  await expect.element(screen.getByText('Следующий заказ — без пароля')).toBeVisible();
+  await expect.element(screen.getByAltText('Заказ и профиль защищены входом по биометрии')).toBeVisible();
+  await screen.getByRole('button', { name: 'Включить Face ID и оформить' }).click();
+
+  expect(registered).toBe(1);
+  expect(continued).toBe(true);
+});
+
+test('keeps checkout available when the client skips biometric setup', async () => {
+  let continued: boolean | null = null;
+  const screen = await render(
+    <ClientPasskeyRegistrationDialog
+      open
+      onContinue={(enabled) => { continued = enabled; }}
+    />
+  );
+
+  await screen.getByRole('button', { name: 'Не сейчас, оформить заказ' }).click();
+  expect(continued).toBe(false);
+});
 
 test('enables Face ID from an authenticated client profile', async () => {
   let registrations = 0;
@@ -93,7 +127,7 @@ test('does not advertise pairing inside the installed PWA', async () => {
     <ClientBrowserPairingBanner standalone mobile hasSession={false} />
   );
 
-  await expect.element(screen.getByText('Открыли ссылку из WhatsApp?')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Ссылка открылась в Safari')).not.toBeInTheDocument();
 });
 
 test('offers Face ID first when a WhatsApp link opens in Safari', async () => {
@@ -114,7 +148,30 @@ test('offers Face ID first when a WhatsApp link opens in Safari', async () => {
     />
   );
 
-  await screen.getByRole('button', { name: 'Войти по Face ID' }).click();
+  await expect.element(screen.getByText('Откройте свой профиль WayYaam')).toBeVisible();
+  await expect.element(screen.getByAltText('Профиль, история заказов и участие в акциях открываются по Face ID')).toBeVisible();
+  await screen.getByRole('button', { name: 'Открыть мой профиль по Face ID' }).click();
   await expect.element(screen.getByText('Вы вошли как Адам. Имя и телефон будут подставлены в заказ.')).toBeVisible();
   expect(reloads).toBe(0);
+});
+
+test('offers a returning installed PWA client a clear biometric continuation panel', async () => {
+  let signedInName = '';
+  const screen = await render(
+    <ClientPasskeyReturnPanel
+      supported
+      signIn={async () => ({
+        accountId: '8f272f45-27d0-4baf-a7bb-5ae4e7a0b775',
+        name: 'Адам',
+        phone: '+79280000000',
+        expiresAt: 'infinity'
+      })}
+      onSignedIn={(session) => { signedInName = session.name; }}
+    />
+  );
+
+  await expect.element(screen.getByText('Продолжите в своём профиле')).toBeVisible();
+  await expect.element(screen.getByText('Не вы? Ниже можно войти с другим номером и паролем.')).toBeVisible();
+  await screen.getByRole('button', { name: 'Продолжить через Face ID' }).click();
+  expect(signedInName).toBe('Адам');
 });

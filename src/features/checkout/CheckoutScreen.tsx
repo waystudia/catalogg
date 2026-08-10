@@ -91,6 +91,8 @@ import {
   registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
+import { clientPasskeyIsSupported } from '../../shared/api/clientPasskeyApi';
+import { ClientPasskeyRegistrationDialog } from '../client-pairing/ClientPairing';
 import { qualifiesForFreeDelivery } from './deliveryPricing';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
@@ -205,6 +207,7 @@ export function CheckoutScreen({
   const [hasClientSession, setHasClientSession] = useState(false);
   const [clientPassword, setClientPassword] = useState('');
   const [accountError, setAccountError] = useState('');
+  const [isPasskeyCheckoutPromptOpen, setIsPasskeyCheckoutPromptOpen] = useState(false);
   const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
   const isCheckoutAccountValid = hasClientSession || clientPassword.length >= 6;
   const effectiveDeliverySettlement = normalizeSettlementName(
@@ -222,6 +225,7 @@ export function CheckoutScreen({
   });
   const profileHydratedRef = useRef(false);
   const submitLockRef = useRef(false);
+  const pendingOrderContinuationRef = useRef<(() => void) | null>(null);
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const selectedClientPlaceRef = useRef('');
   const deliveryDetailsRef = useRef<HTMLElement | null>(null);
@@ -229,6 +233,14 @@ export function CheckoutScreen({
   const clientNameRef = useRef<HTMLInputElement | null>(null);
   const clientPhoneRef = useRef<HTMLInputElement | null>(null);
   const locationButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const continuePendingOrder = (passkeyEnabled: boolean) => {
+    const continuation = pendingOrderContinuationRef.current;
+    pendingOrderContinuationRef.current = null;
+    setIsPasskeyCheckoutPromptOpen(false);
+    if (passkeyEnabled) toast.success('Face ID подключён к вашему профилю');
+    continuation?.();
+  };
 
   const validateCheckoutContact = () => {
     const errors: string[] = [];
@@ -1109,6 +1121,7 @@ export function CheckoutScreen({
               return;
             }
 
+            const shouldOfferPasskeyAfterAuth = !hasClientSession && clientPasskeyIsSupported();
             if (!hasClientSession) {
               setAccountError('');
               try {
@@ -1146,122 +1159,140 @@ export function CheckoutScreen({
               }
             }
 
-            let whatsappWindow: Window | null = null;
-            try {
-              whatsappWindow = window.open('about:blank', '_blank');
-            } catch {
-              whatsappWindow = null;
-            }
-            const openCreatedOrderWhatsapp = (href: string) => {
-              if (whatsappWindow && !whatsappWindow.closed) {
-                whatsappWindow.location.href = href;
-                return;
-              }
-              window.location.href = href;
-            };
-            const closeReservedWhatsappWindow = () => {
+            const submitRestaurantOrder = () => {
+              submitLockRef.current = true;
+              setIsSubmittingOrder(true);
+              let whatsappWindow: Window | null = null;
               try {
-                whatsappWindow?.close();
+                whatsappWindow = window.open('about:blank', '_blank');
               } catch {
-                // The browser may block controlling a tab after opening it.
+                whatsappWindow = null;
               }
-            };
-            void createRestaurantOrderFromCart({
-              ...orderPayload,
-              idempotencyKey: getOrderIdempotencyKey(orderPayload)
-            })
-              .then((orderId) => {
-                if (orderId) {
-                  const orderType: ClientOrder['orderType'] =
-                    mode === 'hall' ? 'dine_in' : mode === 'takeaway' ? 'pickup' : 'delivery';
-                  const deliveryProvider: ClientOrder['deliveryProvider'] =
-                    orderType === 'delivery'
-                      ? deliverySettings.use_platform_drivers
-                        ? 'platform'
-                        : 'restaurant'
-                      : orderType === 'pickup'
-                        ? 'pickup'
-                        : 'dine_in';
-                  const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
-
-                  if (mode === 'delivery') {
-                    const clientAddress: ClientAddress = {
-                      id: `checkout-${catalogSlug}`,
-                      title: effectiveDeliverySettlement || effectiveDeliveryCity || 'Адрес доставки',
-                      addressLine: finalDeliveryAddress,
-                      lat: selectedDeliveryLat,
-                      lng: selectedDeliveryLng,
-                      accuracyM: deliveryAccuracyM,
-                      entrance: '',
-                      floor: '',
-                      apartment: '',
-                      intercomCode: '',
-                      landmark: '',
-                      comment: '',
-                      isDefault: true
-                    };
-
-                    addClientAddress(clientAddress);
-                  }
-
-                  submitClientOrder({
-                    id: orderId,
-                    restaurantSlug: catalogSlug,
-                    restaurantName: restaurant.name || catalogSlug,
-                    orderType,
-                    deliveryProvider,
-                    paymentMethod: usesBankTransfer ? 'bank_transfer' : 'cash',
-                    status: usesBankTransfer && paymentSettings.requireConfirmation
-                      ? 'waiting_payment_confirmation'
-                      : 'new',
-                    paymentStatus: usesBankTransfer ? 'waiting_confirmation' : 'unpaid',
-                    totalAmount: total,
-                    addressLine:
-                      orderType === 'delivery'
-                        ? finalDeliveryAddress
-                        : orderType === 'dine_in'
-                          ? selectedCabin?.title ?? 'В зале'
-                          : restaurant.address || 'Самовывоз',
-                    deliveryLat: orderType === 'delivery' ? deliveryLat : null,
-                    deliveryLng: orderType === 'delivery' ? deliveryLng : null,
-                    clientName: profileName,
-                    clientPhone: profilePhone,
-                    createdAt: new Date().toISOString(),
-                    estimatedTimeMin: preparationMinutes,
-                    estimatedTimeMax: preparationMinutes + (orderType === 'delivery' ? 20 : 10),
-                    items: items.map((item) => ({
-                      dishId: item.product.id,
-                      name: item.product.title,
-                      price: getCartItemPrice(item),
-                      quantity: item.quantity
-                    }))
-                  });
-                  recordOrderConsent();
-                  clearCart();
-                  clearClientPlatformCart(catalogSlug);
-                  onSubmitOrder();
-                  toast.success('Заказ создан в системе ресторана');
-                  openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
+              const openCreatedOrderWhatsapp = (href: string) => {
+                if (whatsappWindow && !whatsappWindow.closed) {
+                  whatsappWindow.location.href = href;
                   return;
                 }
-                closeReservedWhatsappWindow();
-                toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
+                window.location.href = href;
+              };
+              const closeReservedWhatsappWindow = () => {
+                try {
+                  whatsappWindow?.close();
+                } catch {
+                  // The browser may block controlling a tab after opening it.
+                }
+              };
+              void createRestaurantOrderFromCart({
+                ...orderPayload,
+                idempotencyKey: getOrderIdempotencyKey(orderPayload)
               })
-              .catch((error) => {
-                console.error('Order creation failed', error);
-                closeReservedWhatsappWindow();
-                toast.error(getRestaurantOrderCreationErrorMessage(error));
-              })
-              .finally(() => {
-                submitLockRef.current = false;
-                setIsSubmittingOrder(false);
-              });
+                .then((orderId) => {
+                  if (orderId) {
+                    const orderType: ClientOrder['orderType'] =
+                      mode === 'hall' ? 'dine_in' : mode === 'takeaway' ? 'pickup' : 'delivery';
+                    const deliveryProvider: ClientOrder['deliveryProvider'] =
+                      orderType === 'delivery'
+                        ? deliverySettings.use_platform_drivers
+                          ? 'platform'
+                          : 'restaurant'
+                        : orderType === 'pickup'
+                          ? 'pickup'
+                          : 'dine_in';
+                    const preparationMinutes = Math.max(10, deliverySettings.default_preparation_minutes || 25);
+
+                    if (mode === 'delivery') {
+                      const clientAddress: ClientAddress = {
+                        id: `checkout-${catalogSlug}`,
+                        title: effectiveDeliverySettlement || effectiveDeliveryCity || 'Адрес доставки',
+                        addressLine: finalDeliveryAddress,
+                        lat: selectedDeliveryLat,
+                        lng: selectedDeliveryLng,
+                        accuracyM: deliveryAccuracyM,
+                        entrance: '',
+                        floor: '',
+                        apartment: '',
+                        intercomCode: '',
+                        landmark: '',
+                        comment: '',
+                        isDefault: true
+                      };
+
+                      addClientAddress(clientAddress);
+                    }
+
+                    submitClientOrder({
+                      id: orderId,
+                      restaurantSlug: catalogSlug,
+                      restaurantName: restaurant.name || catalogSlug,
+                      orderType,
+                      deliveryProvider,
+                      paymentMethod: usesBankTransfer ? 'bank_transfer' : 'cash',
+                      status: usesBankTransfer && paymentSettings.requireConfirmation
+                        ? 'waiting_payment_confirmation'
+                        : 'new',
+                      paymentStatus: usesBankTransfer ? 'waiting_confirmation' : 'unpaid',
+                      totalAmount: total,
+                      addressLine:
+                        orderType === 'delivery'
+                          ? finalDeliveryAddress
+                          : orderType === 'dine_in'
+                            ? selectedCabin?.title ?? 'В зале'
+                            : restaurant.address || 'Самовывоз',
+                      deliveryLat: orderType === 'delivery' ? deliveryLat : null,
+                      deliveryLng: orderType === 'delivery' ? deliveryLng : null,
+                      clientName: profileName,
+                      clientPhone: profilePhone,
+                      createdAt: new Date().toISOString(),
+                      estimatedTimeMin: preparationMinutes,
+                      estimatedTimeMax: preparationMinutes + (orderType === 'delivery' ? 20 : 10),
+                      items: items.map((item) => ({
+                        dishId: item.product.id,
+                        name: item.product.title,
+                        price: getCartItemPrice(item),
+                        quantity: item.quantity
+                      }))
+                    });
+                    recordOrderConsent();
+                    clearCart();
+                    clearClientPlatformCart(catalogSlug);
+                    onSubmitOrder();
+                    toast.success('Заказ создан в системе ресторана');
+                    openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
+                    return;
+                  }
+                  closeReservedWhatsappWindow();
+                  toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
+                })
+                .catch((error) => {
+                  console.error('Order creation failed', error);
+                  closeReservedWhatsappWindow();
+                  toast.error(getRestaurantOrderCreationErrorMessage(error));
+                })
+                .finally(() => {
+                  submitLockRef.current = false;
+                  setIsSubmittingOrder(false);
+                });
+            };
+
+            if (shouldOfferPasskeyAfterAuth) {
+              pendingOrderContinuationRef.current = submitRestaurantOrder;
+              submitLockRef.current = false;
+              setIsSubmittingOrder(false);
+              setIsPasskeyCheckoutPromptOpen(true);
+              return;
+            }
+
+            submitRestaurantOrder();
           }}
         >
           <ArrowRight />
           {isSubmittingOrder ? 'Отправляем заказ...' : 'Отправить заказ'}
         </button>
       </section>
+      <ClientPasskeyRegistrationDialog
+        open={isPasskeyCheckoutPromptOpen}
+        onContinue={continuePendingOrder}
+      />
     </main>
   );
 }

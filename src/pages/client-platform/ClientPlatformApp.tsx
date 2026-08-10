@@ -98,6 +98,7 @@ import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurant
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
   ClientPasskeyCard,
+  ClientPasskeyReturnPanel,
   ClientPasskeySignInButton,
   ClientPwaPairingCodeCard
 } from '../../features/client-pairing/ClientPairing';
@@ -2737,6 +2738,18 @@ function ProfilePage() {
     navigate('/profile', { replace: true });
   };
 
+  const completePasskeySignIn = (session: ClientAccountSession) => {
+    setClientSession(session);
+    saveProfile({ name: session.name, phone: session.phone });
+    setClientName(session.name);
+    setAccountIdentifier(session.phone);
+    setClientPassword('');
+    setClientMessage('Вы вошли по Face ID');
+    setClientError('');
+    setAccountOpen(false);
+    navigate(clientReturnTo, { replace: true });
+  };
+
   return (
     <>
       <PageHeader title="Профиль" />
@@ -2807,19 +2820,9 @@ function ProfilePage() {
               </p>
             </header>
             {clientAuthMode === 'login' && (
-              <ClientPasskeySignInButton
-                onSignedIn={(session) => {
-                  setClientSession(session);
-                  saveProfile({ name: session.name, phone: session.phone });
-                  setClientName(session.name);
-                  setAccountIdentifier(session.phone);
-                  setClientPassword('');
-                  setClientMessage('Вы вошли по Face ID');
-                  setClientError('');
-                  setAccountOpen(false);
-                  navigate(clientReturnTo, { replace: true });
-                }}
-              />
+              appIsRunningStandalone()
+                ? <ClientPasskeyReturnPanel onSignedIn={completePasskeySignIn} />
+                : <ClientPasskeySignInButton onSignedIn={completePasskeySignIn} />
             )}
             {clientAuthMode === 'register' && (
               <div className="profile-auth-field">
