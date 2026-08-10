@@ -35,24 +35,31 @@ export function PwaHomeRouteBase({ homeElement }: { homeElement: React.ReactNode
     }
 
     let isMounted = true;
-    void resolveSessionRedirect().then((redirect) => {
-      if (!isMounted) return;
-      const verifiedPath = redirect === '/admin' ? '/admin/clients' : redirect;
-      const targetPath = resolvePwaHomeTarget({
-        explicitNavigation: false,
-        savedPath,
-        sessionRedirect: verifiedPath,
-        standalone: appIsRunningStandalone()
+    let sessionRetryTimeoutId: number | undefined;
+    const restoreSession = () => {
+      void resolveSessionRedirect().then((redirect) => {
+        if (!isMounted) return;
+        const verifiedPath = redirect === '/admin' ? '/admin/clients' : redirect;
+        const targetPath = resolvePwaHomeTarget({
+          explicitNavigation: false,
+          savedPath,
+          sessionRedirect: verifiedPath,
+          standalone: appIsRunningStandalone()
+        });
+        if (targetPath) rememberPwaResumePath(targetPath);
+        setSessionPath(targetPath);
+        setIsSessionChecked(true);
+      }).catch(() => {
+        if (!isMounted) return;
+        setIsSessionChecked(false);
+        sessionRetryTimeoutId = window.setTimeout(restoreSession, 2_500);
       });
-      if (targetPath) rememberPwaResumePath(targetPath);
-      setSessionPath(targetPath);
-      setIsSessionChecked(true);
-    }).catch(() => {
-      if (isMounted) setIsSessionChecked(true);
-    });
+    };
+    restoreSession();
 
     return () => {
       isMounted = false;
+      window.clearTimeout(sessionRetryTimeoutId);
     };
   }, [explicitNavigation, savedPath]);
 

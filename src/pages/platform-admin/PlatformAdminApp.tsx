@@ -3577,8 +3577,17 @@ function PlatformAdminContent() {
     return <PlaceholderPage route={route} />;
   }, [route, signOutWithConfirmation, templatesQuery.data]);
 
-  if (platformAdminQuery.isLoading) {
-    return <main className="platform-state platform-state--full">Проверяем права доступа...</main>;
+  if (platformAdminQuery.isLoading || (platformAdminQuery.isError && !platformAdminQuery.data)) {
+    return (
+      <main className="platform-state platform-state--full">
+        <p>{platformAdminQuery.isError ? 'Восстанавливаем вход после потери связи...' : 'Проверяем права доступа...'}</p>
+        {platformAdminQuery.isError && (
+          <button type="button" onClick={() => void platformAdminQuery.refetch()}>
+            Повторить сейчас
+          </button>
+        )}
+      </main>
+    );
   }
 
   if (!platformAdminQuery.data?.hasSession) {

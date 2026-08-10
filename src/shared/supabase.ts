@@ -11,7 +11,7 @@ import {
   parseCabinMeta
 } from '../features/restaurant-settings/catalogAdminModel';
 import { catalogAccessAllowsAdmin } from './adminSession';
-import { clearPwaResumePath } from './pwaSession';
+import { clearPwaResumePath, readPwaResumePath } from './pwaSession';
 import { settleRestaurantSessionCheck } from './restaurantSession';
 import { makeRestaurantCoordinates, parseRestaurantCoordinatesFromMapLink } from './restaurantLocation';
 import {
@@ -24,6 +24,7 @@ import {
   getSupabaseAuthScope,
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthStorageKey,
+  getSupabaseStartupAuthScope,
   handoffSupabaseSessionToScope
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
@@ -39,7 +40,9 @@ const config: SupabaseConfig = {
     import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
 };
 
-const currentAuthScope = getSupabaseAuthScope(typeof window === 'undefined' ? '/' : window.location.hash);
+const currentAuthScope = typeof window === 'undefined'
+  ? getSupabaseAuthScope('/')
+  : getSupabaseStartupAuthScope(window.location.hash, readPwaResumePath());
 const currentAuthStorageKey = getSupabaseAuthStorageKey(currentAuthScope);
 
 if (typeof window !== 'undefined') {
@@ -707,7 +710,7 @@ export function onAdminSessionChange(callback: (isAdmin: boolean) => void, catal
       return;
     }
     sessionCheckTimeoutId = setTimeout(() => {
-      void hasAdminSession(catalogSlug, session).then(callback).catch(() => callback(false));
+      void hasAdminSession(catalogSlug, session).then(callback).catch(() => undefined);
     }, 0);
   });
 

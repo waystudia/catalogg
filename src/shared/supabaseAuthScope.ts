@@ -39,6 +39,15 @@ export const getSupabaseAuthScope = (route: string): SupabaseAuthScope => {
   return 'client';
 };
 
+export const getSupabaseStartupAuthScope = (
+  route: string,
+  savedResumePath: string | null
+): SupabaseAuthScope => {
+  const normalizedRoute = route.replace(/^#?\/?/, '').split(/[?#]/, 1)[0];
+  if (normalizedRoute) return getSupabaseAuthScope(route);
+  return savedResumePath ? getSupabaseAuthScope(savedResumePath) : 'client';
+};
+
 export const getSupabaseAuthStorageKey = (scope: SupabaseAuthScope) => `waycatalog-auth-${scope}`;
 
 export const getSupabaseAuthStorageKeyForRedirect = (redirect: string) =>

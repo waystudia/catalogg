@@ -3,6 +3,14 @@ import { supabase } from '../supabase';
 import { legalDocumentReleases } from '../legalDocuments';
 
 const clientSessionStorageKey = 'waycatalog-client-session';
+const clientSessionSnapshotStorageKey = 'waycatalog-client-session-profile';
+
+export class ClientSessionRestorationUnavailableError extends Error {
+  constructor() {
+    super('Не удалось проверить вход. Повторяем автоматически.');
+    this.name = 'ClientSessionRestorationUnavailableError';
+  }
+}
 
 export type ClientAccountSession = ClientProfile & {
   accountId: string;
@@ -48,12 +56,40 @@ export const getStoredClientSessionToken = () => {
 
 export const hasStoredClientSession = () => Boolean(getStoredClientSessionToken());
 
-const saveClientSessionToken = (token: string) => {
-  if (typeof window !== 'undefined') window.localStorage.setItem(clientSessionStorageKey, token);
+const readClientSessionSnapshot = (): ClientAccountSession | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(clientSessionSnapshotStorageKey);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<ClientAccountSession>;
+    if (
+      typeof value.accountId !== 'string' ||
+      typeof value.name !== 'string' ||
+      typeof value.phone !== 'string'
+    ) {
+      return null;
+    }
+    return {
+      accountId: value.accountId,
+      name: value.name,
+      phone: value.phone,
+      expiresAt: typeof value.expiresAt === 'string' ? value.expiresAt : ''
+    };
+  } catch {
+    return null;
+  }
 };
 
-const clearClientSessionToken = () => {
-  if (typeof window !== 'undefined') window.localStorage.removeItem(clientSessionStorageKey);
+const saveClientSession = (token: string, session: ClientAccountSession) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(clientSessionStorageKey, token);
+  window.localStorage.setItem(clientSessionSnapshotStorageKey, JSON.stringify(session));
+};
+
+const clearClientSession = () => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(clientSessionStorageKey);
+  window.localStorage.removeItem(clientSessionSnapshotStorageKey);
 };
 
 export const buildClientAuthPath = (returnTo: string) =>
@@ -97,7 +133,7 @@ export async function registerClientAccount(input: ClientProfile & { password: s
   const session = mapSession(data);
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось создать клиентскую сессию.');
-  saveClientSessionToken(token);
+  saveClientSession(token, session);
   await recordClientRegistrationLegalChoices(token, input);
   return session;
 }
@@ -112,7 +148,7 @@ export async function loginClientAccount(input: { phone: string; password: strin
   const session = mapSession(data);
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось открыть клиентскую сессию.');
-  saveClientSessionToken(token);
+  saveClientSession(token, session);
   return session;
 }
 
@@ -123,7 +159,7 @@ export async function loginCurrentAuthClientAccount() {
   const session = mapSession(data);
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось открыть клиентскую сессию.');
-  saveClientSessionToken(token);
+  saveClientSession(token, session);
   return session;
 }
 
@@ -133,11 +169,22 @@ export async function restoreClientAccountSession() {
   const { data, error } = await supabase.rpc('get_client_account_session', {
     client_session_token: token
   });
-  if (error || !data) {
-    clearClientSessionToken();
+  if (error) {
+    const snapshot = readClientSessionSnapshot();
+    if (snapshot) return snapshot;
+    throw new ClientSessionRestorationUnavailableError();
+  }
+  if (!data) {
+    clearClientSession();
     return null;
   }
-  return mapSession(data);
+  const session = mapSession(data);
+  if (!session) {
+    clearClientSession();
+    return null;
+  }
+  saveClientSession(token, session);
+  return session;
 }
 
 export async function getCurrentClientAddresses(): Promise<ClientAddress[]> {
@@ -173,7 +220,7 @@ export async function getCurrentClientAddresses(): Promise<ClientAddress[]> {
 
 export async function logoutClientAccount() {
   const token = getStoredClientSessionToken();
-  clearClientSessionToken();
+  clearClientSession();
   if (!token || !supabase) return;
   await supabase.rpc('logout_client_account', { client_session_token: token });
 }

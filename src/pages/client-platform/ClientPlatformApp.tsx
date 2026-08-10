@@ -1697,19 +1697,30 @@ function CheckoutPage({
 
   useEffect(() => {
     let isMounted = true;
+    let retryId: number | null = null;
 
-    void restoreClientAccountSession().then((session) => {
-      if (!isMounted) return;
-      if (!session) {
-        navigate(buildClientAuthPath(`/r/${restaurant.slug}/checkout`), { replace: true });
-        return;
-      }
-      saveProfile({ name: session.name, phone: session.phone });
-      setIsClientSessionReady(true);
-    });
+    const restoreSession = () => {
+      void restoreClientAccountSession()
+        .then((session) => {
+          if (!isMounted) return;
+          if (!session) {
+            navigate(buildClientAuthPath(`/r/${restaurant.slug}/checkout`), { replace: true });
+            return;
+          }
+          saveProfile({ name: session.name, phone: session.phone });
+          setIsClientSessionReady(true);
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          retryId = window.setTimeout(restoreSession, 2_500);
+        });
+    };
+
+    restoreSession();
 
     return () => {
       isMounted = false;
+      if (retryId !== null) window.clearTimeout(retryId);
     };
   }, [hasClientAccount, navigate, restaurant.slug, saveProfile]);
 
@@ -2579,16 +2590,34 @@ function ProfilePage() {
     : '/profile';
 
   useEffect(() => {
-    void restoreClientAccountSession().then(async (session) => {
-      setClientSession(session);
-      setIsClientSessionChecking(false);
-      if (session) {
-        saveProfile({ name: session.name, phone: session.phone });
-        setClientName(session.name);
-        setAccountIdentifier(session.phone);
-        setClientMessage('Вы вошли в аккаунт');
-      }
-    });
+    let isMounted = true;
+    let retryId: number | null = null;
+
+    const restoreSession = () => {
+      void restoreClientAccountSession()
+        .then((session) => {
+          if (!isMounted) return;
+          setClientSession(session);
+          setIsClientSessionChecking(false);
+          if (session) {
+            saveProfile({ name: session.name, phone: session.phone });
+            setClientName(session.name);
+            setAccountIdentifier(session.phone);
+            setClientMessage('Вы вошли в аккаунт');
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          retryId = window.setTimeout(restoreSession, 2_500);
+        });
+    };
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+      if (retryId !== null) window.clearTimeout(retryId);
+    };
   }, [saveProfile]);
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {

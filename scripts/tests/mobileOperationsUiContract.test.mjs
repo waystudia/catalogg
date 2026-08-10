@@ -56,6 +56,28 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /Ещё \{hiddenOffersCount\} заказ/);
   });
 
+  it('shows order and delivery costs on every available driver order card', () => {
+    const homeScreen = driverSource.slice(
+      driverSource.indexOf('function DriverHomeScreen'),
+      driverSource.indexOf('function DriverIncomingOrderPanel')
+    );
+    const incomingPanel = driverSource.slice(
+      driverSource.indexOf('function DriverIncomingOrderPanel'),
+      driverSource.indexOf('function DriverCurrentDeliveryPanel')
+    );
+    const deliveryCard = driverSource.slice(
+      driverSource.indexOf('function DriverDeliveryCard'),
+      driverSource.indexOf('type DriverYandexNavigationDelivery')
+    );
+
+    assert.match(driverSource, /Стоимость заказа/);
+    assert.match(driverSource, /Стоимость доставки/);
+    assert.match(homeScreen, /<DriverOfferPrices offer=\{offer\}/);
+    assert.match(incomingPanel, /<DriverOfferPrices offer=\{offer\}/);
+    assert.match(deliveryCard, /<DriverOfferPrices offer=\{offer\}/);
+    assert.match(driverCss, /\.driver-offer-prices/);
+  });
+
   it('uses a readable left-to-right gradient sweep only on the urgent offer', () => {
     assert.match(driverCss, /\.driver-urgent-offer::before/);
     assert.match(driverCss, /linear-gradient\(\s*90deg/s);

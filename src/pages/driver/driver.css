@@ -1395,6 +1395,43 @@
   white-space: nowrap;
 }
 
+.driver-offer-prices {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 5px;
+  min-width: 104px;
+  text-align: right;
+}
+
+.driver-offer-prices > span {
+  display: grid;
+  gap: 1px;
+}
+
+.driver-offer-prices small {
+  margin: 0;
+  color: #667085;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.driver-offer-prices strong {
+  color: #111827;
+  font-size: 15px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.driver-offer-prices[data-compact='true'] {
+  gap: 4px;
+  min-width: 94px;
+}
+
+.driver-offer-prices[data-compact='true'] strong {
+  font-size: 13px;
+}
+
 .driver-other-order-row > svg {
   width: 18px;
   color: #98a2b3;

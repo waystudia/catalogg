@@ -460,17 +460,18 @@ export function DriverApp() {
     if (!supabase) return;
 
     let isMounted = true;
-    void (async () => {
-      const hasSession = await hasDriverAuthSession();
-      if (!isMounted) return;
-
-      if (!hasSession) {
-        setHasDriverAccess(false);
-        setAuthChecked(true);
-        return;
-      }
-
+    let sessionRetryTimeoutId: number | undefined;
+    const restoreDriverSession = async () => {
       try {
+        const hasSession = await hasDriverAuthSession();
+        if (!isMounted) return;
+
+        if (!hasSession) {
+          setHasDriverAccess(false);
+          setAuthChecked(true);
+          return;
+        }
+
         const driverId = await getAuthenticatedDriverId();
         if (!isMounted) return;
         if (driverId) {
@@ -481,17 +482,19 @@ export function DriverApp() {
           setHasDriverAccess(false);
           setError('');
         }
+        setAuthChecked(true);
       } catch {
         if (!isMounted) return;
-        setHasDriverAccess(false);
-        setError('');
-      } finally {
-        if (isMounted) setAuthChecked(true);
+        setAuthChecked(false);
+        setError('Восстанавливаем вход водителя после потери связи...');
+        sessionRetryTimeoutId = window.setTimeout(restoreDriverSession, 2_500);
       }
-    })();
+    };
+    void restoreDriverSession();
 
     return () => {
       isMounted = false;
+      window.clearTimeout(sessionRetryTimeoutId);
     };
   }, [bindDriver]);
 
@@ -682,7 +685,8 @@ export function DriverApp() {
       <main className="driver-app">
         <section className="driver-phone driver-auth-state">
           <ClipboardList />
-          <strong>Проверяем вход водителя...</strong>
+          <strong>{error || 'Проверяем вход водителя...'}</strong>
+          {error && <small>Повторяем автоматически. Входить заново не нужно.</small>}
         </section>
       </main>
     );
@@ -947,7 +951,7 @@ function DriverHomeScreen({
               <small>{offer.restaurantName || getBusinessTerms(offer.businessType).place} → {formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
               <small>{offer.distanceKm} км · ≈ {offer.routeEtaMin} мин</small>
             </span>
-            <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
+            <DriverOfferPrices offer={offer} compact />
             <ChevronRight aria-hidden="true" />
           </Link>
         ))}
@@ -1018,7 +1022,7 @@ function DriverIncomingOrderPanel({
         </header>
         <div className="driver-urgent-offer__headline">
           <strong>{offer.orderNumber}</strong>
-          <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
+          <DriverOfferPrices offer={offer} />
         </div>
         <p><Home /><span><small>{terms.place}</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
         <p><MapPin /><span><small>Адрес доставки</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
@@ -1248,6 +1252,21 @@ function DriverStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function DriverOfferPrices({ offer, compact = false }: { offer: DeliveryOffer; compact?: boolean }) {
+  return (
+    <span className="driver-offer-prices" data-compact={compact}>
+      <span>
+        <small>Стоимость заказа</small>
+        <strong>{formatPrice(offer.orderTotal)}</strong>
+      </span>
+      <span>
+        <small>Стоимость доставки</small>
+        <strong>{formatPrice(offer.deliveryFee)}</strong>
+      </span>
+    </span>
+  );
+}
+
 function DriverSectionTitle({ title, to }: { title: string; to: string }) {
   return (
     <div className="driver-section-title">
@@ -1267,7 +1286,6 @@ function DriverDeliveryCard({
   highlighted?: boolean;
 }) {
   const statusTone = driverDeliveryStatusTones[offer.status];
-  const price = offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee;
 
   return (
     <Link
@@ -1287,7 +1305,7 @@ function DriverDeliveryCard({
         {compact ? formatDriverDeliveryAddress(offer.deliveryAddress) : formatDriverDeliveryAddress(offer.deliveryAddress) || `${offer.distanceKm} км от вас`}
       </span>
       <span className="driver-order-summary-card__foot">
-        <strong>{formatPrice(price)}</strong>
+        <DriverOfferPrices offer={offer} compact />
         <em data-tone={statusTone}>
           {offer.status === 'waiting_courier' && <span aria-hidden="true" />}
           {getDeliveryStatusLabel(offer.status, offer.businessType)}
@@ -1557,7 +1575,7 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
         <DriverRouteLine icon={<MapPin />} label="Доставить в" value={displayDeliveryAddress} />
         <DriverRouteLine icon={<Navigation />} label="Расстояние" value={`${offer.distanceKm} км от вас`} />
         <DriverRouteLine icon={<CircleDollarSign />} label="Стоимость заказа" value={formatPrice(offer.orderTotal)} />
-        <DriverRouteLine icon={<WalletCards />} label="Выплата за доставку" value={formatPrice(offer.deliveryFee)} />
+        <DriverRouteLine icon={<WalletCards />} label="Стоимость доставки" value={formatPrice(offer.deliveryFee)} />
         <small>{offer.paymentLabel}</small>
         <div className="driver-action-row driver-action-row--order">
           <a href={offer.routeToRestaurantUrl} target="_blank" rel="noreferrer">

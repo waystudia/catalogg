@@ -402,25 +402,30 @@ export function CheckoutScreen({
 
   useEffect(() => {
     let isMounted = true;
+    let retryId: number | null = null;
 
-    void restoreClientAccountSession()
-      .then((session) => {
-        if (!isMounted) return;
-        setHasClientSession(Boolean(session));
-        if (session) {
-          saveClientProfile({ name: session.name, phone: session.phone });
-          setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
-        }
-      })
-      .catch(() => {
-        if (isMounted) setHasClientSession(false);
-      })
-      .finally(() => {
-        if (isMounted) setIsClientSessionReady(true);
-      });
+    const restoreSession = () => {
+      void restoreClientAccountSession()
+        .then((session) => {
+          if (!isMounted) return;
+          setHasClientSession(Boolean(session));
+          if (session) {
+            saveClientProfile({ name: session.name, phone: session.phone });
+            setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
+          }
+          setIsClientSessionReady(true);
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          retryId = window.setTimeout(restoreSession, 2_500);
+        });
+    };
+
+    restoreSession();
 
     return () => {
       isMounted = false;
+      if (retryId !== null) window.clearTimeout(retryId);
     };
   }, [saveClientProfile, setOrder]);
 
