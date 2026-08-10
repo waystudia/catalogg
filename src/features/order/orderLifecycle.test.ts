@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   calculateDriverCashHandover,
+  calculateDriverRestaurantSettlement,
   buildDriverDeliveryView,
   buildDeliveryDestinationAddress,
   buildYandexMapsRouteAppUrl,
@@ -16,16 +17,36 @@ import {
 } from './orderLifecycle';
 
 describe('cash settlement with the restaurant', () => {
-  it('makes the restaurant fund the courier payout when delivery is free for the client', () => {
-    assert.equal(calculateDriverCashHandover({ clientTotal: 1500, courierPayout: 200 }), 1300);
+  it('hands the full order amount to the restaurant and records its separate courier payout when delivery is free', () => {
+    assert.deepEqual(
+      calculateDriverRestaurantSettlement({
+        clientTotal: 1500,
+        clientDeliveryFee: 0,
+        courierPayout: 200
+      }),
+      {
+        restaurantFundsDelivery: true,
+        restaurantOrderAmount: 1500,
+        restaurantDeliveryPayout: 200,
+        courierKeepsFromClient: 0
+      }
+    );
   });
 
   it('keeps a paid client delivery fee inside the courier payout calculation', () => {
-    assert.equal(calculateDriverCashHandover({ clientTotal: 1620, courierPayout: 200 }), 1420);
+    assert.equal(calculateDriverCashHandover({
+      clientTotal: 1620,
+      clientDeliveryFee: 200,
+      courierPayout: 200
+    }), 1420);
   });
 
   it('never asks the driver to hand over a negative amount', () => {
-    assert.equal(calculateDriverCashHandover({ clientTotal: 150, courierPayout: 200 }), 0);
+    assert.equal(calculateDriverCashHandover({
+      clientTotal: 150,
+      clientDeliveryFee: 200,
+      courierPayout: 200
+    }), 0);
   });
 });
 import type { DeliveryAssignment, DriverDeliveryView, OrderLifecycleSnapshot } from './orderLifecycle';

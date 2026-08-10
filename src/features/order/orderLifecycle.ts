@@ -106,13 +106,43 @@ export type DriverDeliveryView = {
   readonly pickupQrToken?: string;
 };
 
-export const calculateDriverCashHandover = ({
+export const calculateDriverRestaurantSettlement = ({
   clientTotal,
+  clientDeliveryFee,
   courierPayout
 }: {
   clientTotal: number;
+  clientDeliveryFee: number;
   courierPayout: number;
-}) => Math.max(0, clientTotal - courierPayout);
+}) => {
+  const normalizedClientTotal = Math.max(0, clientTotal);
+  const normalizedClientDeliveryFee = Math.max(0, clientDeliveryFee);
+  const normalizedCourierPayout = Math.max(0, courierPayout);
+  const restaurantFundsDelivery = normalizedClientDeliveryFee === 0 && normalizedCourierPayout > 0;
+
+  return {
+    restaurantFundsDelivery,
+    restaurantOrderAmount: restaurantFundsDelivery
+      ? normalizedClientTotal
+      : Math.max(0, normalizedClientTotal - normalizedCourierPayout),
+    restaurantDeliveryPayout: restaurantFundsDelivery ? normalizedCourierPayout : 0,
+    courierKeepsFromClient: restaurantFundsDelivery ? 0 : normalizedCourierPayout
+  } as const;
+};
+
+export const calculateDriverCashHandover = ({
+  clientTotal,
+  clientDeliveryFee,
+  courierPayout
+}: {
+  clientTotal: number;
+  clientDeliveryFee: number;
+  courierPayout: number;
+}) => calculateDriverRestaurantSettlement({
+  clientTotal,
+  clientDeliveryFee,
+  courierPayout
+}).restaurantOrderAmount;
 
 type RoutePoint = {
   readonly lat?: number | null;

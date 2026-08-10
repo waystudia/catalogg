@@ -41,7 +41,7 @@ import {
 } from '../../features/driver/dashboardPresentation';
 import {
   buildYandexMapsRouteAppUrl,
-  calculateDriverCashHandover,
+  calculateDriverRestaurantSettlement,
   getDriverNavigationStage,
   getDriverRoutePoints
 } from '../../features/order/orderLifecycle';
@@ -51,6 +51,8 @@ import {
   changeDriverPassword,
   completeDeliveryProgress,
   confirmDriverPickup,
+  confirmDriverRestaurantDeliveryPayout,
+  confirmDriverRestaurantOrderPayment,
   demoDriverId,
   getAuthenticatedDriverId,
   getDriverDashboard,
@@ -308,44 +310,116 @@ const latestDeliveryStatus = (first: DeliveryStatus, second: DeliveryStatus) =>
   deliveryStatusProgress[second] > deliveryStatusProgress[first] ? second : first;
 
 function DriverCashPaymentHandover({
-  deliveryId,
-  clientTotal,
-  courierPayout,
-  businessType
+  offer,
+  onRefresh
 }: {
-  deliveryId: string;
-  clientTotal: number;
-  courierPayout: number;
-  businessType: DeliveryOffer['businessType'];
+  offer: DeliveryOffer;
+  onRefresh: () => Promise<boolean>;
 }) {
-  const terms = getBusinessTerms(businessType);
-  const storageKey = `driver-cash-handed-over:${deliveryId}`;
-  const [moneyHandedOver, setMoneyHandedOver] = useState(false);
-  const restaurantCashAmount = calculateDriverCashHandover({ clientTotal, courierPayout });
+  const terms = getBusinessTerms(offer.businessType);
+  const [pendingAction, setPendingAction] = useState<'order' | 'delivery' | null>(null);
+  const [actionError, setActionError] = useState('');
+  const settlement = calculateDriverRestaurantSettlement({
+    clientTotal: offer.orderTotal,
+    clientDeliveryFee: offer.clientDeliveryFee,
+    courierPayout: offer.deliveryFee
+  });
+  const orderPaymentConfirmed = Boolean(offer.driverRestaurantOrderPaymentConfirmedAt);
+  const restaurantConfirmedOrderPayment =
+    offer.paymentMethod !== 'cash' || offer.restaurantPaymentConfirmed;
+  const deliveryPayoutReceived = Boolean(offer.driverRestaurantDeliveryPayoutReceivedAt);
+  const restaurantDeliveryPayout =
+    offer.restaurantDeliveryPayoutAmount || settlement.restaurantDeliveryPayout;
 
-  useEffect(() => {
-    setMoneyHandedOver(window.sessionStorage.getItem(storageKey) === 'true');
-  }, [storageKey]);
+  const confirmOrderPayment = async () => {
+    if (pendingAction || orderPaymentConfirmed) return;
+    setPendingAction('order');
+    setActionError('');
+    try {
+      await confirmDriverRestaurantOrderPayment(offer.deliveryId);
+      await onRefresh();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Не удалось отметить передачу суммы заказа');
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
-  const confirmMoneyHandedOver = () => {
-    window.sessionStorage.setItem(storageKey, 'true');
-    setMoneyHandedOver(true);
+  const confirmDeliveryPayout = async () => {
+    if (pendingAction || deliveryPayoutReceived || !restaurantConfirmedOrderPayment) return;
+    setPendingAction('delivery');
+    setActionError('');
+    try {
+      await confirmDriverRestaurantDeliveryPayout(offer.deliveryId);
+      await onRefresh();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Не удалось отметить получение оплаты доставки');
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   return (
     <section className="driver-cash-handover">
-      <p>
-        {moneyHandedOver
-          ? `Деньги переданы. Ожидайте подтверждения оплаты ${terms.placeInstrumental}.`
-          : `Передайте ${terms.placeDative} ${formatPrice(restaurantCashAmount)}. Ваши ${formatPrice(courierPayout)} уже удержаны из суммы ${terms.placeGenitive}.`}
-      </p>
-      <button type="button" disabled={moneyHandedOver} onClick={confirmMoneyHandedOver}>
-        {moneyHandedOver ? 'Деньги переданы ✓' : 'Я передал деньги'}
-      </button>
-      <small>После подтверждения {terms.placeInstrumental} появится QR, затем станет доступна кнопка «Забрал заказ».</small>
+      {offer.paymentMethod === 'cash' && (
+        <div className="driver-cash-handover__step" data-complete={orderPaymentConfirmed}>
+          <strong>1. Расчёт за заказ</strong>
+          <p>
+            {settlement.restaurantFundsDelivery
+              ? `Передайте ${terms.placeDative} полную стоимость заказа — ${formatPrice(settlement.restaurantOrderAmount)}. Доставку клиент не оплачивает.`
+              : `Передайте ${terms.placeDative} ${formatPrice(settlement.restaurantOrderAmount)}. ${formatPrice(settlement.courierKeepsFromClient)} за доставку остаются у вас из суммы клиента.`}
+          </p>
+          <button type="button" disabled={orderPaymentConfirmed || pendingAction !== null} onClick={() => void confirmOrderPayment()}>
+            {orderPaymentConfirmed
+              ? `${formatPrice(offer.driverRestaurantOrderPaymentAmount || settlement.restaurantOrderAmount)} переданы ✓`
+              : pendingAction === 'order'
+                ? 'Сохраняем...'
+                : `Я передал ${formatPrice(settlement.restaurantOrderAmount)} за заказ`}
+          </button>
+          {orderPaymentConfirmed && !offer.restaurantPaymentConfirmed && (
+            <small>Ожидайте, пока {terms.place} подтвердит получение суммы заказа.</small>
+          )}
+        </div>
+      )}
+
+      {offer.restaurantFundsDelivery && (
+        <div className="driver-cash-handover__step" data-complete={deliveryPayoutReceived}>
+          <strong>{offer.paymentMethod === 'cash' ? '2' : '1'}. Оплата доставки</strong>
+          <p>
+            Клиенту доставка бесплатна. {terms.place} должен выплатить вам отдельно{' '}
+            <strong>{formatPrice(restaurantDeliveryPayout)}</strong>.
+          </p>
+          <button
+            type="button"
+            disabled={deliveryPayoutReceived || pendingAction !== null || !restaurantConfirmedOrderPayment}
+            onClick={() => void confirmDeliveryPayout()}
+          >
+            {deliveryPayoutReceived
+              ? `${formatPrice(offer.driverRestaurantDeliveryPayoutReceivedAmount || restaurantDeliveryPayout)} получены ✓`
+              : pendingAction === 'delivery'
+                ? 'Сохраняем...'
+                : `Я получил ${formatPrice(restaurantDeliveryPayout)} за доставку`}
+          </button>
+          {!restaurantConfirmedOrderPayment && (
+            <small>Сначала {terms.place} должен подтвердить получение суммы заказа.</small>
+          )}
+        </div>
+      )}
+
+      {actionError && <small className="driver-incoming-order__error">{actionError}</small>}
+      <small>После завершения расчёта появится QR, затем станет доступна кнопка «Забрал заказ».</small>
     </section>
   );
 }
+
+const isDriverRestaurantSettlementPending = (offer: DeliveryOffer) =>
+  offer.status === 'arrived_to_restaurant' && (
+    (
+      offer.paymentMethod === 'cash' &&
+      (!offer.driverRestaurantOrderPaymentConfirmedAt || !offer.restaurantPaymentConfirmed)
+    ) ||
+    (offer.restaurantFundsDelivery && !offer.driverRestaurantDeliveryPayoutReceivedAt)
+  );
 
 const emptySnapshot: DriverDashboardSnapshot = {
   profile: {
@@ -736,9 +810,10 @@ export function DriverApp() {
             activeDelivery={activeDelivery}
             recentDeliveryIds={recentDeliveryIds}
             error={error}
+            onRefresh={loadDashboard}
           />
         ) : route === 'active' ? (
-          <DriverActiveScreen delivery={activeDelivery} />
+          <DriverActiveScreen delivery={activeDelivery} onRefresh={loadDashboard} />
         ) : route === 'map' ? (
           <DriverMapScreen
             delivery={mapDelivery}
@@ -1088,14 +1163,11 @@ function DriverCurrentDeliveryPanel({
   const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted, offer.businessType);
   const qrPayload = buildDriverPickupQrPayload(offer);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
-  const waitingForCashConfirmation =
-    offer.status === 'arrived_to_restaurant' &&
-    offer.paymentMethod === 'cash' &&
-    !offer.restaurantPaymentConfirmed;
+  const waitingForRestaurantSettlement = isDriverRestaurantSettlementPending(offer);
   const waitingForQr =
     offer.status === 'arrived_to_restaurant' &&
     !offer.pickupQrConfirmed;
-  const pickupBlocked = waitingForCashConfirmation || waitingForQr;
+  const pickupBlocked = waitingForRestaurantSettlement || waitingForQr;
 
   useEffect(() => {
     const qrExpiresAt = offer.pickupQrExpiresAt;
@@ -1208,18 +1280,13 @@ function DriverCurrentDeliveryPanel({
           );
         })}
       </ol>
-      {waitingForCashConfirmation && (
-        <DriverCashPaymentHandover
-          businessType={offer.businessType}
-          deliveryId={offer.deliveryId}
-          clientTotal={offer.orderTotal}
-          courierPayout={offer.deliveryFee}
-        />
+      {waitingForRestaurantSettlement && (
+        <DriverCashPaymentHandover offer={offer} onRefresh={onRefresh} />
       )}
-      {!waitingForCashConfirmation && waitingForQr && (
+      {!waitingForRestaurantSettlement && waitingForQr && (
         <p className="driver-handover-gate">Покажите QR-код {terms.placeDative}. После сканирования можно забрать заказ.</p>
       )}
-      {!waitingForCashConfirmation && waitingForQr && qrPayload && (
+      {!waitingForRestaurantSettlement && waitingForQr && qrPayload && (
         <button
           className="driver-inline-qr"
           type="button"
@@ -1284,6 +1351,7 @@ function DriverOfferPrices({ offer, compact = false }: { offer: DeliveryOffer; c
       <span>
         <small>Стоимость доставки</small>
         <strong>{formatPrice(offer.deliveryFee)}</strong>
+        {offer.restaurantFundsDelivery && <small>Оплачивает ресторан</small>}
       </span>
     </span>
   );
@@ -1463,13 +1531,15 @@ function DriverOrdersScreen({
   offers,
   activeDelivery,
   recentDeliveryIds,
-  error
+  error,
+  onRefresh
 }: {
   driverId: string;
   offers: readonly DeliveryOffer[];
   activeDelivery: DeliveryOffer | null;
   recentDeliveryIds: Set<string>;
   error: string;
+  onRefresh: () => Promise<boolean>;
 }) {
   const location = useLocation();
   const deliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
@@ -1484,7 +1554,7 @@ function DriverOrdersScreen({
   const offerGroups = useMemo(() => groupOrdersByDate(visibleOffers), [visibleOffers]);
 
   if (selectedOffer?.isAssignedToViewer) {
-    return <DriverActiveScreen delivery={selectedOffer} />;
+    return <DriverActiveScreen delivery={selectedOffer} onRefresh={onRefresh} />;
   }
 
   if (selectedOffer) return <DriverNewOrderScreen driverId={driverId} offer={selectedOffer} />;
@@ -1646,7 +1716,13 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   );
 }
 
-export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | null }) {
+export function DriverActiveScreen({
+  delivery,
+  onRefresh = async () => true
+}: {
+  delivery: DeliveryOffer | null;
+  onRefresh?: () => Promise<boolean>;
+}) {
   const navigate = useNavigate();
   const updateLocalDeliveryStatus = useDriverStore((state) => state.updateLocalDeliveryStatus);
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
@@ -1660,16 +1736,14 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status, false, delivery.businessType) : null, [delivery]);
   const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status, false, delivery.businessType) : null, [delivery]);
-  const waitingForCashConfirmation = Boolean(
-    delivery?.status === 'arrived_to_restaurant' &&
-    delivery.paymentMethod === 'cash' &&
-    !delivery.restaurantPaymentConfirmed
+  const waitingForRestaurantSettlement = Boolean(
+    delivery && isDriverRestaurantSettlementPending(delivery)
   );
   const waitingForQr = Boolean(
     delivery?.status === 'arrived_to_restaurant' &&
     !delivery.pickupQrConfirmed
   );
-  const pickupBlocked = waitingForCashConfirmation || waitingForQr;
+  const pickupBlocked = waitingForRestaurantSettlement || waitingForQr;
   const updateStatus = async (status?: DeliveryStatus, to?: string) => {
     if (!delivery || isUpdatingStatus) return;
     if (to && !status) {
@@ -1778,17 +1852,16 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
         {delivery.deliveryComment && <DriverRouteLine icon={<ShieldCheck />} label="Комментарий" value={delivery.deliveryComment} />}
         <div className="driver-action-row">
           {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить</a>}
-          <Link to="/driver/qr"><QrCode />QR</Link>
+          {waitingForRestaurantSettlement ? (
+            <button type="button" disabled><QrCode />QR после расчёта</button>
+          ) : (
+            <Link to="/driver/qr"><QrCode />QR</Link>
+          )}
         </div>
-        {waitingForCashConfirmation && (
-          <DriverCashPaymentHandover
-            businessType={delivery.businessType}
-            deliveryId={delivery.deliveryId}
-            clientTotal={delivery.orderTotal}
-            courierPayout={delivery.deliveryFee}
-          />
+        {waitingForRestaurantSettlement && (
+          <DriverCashPaymentHandover offer={delivery} onRefresh={onRefresh} />
         )}
-        {!waitingForCashConfirmation && waitingForQr && (
+        {!waitingForRestaurantSettlement && waitingForQr && (
           <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>
         )}
         {nextAction && (
@@ -1807,6 +1880,7 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
   const navigate = useNavigate();
   const qrPayload = buildDriverPickupQrPayload(delivery);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
+  const settlementPending = Boolean(delivery && isDriverRestaurantSettlementPending(delivery));
 
   useEffect(() => {
     if (delivery?.pickupQrConfirmed) {
@@ -1818,9 +1892,19 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
     <>
       <DriverHeader title="QR заказа" />
       <section className="driver-qr-panel">
-        {qrImageUrl ? <img src={qrImageUrl} alt="QR выдачи заказа" /> : <QrCode />}
-        <strong>{delivery ? `Код выдачи заказа ${delivery.orderNumber}` : 'QR появится после принятия заказа'}</strong>
-        <small>Покажите этот экран ресторану перед выдачей заказа.</small>
+        {settlementPending ? <ShieldCheck /> : qrImageUrl ? <img src={qrImageUrl} alt="QR выдачи заказа" /> : <QrCode />}
+        <strong>
+          {settlementPending
+            ? 'Сначала завершите расчёт с рестораном'
+            : delivery
+              ? `Код выдачи заказа ${delivery.orderNumber}`
+              : 'QR появится после принятия заказа'}
+        </strong>
+        <small>
+          {settlementPending
+            ? 'Передайте сумму заказа и подтвердите получение оплаты доставки. После этого QR откроется автоматически.'
+            : 'Покажите этот экран ресторану перед выдачей заказа.'}
+        </small>
       </section>
       <Link className="driver-primary driver-link-button" to="/driver/active">
         К активному заказу
