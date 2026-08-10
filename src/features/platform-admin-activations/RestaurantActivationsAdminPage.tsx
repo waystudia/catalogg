@@ -1,4 +1,4 @@
-import { CheckCircle2, FileKey2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Download, FileKey2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   restaurantActivationAdminApi,
@@ -30,6 +30,8 @@ const missingLabels: Record<string, string> = {
   categories: 'не добавлены категории',
   products: 'не добавлены блюда'
 };
+
+const restaurantOnboardingPdfUrl = `${import.meta.env.BASE_URL}downloads/wayyaam-restaurant-onboarding-checklist.pdf`;
 
 export function RestaurantActivationsAdminPage({
   service = restaurantActivationAdminApi
@@ -100,7 +102,12 @@ export function RestaurantActivationsAdminPage({
           <h1>Договоры и активации</h1>
           <p>Все рестораны проходят настройку и личное принятие документов. Автоматической активации нет.</p>
         </div>
-        <button type="button" onClick={() => void load()}><RefreshCw /> Обновить</button>
+        <div className="activation-admin-head-actions">
+          <a href={restaurantOnboardingPdfUrl} download="WayYaam-памятка-для-ресторана.pdf">
+            <Download /> Скачать памятку PDF
+          </a>
+          <button type="button" onClick={() => void load()}><RefreshCw /> Обновить</button>
+        </div>
       </header>
 
       <div className="activation-admin-filters" aria-label="Фильтр активаций">
