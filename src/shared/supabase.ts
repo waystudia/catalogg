@@ -65,7 +65,8 @@ export const supabase: SupabaseClient | null =
           autoRefreshToken: true,
           detectSessionInUrl: true,
           persistSession: true,
-          storageKey: currentAuthStorageKey
+          storageKey: currentAuthStorageKey,
+          experimental: { passkey: true }
         }
       })
     : null;
@@ -77,7 +78,8 @@ const passwordLoginClient: SupabaseClient | null =
           autoRefreshToken: false,
           detectSessionInUrl: false,
           persistSession: false,
-          storageKey: 'waycatalog-auth-password-login'
+          storageKey: 'waycatalog-auth-password-login',
+          experimental: { passkey: true }
         },
         global: {
           fetch: async (input, init) => {

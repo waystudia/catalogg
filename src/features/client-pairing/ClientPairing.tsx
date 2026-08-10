@@ -1,4 +1,4 @@
-import { Check, Copy, Link2, LoaderCircle, Smartphone, X } from 'lucide-react';
+import { Check, Copy, Fingerprint, Link2, LoaderCircle, ShieldCheck, Smartphone, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import {
   createClientBrowserPairingCode,
@@ -7,6 +7,12 @@ import {
   type ClientAccountSession,
   type ClientBrowserPairingCode
 } from '../../shared/api/clientAccountApi';
+import {
+  ClientPasskeyError,
+  clientPasskeyIsSupported,
+  registerClientPasskey,
+  signInClientWithPasskey
+} from '../../shared/api/clientPasskeyApi';
 import { appIsRunningStandalone } from '../../shared/pwaSession';
 import {
   formatClientPairingCode,
@@ -18,6 +24,8 @@ import './client-pairing.css';
 
 type CreateCode = () => Promise<ClientBrowserPairingCode>;
 type RedeemCode = (code: string) => Promise<ClientAccountSession>;
+type RegisterPasskey = () => Promise<unknown>;
+type SignInWithPasskey = () => Promise<ClientAccountSession>;
 
 const pairingDismissedKey = 'wayyaam:client-pairing-prompt-dismissed';
 
@@ -31,6 +39,97 @@ const formatExpiry = (expiresAt: string) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 };
+
+export function ClientPasskeyCard({
+  registerPasskey = registerClientPasskey,
+  supported = clientPasskeyIsSupported()
+}: {
+  registerPasskey?: RegisterPasskey;
+  supported?: boolean;
+}) {
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!supported) return null;
+
+  const enable = async () => {
+    setIsRegistering(true);
+    setError('');
+    try {
+      await registerPasskey();
+      setEnabled(true);
+    } catch (cause) {
+      if (cause instanceof ClientPasskeyError && cause.code === 'already_registered') {
+        setEnabled(true);
+      } else {
+        setError(cause instanceof Error ? cause.message : 'Не удалось включить Face ID.');
+      }
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  return (
+    <section className="client-pairing-card client-passkey-card" aria-label="Вход по Face ID">
+      <span className="client-pairing-card__icon"><Fingerprint aria-hidden="true" /></span>
+      <div className="client-pairing-card__copy">
+        <strong>{enabled ? 'Face ID подключён' : 'Вход без пароля'}</strong>
+        <p>
+          {enabled
+            ? 'Теперь этот профиль можно открыть через Face ID и в приложении WayYaam, и в Safari.'
+            : 'Подключите Face ID один раз. После этого ссылки из WhatsApp откроются с вашим профилем.'}
+        </p>
+      </div>
+      <button className="client-pairing-primary" type="button" onClick={() => void enable()} disabled={isRegistering || enabled}>
+        {isRegistering
+          ? <LoaderCircle className="is-spinning" aria-hidden="true" />
+          : enabled
+            ? <ShieldCheck aria-hidden="true" />
+            : <Fingerprint aria-hidden="true" />}
+        {isRegistering ? 'Подтвердите Face ID…' : enabled ? 'Face ID включён' : 'Включить вход по Face ID'}
+      </button>
+      {error && <small className="client-pairing-error" role="alert">{error}</small>}
+    </section>
+  );
+}
+
+export function ClientPasskeySignInButton({
+  signIn = signInClientWithPasskey,
+  supported = clientPasskeyIsSupported(),
+  onSignedIn
+}: {
+  signIn?: SignInWithPasskey;
+  supported?: boolean;
+  onSignedIn: (session: ClientAccountSession) => void;
+}) {
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!supported) return null;
+
+  const submit = async () => {
+    setIsSigningIn(true);
+    setError('');
+    try {
+      onSignedIn(await signIn());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Не удалось войти по Face ID.');
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  return (
+    <div className="client-passkey-sign-in">
+      <button className="client-pairing-primary" type="button" onClick={() => void submit()} disabled={isSigningIn}>
+        {isSigningIn ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
+        {isSigningIn ? 'Подтвердите Face ID…' : 'Войти по Face ID'}
+      </button>
+      {error && <small className="client-pairing-error" role="alert">{error}</small>}
+    </div>
+  );
+}
 
 export function ClientPwaPairingCodeCard({
   createCode = createClientBrowserPairingCode,
@@ -108,12 +207,16 @@ export function ClientBrowserPairingBanner({
   standalone = appIsRunningStandalone(),
   mobile = isMobileBrowser(),
   hasSession = hasStoredClientSession(),
+  passkeySupported = clientPasskeyIsSupported(),
+  signInWithPasskey = signInClientWithPasskey,
   redeemCode = redeemClientBrowserPairingCode,
   reload = () => window.location.reload()
 }: {
   standalone?: boolean;
   mobile?: boolean;
   hasSession?: boolean;
+  passkeySupported?: boolean;
+  signInWithPasskey?: SignInWithPasskey;
   redeemCode?: RedeemCode;
   reload?: () => void;
 }) {
@@ -121,6 +224,7 @@ export function ClientBrowserPairingBanner({
   const [isOpen, setIsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [isPasskeySigningIn, setIsPasskeySigningIn] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -152,6 +256,21 @@ export function ClientBrowserPairingBanner({
     }
   };
 
+  const signIn = async () => {
+    setIsPasskeySigningIn(true);
+    setError('');
+    setMessage('');
+    try {
+      const session = await signInWithPasskey();
+      setMessage(`Вы вошли как ${session.name}. Имя и телефон будут подставлены в заказ.`);
+      window.setTimeout(reload, 700);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Не удалось войти по Face ID.');
+    } finally {
+      setIsPasskeySigningIn(false);
+    }
+  };
+
   return (
     <aside className="client-browser-pairing" aria-label="Открытие WayYaam по ссылке">
       <button className="client-browser-pairing__close" type="button" onClick={dismiss} aria-label="Закрыть подсказку">
@@ -159,19 +278,21 @@ export function ClientBrowserPairingBanner({
       </button>
       <span className="client-browser-pairing__icon"><Smartphone aria-hidden="true" /></span>
       <div className="client-browser-pairing__copy">
-        <strong>Заказываете по ссылке из WhatsApp?</strong>
+        <strong>Открыли ссылку из WhatsApp?</strong>
         <p>
-          На iPhone ссылка открывается в браузере. Свяжите профиль один раз — имя и телефон будут
-          подставляться без пароля. Для конкурсов и акций открывайте WayYaam с экрана «Домой».
+          Войдите по Face ID — Safari откроет тот же профиль WayYaam, подставит имя и телефон и
+          сохранит участие в конкурсах и акциях.
         </p>
       </div>
 
-      {!isOpen ? (
-        <button className="client-pairing-primary" type="button" onClick={() => setIsOpen(true)}>
-          <Link2 aria-hidden="true" />
-          Связать профиль
+      {passkeySupported && (
+        <button className="client-pairing-primary" type="button" onClick={() => void signIn()} disabled={isPasskeySigningIn}>
+          {isPasskeySigningIn ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
+          {isPasskeySigningIn ? 'Подтвердите Face ID…' : 'Войти по Face ID'}
         </button>
-      ) : (
+      )}
+
+      {isOpen ? (
         <form className="client-browser-pairing__form" onSubmit={submit}>
           <label htmlFor="client-browser-pairing-code">Код из PWA</label>
           <input
@@ -190,6 +311,11 @@ export function ClientBrowserPairingBanner({
             {isRedeeming ? 'Связываем…' : 'Подтвердить'}
           </button>
         </form>
+      ) : (
+        <button className="client-pairing-secondary" type="button" onClick={() => setIsOpen(true)}>
+          <Link2 aria-hidden="true" />
+          Другой способ входа
+        </button>
       )}
 
       <details className="client-browser-pairing__help">

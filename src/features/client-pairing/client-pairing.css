@@ -167,9 +167,35 @@
 
 .client-browser-pairing__form,
 .client-browser-pairing__help,
+.client-passkey-sign-in,
 .client-pairing-error,
 .client-pairing-success {
   grid-column: 1 / -1;
+}
+
+.client-passkey-sign-in {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-inline-form .client-passkey-sign-in {
+  margin-bottom: 4px;
+}
+
+.client-pairing-fallback {
+  margin: -4px 0 14px;
+  color: #4b32d0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.client-pairing-fallback > summary {
+  cursor: pointer;
+  padding: 8px 2px 12px;
+}
+
+.client-pairing-fallback .client-pairing-card {
+  margin: 0;
 }
 
 .client-browser-pairing__form {

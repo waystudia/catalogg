@@ -96,7 +96,11 @@ import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
-import { ClientPwaPairingCodeCard } from '../../features/client-pairing/ClientPairing';
+import {
+  ClientPasskeyCard,
+  ClientPasskeySignInButton,
+  ClientPwaPairingCodeCard
+} from '../../features/client-pairing/ClientPairing';
 import {
   chooseMoreAccuratePosition,
   DELIVERY_GEOLOCATION_OPTIONS,
@@ -2802,6 +2806,21 @@ function ProfilePage() {
                   : 'Создайте аккаунт клиента для заказов и избранного'}
               </p>
             </header>
+            {clientAuthMode === 'login' && (
+              <ClientPasskeySignInButton
+                onSignedIn={(session) => {
+                  setClientSession(session);
+                  saveProfile({ name: session.name, phone: session.phone });
+                  setClientName(session.name);
+                  setAccountIdentifier(session.phone);
+                  setClientPassword('');
+                  setClientMessage('Вы вошли по Face ID');
+                  setClientError('');
+                  setAccountOpen(false);
+                  navigate(clientReturnTo, { replace: true });
+                }}
+              />
+            )}
             {clientAuthMode === 'register' && (
               <div className="profile-auth-field">
                 <label htmlFor="profile-auth-name">Имя</label>
@@ -2942,7 +2961,17 @@ function ProfilePage() {
         </section>
       )}
 
-      {clientSession && appIsRunningStandalone() && <ClientPwaPairingCodeCard />}
+      {clientSession && (
+        <>
+          <ClientPasskeyCard />
+          {appIsRunningStandalone() && (
+            <details className="client-pairing-fallback">
+              <summary>Если Face ID не работает</summary>
+              <ClientPwaPairingCodeCard />
+            </details>
+          )}
+        </>
+      )}
 
       <nav className="profile-menu">
         {items.map(({ to, label, Icon }) => (
