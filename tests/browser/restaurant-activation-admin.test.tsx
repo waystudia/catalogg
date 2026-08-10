@@ -87,6 +87,13 @@ test('super administrator opens the selected restaurant setup instead of trying 
   const screen = await render(<RestaurantActivationsAdminPage service={service} />);
 
   await expect.element(screen.getByRole('heading', { name: 'Договоры и активации' })).toBeVisible();
+  const checklistLink = screen.getByRole('link', { name: 'Скачать памятку PDF' });
+  await expect.element(checklistLink).toBeVisible();
+  await expect.element(checklistLink).toHaveAttribute(
+    'href',
+    '/downloads/wayyaam-restaurant-onboarding-checklist.pdf'
+  );
+  await expect.element(checklistLink).toHaveAttribute('download', 'WayYaam-памятка-для-ресторана.pdf');
   await expect.element(screen.getByText('Мангал')).toBeVisible();
   await expect.element(screen.getByRole('article').getByText('Требуется проверка')).toBeVisible();
 
