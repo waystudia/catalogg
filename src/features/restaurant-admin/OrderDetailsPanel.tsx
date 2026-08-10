@@ -43,7 +43,7 @@ import {
   orderPaymentMethodLabels,
   paymentStatusLabels
 } from './orderPresentation';
-import { calculateDriverCashHandover } from '../order/orderLifecycle';
+import { calculateDriverRestaurantSettlement } from '../order/orderLifecycle';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -167,6 +167,16 @@ export function OrderDetailsPanel({
     !orderIsFinished;
   const cashPaymentConfirmed = Boolean(order.restaurantPaymentConfirmedAt);
   const pickupQrConfirmed = Boolean(order.pickupQrConfirmedAt);
+  const driverOrderPaymentConfirmed = Boolean(order.driverRestaurantOrderPaymentConfirmedAt);
+  const driverDeliveryPayoutReceived = Boolean(order.driverRestaurantDeliveryPayoutReceivedAt);
+  const driverSettlement = calculateDriverRestaurantSettlement({
+    clientTotal: order.total,
+    clientDeliveryFee: order.deliveryFee,
+    courierPayout: order.courierPayout
+  });
+  const restaurantFundsDelivery = order.restaurantFundsDelivery ?? driverSettlement.restaurantFundsDelivery;
+  const restaurantDeliveryPayout =
+    order.restaurantDeliveryPayoutAmount || driverSettlement.restaurantDeliveryPayout;
   const rejectOrder = async () => {
     if (isRejecting) return;
     setIsRejecting(true);
@@ -395,14 +405,21 @@ export function OrderDetailsPanel({
             type="button"
             aria-expanded={isPaymentPanelOpen}
             aria-controls="admin-order-payment-panel"
-            data-attention={cashHandover && !cashPaymentConfirmed}
+            data-attention={
+              (cashHandover && !cashPaymentConfirmed)
+              || (restaurantFundsDelivery && !driverDeliveryPayoutReceived)
+            }
             onClick={() => setIsPaymentPanelOpen((isOpen) => !isOpen)}
           >
             <span>Оплата</span>
             <strong>{paymentStatusLabels[paymentStatus]}</strong>
             <small>{orderPaymentMethodLabels[orderPaymentMethod]}</small>
             {cashHandover && !cashPaymentConfirmed && (
-              <em>Нажмите, чтобы подтвердить получение наличных</em>
+              <em>
+                {driverOrderPaymentConfirmed
+                  ? 'Нажмите, чтобы подтвердить получение наличных'
+                  : 'Водитель ещё не отметил передачу суммы заказа'}
+              </em>
             )}
             <ArrowRight aria-hidden="true" />
           </button>
@@ -420,6 +437,29 @@ export function OrderDetailsPanel({
           </article>
         </section>
 
+        {restaurantFundsDelivery && order.driverName && !orderIsFinished && (
+          <section
+            className="admin-order-courier-settlement"
+            data-complete={driverDeliveryPayoutReceived}
+          >
+            <strong>Оплата доставки рестораном: {formatPrice(restaurantDeliveryPayout)}</strong>
+            {!driverAtRestaurant ? (
+              <p>Выплатите курьеру эту сумму после его прибытия в ресторан.</p>
+            ) : orderPaymentMethod === 'cash' && !driverOrderPaymentConfirmed ? (
+              <p>Сначала водитель должен отметить передачу полной суммы заказа.</p>
+            ) : orderPaymentMethod === 'cash' && !cashPaymentConfirmed ? (
+              <p>Подтвердите получение суммы заказа, затем передайте курьеру оплату доставки.</p>
+            ) : !driverDeliveryPayoutReceived ? (
+              <p>
+                Передайте водителю {formatPrice(restaurantDeliveryPayout)}. После получения он нажмёт
+                «Я получил … за доставку». До этого QR выдачи заказа будет заблокирован.
+              </p>
+            ) : (
+              <p>Водитель подтвердил получение {formatPrice(restaurantDeliveryPayout)}. Можно сканировать QR.</p>
+            )}
+          </section>
+        )}
+
         {isPaymentPanelOpen && (
           <section id="admin-order-payment-panel" className="admin-order-payment-panel">
             <header>
@@ -430,10 +470,10 @@ export function OrderDetailsPanel({
               !cashPaymentConfirmed ? (
                 <>
                   <p>
-                    Получите от водителя {formatPrice(calculateDriverCashHandover({
-                      clientTotal: order.total,
-                      courierPayout: order.courierPayout
-                    }))} и подтвердите наличные. Выплата курьеру {formatPrice(order.courierPayout)} оплачивается рестораном и уже вычтена.
+                    Получите от водителя {formatPrice(driverSettlement.restaurantOrderAmount)} за заказ и подтвердите наличные.
+                    {restaurantFundsDelivery
+                      ? ` Доставка для клиента бесплатна: ${formatPrice(restaurantDeliveryPayout)} нужно выплатить водителю отдельно.`
+                      : ` Водитель уже оставил себе ${formatPrice(driverSettlement.courierKeepsFromClient)} за доставку из суммы клиента.`}
                     До подтверждения водитель не сможет нажать «Забрал заказ».
                   </p>
                   {!driverAtRestaurant && (
@@ -441,10 +481,19 @@ export function OrderDetailsPanel({
                       Сначала водитель должен нажать «Я в ресторане» на своей карте. После обновления статуса здесь станет доступно подтверждение наличных.
                     </p>
                   )}
-                  <button type="button" disabled={!driverAtRestaurant || isConfirmingCash} onClick={() => void confirmCashPayment()}>
+                  {!driverOrderPaymentConfirmed && driverAtRestaurant && (
+                    <p>Ожидайте, пока водитель нажмёт «Я передал … за заказ».</p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={!driverAtRestaurant || !driverOrderPaymentConfirmed || isConfirmingCash}
+                    onClick={() => void confirmCashPayment()}
+                  >
                     {isConfirmingCash ? 'Подтверждаем...' : 'Подтвердить получение наличных'}
                   </button>
                 </>
+              ) : restaurantFundsDelivery && !driverDeliveryPayoutReceived ? (
+                <p>Сумма заказа подтверждена. Передайте водителю оплату доставки и дождитесь его подтверждения.</p>
               ) : !pickupQrConfirmed ? (
                 <p data-complete="true">Оплата подтверждена — отсканируйте QR водителя во вкладке «Сканер».</p>
               ) : (

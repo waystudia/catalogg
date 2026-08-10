@@ -30,13 +30,13 @@ describe('restaurant order action contract', () => {
     assert.match(panel, /Подтвердить получение наличных/);
     assert.match(panel, /До подтверждения водитель не сможет нажать «Забрал заказ»/);
     assert.match(panel, /водитель должен нажать «Я в ресторане»/);
-    assert.match(panel, /disabled=\{!driverAtRestaurant \|\| isConfirmingCash\}/);
+    assert.match(panel, /disabled=\{!driverAtRestaurant \|\| !driverOrderPaymentConfirmed \|\| isConfirmingCash\}/);
     assert.doesNotMatch(panel, /orderPaymentMethod === 'cash' && driverAtRestaurant/);
     assert.match(panel, /Оплата подтверждена — отсканируйте QR водителя/);
-    assert.match(driver, /pickupBlocked = waitingForCashConfirmation \|\| waitingForQr/);
-    assert.match(driver, /Я передал деньги/);
-    assert.match(driver, /Ожидайте подтверждения оплаты \$\{terms\.placeInstrumental\}/);
-    assert.match(driver, /После подтверждения \{terms\.placeInstrumental\} появится QR/);
+    assert.match(driver, /pickupBlocked = waitingForRestaurantSettlement \|\| waitingForQr/);
+    assert.match(driver, /Я передал \$\{formatPrice\(settlement\.restaurantOrderAmount\)\} за заказ/);
+    assert.match(driver, /Ожидайте, пока \{terms\.place\} подтвердит получение суммы заказа/);
+    assert.match(driver, /После завершения расчёта появится QR/);
   });
 
   it('opens payment controls from the payment card and keeps the overflow menu for order actions', async () => {

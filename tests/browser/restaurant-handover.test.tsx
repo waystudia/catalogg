@@ -79,8 +79,20 @@ test('explains the restaurant cash gate until the driver confirms arrival', asyn
   await expect.element(screen.getByRole('button', { name: 'Подтвердить получение наличных', exact: true })).toBeDisabled();
 });
 
-test('enables restaurant cash confirmation after the driver confirms arrival', async () => {
+test('keeps restaurant confirmation disabled until the driver marks the order amount as handed over', async () => {
   const screen = await renderOrder(cashDelivery('arrived_to_restaurant'));
+  await screen.getByRole('button', { name: /Оплата/u }).click();
+
+  await expect.element(screen.getByText(/Ожидайте, пока водитель нажмёт/iu)).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Подтвердить получение наличных', exact: true })).toBeDisabled();
+});
+
+test('enables restaurant cash confirmation after the driver hands over the order amount', async () => {
+  const screen = await renderOrder({
+    ...cashDelivery('arrived_to_restaurant'),
+    driverRestaurantOrderPaymentConfirmedAt: '2026-08-06T10:44:00.000Z',
+    driverRestaurantOrderPaymentAmount: 580
+  });
   await screen.getByRole('button', { name: /Оплата/u }).click();
 
   await expect.element(screen.getByRole('button', { name: 'Подтвердить получение наличных', exact: true })).toBeEnabled();

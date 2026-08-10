@@ -86,6 +86,12 @@ export type RestaurantOrder = {
   driverLocationAt: string | null;
   restaurantPaymentConfirmedAt: string | null;
   pickupQrConfirmedAt: string | null;
+  driverRestaurantOrderPaymentConfirmedAt?: string | null;
+  driverRestaurantOrderPaymentAmount?: number;
+  driverRestaurantDeliveryPayoutReceivedAt?: string | null;
+  driverRestaurantDeliveryPayoutReceivedAmount?: number;
+  restaurantFundsDelivery?: boolean;
+  restaurantDeliveryPayoutAmount?: number;
   subtotal: number;
   deliveryFee: number;
   courierPayout: number;
@@ -275,6 +281,12 @@ type DriverLookupRow = {
   delivery_updated_at?: string | null;
   pickup_qr_confirmed_at?: string | null;
   restaurant_payment_confirmed_at?: string | null;
+  driver_restaurant_order_payment_confirmed_at?: string | null;
+  driver_restaurant_order_payment_amount?: number | null;
+  driver_restaurant_delivery_payout_received_at?: string | null;
+  driver_restaurant_delivery_payout_received_amount?: number | null;
+  restaurant_funds_delivery?: boolean | null;
+  restaurant_delivery_payout_amount?: number | null;
   name: string | null;
   phone: string | null;
   vehicle_info: string | null;
@@ -492,6 +504,13 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     driverLocationAt: driver?.last_location_at ?? null,
     restaurantPaymentConfirmedAt: row.restaurant_payment_confirmed_at ?? null,
     pickupQrConfirmedAt: delivery?.pickup_qr_confirmed_at ?? null,
+    driverRestaurantOrderPaymentConfirmedAt: null,
+    driverRestaurantOrderPaymentAmount: 0,
+    driverRestaurantDeliveryPayoutReceivedAt: null,
+    driverRestaurantDeliveryPayoutReceivedAmount: 0,
+    restaurantFundsDelivery: row.delivery_fee <= 0 && Number(delivery?.offered_fee ?? 0) > 0,
+    restaurantDeliveryPayoutAmount:
+      row.delivery_fee <= 0 ? Number(delivery?.offered_fee ?? 0) : 0,
     subtotal: row.subtotal,
     deliveryFee: row.delivery_fee,
     courierPayout: Number(delivery?.offered_fee ?? 0),
@@ -534,6 +553,24 @@ const hydrateRestaurantOrderDriver = (order: RestaurantOrder, driver: DriverLook
     pickupQrConfirmedAt: driver.pickup_qr_confirmed_at ?? order.pickupQrConfirmedAt,
     restaurantPaymentConfirmedAt:
       driver.restaurant_payment_confirmed_at ?? order.restaurantPaymentConfirmedAt,
+    driverRestaurantOrderPaymentConfirmedAt:
+      driver.driver_restaurant_order_payment_confirmed_at
+      ?? order.driverRestaurantOrderPaymentConfirmedAt,
+    driverRestaurantOrderPaymentAmount:
+      Number(driver.driver_restaurant_order_payment_amount ?? order.driverRestaurantOrderPaymentAmount ?? 0),
+    driverRestaurantDeliveryPayoutReceivedAt:
+      driver.driver_restaurant_delivery_payout_received_at
+      ?? order.driverRestaurantDeliveryPayoutReceivedAt,
+    driverRestaurantDeliveryPayoutReceivedAmount:
+      Number(
+        driver.driver_restaurant_delivery_payout_received_amount
+        ?? order.driverRestaurantDeliveryPayoutReceivedAmount
+        ?? 0
+      ),
+    restaurantFundsDelivery:
+      driver.restaurant_funds_delivery ?? order.restaurantFundsDelivery,
+    restaurantDeliveryPayoutAmount:
+      Number(driver.restaurant_delivery_payout_amount ?? order.restaurantDeliveryPayoutAmount ?? 0),
     driverName: driver.name ?? order.driverName,
     driverPhone: driver.phone ?? order.driverPhone,
     driverVehicleInfo: driver.vehicle_info ?? order.driverVehicleInfo,

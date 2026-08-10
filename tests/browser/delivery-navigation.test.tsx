@@ -42,11 +42,18 @@ const activeDelivery = (status: DeliveryOffer['status']): DeliveryOffer => ({
   createdAt: '2026-08-06T10:40:00.000Z',
   itemsCount: 2,
   orderTotal: 780,
+  clientDeliveryFee: 200,
   paymentLabel: 'Наличными',
   restaurantLogoUrl: '',
   routeEtaMin: 10,
   paymentMethod: 'cash',
   restaurantPaymentConfirmed: false,
+  restaurantFundsDelivery: false,
+  restaurantDeliveryPayoutAmount: 0,
+  driverRestaurantOrderPaymentConfirmedAt: null,
+  driverRestaurantOrderPaymentAmount: 0,
+  driverRestaurantDeliveryPayoutReceivedAt: null,
+  driverRestaurantDeliveryPayoutReceivedAmount: 0,
   pickupQrConfirmed: false,
   restaurantName: 'Мангал',
   restaurantAddress: restaurant.address,
@@ -425,11 +432,18 @@ test('shows an assigned order detail in the same accepted-delivery card used on 
     createdAt: '2026-07-31T10:00:00.000Z',
     itemsCount: 3,
     orderTotal: 1760,
+    clientDeliveryFee: 200,
     paymentLabel: 'Наличными',
     restaurantLogoUrl: '',
     routeEtaMin: 20,
     paymentMethod: 'cash',
     restaurantPaymentConfirmed: true,
+    restaurantFundsDelivery: false,
+    restaurantDeliveryPayoutAmount: 0,
+    driverRestaurantOrderPaymentConfirmedAt: null,
+    driverRestaurantOrderPaymentAmount: 0,
+    driverRestaurantDeliveryPayoutReceivedAt: null,
+    driverRestaurantDeliveryPayoutReceivedAmount: 0,
     pickupQrConfirmed: false,
     restaurantName: 'Мангал',
     restaurantAddress: 'ул. Центральная, 12',
@@ -462,6 +476,27 @@ test('shows an assigned order detail in the same accepted-delivery card used on 
   await expect.element(card.getByText('Точка Б')).toBeVisible();
   await expect.element(card.getByText('Ваш заработок')).toBeVisible();
   await expect.element(card.getByText('200 ₽')).toBeVisible();
+});
+
+test('requires the full order amount and a separate restaurant payout for free delivery', async () => {
+  const delivery: DeliveryOffer = {
+    ...activeDelivery('arrived_to_restaurant'),
+    orderTotal: 1500,
+    clientDeliveryFee: 0,
+    deliveryFee: 200,
+    restaurantFundsDelivery: true,
+    restaurantDeliveryPayoutAmount: 200
+  };
+  const screen = await render(
+    <MemoryRouter>
+      <DriverActiveScreen delivery={delivery} />
+    </MemoryRouter>
+  );
+
+  await expect.element(screen.getByText(/Передайте ресторану полную стоимость заказа/)).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Я передал 1.500 ₽ за заказ/ })).toBeEnabled();
+  await expect.element(screen.getByRole('button', { name: /Я получил 200 ₽ за доставку/ })).toBeDisabled();
+  await expect.element(screen.getByRole('button', { name: 'QR после расчёта' })).toBeDisabled();
 });
 
 test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {

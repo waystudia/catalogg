@@ -1119,6 +1119,32 @@
   line-height: 1.35;
 }
 
+.driver-cash-handover__step {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #fdba74;
+  border-radius: 10px;
+  padding: 9px;
+  background: rgb(255 255 255 / 72%);
+}
+
+.driver-cash-handover__step > strong {
+  color: #7c2d12;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.driver-cash-handover__step[data-complete='true'] {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.driver-cash-handover__step[data-complete='true'] > strong,
+.driver-cash-handover__step[data-complete='true'] p,
+.driver-cash-handover__step[data-complete='true'] small {
+  color: #067647;
+}
+
 .driver-cash-handover button {
   min-height: 40px;
   border: 0;
@@ -1132,7 +1158,7 @@
 
 .driver-cash-handover button:disabled {
   background: #16a36a;
-  opacity: 1;
+  opacity: 0.78;
 }
 
 .driver-map-status-overlay .driver-cash-handover {

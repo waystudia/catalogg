@@ -40,11 +40,18 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly createdAt: string;
   readonly itemsCount: number;
   readonly orderTotal: number;
+  readonly clientDeliveryFee: number;
   readonly paymentLabel: string;
   readonly restaurantLogoUrl: string;
   readonly routeEtaMin: number;
   readonly paymentMethod: 'cash' | 'bank_transfer';
   readonly restaurantPaymentConfirmed: boolean;
+  readonly restaurantFundsDelivery: boolean;
+  readonly restaurantDeliveryPayoutAmount: number;
+  readonly driverRestaurantOrderPaymentConfirmedAt: string | null;
+  readonly driverRestaurantOrderPaymentAmount: number;
+  readonly driverRestaurantDeliveryPayoutReceivedAt: string | null;
+  readonly driverRestaurantDeliveryPayoutReceivedAmount: number;
   readonly pickupQrConfirmed: boolean;
   readonly pickupQrExpiresAt?: string;
 };
@@ -96,6 +103,13 @@ type DeliveryRow = {
   estimated_time_max: number | null;
   offered_fee: number | null;
   pricing_status: 'pending' | 'offered' | 'countered' | 'accepted' | 'rejected' | null;
+  client_delivery_fee?: number | null;
+  restaurant_funds_delivery?: boolean | null;
+  restaurant_delivery_payout_amount?: number | null;
+  driver_restaurant_order_payment_confirmed_at?: string | null;
+  driver_restaurant_order_payment_amount?: number | null;
+  driver_restaurant_delivery_payout_received_at?: string | null;
+  driver_restaurant_delivery_payout_received_amount?: number | null;
   created_at: string;
   orders?: MaybeArray<{
     id: string;
@@ -277,11 +291,18 @@ const demoOffers: readonly DeliveryOffer[] = [
     createdAt: new Date().toISOString(),
     itemsCount: 3,
     orderTotal: 1640,
+    clientDeliveryFee: 520,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
     routeEtaMin: 15,
     paymentMethod: 'bank_transfer',
     restaurantPaymentConfirmed: true,
+    restaurantFundsDelivery: false,
+    restaurantDeliveryPayoutAmount: 0,
+    driverRestaurantOrderPaymentConfirmedAt: null,
+    driverRestaurantOrderPaymentAmount: 0,
+    driverRestaurantDeliveryPayoutReceivedAt: null,
+    driverRestaurantDeliveryPayoutReceivedAmount: 0,
     pickupQrConfirmed: false
   },
   {
@@ -303,11 +324,18 @@ const demoOffers: readonly DeliveryOffer[] = [
     createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
     itemsCount: 2,
     orderTotal: 1180,
+    clientDeliveryFee: 450,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
     routeEtaMin: 12,
     paymentMethod: 'bank_transfer',
     restaurantPaymentConfirmed: true,
+    restaurantFundsDelivery: false,
+    restaurantDeliveryPayoutAmount: 0,
+    driverRestaurantOrderPaymentConfirmedAt: null,
+    driverRestaurantOrderPaymentAmount: 0,
+    driverRestaurantDeliveryPayoutReceivedAt: null,
+    driverRestaurantDeliveryPayoutReceivedAmount: 0,
     pickupQrConfirmed: false
   }
 ];
@@ -516,11 +544,20 @@ const rowToOffer = (
     createdAt: order.created_at,
     itemsCount: (order.order_items ?? []).reduce((sum, item) => sum + Math.max(1, Number(item.quantity ?? 1)), 0),
     orderTotal: Number(order.total ?? order.total_amount ?? 0),
+    clientDeliveryFee: Number(row.client_delivery_fee ?? order.delivery_fee ?? 0),
     paymentLabel: order.payment_status === 'confirmed' ? 'Оплата подтверждена' : 'Оплата ожидает',
     restaurantLogoUrl: restaurant?.logo_url ?? restaurant?.cover_url ?? '',
     routeEtaMin: row.estimated_time_min ?? 20,
     paymentMethod: order.payment_method === 'cash' ? 'cash' : 'bank_transfer',
     restaurantPaymentConfirmed: Boolean(order.restaurant_payment_confirmed_at),
+    restaurantFundsDelivery: Boolean(row.restaurant_funds_delivery),
+    restaurantDeliveryPayoutAmount: Number(row.restaurant_delivery_payout_amount ?? 0),
+    driverRestaurantOrderPaymentConfirmedAt: row.driver_restaurant_order_payment_confirmed_at ?? null,
+    driverRestaurantOrderPaymentAmount: Number(row.driver_restaurant_order_payment_amount ?? 0),
+    driverRestaurantDeliveryPayoutReceivedAt: row.driver_restaurant_delivery_payout_received_at ?? null,
+    driverRestaurantDeliveryPayoutReceivedAmount: Number(
+      row.driver_restaurant_delivery_payout_received_amount ?? 0
+    ),
     pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at),
     pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined
   };
@@ -975,6 +1012,48 @@ export async function updateDeliveryProgress(deliveryId: string, status: Deliver
     throw new DriverActionError('Войдите как водитель ещё раз.', 'auth');
   }
   throw new DriverActionError('Не удалось обновить статус. Проверьте связь и повторите.', 'network');
+}
+
+export async function confirmDriverRestaurantOrderPayment(deliveryId: string) {
+  if (!supabase) {
+    return { confirmedAt: new Date().toISOString(), amount: 0 };
+  }
+
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('confirm_current_driver_restaurant_order_payment', {
+      target_delivery_id: deliveryId
+    }),
+    'Не удалось отметить передачу суммы заказа. Проверьте связь и повторите.',
+    15_000
+  );
+  if (error) throw error;
+
+  const result = (data ?? {}) as { confirmed_at?: unknown; amount?: unknown };
+  return {
+    confirmedAt: typeof result.confirmed_at === 'string' ? result.confirmed_at : '',
+    amount: Number(result.amount ?? 0)
+  };
+}
+
+export async function confirmDriverRestaurantDeliveryPayout(deliveryId: string) {
+  if (!supabase) {
+    return { receivedAt: new Date().toISOString(), amount: 0 };
+  }
+
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('confirm_current_driver_restaurant_delivery_payout', {
+      target_delivery_id: deliveryId
+    }),
+    'Не удалось отметить получение оплаты доставки. Проверьте связь и повторите.',
+    15_000
+  );
+  if (error) throw error;
+
+  const result = (data ?? {}) as { received_at?: unknown; amount?: unknown };
+  return {
+    receivedAt: typeof result.received_at === 'string' ? result.received_at : '',
+    amount: Number(result.amount ?? 0)
+  };
 }
 
 export async function completeDeliveryProgress(deliveryId: string) {
