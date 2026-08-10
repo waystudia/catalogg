@@ -25,6 +25,16 @@ type ClientAccountRpcRow = {
   expires_at?: unknown;
 };
 
+type ClientBrowserPairingRpcRow = {
+  pairing_code?: unknown;
+  expires_at?: unknown;
+};
+
+export type ClientBrowserPairingCode = {
+  code: string;
+  expiresAt: string;
+};
+
 const mapSession = (value: unknown): ClientAccountSession | null => {
   if (!value || typeof value !== 'object') return null;
   const row = value as ClientAccountRpcRow;
@@ -46,6 +56,8 @@ const getRpcErrorMessage = (error: { message?: string } | null) => {
   if (message.includes('client_name_invalid')) return 'Введите имя — минимум 2 символа.';
   if (message.includes('client_phone_invalid')) return 'Введите корректный номер телефона.';
   if (message.includes('client_password_invalid')) return 'Пароль должен содержать от 6 до 72 символов.';
+  if (message.includes('client_session_invalid')) return 'Вход в PWA больше не действует. Войдите снова.';
+  if (message.includes('client_pairing_code_invalid')) return 'Код неверный, уже использован или истёк. Создайте новый код в PWA.';
   return 'Не удалось связаться с сервисом аккаунтов. Попробуйте ещё раз.';
 };
 
@@ -183,6 +195,45 @@ export async function restoreClientAccountSession() {
     clearClientSession();
     return null;
   }
+  saveClientSession(token, session);
+  return session;
+}
+
+export async function createClientBrowserPairingCode(): Promise<ClientBrowserPairingCode> {
+  const token = getStoredClientSessionToken();
+  if (!token) throw new Error('Сначала войдите в аккаунт клиента в PWA.');
+  if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
+
+  const { data, error } = await supabase.rpc('create_client_browser_pairing_code', {
+    client_session_token: token
+  });
+  if (error) throw new Error(getRpcErrorMessage(error));
+
+  const row = data as ClientBrowserPairingRpcRow | null;
+  if (typeof row?.pairing_code !== 'string' || typeof row.expires_at !== 'string') {
+    throw new Error('Не удалось создать код сопряжения.');
+  }
+
+  return {
+    code: row.pairing_code,
+    expiresAt: row.expires_at
+  };
+}
+
+export async function redeemClientBrowserPairingCode(code: string): Promise<ClientAccountSession> {
+  if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
+
+  const { data, error } = await supabase.rpc('redeem_client_browser_pairing_code', {
+    pairing_code: code
+  });
+  if (error) throw new Error(getRpcErrorMessage(error));
+
+  const session = mapSession(data);
+  const token = (data as ClientAccountRpcRow | null)?.session_token;
+  if (!session || typeof token !== 'string') {
+    throw new Error('Не удалось связать профиль с браузером.');
+  }
+
   saveClientSession(token, session);
   return session;
 }
