@@ -57,6 +57,7 @@ const getRpcErrorMessage = (error: { message?: string } | null) => {
   if (message.includes('client_phone_invalid')) return 'Введите корректный номер телефона.';
   if (message.includes('client_password_invalid')) return 'Пароль должен содержать от 6 до 72 символов.';
   if (message.includes('client_session_invalid')) return 'Вход в PWA больше не действует. Войдите снова.';
+  if (message.includes('client_account_not_linked')) return 'Этот ключ Face ID не относится к аккаунту клиента.';
   if (message.includes('client_pairing_code_invalid')) return 'Код неверный, уже использован или истёк. Создайте новый код в PWA.';
   return 'Не удалось связаться с сервисом аккаунтов. Попробуйте ещё раз.';
 };
@@ -175,9 +176,23 @@ export async function loginCurrentAuthClientAccount() {
   return session;
 }
 
+const restoreClientAccountFromAuthSession = async () => {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new ClientSessionRestorationUnavailableError();
+  if (!data.session) return null;
+  try {
+    return await loginCurrentAuthClientAccount();
+  } catch (error) {
+    if (error instanceof Error && /не относится к аккаунту клиента/i.test(error.message)) return null;
+    throw new ClientSessionRestorationUnavailableError();
+  }
+};
+
 export async function restoreClientAccountSession() {
   const token = getStoredClientSessionToken();
-  if (!token || !supabase) return null;
+  if (!supabase) return null;
+  if (!token) return restoreClientAccountFromAuthSession();
   const { data, error } = await supabase.rpc('get_client_account_session', {
     client_session_token: token
   });
@@ -188,12 +203,12 @@ export async function restoreClientAccountSession() {
   }
   if (!data) {
     clearClientSession();
-    return null;
+    return restoreClientAccountFromAuthSession();
   }
   const session = mapSession(data);
   if (!session) {
     clearClientSession();
-    return null;
+    return restoreClientAccountFromAuthSession();
   }
   saveClientSession(token, session);
   return session;
