@@ -38,6 +38,7 @@ import { loadAsphaltPreferredRoadRoute } from './asphaltRoadRouting';
 import { searchDeliveryLocations, type DeliveryLocationSearchResult } from './deliveryGeocoder';
 import {
   getManeuverAnnouncementStage,
+  getMaximumDriverRouteProgressM,
   getRemainingRoadRouteGeometry,
   getRoadRouteProgress,
   loadRoadRoute,
@@ -75,6 +76,7 @@ type DeliveryTrackingMapProps = {
   searchLocations?: (query: string) => Promise<ReadonlyArray<DeliveryLocationSearchResult>>;
   followDriverHeading?: boolean;
   navigationMode?: boolean;
+  onRequestCurrentLocation?: () => Promise<DeliveryMapCoordinates | null>;
   onRouteSummaryChange?: (summary: DeliveryRouteSummary | null) => void;
 };
 
@@ -129,6 +131,7 @@ export function DeliveryTrackingMap({
   searchLocations = searchDeliveryLocations,
   followDriverHeading = false,
   navigationMode = false,
+  onRequestCurrentLocation,
   onRouteSummaryChange
 }: DeliveryTrackingMapProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -286,15 +289,26 @@ export function DeliveryTrackingMap({
       ? routeProgressRef.current
       : null;
     const elapsedSeconds = previous ? Math.max(0, (Date.now() - previous.updatedAt) / 1_000) : 0;
-    return getRoadRouteProgress({
+    const candidateProgress = getRoadRouteProgress({
       route: loadedRoadRoute,
       position: driver,
       minimumTraveledDistanceM: previous?.traveledDistanceM ?? 0,
-      maximumTraveledDistanceM: previous
-        ? movementForCurrentReading?.isMoving
-          ? previous.traveledDistanceM + Math.max(40, elapsedSeconds * 55)
-          : previous.traveledDistanceM
-        : loadedRoadRoute.distanceM,
+      maximumSnapDistanceM: maximumOnRouteDistanceM
+    });
+    if (!previous) return candidateProgress;
+    return getRoadRouteProgress({
+      route: loadedRoadRoute,
+      position: driver,
+      minimumTraveledDistanceM: previous.traveledDistanceM,
+      maximumTraveledDistanceM: getMaximumDriverRouteProgressM({
+        routeDistanceM: loadedRoadRoute.distanceM,
+        previousTraveledDistanceM: previous.traveledDistanceM,
+        candidateTraveledDistanceM: candidateProgress.traveledDistanceM,
+        elapsedSeconds,
+        locationAccuracyM: driver.accuracyM,
+        isMoving: movementForCurrentReading?.isMoving ?? false,
+        isOnRoute: candidateProgress.isOnRoute
+      }),
       maximumSnapDistanceM: maximumOnRouteDistanceM
     });
   }, [driver, loadedRoadRoute, movementForCurrentReading, navigationMode, roadRouteRequestKey]);
@@ -677,6 +691,42 @@ export function DeliveryTrackingMap({
     animateMapZoom(defaultMapZoom);
   };
 
+  const refreshAndCenterOnDriver = async () => {
+    if (!onRequestCurrentLocation) {
+      centerOnDriver();
+      return;
+    }
+    if (isLocating) return;
+    setIsLocating(true);
+    try {
+      const nextPosition = await onRequestCurrentLocation();
+      if (!nextPosition) {
+        centerOnDriver();
+        return;
+      }
+      userAdjustedViewRef.current = false;
+      setManualRotation((currentManualRotation) =>
+        getNearestEquivalentAngle(
+          automaticMapRotation + currentManualRotation,
+          automaticMapRotation
+        ) - automaticMapRotation
+      );
+      setCenter(getNavigationFollowCenter(
+        nextPosition,
+        driverHeading,
+        getNavigationLookAheadDistanceM(driverFollowMapZoom)
+      ));
+      animateMapZoom(driverFollowMapZoom);
+      routeProgressRef.current = null;
+      spokenManeuverStagesRef.current.clear();
+      setRouteRevision((revision) => revision + 1);
+    } catch {
+      centerOnDriver();
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
   const locateCurrentPosition = () => {
     if (displayedDriver) {
       centerOnDriver();
@@ -979,7 +1029,13 @@ export function DeliveryTrackingMap({
         {navigationMode && (
           <div className="delivery-tracking-map__navigation-bottom-controls" aria-label="Ориентация карты" onPointerDown={(event) => event.stopPropagation()}>
             <button type="button" onClick={alignMapToCompass} aria-label="Выровнять карту по компасу"><Compass /></button>
-            <button type="button" onClick={centerOnDriver} aria-label="Следить за водителем"><Navigation /></button>
+            <button
+              type="button"
+              onClick={() => void refreshAndCenterOnDriver()}
+              disabled={isLocating}
+              aria-busy={isLocating}
+              aria-label="Следить за водителем"
+            ><Navigation /></button>
           </div>
         )}
         {!navigationMode && (

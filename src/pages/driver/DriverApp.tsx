@@ -98,6 +98,12 @@ const formatDriverMapDistance = (distanceM: number) => `${new Intl.NumberFormat(
   maximumFractionDigits: 1
 }).format(distanceM / 1000)} км`;
 
+const getDriverGeolocationErrorMessage = (error: GeolocationPositionError) => {
+  if (error.code === error.PERMISSION_DENIED) return 'Разрешите доступ к геопозиции в настройках телефона.';
+  if (error.code === error.TIMEOUT) return 'GPS не успел определить позицию. Нажмите обновить ещё раз.';
+  return 'Не удалось определить точное местоположение.';
+};
+
 const buildDriverPickupQrPayload = (delivery: Pick<DeliveryOffer, 'deliveryId' | 'orderId' | 'pickupQrToken'> | null) =>
   delivery?.pickupQrToken ? `wc-delivery|${delivery.deliveryId}|${delivery.pickupQrToken}` : '';
 
@@ -589,6 +595,57 @@ export function DriverApp() {
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
   const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDelivery?.deliveryId);
 
+  const applyLiveDriverPosition = useCallback((position: GeolocationPosition): DriverLocationReading => {
+    const recordedAtMs = Number.isFinite(position.timestamp) && position.timestamp > 0
+      ? position.timestamp
+      : Date.now();
+    const reading: DriverLocationReading = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+      heading: position.coords.heading !== null && Number.isFinite(position.coords.heading)
+        ? position.coords.heading
+        : null,
+      speedMps: position.coords.speed !== null && Number.isFinite(position.coords.speed)
+        ? position.coords.speed
+        : null,
+      recordedAtMs
+    };
+    setLiveDriverLocation(reading);
+    setSnapshot((current) => ({
+      ...current,
+      profile: {
+        ...current.profile,
+        lastLat: reading.lat,
+        lastLng: reading.lng,
+        lastLocationAt: new Date(reading.recordedAtMs).toISOString()
+      }
+    }));
+    return reading;
+  }, []);
+
+  const requestCurrentDriverLocation = useCallback(() => new Promise<DriverLocationReading>((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Геолокация недоступна в этом браузере.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const reading = applyLiveDriverPosition(position);
+        if (effectiveDriverId) {
+          void updateDriverLocation(effectiveDriverId, {
+            lat: reading.lat,
+            lng: reading.lng,
+            accuracy: reading.accuracyM ?? null
+          }).catch(() => undefined);
+        }
+        resolve(reading);
+      },
+      (error) => reject(new Error(getDriverGeolocationErrorMessage(error))),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12_000 }
+    );
+  }), [applyLiveDriverPosition, effectiveDriverId]);
+
   useEffect(() => {
     setLiveDriverLocation(null);
   }, [effectiveDriverId]);
@@ -641,35 +698,12 @@ export function DriverApp() {
       void updateDriverLocation(effectiveDriverId, location).catch(() => undefined);
     };
     const onPosition = (position: GeolocationPosition) => {
-      const recordedAtMs = Number.isFinite(position.timestamp) && position.timestamp > 0
-        ? position.timestamp
-        : Date.now();
+      const reading = applyLiveDriverPosition(position);
       latestLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        accuracy: position.coords.accuracy ?? null
+        lat: reading.lat,
+        lng: reading.lng,
+        accuracy: reading.accuracyM ?? null
       };
-      setLiveDriverLocation({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-        heading: position.coords.heading !== null && Number.isFinite(position.coords.heading)
-          ? position.coords.heading
-          : null,
-        speedMps: position.coords.speed !== null && Number.isFinite(position.coords.speed)
-          ? position.coords.speed
-          : null,
-        recordedAtMs
-      });
-      setSnapshot((current) => ({
-        ...current,
-        profile: {
-          ...current.profile,
-          lastLat: position.coords.latitude,
-          lastLng: position.coords.longitude,
-          lastLocationAt: new Date(recordedAtMs).toISOString()
-        }
-      }));
       const waitMs = Math.max(0, 5_000 - (Date.now() - lastSentAt));
       if (waitMs === 0) {
         sendLocation();
@@ -683,7 +717,7 @@ export function DriverApp() {
 
     const watchId = navigator.geolocation.watchPosition(onPosition, () => undefined, {
       enableHighAccuracy: true,
-      maximumAge: 5_000,
+      maximumAge: 0,
       timeout: 10_000
     });
 
@@ -691,7 +725,7 @@ export function DriverApp() {
       navigator.geolocation.clearWatch(watchId);
       if (pendingTimer !== null) window.clearTimeout(pendingTimer);
     };
-  }, [authChecked, effectiveDriverId, hasDriverAccess, hasTrackableDelivery, snapshot.profile.isOnline]);
+  }, [applyLiveDriverPosition, authChecked, effectiveDriverId, hasDriverAccess, hasTrackableDelivery, snapshot.profile.isOnline]);
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess) return undefined;
@@ -819,6 +853,7 @@ export function DriverApp() {
             delivery={mapDelivery}
             profile={profile}
             liveDriverLocation={liveDriverLocation}
+            onRequestCurrentLocation={requestCurrentDriverLocation}
             onRefresh={loadDashboard}
           />
         ) : route === 'qr' ? (
@@ -1967,12 +2002,14 @@ export function DriverMapScreen({
   delivery,
   profile,
   liveDriverLocation = null,
+  onRequestCurrentLocation,
   onRefresh,
   onConfirmRestaurantArrival
 }: {
   delivery: DeliveryOffer | null;
   profile: DriverProfile;
   liveDriverLocation?: DriverLocationReading | null;
+  onRequestCurrentLocation?: () => Promise<DriverLocationReading>;
   onRefresh?: () => Promise<boolean>;
   onConfirmRestaurantArrival?: (deliveryId: string) => Promise<void>;
 }) {
@@ -1984,6 +2021,8 @@ export function DriverMapScreen({
   const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [isConfirmingRestaurantArrival, setIsConfirmingRestaurantArrival] = useState(false);
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+  const [locationRefreshStatus, setLocationRefreshStatus] = useState('Вы на маршруте');
   const [workflowError, setWorkflowError] = useState('');
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
@@ -2073,11 +2112,21 @@ export function DriverMapScreen({
     [activeLeg, completeMapData, delivery, displayDeliveryAddress]
   );
   const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
-    setRouteSummary(summary ? { key: routeLegKey, summary } : null);
+    setRouteSummary((current) => {
+      if (!summary) return current === null ? current : null;
+      if (
+        current?.key === routeLegKey &&
+        current.summary.distanceM === summary.distanceM &&
+        current.summary.durationS === summary.durationS
+      ) return current;
+      return { key: routeLegKey, summary };
+    });
     if (!summary) return;
-    setRouteTotal((current) => current?.key === routeLegKey
-      ? { ...current, distanceM: Math.max(current.distanceM, summary.distanceM) }
-      : { key: routeLegKey, distanceM: summary.distanceM });
+    setRouteTotal((current) => {
+      if (current?.key !== routeLegKey) return { key: routeLegKey, distanceM: summary.distanceM };
+      const distanceM = Math.max(current.distanceM, summary.distanceM);
+      return distanceM === current.distanceM ? current : { ...current, distanceM };
+    });
   }, [routeLegKey]);
   const routeSummary = routeSummaryState?.key === routeLegKey ? routeSummaryState.summary : null;
   const remainingDistanceM = routeSummary?.distanceM ?? (delivery?.distanceKm ?? 0) * 1_000;
@@ -2085,6 +2134,26 @@ export function DriverMapScreen({
   const routeTotalDistanceM = routeTotal?.key === routeLegKey
     ? Math.max(routeTotal.distanceM, remainingDistanceM)
     : remainingDistanceM;
+  const refreshCurrentLocationAndRoute = async () => {
+    if (isRefreshingLocation) return;
+    setIsRefreshingLocation(true);
+    setLocationRefreshStatus('Обновляем GPS…');
+    try {
+      const reading = await onRequestCurrentLocation?.();
+      setRouteSummary(null);
+      setRouteTotal(null);
+      setRouteRefreshKey((key) => key + 1);
+      setLocationRefreshStatus(reading?.accuracyM !== null && reading?.accuracyM !== undefined
+        ? `GPS обновлён · ±${Math.round(reading.accuracyM)} м`
+        : onRequestCurrentLocation
+          ? 'GPS обновлён'
+          : 'Маршрут обновлён');
+    } catch (refreshError) {
+      setLocationRefreshStatus(refreshError instanceof Error ? refreshError.message : 'Не удалось обновить GPS.');
+    } finally {
+      setIsRefreshingLocation(false);
+    }
+  };
   const confirmRestaurantArrival = async () => {
     if (!delivery || delivery.status !== 'assigned' || isConfirmingRestaurantArrival) return;
     setIsConfirmingRestaurantArrival(true);
@@ -2113,15 +2182,14 @@ export function DriverMapScreen({
           onClick={() => navigate(getDriverBackTarget(location.pathname), { replace: true })}
           aria-label="Выйти из карты"
         ><ArrowLeft /></button>
-        <span><i aria-hidden="true" />Вы на маршруте</span>
+        <span role="status" aria-label="Статус GPS" aria-live="polite"><i aria-hidden="true" />{locationRefreshStatus}</span>
         <button
+          className={isRefreshingLocation ? 'is-refreshing' : undefined}
           type="button"
-          onClick={() => {
-            setRouteSummary(null);
-            setRouteTotal(null);
-            setRouteRefreshKey((key) => key + 1);
-          }}
-          aria-label="Обновить маршрут"
+          onClick={() => void refreshCurrentLocationAndRoute()}
+          disabled={isRefreshingLocation}
+          aria-busy={isRefreshingLocation}
+          aria-label="Обновить местоположение и маршрут"
         ><RefreshCw /></button>
       </header>
       <div className="driver-map-canvas">
@@ -2136,6 +2204,7 @@ export function DriverMapScreen({
               routePoints={currentRoutePoints}
               followDriverHeading={currentDriverPoint !== null}
               driver={currentDriverPoint}
+              onRequestCurrentLocation={onRequestCurrentLocation}
               onRouteSummaryChange={handleRouteSummaryChange}
             />
         ) : delivery ? (
@@ -2148,6 +2217,7 @@ export function DriverMapScreen({
             navigationMode
             driver={currentDriverPoint}
             followDriverHeading={currentDriverPoint !== null}
+            onRequestCurrentLocation={onRequestCurrentLocation}
             onRouteSummaryChange={handleRouteSummaryChange}
           />
         )}

@@ -192,6 +192,15 @@
   height: 20px;
 }
 
+.driver-map-topbar > button.is-refreshing svg {
+  animation: driver-refresh-spin 0.8s linear infinite;
+}
+
+.driver-map-topbar > button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .driver-map-topbar > span {
   display: inline-flex;
   min-height: 42px;
@@ -204,6 +213,7 @@
   font-size: 13px;
   font-weight: 800;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  white-space: nowrap;
 }
 
 .driver-map-topbar > span i {
