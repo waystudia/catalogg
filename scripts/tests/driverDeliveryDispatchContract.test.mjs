@@ -88,7 +88,7 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(driverStore, /bindDriver:/);
     assert.match(driverApp, /snapshot\.profile\.isOnline/);
     assert.doesNotMatch(driverApp, /useDriverStore\(\(state\) => state\.isOnline\)/);
-    assert.match(driverApp, /setOptimisticOnline\(nextOnline\)[\s\S]{0,200}await setDriverAvailability[\s\S]{0,100}void onRefresh\(\)/);
+    assert.match(driverApp, /setOptimisticOnline\(nextOnline\)[\s\S]{0,650}await setDriverAvailability[\s\S]{0,100}void onRefresh\(\)/);
     assert.doesNotMatch(driverApp, /await setDriverAvailability[\s\S]{0,200}await onRefresh\(\)/);
     assert.match(driverApp, /if \(!authChecked \|\| !hasDriverAccess \|\| selectedDriverId === demoDriverId\) return/);
     assert.match(driverApp, /window\.setInterval\(refreshDriverDashboard, 10_000\)/);

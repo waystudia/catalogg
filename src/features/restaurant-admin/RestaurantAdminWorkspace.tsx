@@ -135,6 +135,9 @@ export function RestaurantAdminWorkspace({
     staleTime: 60_000,
     retry: false
   });
+  const canDeletePreactivationOrders = Boolean(
+    catalogAdminAccess?.legalActivationStatus && catalogAdminAccess.legalActivationStatus !== 'active'
+  );
   const {
     grossRevenue: monthRevenue,
     platformDebt: restaurantDebt,
@@ -449,6 +452,7 @@ export function RestaurantAdminWorkspace({
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
                   }}
                   onRefreshOrders={onRefreshOrders}
+                  canDeleteOrder={selectedVisibleOrder.isTestOrder || canDeletePreactivationOrders}
                   onDelete={() => deleteOrder(selectedVisibleOrder)}
                 />
               )}
@@ -493,15 +497,15 @@ export function RestaurantAdminWorkspace({
                                 </i>
                               </span>
                             </button>
-                            {order.isTestOrder && (
+                            {(order.isTestOrder || canDeletePreactivationOrders) && (
                               <button
                                 className="admin-order-card__delete"
                                 type="button"
                                 aria-label={`Удалить заказ ${order.orderNumber}`}
-                                title="Удалить тестовый заказ"
+                                title="Удалить заказ до активации"
                                 disabled={deletingOrderId === order.id}
                                 onClick={() => {
-                                  if (window.confirm(`Удалить тестовый заказ #${order.orderNumber} безвозвратно?`)) {
+                                  if (window.confirm(`Удалить заказ #${order.orderNumber} безвозвратно?`)) {
                                     void deleteOrder(order);
                                   }
                                 }}

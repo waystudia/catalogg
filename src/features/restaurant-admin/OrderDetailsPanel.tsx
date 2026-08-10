@@ -54,6 +54,7 @@ export function OrderDetailsPanel({
   onClose,
   onStatus,
   onRefreshOrders,
+  canDeleteOrder = false,
   onDelete
 }: {
   order: RestaurantOrder;
@@ -62,6 +63,7 @@ export function OrderDetailsPanel({
   onClose: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onRefreshOrders: () => void;
+  canDeleteOrder?: boolean;
   onDelete: () => Promise<void>;
 }) {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() =>
@@ -86,6 +88,9 @@ export function OrderDetailsPanel({
   });
   const dispatchDrivers = dispatchDriversQuery.data ?? [];
   const onlineDrivers = dispatchDrivers.filter((driver) => driver.isOnline && driver.servesOrder);
+  const availableDrivers = onlineDrivers.filter((driver) =>
+    driverHasCapacity(driver.activeDeliveries, driver.maxActiveDeliveries)
+  );
   const ownDrivers = dispatchDrivers.filter((driver) => driver.scope === 'restaurant');
   const ownOnlineDrivers = ownDrivers.filter(
     (driver) =>
@@ -127,7 +132,11 @@ export function OrderDetailsPanel({
     setIsSearchingDriver(true);
     sendRestaurantOrderToDriverPool(order)
       .then(() => {
-        toast.success('Заказ отправлен всем доступным водителям');
+        toast.success(
+          availableDrivers.length > 0
+            ? `Заказ опубликован для ${availableDrivers.length} доступных водителей`
+            : 'Заказ опубликован. Сейчас нет доступных водителей — он появится после выхода водителя онлайн.'
+        );
         refreshDriverDispatch();
       })
       .catch((error) => {
@@ -249,7 +258,7 @@ export function OrderDetailsPanel({
                   Отменить заказ
                 </button>
               )}
-              {order.isTestOrder && (
+              {canDeleteOrder && (
                 <button
                   type="button"
                   data-danger="true"

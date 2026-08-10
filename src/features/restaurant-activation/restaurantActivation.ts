@@ -66,7 +66,14 @@ export const canAcceptRestaurantLegalDocuments = ({
   canAcceptLegalDocuments: boolean;
 }) => role !== null && role !== 'platform_admin' && (role === 'owner' || canAcceptLegalDocuments);
 
-export const canRestaurantAcceptRealOrders = (status: RestaurantLegalStatus) => status === 'active';
+export const canRestaurantAcceptRealOrders = (status: RestaurantLegalStatus) => [
+  'draft',
+  'configured',
+  'awaiting_acceptance',
+  'active',
+  'legacy_review_required',
+  'reacceptance_required'
+].includes(status);
 
 export const getRestaurantActivationProgress = ({
   documentsOpened,

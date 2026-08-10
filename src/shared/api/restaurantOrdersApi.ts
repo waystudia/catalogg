@@ -860,7 +860,20 @@ export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder
   });
 }
 
-export async function deleteRestaurantTestOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'>) {
+export async function deleteRestaurantPreactivationOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'>) {
+  if (!supabase) return true;
+  const { data, error } = await supabase.rpc('delete_restaurant_preactivation_order', {
+    target_order_id: order.id,
+    target_catalog_id: order.catalogId
+  });
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
+export async function deleteRestaurantTestOrder(
+  order: Pick<RestaurantOrder, 'id' | 'catalogId'> & Partial<Pick<RestaurantOrder, 'isTestOrder'>>
+) {
+  if (order.isTestOrder !== true) return deleteRestaurantPreactivationOrder(order);
   if (!supabase) return true;
   const { data, error } = await supabase.rpc('delete_restaurant_test_order', {
     target_order_id: order.id,

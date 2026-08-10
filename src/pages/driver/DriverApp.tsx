@@ -832,12 +832,13 @@ function DriverHomeScreen({
     setAvailabilityError('');
     setOptimisticOnline(nextOnline);
     onAvailabilityChanged(nextOnline);
+    if (nextOnline) {
+      void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id })
+        .then(setNotificationPermission);
+    }
     try {
       await setDriverAvailability(nextOnline);
       void onRefresh();
-      if (nextOnline) {
-        void requestRestaurantOrderNotificationPermission({ role: 'driver', driverId: profile.id }).then(setNotificationPermission);
-      }
     } catch (availabilityUpdateError) {
       const shouldRollback =
         availabilityUpdateError instanceof DriverActionError && availabilityUpdateError.code === 'auth';

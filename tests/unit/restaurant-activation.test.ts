@@ -40,12 +40,13 @@ describe('restaurant legal activation', () => {
     expect(canAcceptRestaurantLegalDocuments({ role: null, canAcceptLegalDocuments: true })).toBe(false);
   });
 
-  it('allows real orders only after explicit activation, including formerly configured restaurants', () => {
+  it('allows ordinary operations before activation but still blocks suspended or closed restaurants', () => {
     expect(canRestaurantAcceptRealOrders('active')).toBe(true);
-    expect(canRestaurantAcceptRealOrders('draft')).toBe(false);
-    expect(canRestaurantAcceptRealOrders('configured')).toBe(false);
-    expect(canRestaurantAcceptRealOrders('awaiting_acceptance')).toBe(false);
-    expect(canRestaurantAcceptRealOrders('legacy_review_required')).toBe(false);
+    expect(canRestaurantAcceptRealOrders('draft')).toBe(true);
+    expect(canRestaurantAcceptRealOrders('configured')).toBe(true);
+    expect(canRestaurantAcceptRealOrders('awaiting_acceptance')).toBe(true);
+    expect(canRestaurantAcceptRealOrders('legacy_review_required')).toBe(true);
+    expect(canRestaurantAcceptRealOrders('reacceptance_required')).toBe(true);
     expect(canRestaurantAcceptRealOrders('suspended')).toBe(false);
     expect(canRestaurantAcceptRealOrders('terminated')).toBe(false);
     expect(canRestaurantAcceptRealOrders('archived')).toBe(false);

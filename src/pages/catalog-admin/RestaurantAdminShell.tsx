@@ -801,6 +801,7 @@ export function RestaurantAdminShell({
               paymentSettings={paymentSettings}
               paymentStatuses={paymentStatuses}
               recentOrderIds={recentOrderIds}
+              canDeleteOrders={access.legalActivationStatus !== 'active'}
               onQueryChange={setOrderQuery}
               onSelectOrder={setSelectedOrderId}
               onStatusChange={updateOrderStatus}
@@ -1076,6 +1077,7 @@ function OrdersPage({
   paymentSettings,
   paymentStatuses,
   recentOrderIds,
+  canDeleteOrders,
   onQueryChange,
   onSelectOrder,
   onStatusChange,
@@ -1088,6 +1090,7 @@ function OrdersPage({
   paymentSettings: PaymentSettings;
   paymentStatuses: Record<string, PaymentStatus>;
   recentOrderIds: Set<string>;
+  canDeleteOrders: boolean;
   onQueryChange: (query: string) => void;
   onSelectOrder: (id: string) => void;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
@@ -1115,6 +1118,7 @@ function OrdersPage({
           onStatusChange={onStatusChange}
           onPaymentStatusChange={onPaymentStatusChange}
           onDelete={onDelete}
+          canDeleteOrders={canDeleteOrders}
         />
       )}
     </div>
@@ -1127,6 +1131,7 @@ function OrderDetails({
   paymentStatus,
   onStatusChange,
   onPaymentStatusChange,
+  canDeleteOrders,
   onDelete
 }: {
   order: RestaurantOrder;
@@ -1134,11 +1139,12 @@ function OrderDetails({
   paymentStatus: PaymentStatus;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
+  canDeleteOrders: boolean;
   onDelete: (order: RestaurantOrder) => Promise<void>;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteOrder = async () => {
-    if (isDeleting || !window.confirm('Удалить тестовый заказ? Это действие нельзя отменить.')) return;
+    if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
     try {
       await onDelete(order);
@@ -1260,7 +1266,7 @@ function OrderDetails({
           <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
         )}
         {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
-        {order.isTestOrder && (
+        {(order.isTestOrder || canDeleteOrders) && (
           <button
             className="ra-order-actions__danger"
             type="button"

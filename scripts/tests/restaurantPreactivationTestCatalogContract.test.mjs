@@ -75,10 +75,10 @@ test('the migration changes no tables destructively', () => {
   assert.doesNotMatch(migration, /drop table|truncate table/i);
 });
 
-test('the restaurant cabinet offers deletion only for orders confirmed as test orders', () => {
+test('the restaurant cabinet retains isolated test deletion and adds pre-activation deletion', () => {
   assert.match(ordersApi, /is_test_order/);
   assert.match(ordersApi, /isTestOrder:\s*row\.is_test_order\s*===\s*true/);
-  assert.match(restaurantWorkspace, /order\.isTestOrder\s*&&\s*\([\s\S]{0,600}Удалить заказ/i);
-  assert.match(orderDetails, /order\.isTestOrder\s*&&\s*\([\s\S]{0,600}Удалить заказ/i);
-  assert.match(legacyRestaurantShell, /order\.isTestOrder\s*&&\s*\([\s\S]{0,600}Удалить заказ/i);
+  assert.match(restaurantWorkspace, /order\.isTestOrder\s*\|\|\s*canDeletePreactivationOrders/);
+  assert.match(orderDetails, /canDeleteOrder\s*&&\s*\([\s\S]{0,600}Удалить заказ/i);
+  assert.match(legacyRestaurantShell, /order\.isTestOrder\s*\|\|\s*canDeleteOrders/);
 });
