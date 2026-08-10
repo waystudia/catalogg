@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { prioritizeEligibleDrivers } from '../../supabase/functions/send-web-push/premiumDispatch';
+import {
+  prioritizeEligibleDrivers,
+  selectPriorityDriverSubscriptions
+} from '../../supabase/functions/send-web-push/premiumDispatch';
 
 const eligibleDriver = (id: string, isPremium: boolean | null) => ({
   id,
@@ -32,5 +35,26 @@ describe('premium driver notification priority', () => {
 
   it('keeps an empty eligible pool empty', () => {
     expect(prioritizeEligibleDrivers([])).toEqual([]);
+  });
+
+  it('falls back to subscribed regular drivers when an eligible premium driver has no subscription', () => {
+    const drivers = [eligibleDriver('premium-no-push', true), eligibleDriver('regular-push', false)];
+    const subscriptions = [
+      { id: 'regular-subscription', driver_id: 'regular-push' }
+    ];
+
+    expect(selectPriorityDriverSubscriptions(drivers, subscriptions)).toEqual(subscriptions);
+  });
+
+  it('keeps only subscribed premium drivers when at least one can receive push', () => {
+    const drivers = [eligibleDriver('premium-push', true), eligibleDriver('regular-push', false)];
+    const subscriptions = [
+      { id: 'regular-subscription', driver_id: 'regular-push' },
+      { id: 'premium-subscription', driver_id: 'premium-push' }
+    ];
+
+    expect(selectPriorityDriverSubscriptions(drivers, subscriptions)).toEqual([
+      { id: 'premium-subscription', driver_id: 'premium-push' }
+    ]);
   });
 });

@@ -49,7 +49,10 @@ describe('background web push contract', () => {
   it('has a server-side sender that signs Web Push requests with VAPID secrets', async () => {
     const source = await read('supabase/functions/send-web-push/index.ts');
     assert.match(source, /VAPID_PRIVATE_KEY/);
-    assert.match(source, /webpush|push service|applicationServerKey/i);
+    assert.match(source, /npm:web-push-neo@0\.1\.2/);
+    assert.match(source, /sendNotification\(/);
+    assert.match(source, /vapidDetails:/);
+    assert.doesNotMatch(source, /npm:web-push@/);
     assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
     assert.match(source, /event\.table === 'test'/);
   });
