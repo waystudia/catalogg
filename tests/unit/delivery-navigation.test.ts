@@ -4,6 +4,7 @@ import { buildMapTileGrid } from '../../src/shared/deliveryMap';
 import {
   buildRoadRouteRequestUrl,
   getFreshestDriverLocation,
+  getMaximumDriverRouteProgressM,
   getRoadRouteProgress,
   loadRoadRoute,
   parseRoadRoutePayload,
@@ -391,6 +392,38 @@ describe('delivery navigation providers', () => {
     expect(getFreshestDriverLocation({ ...stored, recordedAtMs: 10_000 }, local)).toBe(local);
     expect(getFreshestDriverLocation(null, local)).toBe(local);
     expect(getFreshestDriverLocation(stored, null)).toBe(stored);
+  });
+
+  it('accepts a large accurate GPS correction immediately but still filters small stationary drift', () => {
+    const common = {
+      routeDistanceM: 1_000,
+      previousTraveledDistanceM: 200,
+      elapsedSeconds: 1,
+      locationAccuracyM: 8,
+      isMoving: false,
+      isOnRoute: true
+    } as const;
+
+    expect(getMaximumDriverRouteProgressM({
+      ...common,
+      candidateTraveledDistanceM: 320
+    })).toBe(1_000);
+    expect(getMaximumDriverRouteProgressM({
+      ...common,
+      candidateTraveledDistanceM: 218
+    })).toBe(200);
+  });
+
+  it('keeps the conservative progress cap when a moving GPS reading has low accuracy', () => {
+    expect(getMaximumDriverRouteProgressM({
+      routeDistanceM: 1_000,
+      previousTraveledDistanceM: 200,
+      candidateTraveledDistanceM: 700,
+      elapsedSeconds: 1,
+      locationAccuracyM: 65,
+      isMoving: true,
+      isOnRoute: true
+    })).toBe(255);
   });
 
   it('keeps asymmetric x/y/z tile coordinates for street and labeled satellite layers', () => {

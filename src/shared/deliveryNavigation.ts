@@ -113,6 +113,8 @@ const fallbackReliableMovementDistanceM = 18;
 const maximumCandidateHeadingDifference = 45;
 const reverseRouteHeadingDifference = 110;
 const routeHeadingLookAheadM = 30;
+const maximumAccurateDriverLocationM = 25;
+const minimumStaleDriverCorrectionM = 60;
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
@@ -226,6 +228,43 @@ export const getFreshestDriverLocation = <TStored extends TimedDriverLocation, T
   if (!stored) return local;
   if (!local) return stored;
   return local.recordedAtMs >= stored.recordedAtMs ? local : stored;
+};
+
+export const getMaximumDriverRouteProgressM = ({
+  routeDistanceM,
+  previousTraveledDistanceM,
+  candidateTraveledDistanceM,
+  elapsedSeconds,
+  locationAccuracyM,
+  isMoving,
+  isOnRoute
+}: {
+  readonly routeDistanceM: number;
+  readonly previousTraveledDistanceM: number;
+  readonly candidateTraveledDistanceM: number;
+  readonly elapsedSeconds: number;
+  readonly locationAccuracyM?: number | null;
+  readonly isMoving: boolean;
+  readonly isOnRoute: boolean;
+}) => {
+  const safeRouteDistanceM = Math.max(0, routeDistanceM);
+  const safePreviousM = clamp(previousTraveledDistanceM, 0, safeRouteDistanceM);
+  const safeCandidateM = clamp(candidateTraveledDistanceM, safePreviousM, safeRouteDistanceM);
+  const accuracyM = finiteOrNull(locationAccuracyM);
+  const hasAccurateLocation = accuracyM !== null && accuracyM <= maximumAccurateDriverLocationM;
+  const correctionDistanceM = safeCandidateM - safePreviousM;
+  const isReliableStalePositionCorrection = hasAccurateLocation &&
+    isOnRoute &&
+    correctionDistanceM >= Math.max(minimumStaleDriverCorrectionM, accuracyM * 3);
+
+  if ((hasAccurateLocation && isMoving) || isReliableStalePositionCorrection) {
+    return safeRouteDistanceM;
+  }
+  if (!isMoving) return safePreviousM;
+  return Math.min(
+    safeRouteDistanceM,
+    safePreviousM + Math.max(40, Math.max(0, elapsedSeconds) * 55)
+  );
 };
 
 const interpolateCoordinates = (

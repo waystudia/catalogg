@@ -137,6 +137,46 @@ test('shows the client rather than the restaurant after the driver has picked up
   await expect.element(screen.getByRole('button', { name: 'Ресторан: Мангал' })).not.toBeInTheDocument();
 });
 
+test('forces a fresh GPS reading and rebuilds the route from the map refresh button', async () => {
+  let resolveLocation!: (value: {
+    lat: number;
+    lng: number;
+    accuracyM: number;
+    recordedAtMs: number;
+  }) => void;
+  const onRequestCurrentLocation = vi.fn(() => new Promise<{
+    lat: number;
+    lng: number;
+    accuracyM: number;
+    recordedAtMs: number;
+  }>((resolve) => {
+    resolveLocation = resolve;
+  }));
+  const screen = await render(
+    <MemoryRouter initialEntries={['/driver/map/delivery-map-1']}>
+      <main className="driver-app">
+        <section className="driver-phone driver-phone--map">
+          <DriverMapScreen
+            delivery={activeDelivery('assigned')}
+            profile={driverProfile}
+            onRequestCurrentLocation={onRequestCurrentLocation}
+          />
+        </section>
+      </main>
+    </MemoryRouter>
+  );
+
+  const refreshButton = screen.getByRole('button', { name: 'Обновить местоположение и маршрут' });
+  await refreshButton.click();
+  expect(onRequestCurrentLocation).toHaveBeenCalledOnce();
+  await expect.element(refreshButton).toHaveAttribute('aria-busy', 'true');
+  await expect.element(screen.getByRole('status', { name: 'Статус GPS' })).toHaveTextContent('Обновляем GPS…');
+
+  resolveLocation({ lat: 43.3202, lng: 45.7002, accuracyM: 7.6, recordedAtMs: Date.now() });
+  await expect.element(screen.getByRole('status', { name: 'Статус GPS' })).toHaveTextContent('GPS обновлён · ±8 м');
+  await expect.element(refreshButton).toHaveAttribute('aria-busy', 'false');
+});
+
 const stationaryFixes = [
   { lat: 43, lng: 45, accuracyM: 12, speedMps: 0, heading: null, recordedAtMs: 1_000 },
   { lat: 43.00012, lng: 45.00014, accuracyM: 12, speedMps: 0, heading: 40, recordedAtMs: 6_000 }
@@ -266,6 +306,12 @@ test('shows saved asphalt roads as branch references', async () => {
 
 test('keeps navigation controls compact and separates compass from driver follow mode', async () => {
   const onRouteSummaryChange = vi.fn();
+  const onRequestCurrentLocation = vi.fn(async () => ({
+    lat: restaurant.lat,
+    lng: restaurant.lng,
+    accuracyM: 6,
+    recordedAtMs: Date.now()
+  }));
   const loadRoute = vi.fn(async () => ({
     distanceM: 32_200,
     durationS: 2_340,
@@ -288,6 +334,7 @@ test('keeps navigation controls compact and separates compass from driver follow
           initialStyle="satellite"
           navigationMode
           followDriverHeading
+          onRequestCurrentLocation={onRequestCurrentLocation}
           onRouteSummaryChange={onRouteSummaryChange}
         />
       </section>
@@ -350,6 +397,7 @@ test('keeps navigation controls compact and separates compass from driver follow
   await screen.getByRole('button', { name: 'Приблизить' }).click();
   const zoomedInLevel = getMapZoom();
   await screen.getByRole('button', { name: 'Следить за водителем' }).click();
+  expect(onRequestCurrentLocation).toHaveBeenCalledOnce();
   await new Promise((resolve) => window.setTimeout(resolve, 100));
   const midAnimationLevel = getMapZoom();
   await new Promise((resolve) => window.setTimeout(resolve, 650));
