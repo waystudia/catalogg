@@ -49,6 +49,7 @@ const ClientPasskeyPreview = import.meta.env.DEV
         default: module.ClientPasskeyPreview
       })))
   : null;
+const passkeyPreviewIsActive = import.meta.env.DEV && window.location.hash.startsWith('#/__passkey-preview/');
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -99,7 +100,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
             <Route path="/:slug" element={<RestaurantPublicRoute />} />
           </Routes>
-          <LegalSurface />
+          {!passkeyPreviewIsActive && <LegalSurface />}
         </Suspense>
       </HashRouter>
     </QueryClientProvider>
