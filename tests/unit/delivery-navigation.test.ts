@@ -3,15 +3,19 @@ import { getDriverNavigationStage, getDriverRoutePoints } from '../../src/featur
 import { buildMapTileGrid } from '../../src/shared/deliveryMap';
 import {
   buildRoadRouteRequestUrl,
+  getFreshestDriverLocation,
   getRoadRouteProgress,
   loadRoadRoute,
   parseRoadRoutePayload,
+  resolveDriverNavigationHeading,
+  updateDriverMovementState,
   type RoadRoute
 } from '../../src/shared/deliveryNavigation';
 
 const restaurant = { lat: 43.322, lng: 45.705 };
 const client = { lat: 43.318123, lng: 45.698456 };
 const driver = { lat: 43.31, lng: 45.69 };
+const latitudeMeters = (meters: number) => 43 + (meters / 6_371_000) * (180 / Math.PI);
 
 const routePayload = {
   code: 'Ok',
@@ -31,6 +35,364 @@ const response = (payload: unknown, ok = true) => ({
 }) as unknown as Response;
 
 describe('delivery navigation providers', () => {
+  it('keeps stationary GPS noise from becoming a camera heading', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 12,
+      speedMps: 0,
+      heading: null,
+      recordedAtMs: 1_000
+    });
+    const noisy = updateDriverMovementState(initial, {
+      lat: 43.00014,
+      lng: 45,
+      accuracyM: 12,
+      speedMps: 0,
+      heading: 180,
+      recordedAtMs: 6_000
+    });
+
+    expect(initial.isMoving).toBe(false);
+    expect(noisy.isMoving).toBe(false);
+    expect(noisy.heading).toBeNull();
+    expect(noisy.candidateReadings).toBe(0);
+    expect(noisy.anchor.lat).toBe(43.00014);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 90,
+      fallbackHeading: 15,
+      movement: noisy,
+      isOnRoute: true
+    })).toBe(90);
+  });
+
+  it('does not trust a reported course when speed is unavailable and the position did not move', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 10,
+      speedMps: null,
+      heading: 90,
+      recordedAtMs: 1_000
+    });
+    const staleCourse = updateDriverMovementState(initial, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 10,
+      speedMps: null,
+      heading: 90,
+      recordedAtMs: 6_000
+    });
+
+    expect(staleCourse.isMoving).toBe(false);
+    expect(staleCourse.candidateReadings).toBe(0);
+    expect(staleCourse.heading).toBeNull();
+  });
+
+  it('uses the reported course at the moving-speed boundary and normalizes its angle', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 5,
+      speedMps: 1.5,
+      heading: 450,
+      recordedAtMs: 1_000
+    });
+    const first = updateDriverMovementState(initial, {
+      lat: 43,
+      lng: 45.0003,
+      accuracyM: 5,
+      speedMps: 1.5,
+      heading: 450,
+      recordedAtMs: 6_000
+    });
+    const confirmed = updateDriverMovementState(first, {
+      lat: 43,
+      lng: 45.0006,
+      accuracyM: 5,
+      speedMps: 1.5,
+      heading: 450,
+      recordedAtMs: 11_000
+    });
+
+    expect(first.candidateHeading).toBe(90);
+    expect(confirmed.isMoving).toBe(true);
+    expect(confirmed.heading).toBe(90);
+  });
+
+  it('requires displacement beyond the combined GPS accuracy before deriving a course', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 8,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 1_000
+    });
+    const insideAccuracy = updateDriverMovementState(initial, {
+      lat: latitudeMeters(15),
+      lng: 45,
+      accuracyM: 8,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 6_000
+    });
+    const outsideAccuracy = updateDriverMovementState(insideAccuracy, {
+      lat: latitudeMeters(17),
+      lng: 45,
+      accuracyM: 8,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 11_000
+    });
+
+    expect(insideAccuracy.candidateReadings).toBe(0);
+    expect(insideAccuracy.isMoving).toBe(false);
+    expect(outsideAccuracy.candidateReadings).toBe(1);
+    expect(outsideAccuracy.candidateHeading).toBeCloseTo(0, 0);
+  });
+
+  it('uses the conservative fallback distance when GPS accuracy is unavailable', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: null,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 1_000
+    });
+    const tooClose = updateDriverMovementState(initial, {
+      lat: latitudeMeters(17),
+      lng: 45,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 6_000
+    });
+    const farEnough = updateDriverMovementState(tooClose, {
+      lat: latitudeMeters(19),
+      lng: 45,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 11_000
+    });
+    const onlyCurrentAccuracy = updateDriverMovementState(initial, {
+      lat: latitudeMeters(15),
+      lng: 45,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 16_000
+    });
+    const onlyPreviousAccuracy = updateDriverMovementState({
+      ...initial,
+      anchor: { ...initial.anchor, accuracyM: 5 }
+    }, {
+      lat: latitudeMeters(15),
+      lng: 45,
+      accuracyM: null,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 16_000
+    });
+
+    expect(tooClose.candidateReadings).toBe(0);
+    expect(farEnough.candidateReadings).toBe(1);
+    expect(onlyCurrentAccuracy.candidateReadings).toBe(0);
+    expect(onlyPreviousAccuracy.candidateReadings).toBe(0);
+  });
+
+  it('rejects invalid sensor numbers instead of treating them as motion', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: Number.NaN,
+      speedMps: Number.NaN,
+      heading: Number.POSITIVE_INFINITY,
+      recordedAtMs: 1_000
+    });
+    const unchanged = updateDriverMovementState(initial, {
+      lat: 43,
+      lng: 45,
+      accuracyM: Number.POSITIVE_INFINITY,
+      speedMps: Number.NaN,
+      heading: Number.NaN,
+      recordedAtMs: 6_000
+    });
+
+    expect(initial.anchor.accuracyM).toBeNull();
+    expect(unchanged.candidateReadings).toBe(0);
+    expect(unchanged.isMoving).toBe(false);
+  });
+
+  it('accepts candidate headings at the agreement boundary but not beyond it', () => {
+    const previous = {
+      anchor: { lat: 43, lng: 45, accuracyM: 5, recordedAtMs: 1_000 },
+      lastReadingAtMs: 1_000,
+      candidateHeading: 0,
+      candidateReadings: 1,
+      heading: null,
+      isMoving: false
+    } as const;
+    const boundary = updateDriverMovementState(previous, {
+      lat: 43.0003,
+      lng: 45,
+      accuracyM: 5,
+      speedMps: 2,
+      heading: 45,
+      recordedAtMs: 6_000
+    });
+    const beyond = updateDriverMovementState(previous, {
+      lat: 43.0003,
+      lng: 45,
+      accuracyM: 5,
+      speedMps: 2,
+      heading: 45.1,
+      recordedAtMs: 6_000
+    });
+
+    expect(boundary.isMoving).toBe(true);
+    expect(boundary.candidateReadings).toBe(2);
+    expect(beyond.isMoving).toBe(false);
+    expect(beyond.candidateReadings).toBe(1);
+  });
+
+  it('confirms consistent real movement but rejects a single conflicting jump', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 1_000
+    });
+    const firstEast = updateDriverMovementState(initial, {
+      lat: 43,
+      lng: 45.0004,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 6_000
+    });
+    const secondEast = updateDriverMovementState(firstEast, {
+      lat: 43,
+      lng: 45.0008,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 11_000
+    });
+    const conflictingNorth = updateDriverMovementState(secondEast, {
+      lat: 43.0004,
+      lng: 45.0008,
+      accuracyM: 5,
+      speedMps: null,
+      heading: null,
+      recordedAtMs: 16_000
+    });
+
+    expect(firstEast.isMoving).toBe(false);
+    expect(secondEast.isMoving).toBe(true);
+    expect(secondEast.heading).toBeCloseTo(90, 0);
+    expect(conflictingNorth.isMoving).toBe(false);
+    expect(conflictingNorth.heading).toBeCloseTo(90, 0);
+  });
+
+  it('does not confirm the same geolocation reading twice after a React rerender', () => {
+    const initial = updateDriverMovementState(null, {
+      lat: 43,
+      lng: 45,
+      accuracyM: 5,
+      speedMps: 5,
+      heading: 90,
+      recordedAtMs: 1_000
+    });
+    const firstReading = updateDriverMovementState(initial, {
+      lat: 43,
+      lng: 45.0002,
+      accuracyM: 5,
+      speedMps: 5,
+      heading: 90,
+      recordedAtMs: 6_000
+    });
+    const duplicate = updateDriverMovementState(firstReading, {
+      lat: 43,
+      lng: 45.0002,
+      accuracyM: 5,
+      speedMps: 5,
+      heading: 90,
+      recordedAtMs: 6_000
+    });
+
+    expect(firstReading.isMoving).toBe(false);
+    expect(duplicate.isMoving).toBe(false);
+    expect(duplicate.candidateReadings).toBe(1);
+  });
+
+  it('uses reliable reverse movement only when it truly opposes the road', () => {
+    const movement = {
+      anchor: { lat: 43, lng: 45, accuracyM: 5, recordedAtMs: 10_000 },
+      candidateHeading: 270,
+      candidateReadings: 2,
+      heading: 270,
+      isMoving: true
+    } as const;
+
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 90,
+      fallbackHeading: 0,
+      movement,
+      isOnRoute: true
+    })).toBe(270);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 100,
+      fallbackHeading: 0,
+      movement: { ...movement, heading: 80 },
+      isOnRoute: true
+    })).toBe(100);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 90,
+      fallbackHeading: 0,
+      movement: { ...movement, isMoving: false },
+      isOnRoute: false
+    })).toBe(0);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: null,
+      fallbackHeading: 15,
+      movement,
+      isOnRoute: true
+    })).toBe(270);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 90,
+      fallbackHeading: 15,
+      movement: { ...movement, heading: 200 },
+      isOnRoute: true
+    })).toBe(200);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: 90,
+      fallbackHeading: 15,
+      movement: { ...movement, heading: 199 },
+      isOnRoute: true
+    })).toBe(90);
+    expect(resolveDriverNavigationHeading({
+      routeHeading: null,
+      fallbackHeading: 15,
+      movement: null,
+      isOnRoute: true
+    })).toBe(15);
+  });
+
+  it('keeps the freshest local or server driver position', () => {
+    const stored = { lat: 43, lng: 45, recordedAtMs: 5_000 };
+    const local = { lat: 43.1, lng: 45.1, recordedAtMs: 10_000 };
+
+    expect(getFreshestDriverLocation(stored, local)).toBe(local);
+    expect(getFreshestDriverLocation({ ...stored, recordedAtMs: 15_000 }, local)?.lat).toBe(43);
+    expect(getFreshestDriverLocation({ ...stored, recordedAtMs: 10_000 }, local)).toBe(local);
+    expect(getFreshestDriverLocation(null, local)).toBe(local);
+    expect(getFreshestDriverLocation(stored, null)).toBe(stored);
+  });
+
   it('keeps asymmetric x/y/z tile coordinates for street and labeled satellite layers', () => {
     const input = { center: restaurant, zoom: 16, mapSize: 320 } as const;
     const street = buildMapTileGrid({ ...input, style: 'street' });
@@ -209,6 +571,38 @@ describe('delivery navigation providers', () => {
       instruction: 'Поверните направо',
       street: 'Вторая улица'
     });
+  });
+
+  it('looks ahead across tiny road segments instead of twitching with every segment bearing', () => {
+    const route: RoadRoute = {
+      distanceM: 50,
+      durationS: 10,
+      geometry: [
+        { lat: 43, lng: 45 },
+        { lat: 43.00004, lng: 45.00004 },
+        { lat: 43, lng: 45.00008 },
+        { lat: 43.00004, lng: 45.00012 },
+        { lat: 43, lng: 45.0006 }
+      ]
+    };
+
+    const progress = getRoadRouteProgress({ route, position: route.geometry[0] });
+
+    expect(progress.heading).toBeGreaterThan(70);
+    expect(progress.heading).toBeLessThan(110);
+  });
+
+  it('keeps the final road direction when the driver reaches the route endpoint', () => {
+    const route: RoadRoute = {
+      distanceM: 100,
+      durationS: 20,
+      geometry: [{ lat: 43, lng: 45 }, { lat: 43, lng: 45.001 }]
+    };
+
+    const progress = getRoadRouteProgress({ route, position: route.geometry[1] });
+
+    expect(progress.traveledDistanceM).toBeCloseTo(100, 1);
+    expect(progress.heading).toBeCloseTo(90, 0);
   });
 
   it('never moves route progress backwards and bounds an implausible forward GPS jump', () => {

@@ -70,6 +70,10 @@ import {
 import { requestDriverDeliveryPrice } from '../../shared/api/deliveryPricingApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import { DeliveryTrackingMap, type DeliveryRouteSummary } from '../../shared/DeliveryTrackingMap';
+import {
+  getFreshestDriverLocation,
+  type DriverLocationReading
+} from '../../shared/deliveryNavigation';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission,
@@ -383,11 +387,7 @@ export function DriverApp() {
   const dismissedDeliveryIds = useDriverStore((state) => state.dismissedDeliveryIds);
   const [snapshot, setSnapshot] = useState<DriverDashboardSnapshot>(emptySnapshot);
   const [billingDebtStatus, setBillingDebtStatus] = useState<BillingDebtStatus | null>(null);
-  const [liveDriverLocation, setLiveDriverLocation] = useState<{
-    lastLat: number;
-    lastLng: number;
-    lastLocationAt: string;
-  } | null>(null);
+  const [liveDriverLocation, setLiveDriverLocation] = useState<DriverLocationReading | null>(null);
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(!supabase);
   const [hasDriverAccess, setHasDriverAccess] = useState(!supabase);
@@ -504,12 +504,20 @@ export function DriverApp() {
   }, [authChecked, hasDriverAccess, loadDashboard, selectedDriverId]);
 
   const profile: DriverProfile = {
-    ...preferFreshDriverLocation(snapshot.profile, liveDriverLocation),
+    ...preferFreshDriverLocation(snapshot.profile, liveDriverLocation ? {
+      lastLat: liveDriverLocation.lat,
+      lastLng: liveDriverLocation.lng,
+      lastLocationAt: new Date(liveDriverLocation.recordedAtMs).toISOString()
+    } : null),
     status: localActiveDelivery ? 'busy' : snapshot.profile.status
   };
   const effectiveDriverId = hasDriverAccess ? selectedDriverId : '';
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
   const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDelivery?.deliveryId);
+
+  useEffect(() => {
+    setLiveDriverLocation(null);
+  }, [effectiveDriverId]);
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess || !effectiveDriverId) return;
@@ -559,16 +567,25 @@ export function DriverApp() {
       void updateDriverLocation(effectiveDriverId, location).catch(() => undefined);
     };
     const onPosition = (position: GeolocationPosition) => {
-      const lastLocationAt = new Date().toISOString();
+      const recordedAtMs = Number.isFinite(position.timestamp) && position.timestamp > 0
+        ? position.timestamp
+        : Date.now();
       latestLocation = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         accuracy: position.coords.accuracy ?? null
       };
       setLiveDriverLocation({
-        lastLat: position.coords.latitude,
-        lastLng: position.coords.longitude,
-        lastLocationAt
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracyM: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+        heading: position.coords.heading !== null && Number.isFinite(position.coords.heading)
+          ? position.coords.heading
+          : null,
+        speedMps: position.coords.speed !== null && Number.isFinite(position.coords.speed)
+          ? position.coords.speed
+          : null,
+        recordedAtMs
       });
       setSnapshot((current) => ({
         ...current,
@@ -576,7 +593,7 @@ export function DriverApp() {
           ...current.profile,
           lastLat: position.coords.latitude,
           lastLng: position.coords.longitude,
-          lastLocationAt
+          lastLocationAt: new Date(recordedAtMs).toISOString()
         }
       }));
       const waitMs = Math.max(0, 5_000 - (Date.now() - lastSentAt));
@@ -723,7 +740,12 @@ export function DriverApp() {
         ) : route === 'active' ? (
           <DriverActiveScreen delivery={activeDelivery} />
         ) : route === 'map' ? (
-          <DriverMapScreen delivery={mapDelivery} profile={profile} onRefresh={loadDashboard} />
+          <DriverMapScreen
+            delivery={mapDelivery}
+            profile={profile}
+            liveDriverLocation={liveDriverLocation}
+            onRefresh={loadDashboard}
+          />
         ) : route === 'qr' ? (
           <DriverQrScreen delivery={activeDelivery} />
         ) : route === 'earnings' ? (
@@ -1860,11 +1882,13 @@ export function DriverRouteLegProgress({
 export function DriverMapScreen({
   delivery,
   profile,
+  liveDriverLocation = null,
   onRefresh,
   onConfirmRestaurantArrival
 }: {
   delivery: DeliveryOffer | null;
   profile: DriverProfile;
+  liveDriverLocation?: DriverLocationReading | null;
   onRefresh?: () => Promise<boolean>;
   onConfirmRestaurantArrival?: (deliveryId: string) => Promise<void>;
 }) {
@@ -1891,12 +1915,18 @@ export function DriverMapScreen({
   const progress = delivery && !['waiting_courier', 'waiting_driver'].includes(delivery.status)
     ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted, delivery.businessType)
     : null;
-  const currentDriverPoint = useMemo(
-    () => profile.lastLat !== null && profile.lastLng !== null
-      ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
-      : null,
-    [profile.lastLat, profile.lastLng]
-  );
+  const storedLocationRecordedAtMs = profile.lastLocationAt ? Date.parse(profile.lastLocationAt) : 0;
+  const storedDriverLocation = profile.lastLat !== null && profile.lastLng !== null
+    ? {
+        lat: profile.lastLat,
+        lng: profile.lastLng,
+        recordedAtMs: Number.isFinite(storedLocationRecordedAtMs) ? storedLocationRecordedAtMs : 0
+      }
+    : null;
+  const freshestDriverLocation = getFreshestDriverLocation(storedDriverLocation, liveDriverLocation);
+  const currentDriverPoint = freshestDriverLocation
+    ? { ...freshestDriverLocation, label: 'Моё местоположение' }
+    : null;
   const yandexRouteUrl = delivery
     ? buildYandexMapsRouteAppUrl({
         to: navigationStage?.activeLeg === 'client'
@@ -1924,12 +1954,15 @@ export function DriverMapScreen({
           ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
         : getDriverRoutePoints({
             status: delivery.status,
-            driver: { lat: profile.lastLat, lng: profile.lastLng },
+            driver: {
+              lat: currentDriverPoint?.lat ?? null,
+              lng: currentDriverPoint?.lng ?? null
+            },
             restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
             client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
           })
       : [],
-    [delivery, mapData, profile.lastLat, profile.lastLng]
+    [currentDriverPoint?.lat, currentDriverPoint?.lng, delivery, mapData]
   );
   const activeRestaurantPoint = useMemo(
     () => activeLeg === 'restaurant' && completeMapData && delivery
