@@ -499,6 +499,26 @@ test('requires the full order amount and a separate restaurant payout for free d
   await expect.element(screen.getByRole('button', { name: 'QR после расчёта' })).toBeDisabled();
 });
 
+test('hides restaurant-funded delivery controls when the client pays for delivery', async () => {
+  const delivery: DeliveryOffer = {
+    ...activeDelivery('arrived_to_restaurant'),
+    orderTotal: 1700,
+    clientDeliveryFee: 200,
+    deliveryFee: 200,
+    restaurantFundsDelivery: false,
+    restaurantDeliveryPayoutAmount: 0
+  };
+  const screen = await render(
+    <MemoryRouter>
+      <DriverActiveScreen delivery={delivery} />
+    </MemoryRouter>
+  );
+
+  await expect.element(screen.getByText(/200 ₽ за доставку остаются у вас из суммы клиента/)).toBeVisible();
+  await expect.element(screen.getByText('2. Оплата доставки')).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: /Я получил 200 ₽ за доставку/ })).not.toBeInTheDocument();
+});
+
 test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {
   const assignedScreen = await render(
     <DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />

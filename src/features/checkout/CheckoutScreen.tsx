@@ -91,6 +91,7 @@ import {
   registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
+import { qualifiesForFreeDelivery } from './deliveryPricing';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -151,6 +152,7 @@ export function CheckoutScreen({
   );
   const usesBankTransfer = checkoutPaymentMethod === 'bank_transfer' && paymentSettings.transferEnabled;
   const freeDeliveryFrom = Math.max(0, deliverySettings.free_delivery_from);
+  const hasFreeDelivery = qualifiesForFreeDelivery(total, freeDeliveryFrom);
   const remainingForFreeDelivery = Math.max(0, freeDeliveryFrom - total);
   const freeDeliveryProgress = freeDeliveryFrom > 0
     ? Math.min(100, (total / freeDeliveryFrom) * 100)
@@ -957,7 +959,7 @@ export function CheckoutScreen({
       </section>
 
       <section className="checkout-delivery-facts">
-        <div><Truck /><span>Стоимость доставки</span><strong>{freeDeliveryFrom > 0 ? '0 ₽' : 'По тарифу'}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
+        <div><Truck /><span>Стоимость доставки</span><strong>{hasFreeDelivery ? '0 ₽' : 'По тарифу'}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
         <div><Clock /><span>Время доставки</span><strong>≈ {deliverySettings.default_preparation_minutes}–{deliverySettings.default_preparation_minutes + 20} мин</strong></div>
         <div><CreditCard /><span>Оплата</span><strong>{usesBankTransfer ? 'Безналично' : 'Наличными'}</strong><small>{usesBankTransfer ? 'переводом' : 'при получении'}</small></div>
       </section>
