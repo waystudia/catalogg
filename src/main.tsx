@@ -43,6 +43,12 @@ const RestaurantActivationPage = lazy(() =>
     default: module.RestaurantActivationPage
   }))
 );
+const ClientPasskeyPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import('./features/client-pairing/ClientPasskeyPreview').then((module) => ({
+        default: module.ClientPasskeyPreview
+      })))
+  : null;
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -70,6 +76,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <PwaResumeTracker />
         <Suspense fallback={<CatalogLoadingScreen />}>
           <Routes>
+            {ClientPasskeyPreview && (
+              <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
+            )}
             <Route path="/" element={<PwaHomeRoute />} />
             <Route path="/city" element={<ClientPlatformApp />} />
             <Route path="/categories" element={<ClientPlatformApp />} />
