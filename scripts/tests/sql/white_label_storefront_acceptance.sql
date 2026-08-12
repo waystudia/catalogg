@@ -225,4 +225,21 @@ $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
+do $$
+begin
+  if has_table_privilege('anon', 'public.catalog_storefront_domains', 'select')
+    or has_table_privilege('anon', 'public.catalog_storefront_domain_events', 'select') then
+    raise exception 'anonymous role can read white-label control tables';
+  end if;
+
+  if has_sequence_privilege(
+    'anon',
+    'public.catalog_storefront_domain_events_id_seq',
+    'usage'
+  ) then
+    raise exception 'anonymous role can use storefront event sequence';
+  end if;
+end;
+$$;
+
 \echo 'White-label storefront acceptance passed.'

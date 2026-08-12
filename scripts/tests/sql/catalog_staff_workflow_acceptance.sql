@@ -260,23 +260,48 @@ end;
 $$;
 
 insert into public.catalogs (
-  id, slug, name, status, is_template, business_type, template_type
+  id, template_version_id, slug, name, status, is_template, business_type, template_type
 )
-values (
+select
   '00000000-0000-4000-8000-000000000202',
+  template_catalog.template_version_id,
   'restaurant-routing-regression-ci',
   'Restaurant regression',
   'draft',
   false,
   'restaurant',
   'restaurant'
-);
+from public.catalogs template_catalog
+where template_catalog.is_template = true
+  and template_catalog.business_type = 'restaurant'
+limit 1;
 
 insert into public.catalog_members (catalog_id, user_id, role)
 values (
   '00000000-0000-4000-8000-000000000202',
   '00000000-0000-4000-8000-000000000103',
   'owner'
+);
+
+insert into public.clients (
+  owner_user_id,
+  catalog_id,
+  company_name,
+  email,
+  status,
+  legal_activation_status,
+  business_type,
+  template_type
+)
+values (
+  '00000000-0000-4000-8000-000000000103',
+  '00000000-0000-4000-8000-000000000202',
+  'Restaurant regression',
+  'restaurant-routing@wayyaam.test',
+  'active',
+  'draft',
+  'restaurant',
+  'restaurant'
 );
 
 insert into public.orders (id, catalog_id, customer_name, customer_phone)
@@ -300,12 +325,31 @@ end;
 $$;
 
 do $$
+declare
+  sensitive_table text;
 begin
-  if has_table_privilege('anon', 'public.order_work_assignments', 'select') then
-    raise exception 'anonymous role can select order assignments';
-  end if;
-  if has_table_privilege('anon', 'public.catalog_staff_memberships', 'select') then
-    raise exception 'anonymous role can select catalog staff';
+  foreach sensitive_table in array array[
+    'catalog_staff_roles',
+    'catalog_staff_permissions',
+    'catalog_staff_role_permissions',
+    'catalog_staff_memberships',
+    'order_work_assignments',
+    'order_work_assignment_events'
+  ] loop
+    if has_table_privilege('anon', format('public.%I', sensitive_table), 'select')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'insert')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'update')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'delete') then
+      raise exception 'anonymous role has direct access to %', sensitive_table;
+    end if;
+  end loop;
+
+  if has_sequence_privilege(
+    'anon',
+    'public.order_work_assignment_events_id_seq',
+    'usage'
+  ) then
+    raise exception 'anonymous role can use order assignment event sequence';
   end if;
 end;
 $$;
