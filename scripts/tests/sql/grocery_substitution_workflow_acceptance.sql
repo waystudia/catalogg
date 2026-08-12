@@ -46,6 +46,12 @@ update public.products
 set allow_substitution = true
 where id = '00000000-0000-4000-8000-000000000302';
 
+select set_config(
+  'wayyaam.test.finiki_catalog_id',
+  (select catalog.id::text from public.catalogs catalog where catalog.slug = 'finiki-ci'),
+  false
+);
+
 insert into public.order_items (
   id,
   catalog_id,
@@ -110,7 +116,7 @@ do $$
 begin
   if (public.get_order_conversation(
     '00000000-0000-4000-8000-000000000331',
-    (select catalog.id from public.catalogs catalog where catalog.slug = 'finiki-ci')
+    current_setting('wayyaam.test.finiki_catalog_id')::uuid
   ) ->> 'viewerKind') <> 'staff' then
     raise exception 'picker cannot read assigned order conversation';
   end if;
@@ -158,7 +164,7 @@ begin
   begin
     perform public.get_order_conversation(
       '00000000-0000-4000-8000-000000000332',
-      (select catalog.id from public.catalogs catalog where catalog.slug = 'finiki-ci')
+      current_setting('wayyaam.test.finiki_catalog_id')::uuid
     );
     raise exception 'expected_other_client_conversation_rejection';
   exception
@@ -169,14 +175,14 @@ begin
 
   if (public.get_order_conversation(
     '00000000-0000-4000-8000-000000000331',
-    (select catalog.id from public.catalogs catalog where catalog.slug = 'finiki-ci')
+    current_setting('wayyaam.test.finiki_catalog_id')::uuid
   ) ->> 'viewerKind') <> 'client' then
     raise exception 'order client cannot read conversation';
   end if;
 
   perform public.send_order_message(
     '00000000-0000-4000-8000-000000000331',
-    (select catalog.id from public.catalogs catalog where catalog.slug = 'finiki-ci'),
+    current_setting('wayyaam.test.finiki_catalog_id')::uuid,
     'Подходит, замените.'
   );
 
