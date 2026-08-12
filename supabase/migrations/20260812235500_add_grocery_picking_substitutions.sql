@@ -951,7 +951,7 @@ begin
     account_record.id, 'client', order_catalog_id, null, order_id_input,
     pg_catalog.trim(subscription_endpoint), pg_catalog.trim(p256dh_key), pg_catalog.trim(auth_key),
     case when pg_catalog.trim(pg_catalog.coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
-      then pg_catalog.trim(trailing '/' from pg_catalog.trim(app_base_url_input)) else '' end,
+      then pg_catalog.rtrim(pg_catalog.trim(app_base_url_input), '/') else '' end,
     pg_catalog.coalesce(
       pg_catalog.nullif(pg_catalog.current_setting('request.headers', true), '')::json ->> 'user-agent',
       ''
