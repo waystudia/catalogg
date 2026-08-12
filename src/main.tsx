@@ -50,6 +50,7 @@ const ClientPasskeyPreview = import.meta.env.DEV
         default: module.ClientPasskeyPreview
       })))
   : null;
+const passkeyPreviewIsActive = import.meta.env.DEV && window.location.hash.startsWith('#/__passkey-preview/');
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -78,31 +79,31 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <Suspense fallback={<CatalogLoadingScreen />}>
           <StorefrontBoundary>
             <Routes>
-            {ClientPasskeyPreview && (
-              <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
-            )}
-            <Route path="/" element={<PwaHomeRoute />} />
-            <Route path="/city" element={<ClientPlatformApp />} />
-            <Route path="/categories" element={<ClientPlatformApp />} />
-            <Route path="/restaurants" element={<ClientPlatformApp />} />
-            <Route path="/cart" element={<ClientPlatformApp />} />
-            <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
-            <Route path="/profile/*" element={<ClientPlatformApp />} />
-            <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/scanner" element={<ScannerPage />} />
-            <Route path="/:slug/scanner" element={<ScannerPage />} />
-            <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
-            <Route path="/admin/payments" element={<PaymentsPage />} />
-            <Route path="/admin/*" element={<PlatformAdminApp />} />
-            <Route path="/driver/*" element={<DriverApp />} />
-            <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
-            <Route path="/:slug" element={<RestaurantPublicRoute />} />
+              {ClientPasskeyPreview && (
+                <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
+              )}
+              <Route path="/" element={<PwaHomeRoute />} />
+              <Route path="/city" element={<ClientPlatformApp />} />
+              <Route path="/categories" element={<ClientPlatformApp />} />
+              <Route path="/restaurants" element={<ClientPlatformApp />} />
+              <Route path="/cart" element={<ClientPlatformApp />} />
+              <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
+              <Route path="/profile/*" element={<ClientPlatformApp />} />
+              <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/scanner" element={<ScannerPage />} />
+              <Route path="/:slug/scanner" element={<ScannerPage />} />
+              <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
+              <Route path="/admin/payments" element={<PaymentsPage />} />
+              <Route path="/admin/*" element={<PlatformAdminApp />} />
+              <Route path="/driver/*" element={<DriverApp />} />
+              <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
+              <Route path="/:slug" element={<RestaurantPublicRoute />} />
             </Routes>
           </StorefrontBoundary>
-          <LegalSurface />
+          {!passkeyPreviewIsActive && <LegalSurface />}
         </Suspense>
       </HashRouter>
     </QueryClientProvider>
