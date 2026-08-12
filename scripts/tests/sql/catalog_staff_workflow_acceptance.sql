@@ -125,16 +125,22 @@ begin
 end;
 $$;
 
+select set_config(
+  'wayyaam.test.picker_assignment_id',
+  (
+    select assignment.id::text
+    from public.order_work_assignments assignment
+    where assignment.order_id = '00000000-0000-4000-8000-000000000331'
+  ),
+  false
+);
+
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000107', false);
 set role authenticated;
 
 do $$
 declare
-  assignment_id uuid := (
-    select assignment.id
-    from public.order_work_assignments assignment
-    where assignment.order_id = '00000000-0000-4000-8000-000000000331'
-  );
+  assignment_id uuid := current_setting('wayyaam.test.picker_assignment_id')::uuid;
 begin
   begin
     perform public.accept_catalog_order_assignment(assignment_id, 1);
