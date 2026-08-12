@@ -530,6 +530,9 @@ export function ClientStatsPanel({ stats }: { stats?: PlatformStats }) {
                       <span>{formatMoney(restaurant.revenue)}</span>
                       <span>{restaurant.ordersCount} заказов</span>
                       <span>Долг {formatMoney(restaurant.debt)}</span>
+                      {(restaurant.testDebt ?? 0) > 0 && (
+                        <span>Тестовый долг {formatMoney(restaurant.testDebt ?? 0)}</span>
+                      )}
                     </div>
                   )}
                 </article>

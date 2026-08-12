@@ -1,4 +1,4 @@
-import type { PlatformClient, PlatformStats } from './platformTypes';
+import type { PlatformClient, PlatformRestaurantStats, PlatformStats } from './platformTypes';
 
 export type PlatformOrderStatsRow = {
   catalog_id?: string | null;
@@ -13,7 +13,6 @@ export type PlatformOrderStatsRow = {
 };
 
 const canceledStatuses = new Set(['canceled', 'cancelled']);
-const defaultRestaurantCommissionRate = 0.07;
 
 const getOrderRestaurantId = (order: PlatformOrderStatsRow) =>
   order.catalog_id || order.restaurant_id || 'unknown-restaurant';
@@ -29,7 +28,7 @@ export const summarizePlatformStats = (
 ): PlatformStats => {
   const productionClients = clients.filter((client) => client.isTest !== true);
   const productionOrders = orders.filter((order) => order.is_test_order !== true);
-  const restaurantStatsById = new Map(
+  const restaurantStatsById = new Map<string, PlatformRestaurantStats>(
     productionClients.map((client) => [
       client.catalogId || client.id,
       {
@@ -38,7 +37,8 @@ export const summarizePlatformStats = (
         name: client.catalogName || client.companyName,
         slug: client.catalogSlug,
         revenue: 0,
-        debt: 0,
+        debt: client.debtAmount,
+        testDebt: client.testDebtAmount ?? 0,
         ordersCount: 0,
         driverDeliveries: 0
       }
@@ -65,7 +65,6 @@ export const summarizePlatformStats = (
     if (!isCanceled) {
       const orderAmount = getOrderAmount(order);
       current.revenue += orderAmount;
-      current.debt += Math.round(orderAmount * defaultRestaurantCommissionRate);
     }
     if (order.delivery_provider === 'platform') {
       current.driverDeliveries += 1;

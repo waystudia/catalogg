@@ -2,7 +2,7 @@ export type RestaurantCourierType = 'staff_salaried' | 'independent';
 
 export const restaurantCourierTypeLabels: Record<RestaurantCourierType, string> = {
   staff_salaried: 'Штатный с зарплатой',
-  independent: 'Самостоятельный без зарплаты'
+  independent: 'Штатный без зарплаты'
 };
 
 export function getCourierBillingRule({ courierType, freeDeliveryThresholdReached }: {

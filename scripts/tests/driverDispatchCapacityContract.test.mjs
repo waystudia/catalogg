@@ -13,6 +13,7 @@ const migrationSql = readdirSync(resolve(repoRoot, 'supabase/migrations'))
 const driversApi = read('src/shared/api/driversApi.ts');
 const platformTypes = read('src/shared/api/platformTypes.ts');
 const driversPage = read('src/features/platform-admin-drivers/PlatformDriversPage.tsx');
+const driverRestaurantEditor = read('src/features/platform-admin-drivers/DriverRestaurantAssignmentsEditor.tsx');
 const restaurantApi = read('src/shared/api/restaurantOrdersApi.ts');
 const restaurantPanel = read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
 const driverApi = read('src/shared/api/deliveryApi.ts');
@@ -38,8 +39,13 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(migrationSql, /platform admins manage restaurant couriers/);
     assert.match(driversApi, /getDriverRestaurantAssignments/);
     assert.match(driversApi, /saveDriverRestaurantAssignments/);
-    assert.match(driversPage, /Привязка к ресторанам/);
-    assert.match(driversPage, /Основной курьер/);
+    assert.match(driversApi, /courier_type/);
+    assert.match(driversApi, /save_driver_restaurant_assignments/);
+    assert.match(driverRestaurantEditor, /Привязка к ресторанам/);
+    assert.match(driverRestaurantEditor, /Основной курьер/);
+    assert.match(driverRestaurantEditor, /Найти ресторан/);
+    assert.match(migrationSql, /create or replace function public\.save_driver_restaurant_assignments/);
+    assert.match(migrationSql, /courier_type[\s\S]*in \('staff_salaried', 'independent'\)/);
   });
 
   it('lets a restaurant owner manage own couriers by driver login email', () => {
