@@ -60,7 +60,7 @@ jobs:
       - name: Multi-business database acceptance
         env:
           PGPASSWORD: postgres
-          WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION: "0"
+          WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION: "1"
         run: bash scripts/tests/runMultiBusinessDatabaseAcceptance.sh
 
       - name: Install browser test runtime
