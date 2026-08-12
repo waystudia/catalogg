@@ -38,6 +38,7 @@ import type { CreateDriverResult, PlatformDriver, PlatformDriverActivity } from 
 import { downloadCsv, downloadXlsx } from '../../shared/exportTable';
 import { copyText } from '../../shared/platformUrls';
 import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
+import { DriverRestaurantAssignmentsEditor } from './DriverRestaurantAssignmentsEditor';
 import './platform-drivers.css';
 
 type DriverFilter = 'all' | 'premium' | 'online' | 'offline' | 'debt';
@@ -112,8 +113,7 @@ function DriverForm({
   const [carNumber, setCarNumber] = useState(driver?.carNumber ?? '');
   const [maxActiveDeliveries, setMaxActiveDeliveries] = useState(driver?.maxActiveDeliveries ?? 1);
   const [isPremium, setIsPremium] = useState(driver?.isPremium ?? false);
-  const [restaurantIds, setRestaurantIds] = useState<string[]>([]);
-  const [primaryRestaurantId, setPrimaryRestaurantId] = useState('');
+  const [restaurantAssignments, setRestaurantAssignments] = useState<Awaited<ReturnType<typeof getDriverRestaurantAssignments>>['assignments']>([]);
   const [password, setPassword] = useState(driver ? '' : generatePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,8 +127,7 @@ function DriverForm({
   useEffect(() => {
     const assignments = assignmentsQuery.data?.assignments;
     if (!assignments) return;
-    setRestaurantIds(assignments.map((assignment) => assignment.restaurantId));
-    setPrimaryRestaurantId(assignments.find((assignment) => assignment.isPrimary)?.restaurantId ?? '');
+    setRestaurantAssignments(assignments);
   }, [assignmentsQuery.data]);
 
   const submit = async (event: FormEvent) => {
@@ -140,6 +139,10 @@ function DriverForm({
     setSaving(true);
     try {
       if (driver) {
+        if (restaurantAssignments.some((assignment) => !assignment.courierType)) {
+          toast.error('Выберите условия работы для каждого подключённого ресторана');
+          return;
+        }
         await updateDriverProfile({
           driverId: driver.id,
           userId: driver.userId,
@@ -153,13 +156,7 @@ function DriverForm({
           isPremium,
           password: password.trim() || undefined
         });
-        await saveDriverRestaurantAssignments(
-          driver.id,
-          restaurantIds.map((restaurantId) => ({
-            restaurantId,
-            isPrimary: restaurantId === primaryRestaurantId
-          }))
-        );
+        await saveDriverRestaurantAssignments(driver.id, restaurantAssignments);
         toast.success('Данные водителя сохранены');
         onSaved();
       } else {
@@ -234,40 +231,12 @@ function DriverForm({
           </select>
         </label>
         {driver && (
-          <fieldset className="platform-driver-form__restaurants">
-            <legend>Привязка к ресторанам</legend>
-            <small>Сначала заказ увидят выбранные курьеры ресторана. Основной курьер отображается первым.</small>
-            {assignmentsQuery.isLoading && <span>Загружаем рестораны…</span>}
-            {assignmentsQuery.data?.restaurants.map((restaurant) => {
-              const checked = restaurantIds.includes(restaurant.id);
-              return (
-                <label key={restaurant.id}>
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(event) => {
-                      setRestaurantIds((current) => event.target.checked
-                        ? [...current, restaurant.id]
-                        : current.filter((id) => id !== restaurant.id));
-                      if (!event.target.checked && primaryRestaurantId === restaurant.id) {
-                        setPrimaryRestaurantId('');
-                      }
-                    }}
-                  />
-                  <span>{restaurant.name}</span>
-                  <input
-                    type="radio"
-                    name="primary-restaurant"
-                    checked={primaryRestaurantId === restaurant.id}
-                    disabled={!checked}
-                    onChange={() => setPrimaryRestaurantId(restaurant.id)}
-                    aria-label={`Основной курьер — ${restaurant.name}`}
-                  />
-                  <b>Основной курьер</b>
-                </label>
-              );
-            })}
-          </fieldset>
+          <DriverRestaurantAssignmentsEditor
+            restaurants={assignmentsQuery.data?.restaurants ?? []}
+            assignments={restaurantAssignments}
+            onChange={setRestaurantAssignments}
+            isLoading={assignmentsQuery.isLoading}
+          />
         )}
         <label className="platform-driver-form__wide">{driver ? 'Новый пароль (необязательно)' : 'Временный пароль'}
           <span className="platform-driver-form__password">
@@ -294,7 +263,7 @@ function DriverForm({
       </div>
       <footer>
         <button type="button" onClick={onClose}>Отмена</button>
-        <button type="submit" disabled={saving || (!driver && !consentConfirmed)}><Check />{saving ? 'Сохраняем…' : 'Сохранить'}</button>
+        <button type="submit" disabled={saving || (!driver && !consentConfirmed) || Boolean(driver && restaurantAssignments.some((assignment) => !assignment.courierType))}><Check />{saving ? 'Сохраняем…' : 'Сохранить'}</button>
       </footer>
     </form>
   );

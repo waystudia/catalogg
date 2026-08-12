@@ -5,7 +5,7 @@ describe('restaurant courier billing rules', () => {
   it('uses explicit labels for both courier types', () => {
     expect(restaurantCourierTypeLabels).toEqual({
       staff_salaried: 'Штатный с зарплатой',
-      independent: 'Самостоятельный без зарплаты'
+      independent: 'Штатный без зарплаты'
     });
   });
 

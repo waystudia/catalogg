@@ -42,6 +42,8 @@ export type PlatformClient = {
   templateVersion: number;
   businessType: BusinessType;
   logoUrl: string;
+  debtAmount: number;
+  testDebtAmount?: number;
   createdAt: string;
   isTest?: boolean;
 };
@@ -180,6 +182,7 @@ export type PlatformRestaurantStats = {
   slug: string;
   revenue: number;
   debt: number;
+  testDebt?: number;
   ordersCount: number;
   driverDeliveries: number;
 };

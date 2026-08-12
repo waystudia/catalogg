@@ -77,6 +77,20 @@ test('production analytics defensively exclude test orders', async () => {
   assert.match(platformStats, /orders\.filter\(\(order\) => order\.is_test_order !== true\)/);
 });
 
+test('platform debt analytics read the persisted production ledger balance', async () => {
+  const [clientsApi, platformStats] = await Promise.all([
+    read('src/shared/api/clientsApi.ts'),
+    read('src/shared/api/platformStats.ts')
+  ]);
+
+  assert.match(clientsApi, /is_test, debt_amount, test_debt_amount, created_at/);
+  assert.match(clientsApi, /debtAmount:\s*Number\(row\.debt_amount \?\? 0\)/);
+  assert.match(clientsApi, /testDebtAmount:\s*Number\(row\.test_debt_amount \?\? 0\)/);
+  assert.match(platformStats, /debt:\s*client\.debtAmount/);
+  assert.match(platformStats, /testDebt:\s*client\.testDebtAmount/);
+  assert.doesNotMatch(platformStats, /defaultRestaurantCommissionRate|orderAmount \* 0\.07/);
+});
+
 test('idempotent seed provisions a full-featured permanent restaurant without committed passwords', async () => {
   const seed = await read('supabase/e2e_accounts_seed.sql');
 

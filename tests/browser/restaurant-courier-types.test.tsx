@@ -50,7 +50,7 @@ test('restaurant must choose the courier type before adding a courier', async ()
 
   expect(service.link).toHaveBeenCalledWith('mangal', 'driver@example.com', 'independent');
   await expect.element(screen.getByText('Адам Курьер', { exact: true })).toBeVisible();
-  await expect.element(screen.getByRole('article').getByText('Самостоятельный без зарплаты', { exact: true })).toBeVisible();
+  await expect.element(screen.getByLabelText('Условия работы для Адам Курьер')).toHaveValue('independent');
 });
 
 test('existing unclassified courier is visibly blocked from new assignments until classified', async () => {
@@ -67,7 +67,25 @@ test('existing unclassified courier is visibly blocked from new assignments unti
 
   await expect.element(screen.getByText('Тип не выбран')).toBeVisible();
   await expect.element(screen.getByText(/нельзя назначать на новые доставки/i)).toBeVisible();
-  await screen.getByLabelText('Тип для Существующий курьер', { exact: true }).selectOptions('staff_salaried');
-  await screen.getByRole('button', { name: 'Сохранить тип для Существующий курьер' }).click();
+  await screen.getByLabelText('Условия работы для Существующий курьер', { exact: true }).selectOptions('staff_salaried');
+  await screen.getByRole('button', { name: 'Сохранить условия для Существующий курьер' }).click();
   expect(service.setType).toHaveBeenCalledWith('mangal', 'driver-old', 'staff_salaried');
+});
+
+test('restaurant can change conditions previously saved by the platform admin', async () => {
+  const service = courierService();
+  vi.mocked(service.list).mockResolvedValue([{
+    driverId: 'driver-shared',
+    name: 'Общий курьер',
+    email: 'shared@example.com',
+    courierType: 'independent',
+    isPrimary: false,
+    priority: 10
+  }]);
+  const { screen } = await renderCourierSettings(service);
+
+  await screen.getByLabelText('Условия работы для Общий курьер').selectOptions('staff_salaried');
+  await screen.getByRole('button', { name: 'Сохранить условия для Общий курьер' }).click();
+
+  expect(service.setType).toHaveBeenCalledWith('mangal', 'driver-shared', 'staff_salaried');
 });
