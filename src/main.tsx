@@ -5,6 +5,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
 import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker';
+import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
   CatalogAdminRoute,
   PwaHomeRoute,
@@ -75,7 +76,8 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <HashRouter>
         <PwaResumeTracker />
         <Suspense fallback={<CatalogLoadingScreen />}>
-          <Routes>
+          <StorefrontBoundary>
+            <Routes>
             {ClientPasskeyPreview && (
               <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
             )}
@@ -98,7 +100,8 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             <Route path="/driver/*" element={<DriverApp />} />
             <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
             <Route path="/:slug" element={<RestaurantPublicRoute />} />
-          </Routes>
+            </Routes>
+          </StorefrontBoundary>
           <LegalSurface />
         </Suspense>
       </HashRouter>

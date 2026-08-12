@@ -46,6 +46,14 @@ describe('background web push contract', () => {
     assert.match(source, /Only catalog members can register restaurant push subscriptions/);
     assert.match(source, /Only the order client can register this client push subscription/);
     assert.match(source, /platform_user\.auth_user_id = auth\.uid\(\)/);
+    assert.match(source, /upsert_client_order_push_subscription/);
+    assert.match(source, /client_account_sessions/);
+    assert.match(source, /client_push_order_ownership_required/);
+    assert.match(source, /app_base_url/);
+    const browserSource = await read('src/shared/webPush.ts');
+    assert.match(browserSource, /getStoredClientSessionToken/);
+    assert.match(browserSource, /upsert_client_order_push_subscription/);
+    assert.match(browserSource, /app_base_url_input/);
   });
 
   it('has a server-side sender that signs Web Push requests with VAPID secrets', async () => {
@@ -102,5 +110,7 @@ describe('background web push contract', () => {
     assert.match(source, /\.eq\('user_id', assigneeUserId\)/);
     assert.match(source, /\.eq\('order_id', orderId\)/);
     assert.match(source, /Товара нет в наличии/);
+    assert.match(source, /subscriptionUrl/);
+    assert.match(source, /#\/\$\{encodeURIComponent\(slug\)\}\/order\//);
   });
 });

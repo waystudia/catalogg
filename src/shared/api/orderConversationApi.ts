@@ -1,5 +1,6 @@
 import type { PickingLineState, SubstitutionDecision } from '../../entities/orderSubstitution';
 import { supabase } from '../supabase';
+import { getStoredClientSessionToken } from './clientAccountApi';
 
 export type OrderSubstitutionState = SubstitutionDecision | 'pending' | 'cancelled';
 
@@ -104,11 +105,12 @@ export const mapOrderConversation = (value: unknown): OrderConversation => {
   };
 };
 
-export async function getOrderConversation(orderId: string, catalogId: string) {
+export async function getOrderConversation(orderId: string, catalogId: string, asClient = false) {
   if (!supabase) return emptyOrderConversation('staff');
   const { data, error } = await supabase.rpc('get_order_conversation', {
     target_order_id: orderId,
-    target_catalog_id: catalogId
+    target_catalog_id: catalogId,
+    client_session_token: asClient ? getStoredClientSessionToken() : null
   });
   if (error) throw new Error(error.message);
   return mapOrderConversation(data);
@@ -154,7 +156,8 @@ export async function resolveOrderSubstitution(input: {
     target_request_id: input.requestId,
     target_decision: input.decision,
     expected_version: input.expectedVersion,
-    target_note: input.note?.trim() ?? ''
+    target_note: input.note?.trim() ?? '',
+    client_session_token: getStoredClientSessionToken()
   });
   if (error) throw new Error(error.message);
   const result = (data ?? {}) as { resolved?: boolean; state?: string };
@@ -162,12 +165,13 @@ export async function resolveOrderSubstitution(input: {
   return result;
 }
 
-export async function sendOrderMessage(orderId: string, catalogId: string, body: string) {
+export async function sendOrderMessage(orderId: string, catalogId: string, body: string, asClient = false) {
   if (!supabase) return crypto.randomUUID();
   const { data, error } = await supabase.rpc('send_order_message', {
     target_order_id: orderId,
     target_catalog_id: catalogId,
-    target_body: body.trim()
+    target_body: body.trim(),
+    client_session_token: asClient ? getStoredClientSessionToken() : null
   });
   if (error) throw new Error(error.message);
   return text(data);

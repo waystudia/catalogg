@@ -72,6 +72,8 @@ import type {
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
+import { scopeSnapshotToStorefront } from '../../entities/storefront';
+import { useStorefrontContext } from '../../features/storefront/storefrontContext';
 import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
@@ -304,9 +306,18 @@ function usePlatformData() {
 export function ClientPlatformApp() {
   return (
     <QueryClientProvider client={clientPlatformQueryClient}>
-      <PwaInstallGuide />
-      <ClientPlatformContent />
+      <ClientPlatformWithInstallGuide />
     </QueryClientProvider>
+  );
+}
+
+function ClientPlatformWithInstallGuide() {
+  const { storefront } = useStorefrontContext();
+  return (
+    <>
+      <PwaInstallGuide appName={storefront?.brandName} />
+      <ClientPlatformContent />
+    </>
   );
 }
 
@@ -347,7 +358,7 @@ const installSlides: Record<Exclude<InstallDevice, null>, Array<{ image: string;
   ]
 };
 
-function PwaInstallGuide() {
+function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
   const [device, setDevice] = useState<InstallDevice>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
@@ -405,7 +416,7 @@ function PwaInstallGuide() {
     <div className="install-guide-backdrop" role="presentation">
       <section className="install-guide" role="dialog" aria-modal="true" aria-labelledby="install-guide-title">
         <span className="install-guide__eyebrow">Конкурсы · скидки · акции</span>
-        <h2 id="install-guide-title">Добавьте WayYaam на главный экран</h2>
+        <h2 id="install-guide-title">Добавьте {appName} на главный экран</h2>
         <p className="install-guide__lead">
           Чтобы участвовать в конкурсах WayYaam и быстрее узнавать о скидках и акциях, сохраните приложение на телефоне.
         </p>
@@ -474,7 +485,7 @@ function PwaInstallGuide() {
             </button>
           ) : device === 'android' && installPrompt ? (
             <button className="install-guide__primary" type="button" onClick={() => void promptAndroidInstall()}>
-              Установить WayYaam <ArrowRight />
+              Установить {appName} <ArrowRight />
             </button>
           ) : null}
           {isLast && (
@@ -490,7 +501,11 @@ function PwaInstallGuide() {
 
 function ClientPlatformContent() {
   const { data } = usePlatformData();
-  const snapshot = data ?? emptyClientPlatformSnapshot;
+  const { storefront } = useStorefrontContext();
+  const unscopedSnapshot = data ?? emptyClientPlatformSnapshot;
+  const snapshot = storefront
+    ? scopeSnapshotToStorefront(unscopedSnapshot, storefront)
+    : unscopedSnapshot;
   const queryClient = useQueryClient();
   const location = useLocation();
   const { slug } = useParams();

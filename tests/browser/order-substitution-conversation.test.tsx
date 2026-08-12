@@ -60,5 +60,6 @@ test('client accepts a substitution and can message the store in the same order 
 
   await screen.getByLabelText('Сообщение').fill('Да, эта замена подходит');
   await screen.getByRole('button', { name: 'Отправить' }).click();
-  expect(send).toHaveBeenCalledWith('order-1', 'catalog-1', 'Да, эта замена подходит');
+  expect(send).toHaveBeenCalledWith('order-1', 'catalog-1', 'Да, эта замена подходит', true);
+  expect(load).toHaveBeenCalledWith('order-1', 'catalog-1', true);
 });

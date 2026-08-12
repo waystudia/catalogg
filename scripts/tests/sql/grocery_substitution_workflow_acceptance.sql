@@ -34,12 +34,36 @@ values
     'client'
   );
 
+insert into public.client_accounts (id, name, phone, phone_normalized)
+values
+  ('00000000-0000-4000-8000-000000000508', 'Клиент продуктов', '+7 999 000-00-08', '79990000008'),
+  ('00000000-0000-4000-8000-000000000510', 'Другой клиент', '+7 999 000-00-10', '79990000010');
+
+insert into public.client_account_sessions (id, account_id, token_hash, expires_at)
+values
+  (
+    '00000000-0000-4000-8000-000000000518',
+    '00000000-0000-4000-8000-000000000508',
+    extensions.digest(pg_catalog.convert_to('grocery-client-token', 'UTF8'), 'sha256'),
+    now() + interval '1 day'
+  ),
+  (
+    '00000000-0000-4000-8000-000000000520',
+    '00000000-0000-4000-8000-000000000510',
+    extensions.digest(pg_catalog.convert_to('other-client-token', 'UTF8'), 'sha256'),
+    now() + interval '1 day'
+  );
+
 update public.orders
-set client_id = '00000000-0000-4000-8000-000000000109'
+set client_id = '00000000-0000-4000-8000-000000000109',
+    customer_phone = '+7 999 000-00-08',
+    client_phone = '+7 999 000-00-08'
 where id = '00000000-0000-4000-8000-000000000331';
 
 update public.orders
-set client_id = '00000000-0000-4000-8000-000000000111'
+set client_id = '00000000-0000-4000-8000-000000000111',
+    customer_phone = '+7 999 000-00-10',
+    client_phone = '+7 999 000-00-10'
 where id = '00000000-0000-4000-8000-000000000332';
 
 update public.products
@@ -153,8 +177,8 @@ begin
 end;
 $$;
 
-select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000108', false);
-set role authenticated;
+select set_config('request.jwt.claim.sub', '', false);
+set role anon;
 
 do $$
 declare
@@ -162,9 +186,26 @@ declare
   result jsonb;
 begin
   begin
+    perform public.upsert_client_order_push_subscription(
+      'grocery-client-token',
+      'https://push.example/foreign-order',
+      'p256dh',
+      'auth',
+      '00000000-0000-4000-8000-000000000332',
+      'https://finiki.example/'
+    );
+    raise exception 'expected_other_client_push_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_other_client_push_rejection' then raise; end if;
+      if sqlerrm <> 'client_push_order_ownership_required' then raise; end if;
+  end;
+
+  begin
     perform public.get_order_conversation(
       '00000000-0000-4000-8000-000000000332',
-      current_setting('wayyaam.test.finiki_catalog_id')::uuid
+      current_setting('wayyaam.test.finiki_catalog_id')::uuid,
+      'grocery-client-token'
     );
     raise exception 'expected_other_client_conversation_rejection';
   exception
@@ -175,24 +216,47 @@ begin
 
   if (public.get_order_conversation(
     '00000000-0000-4000-8000-000000000331',
-    current_setting('wayyaam.test.finiki_catalog_id')::uuid
+    current_setting('wayyaam.test.finiki_catalog_id')::uuid,
+    'grocery-client-token'
   ) ->> 'viewerKind') <> 'client' then
-    raise exception 'order client cannot read conversation';
+    raise exception 'custom-session order client cannot read conversation';
   end if;
+
+  perform public.upsert_client_order_push_subscription(
+    'grocery-client-token',
+    'https://push.example/own-order',
+    'p256dh',
+    'auth',
+    '00000000-0000-4000-8000-000000000331',
+    'https://finiki.example/'
+  );
 
   perform public.send_order_message(
     '00000000-0000-4000-8000-000000000331',
     current_setting('wayyaam.test.finiki_catalog_id')::uuid,
-    'Подходит, замените.'
+    'Подходит, замените.',
+    'grocery-client-token'
   );
 
-  result := public.resolve_order_substitution(request_id, 'accepted', 1, 'Согласовано клиентом');
+  result := public.resolve_order_substitution(
+    request_id,
+    'accepted',
+    1,
+    'Согласовано клиентом',
+    'grocery-client-token'
+  );
   if result ->> 'resolved' <> 'true'
     or result ->> 'state' <> 'accepted'
     or (result ->> 'amountDelta')::integer <> 80 then
     raise exception 'client acceptance result is invalid';
   end if;
-  if (public.resolve_order_substitution(request_id, 'accepted', 1) ->> 'resolved') <> 'false' then
+  if (public.resolve_order_substitution(
+    request_id,
+    'accepted',
+    1,
+    '',
+    'grocery-client-token'
+  ) ->> 'resolved') <> 'false' then
     raise exception 'stale substitution version resolved twice';
   end if;
 end;
@@ -204,6 +268,17 @@ do $$
 declare
   request_id uuid := current_setting('wayyaam.test.substitution_id')::uuid;
 begin
+  if not exists (
+    select 1
+    from public.web_push_subscriptions subscription
+    where subscription.user_id = '00000000-0000-4000-8000-000000000508'
+      and subscription.order_id = '00000000-0000-4000-8000-000000000331'
+      and subscription.role = 'client'
+      and subscription.app_base_url = 'https://finiki.example'
+  ) then
+    raise exception 'custom-session client push subscription missing';
+  end if;
+
   if not exists (
     select 1 from public.order_substitution_requests request
     where request.id = request_id

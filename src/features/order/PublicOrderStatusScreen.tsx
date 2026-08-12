@@ -1,8 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { buildYandexMapsRouteUrl } from './orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
-import { getPublicOrderTracking, getPublicRestaurantOrderStatus, type PublicRestaurantOrderStatus, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import { OrderConversationPanel } from '../order-conversation/OrderConversationPanel';
+import {
+  getCatalogIdBySlug,
+  getPublicOrderTracking,
+  getPublicRestaurantOrderStatus,
+  type PublicRestaurantOrderStatus,
+  type RestaurantOrderStatus
+} from '../../shared/api/restaurantOrdersApi';
+import type { BusinessType } from '../../shared/businessTerminology';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
@@ -15,12 +24,15 @@ const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
 
 export function PublicOrderStatusScreen({
   catalogSlug,
-  orderId
+  orderId,
+  businessType = 'restaurant'
 }: {
   catalogSlug: string;
   orderId: string;
+  businessType?: BusinessType;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const statusQuery = useQuery({
     queryKey: ['public-order-status', orderId],
     queryFn: () => getPublicRestaurantOrderStatus(orderId),
@@ -33,6 +45,18 @@ export function PublicOrderStatusScreen({
     refetchInterval: 10_000,
     enabled: Boolean(order)
   });
+  const catalogIdQuery = useQuery({
+    queryKey: ['public-order-catalog-id', catalogSlug],
+    queryFn: () => getCatalogIdBySlug(catalogSlug),
+    enabled: businessType === 'grocery'
+  });
+
+  useEffect(() => {
+    if (!catalogIdQuery.data || !new URLSearchParams(location.search).has('conversation')) return;
+    window.requestAnimationFrame(() => {
+      document.getElementById('order-conversation')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [catalogIdQuery.data, location.search]);
 
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <>
@@ -94,8 +118,16 @@ export function PublicOrderStatusScreen({
           <strong>{formatPrice(value.total)}</strong>
         </div>
       </section>
+      {businessType === 'grocery' && catalogIdQuery.data && (
+        <OrderConversationPanel
+          orderId={orderId}
+          catalogId={catalogIdQuery.data}
+          expectedViewer="client"
+          onChanged={() => void statusQuery.refetch()}
+        />
+      )}
       <button className="ghost-wide" type="button" onClick={() => navigate(`/${catalogSlug}`)}>
-        Вернуться в ресторан
+        {businessType === 'grocery' ? 'Вернуться в магазин' : 'Вернуться в ресторан'}
       </button>
     </>
   );
@@ -131,4 +163,3 @@ export function PublicOrderStatusScreen({
     </main>
   );
 }
-

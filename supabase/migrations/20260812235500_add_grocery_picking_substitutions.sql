@@ -173,6 +173,35 @@ as $$
   );
 $$;
 
+create or replace function public.is_client_session_order_client(
+  target_order_id uuid,
+  target_catalog_id uuid,
+  client_session_token text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.client_account_sessions session
+    join public.client_accounts account on account.id = session.account_id
+    join public.orders order_record
+      on order_record.id = target_order_id
+     and order_record.catalog_id = target_catalog_id
+    where session.token_hash = extensions.digest(
+        pg_catalog.convert_to(coalesce(client_session_token, ''), 'UTF8'),
+        'sha256'
+      )
+      and session.expires_at > now()
+      and account.phone_normalized = public.normalize_client_phone(
+        coalesce(nullif(order_record.client_phone, ''), order_record.customer_phone)
+      )
+  );
+$$;
+
 create or replace function public.can_work_catalog_order(
   target_order_id uuid,
   target_catalog_id uuid
@@ -498,7 +527,8 @@ create or replace function public.resolve_order_substitution(
   target_request_id uuid,
   target_decision text,
   expected_version integer,
-  target_note text default ''
+  target_note text default '',
+  client_session_token text default null
 )
 returns jsonb
 language plpgsql
@@ -512,7 +542,6 @@ declare
   resolved_delta integer := 0;
   resolved_state text;
 begin
-  if (select auth.uid()) is null then raise exception 'authentication_required'; end if;
   if target_decision not in ('accepted', 'removed', 'alternative_requested') then
     raise exception 'catalog_substitution_decision_invalid';
   end if;
@@ -523,7 +552,14 @@ begin
   for update;
 
   if request_record.id is null then raise exception 'catalog_substitution_not_found'; end if;
-  if not public.is_current_order_client(request_record.order_id, request_record.catalog_id) then
+  if not (
+    public.is_current_order_client(request_record.order_id, request_record.catalog_id)
+    or public.is_client_session_order_client(
+      request_record.order_id,
+      request_record.catalog_id,
+      client_session_token
+    )
+  ) then
     raise exception 'catalog_substitution_client_required';
   end if;
   if request_record.state <> 'pending' or request_record.version <> expected_version then
@@ -661,7 +697,8 @@ $$;
 create or replace function public.send_order_message(
   target_order_id uuid,
   target_catalog_id uuid,
-  target_body text
+  target_body text,
+  client_session_token text default null
 )
 returns uuid
 language plpgsql
@@ -673,11 +710,11 @@ declare
   resolved_sender_kind text;
   created_message_id uuid;
 begin
-  if (select auth.uid()) is null then raise exception 'authentication_required'; end if;
   if char_length(normalized_body) < 1 or char_length(normalized_body) > 2000 then
     raise exception 'order_message_body_invalid';
   end if;
-  if public.is_current_order_client(target_order_id, target_catalog_id) then
+  if public.is_current_order_client(target_order_id, target_catalog_id)
+    or public.is_client_session_order_client(target_order_id, target_catalog_id, client_session_token) then
     resolved_sender_kind := 'client';
   elsif public.can_access_order_conversation(target_order_id, target_catalog_id) then
     resolved_sender_kind := 'staff';
@@ -702,7 +739,8 @@ $$;
 
 create or replace function public.get_order_conversation(
   target_order_id uuid,
-  target_catalog_id uuid
+  target_catalog_id uuid,
+  client_session_token text default null
 )
 returns jsonb
 language plpgsql
@@ -713,11 +751,15 @@ as $$
 declare
   viewer_kind text;
 begin
-  if not public.can_access_order_conversation(target_order_id, target_catalog_id) then
+  if not (
+    public.can_access_order_conversation(target_order_id, target_catalog_id)
+    or public.is_client_session_order_client(target_order_id, target_catalog_id, client_session_token)
+  ) then
     raise exception 'order_conversation_access_required';
   end if;
   viewer_kind := case
-    when public.is_current_order_client(target_order_id, target_catalog_id) then 'client'
+    when public.is_current_order_client(target_order_id, target_catalog_id)
+      or public.is_client_session_order_client(target_order_id, target_catalog_id, client_session_token) then 'client'
     else 'staff'
   end;
 
@@ -772,23 +814,25 @@ grant insert, update on table public.order_payment_adjustments to service_role;
 grant insert on table public.order_messages to service_role;
 
 revoke all on function public.is_current_order_client(uuid, uuid) from public, anon;
+revoke all on function public.is_client_session_order_client(uuid, uuid, text) from public, anon, authenticated;
 revoke all on function public.can_work_catalog_order(uuid, uuid) from public, anon;
 revoke all on function public.can_access_order_conversation(uuid, uuid) from public, anon;
 revoke all on function public.recalculate_catalog_order_totals(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.mark_catalog_order_item_picked(uuid, integer) from public, anon;
 revoke all on function public.propose_catalog_order_substitution(uuid, uuid, uuid, integer, text) from public, anon;
-revoke all on function public.resolve_order_substitution(uuid, text, integer, text) from public, anon;
-revoke all on function public.send_order_message(uuid, uuid, text) from public, anon;
-revoke all on function public.get_order_conversation(uuid, uuid) from public, anon;
+revoke all on function public.resolve_order_substitution(uuid, text, integer, text, text) from public, anon;
+revoke all on function public.send_order_message(uuid, uuid, text, text) from public, anon;
+revoke all on function public.get_order_conversation(uuid, uuid, text) from public, anon;
 
 grant execute on function public.is_current_order_client(uuid, uuid) to authenticated, service_role;
+grant execute on function public.is_client_session_order_client(uuid, uuid, text) to service_role;
 grant execute on function public.can_work_catalog_order(uuid, uuid) to authenticated, service_role;
 grant execute on function public.can_access_order_conversation(uuid, uuid) to authenticated, service_role;
 grant execute on function public.mark_catalog_order_item_picked(uuid, integer) to authenticated, service_role;
 grant execute on function public.propose_catalog_order_substitution(uuid, uuid, uuid, integer, text) to authenticated, service_role;
-grant execute on function public.resolve_order_substitution(uuid, text, integer, text) to authenticated, service_role;
-grant execute on function public.send_order_message(uuid, uuid, text) to authenticated, service_role;
-grant execute on function public.get_order_conversation(uuid, uuid) to authenticated, service_role;
+grant execute on function public.resolve_order_substitution(uuid, text, integer, text, text) to anon, authenticated, service_role;
+grant execute on function public.send_order_message(uuid, uuid, text, text) to anon, authenticated, service_role;
+grant execute on function public.get_order_conversation(uuid, uuid, text) to anon, authenticated, service_role;
 
 do $$
 begin
@@ -817,9 +861,23 @@ begin
       or not exists (
         select 1
         from public.orders order_record
-        join public.users platform_user on platform_user.id = order_record.client_id
         where order_record.id = new.order_id
-          and platform_user.auth_user_id = new.user_id
+          and (
+            exists (
+              select 1
+              from public.users platform_user
+              where platform_user.id = order_record.client_id
+                and platform_user.auth_user_id = new.user_id
+            )
+            or exists (
+              select 1
+              from public.client_accounts account
+              where account.id = new.user_id
+                and account.phone_normalized = public.normalize_client_phone(
+                  pg_catalog.coalesce(order_record.client_phone, order_record.customer_phone, '')
+                )
+            )
+          )
       )
     ) then
     raise exception 'client_push_order_ownership_required';
@@ -833,11 +891,100 @@ revoke all on function public.protect_client_order_push_subscription() from publ
 do $$
 begin
   if to_regclass('public.web_push_subscriptions') is not null then
+    execute format(
+      'alter table public.web_push_subscriptions add column if not exists app_base_url text not null default %L',
+      ''
+    );
     execute 'drop trigger if exists protect_client_order_push_subscription on public.web_push_subscriptions';
     execute 'create trigger protect_client_order_push_subscription before insert or update of role, order_id, user_id on public.web_push_subscriptions for each row execute function public.protect_client_order_push_subscription()';
   end if;
 end;
 $$;
+
+create or replace function public.upsert_client_order_push_subscription(
+  client_session_token text,
+  subscription_endpoint text,
+  p256dh_key text,
+  auth_key text,
+  order_id_input uuid,
+  app_base_url_input text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  account_record public.client_accounts%rowtype;
+  order_catalog_id uuid;
+  subscription_id uuid;
+begin
+  select account.*
+  into account_record
+  from public.client_account_sessions session
+  join public.client_accounts account on account.id = session.account_id
+  where session.token_hash = extensions.digest(
+      pg_catalog.convert_to(pg_catalog.coalesce(client_session_token, ''), 'UTF8'),
+      'sha256'
+    )
+    and session.expires_at > pg_catalog.now();
+
+  if account_record.id is null then
+    raise exception 'client_session_invalid';
+  end if;
+
+  select order_record.catalog_id
+  into order_catalog_id
+  from public.orders order_record
+  where order_record.id = order_id_input
+    and public.normalize_client_phone(
+      pg_catalog.coalesce(order_record.client_phone, order_record.customer_phone, '')
+    ) = account_record.phone_normalized;
+
+  if order_catalog_id is null then
+    raise exception 'client_push_order_ownership_required';
+  end if;
+
+  insert into public.web_push_subscriptions (
+    user_id, role, catalog_id, driver_id, order_id, endpoint, p256dh, auth, app_base_url, user_agent, last_seen_at
+  ) values (
+    account_record.id, 'client', order_catalog_id, null, order_id_input,
+    pg_catalog.trim(subscription_endpoint), pg_catalog.trim(p256dh_key), pg_catalog.trim(auth_key),
+    case when pg_catalog.trim(pg_catalog.coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
+      then pg_catalog.trim(trailing '/' from pg_catalog.trim(app_base_url_input)) else '' end,
+    pg_catalog.coalesce(
+      pg_catalog.nullif(pg_catalog.current_setting('request.headers', true), '')::json ->> 'user-agent',
+      ''
+    ),
+    pg_catalog.now()
+  )
+  on conflict (user_id, endpoint) do update set
+    role = excluded.role,
+    catalog_id = excluded.catalog_id,
+    driver_id = excluded.driver_id,
+    order_id = excluded.order_id,
+    p256dh = excluded.p256dh,
+    auth = excluded.auth,
+    app_base_url = excluded.app_base_url,
+    user_agent = excluded.user_agent,
+    last_seen_at = pg_catalog.now()
+  returning id into subscription_id;
+
+  update public.client_account_sessions
+  set last_used_at = pg_catalog.now()
+  where token_hash = extensions.digest(
+    pg_catalog.convert_to(pg_catalog.coalesce(client_session_token, ''), 'UTF8'),
+    'sha256'
+  );
+
+  return subscription_id;
+end;
+$$;
+
+revoke all on function public.upsert_client_order_push_subscription(text, text, text, text, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.upsert_client_order_push_subscription(text, text, text, text, uuid, text)
+  to anon, authenticated, service_role;
 
 do $$
 begin

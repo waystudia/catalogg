@@ -55,7 +55,7 @@ export function OrderConversationPanel({
 
   const refresh = useCallback(async () => {
     try {
-      const next = await api.load(orderId, catalogId);
+      const next = await api.load(orderId, catalogId, expectedViewer === 'client');
       setConversation(next);
       setError('');
     } catch (caught) {
@@ -63,13 +63,21 @@ export function OrderConversationPanel({
     } finally {
       setLoading(false);
     }
-  }, [api, catalogId, orderId]);
+  }, [api, catalogId, expectedViewer, orderId]);
 
   useEffect(() => {
     if (initialConversation) return;
     void refresh();
     return api.subscribe(orderId, () => void refresh());
   }, [api, initialConversation, orderId, refresh]);
+
+  useEffect(() => {
+    if (initialConversation || expectedViewer !== 'client') return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh();
+    }, 12_000);
+    return () => window.clearInterval(interval);
+  }, [expectedViewer, initialConversation, refresh]);
 
   const pending = useMemo(
     () => conversation.substitutions.filter((request) => request.state === 'pending'),
@@ -96,7 +104,7 @@ export function OrderConversationPanel({
     if (!body || sending) return;
     setSending(true);
     try {
-      await api.send(orderId, catalogId, body);
+      await api.send(orderId, catalogId, body, expectedViewer === 'client');
       setMessage('');
       await refresh();
       onChanged?.();
@@ -114,7 +122,7 @@ export function OrderConversationPanel({
   };
 
   return (
-    <section className="order-conversation" aria-label="Чат заказа">
+    <section id="order-conversation" className="order-conversation" aria-label="Чат заказа">
       <header>
         <div>
           <h3><MessageCircle /> Чат по заказу</h3>

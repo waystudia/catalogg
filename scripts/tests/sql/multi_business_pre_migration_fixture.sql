@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 create schema if not exists auth;
 
 do $$
@@ -96,6 +97,41 @@ create table public.users (
   role text not null default 'client'
 );
 
+create table public.client_accounts (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text not null,
+  phone_normalized text not null unique,
+  password_hash text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.client_account_sessions (
+  id uuid primary key default gen_random_uuid(),
+  account_id uuid not null references public.client_accounts(id) on delete cascade,
+  token_hash bytea not null unique,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz not null default now()
+);
+
+create or replace function public.normalize_client_phone(raw_phone text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select case
+    when char_length(regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g')) = 11
+      and left(regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g'), 1) = '8'
+      then '7' || substring(regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g') from 2)
+    when char_length(regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g')) = 10
+      then '7' || regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g')
+    else regexp_replace(coalesce(raw_phone, ''), '[^0-9]', '', 'g')
+  end;
+$$;
+
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
@@ -123,12 +159,30 @@ create table public.orders (
   status public.order_status not null default 'new',
   customer_name text not null default '',
   customer_phone text not null default '',
+  client_phone text not null default '',
   subtotal integer not null default 0,
   subtotal_amount integer not null default 0,
   delivery_fee integer not null default 0,
   total_amount integer not null default 0,
   total integer not null default 0,
   payment_status text not null default 'unpaid'
+);
+
+create table public.web_push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  role text not null,
+  catalog_id uuid references public.catalogs(id) on delete cascade,
+  driver_id uuid,
+  order_id uuid references public.orders(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  app_base_url text not null default '',
+  user_agent text not null default '',
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (user_id, endpoint)
 );
 
 create table public.order_items (

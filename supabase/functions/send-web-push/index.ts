@@ -16,6 +16,7 @@ type Subscription = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  app_base_url?: string | null;
 };
 
 const corsHeaders = {
@@ -57,7 +58,18 @@ const orderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/orders?order=${encodeURIComponent(orderId)}`;
 
 const clientOrderUrl = (slug: string, orderId: string) =>
-  `${appBaseUrl()}#/restaurants/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
+  `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
+
+const subscriptionUrl = (fallbackUrl: string, subscription: Subscription) => {
+  const base = asString(subscription.app_base_url).replace(/\/$/, '');
+  if (!base || !/^https:\/\//i.test(base)) return fallbackUrl;
+  try {
+    const target = new URL(fallbackUrl);
+    return target.hash ? `${base}/${target.hash}` : fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
+};
 
 const uniqueSubscriptions = (items: Subscription[]) =>
   Array.from(new Map(items.map((item) => [item.endpoint, item])).values());
@@ -103,7 +115,7 @@ Deno.serve(async (request) => {
       url = asString(record.url) || `${appBaseUrl()}#/`;
       tag = `web-push-test-${role}`;
 
-      let query = admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', role);
+      let query = admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth, app_base_url').eq('role', role);
       const driverId = asId(record.driver_id);
       const catalogId = asId(record.catalog_id);
       if (role === 'driver' && driverId) query = query.eq('driver_id', driverId);
@@ -127,8 +139,8 @@ Deno.serve(async (request) => {
       tag = `order-${orderId}`;
 
       const [{ data: restaurantSubscriptions }, { data: adminSubscriptions }] = await Promise.all([
-        admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'restaurant').eq('catalog_id', catalogId),
-        admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'super_admin')
+        admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth, app_base_url').eq('role', 'restaurant').eq('catalog_id', catalogId),
+        admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth, app_base_url').eq('role', 'super_admin')
       ]);
       subscriptions = [...(restaurantSubscriptions ?? []), ...(adminSubscriptions ?? [])] as Subscription[];
     }
@@ -151,7 +163,7 @@ Deno.serve(async (request) => {
       if (assigneeUserId && ['offered', 'accepted'].includes(state)) {
         const { data } = await admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'restaurant')
           .eq('catalog_id', catalogId)
           .eq('user_id', assigneeUserId);
@@ -175,7 +187,7 @@ Deno.serve(async (request) => {
         url = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
         const { data } = await admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'client')
           .eq('order_id', orderId);
         subscriptions = (data ?? []) as Subscription[];
@@ -196,7 +208,7 @@ Deno.serve(async (request) => {
         const assigneeUserId = asId(activeAssignment?.assignee_user_id);
         let query = admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'restaurant')
           .eq('catalog_id', catalogId);
         if (assigneeUserId) query = query.eq('user_id', assigneeUserId);
@@ -226,7 +238,7 @@ Deno.serve(async (request) => {
         const assigneeUserId = asId(activeAssignment?.assignee_user_id);
         let query = admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'restaurant')
           .eq('catalog_id', catalogId);
         if (assigneeUserId) query = query.eq('user_id', assigneeUserId);
@@ -236,7 +248,7 @@ Deno.serve(async (request) => {
         url = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
         const { data } = await admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'client')
           .eq('order_id', orderId);
         subscriptions = (data ?? []) as Subscription[];
@@ -261,7 +273,7 @@ Deno.serve(async (request) => {
       if (driverId) {
         const { data } = await admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'driver')
           .eq('driver_id', driverId);
         driverSubscriptions = (data ?? []) as Subscription[];
@@ -326,24 +338,29 @@ Deno.serve(async (request) => {
 
       const { data: adminSubscriptions } = await admin
         .from('web_push_subscriptions')
-        .select('id, endpoint, p256dh, auth')
+        .select('id, endpoint, p256dh, auth, app_base_url')
         .eq('role', 'super_admin');
       subscriptions = [...driverSubscriptions, ...((adminSubscriptions ?? []) as Subscription[])];
 
       if (catalogId && event.type === 'UPDATE' && record.status === 'delivered') {
         const { data: restaurantSubscriptions } = await admin
           .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth')
+          .select('id, endpoint, p256dh, auth, app_base_url')
           .eq('role', 'restaurant')
           .eq('catalog_id', catalogId);
         subscriptions.push(...((restaurantSubscriptions ?? []) as Subscription[]));
       }
     }
 
-    const payload = JSON.stringify({ title, body, url, tag });
     let sent = 0;
     for (const subscription of uniqueSubscriptions(subscriptions)) {
       try {
+        const payload = JSON.stringify({
+          title,
+          body,
+          url: subscriptionUrl(url, subscription),
+          tag
+        });
         await webpush.sendNotification(
           { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
           payload
