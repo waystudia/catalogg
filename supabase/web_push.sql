@@ -92,8 +92,18 @@ begin
     raise exception 'Only catalog members can register restaurant push subscriptions';
   end if;
 
-  if role_name = 'client' and order_id_input is null then
-    raise exception 'Client push subscriptions require an order';
+  if role_name = 'client'
+    and (
+      order_id_input is null
+      or not exists (
+        select 1
+        from public.orders order_record
+        join public.users platform_user on platform_user.id = order_record.client_id
+        where order_record.id = order_id_input
+          and platform_user.auth_user_id = auth.uid()
+      )
+    ) then
+    raise exception 'Only the order client can register this client push subscription';
   end if;
 
   insert into public.web_push_subscriptions (

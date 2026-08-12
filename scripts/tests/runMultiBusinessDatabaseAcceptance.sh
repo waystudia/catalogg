@@ -20,6 +20,10 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     psql --set ON_ERROR_STOP=1 \
       --file supabase/migrations/20260812223500_add_catalog_staff_workflow.sql
   fi
+  if [[ -f supabase/migrations/20260812235500_add_grocery_picking_substitutions.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260812235500_add_grocery_picking_substitutions.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \
@@ -30,3 +34,6 @@ psql --set ON_ERROR_STOP=1 \
 
 psql --set ON_ERROR_STOP=1 \
   --file scripts/tests/sql/catalog_staff_workflow_acceptance.sql
+
+psql --set ON_ERROR_STOP=1 \
+  --file scripts/tests/sql/grocery_substitution_workflow_acceptance.sql

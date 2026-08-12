@@ -45,10 +45,16 @@ export type RestaurantOrderFulfillment = 'hall' | 'takeaway' | 'delivery';
 
 export type RestaurantOrderItem = {
   id: string;
+  productId?: string | null;
   title: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  saleUnit?: 'piece' | 'weight';
+  quantityUnit?: 'piece' | 'gram' | 'milliliter';
+  requestedQuantity?: number;
+  fulfilledQuantity?: number;
+  fulfillmentState?: 'pending' | 'picked' | 'unavailable' | 'substitution_pending' | 'substituted' | 'removed';
 };
 
 export type RestaurantOrder = {
@@ -264,10 +270,16 @@ type OrderRow = {
   }>;
   order_items?: Array<{
     id: string;
+    product_id?: string | null;
     title: string;
     quantity: number;
     unit_price: number;
     line_total: number;
+    sale_unit_snapshot?: 'piece' | 'weight' | null;
+    quantity_unit_snapshot?: 'piece' | 'gram' | 'milliliter' | null;
+    requested_quantity?: number | null;
+    fulfilled_quantity?: number | null;
+    fulfillment_state?: RestaurantOrderItem['fulfillmentState'] | null;
   }>;
 };
 
@@ -330,10 +342,16 @@ type PublicRestaurantOrderStatusRow = {
 
 type PublicRestaurantOrderStatusItemRow = {
   id?: unknown;
+  product_id?: unknown;
   title?: unknown;
   quantity?: unknown;
   unit_price?: unknown;
   line_total?: unknown;
+  sale_unit_snapshot?: unknown;
+  quantity_unit_snapshot?: unknown;
+  requested_quantity?: unknown;
+  fulfilled_quantity?: unknown;
+  fulfillment_state?: unknown;
 };
 
 const demoOrders: RestaurantOrder[] = [
@@ -385,8 +403,8 @@ const demoOrders: RestaurantOrder[] = [
     qrExpiresAt: null,
     verificationCode: '4821',
     items: [
-      { id: 'demo-item-1', title: 'Шашлык из баранины', quantity: 1, unitPrice: 690, lineTotal: 690 },
-      { id: 'demo-item-2', title: 'Чеченский чай', quantity: 2, unitPrice: 245, lineTotal: 490 }
+      { id: 'demo-item-1', productId: null, title: 'Шашлык из баранины', quantity: 1, unitPrice: 690, lineTotal: 690, saleUnit: 'piece', quantityUnit: 'piece', requestedQuantity: 1, fulfilledQuantity: 0, fulfillmentState: 'pending' },
+      { id: 'demo-item-2', productId: null, title: 'Чеченский чай', quantity: 2, unitPrice: 245, lineTotal: 490, saleUnit: 'piece', quantityUnit: 'piece', requestedQuantity: 2, fulfilledQuantity: 0, fulfillmentState: 'pending' }
     ]
   }
 ];
@@ -427,7 +445,7 @@ const orderSelect = `
   restaurant_payment_confirmed_at,
   restaurants(city_id, cities(name)),
   deliveries(id, status, driver_id, updated_at, pickup_qr_confirmed_at, offered_fee, drivers(name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at)),
-  order_items(id, title, quantity, unit_price, line_total)
+  order_items(id, product_id, title, quantity, unit_price, line_total, sale_unit_snapshot, quantity_unit_snapshot, requested_quantity, fulfilled_quantity, fulfillment_state)
 `;
 
 const selectRelevantDelivery = (deliveries: OrderRow['deliveries']) => {
@@ -525,10 +543,16 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     verificationCode: row.verification_code ?? null,
     items: (row.order_items ?? []).map((item) => ({
       id: item.id,
+      productId: item.product_id ?? null,
       title: item.title,
       quantity: item.quantity,
       unitPrice: item.unit_price,
-      lineTotal: item.line_total
+      lineTotal: item.line_total,
+      saleUnit: item.sale_unit_snapshot ?? 'piece',
+      quantityUnit: item.quantity_unit_snapshot ?? 'piece',
+      requestedQuantity: Number(item.requested_quantity ?? item.quantity),
+      fulfilledQuantity: Number(item.fulfilled_quantity ?? 0),
+      fulfillmentState: item.fulfillment_state ?? 'pending'
     }))
   };
 };
@@ -728,10 +752,16 @@ const mapPublicOrderStatus = (row: PublicRestaurantOrderStatusRow): PublicRestau
     const orderItem = item as PublicRestaurantOrderStatusItemRow;
     return {
       id: stringValue(orderItem.id),
+      productId: nullableStringValue(orderItem.product_id),
       title: stringValue(orderItem.title),
       quantity: numberValue(orderItem.quantity),
       unitPrice: numberValue(orderItem.unit_price),
-      lineTotal: numberValue(orderItem.line_total)
+      lineTotal: numberValue(orderItem.line_total),
+      saleUnit: stringValue(orderItem.sale_unit_snapshot, 'piece') as RestaurantOrderItem['saleUnit'],
+      quantityUnit: stringValue(orderItem.quantity_unit_snapshot, 'piece') as RestaurantOrderItem['quantityUnit'],
+      requestedQuantity: orderItem.requested_quantity == null ? numberValue(orderItem.quantity) : numberValue(orderItem.requested_quantity),
+      fulfilledQuantity: numberValue(orderItem.fulfilled_quantity),
+      fulfillmentState: stringValue(orderItem.fulfillment_state, 'pending') as RestaurantOrderItem['fulfillmentState']
     };
   })
 });

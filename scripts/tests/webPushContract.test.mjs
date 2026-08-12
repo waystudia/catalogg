@@ -44,6 +44,8 @@ describe('background web push contract', () => {
     assert.match(source, /Only platform administrators can register super-admin push/);
     assert.match(source, /Only the driver can register this driver push subscription/);
     assert.match(source, /Only catalog members can register restaurant push subscriptions/);
+    assert.match(source, /Only the order client can register this client push subscription/);
+    assert.match(source, /platform_user\.auth_user_id = auth\.uid\(\)/);
   });
 
   it('has a server-side sender that signs Web Push requests with VAPID secrets', async () => {
@@ -87,5 +89,18 @@ describe('background web push contract', () => {
     assert.match(source, /net\.http_post/);
     assert.match(source, /web_push_orders_event/);
     assert.match(source, /web_push_deliveries_event/);
+    assert.match(source, /web_push_order_work_assignment_event/);
+    assert.match(source, /web_push_order_substitution_event/);
+    assert.match(source, /web_push_order_message_event/);
+  });
+
+  it('routes staff assignments, substitution decisions and chat to exact participants', async () => {
+    const source = await read('supabase/functions/send-web-push/index.ts');
+    assert.match(source, /event\.table === 'order_work_assignments'/);
+    assert.match(source, /event\.table === 'order_substitution_requests'/);
+    assert.match(source, /event\.table === 'order_messages'/);
+    assert.match(source, /\.eq\('user_id', assigneeUserId\)/);
+    assert.match(source, /\.eq\('order_id', orderId\)/);
+    assert.match(source, /Товара нет в наличии/);
   });
 });

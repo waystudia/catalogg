@@ -71,6 +71,7 @@ import type {
 } from '../../features/client-platform/types';
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
+import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
 import {
   createClientPlatformOrder,
   getClientPlatformSnapshot,
@@ -2440,6 +2441,13 @@ function OrderStatusPage({
               />
             </section>
           )}
+        {restaurant.businessType === 'grocery' && (
+          <OrderConversationPanel
+            orderId={order.id}
+            catalogId={restaurant.id}
+            expectedViewer="client"
+          />
+        )}
         <a
           className="secondary-flow-button"
           href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)}

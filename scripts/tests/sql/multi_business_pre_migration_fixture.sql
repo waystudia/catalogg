@@ -87,6 +87,15 @@ create table public.catalog_members (
   primary key (catalog_id, user_id)
 );
 
+create table public.users (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid references auth.users(id) on delete set null,
+  name text not null default '',
+  phone text not null default '',
+  email text not null default '',
+  role text not null default 'client'
+);
+
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
@@ -110,11 +119,16 @@ create table public.products (
 create table public.orders (
   id uuid primary key default gen_random_uuid(),
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
+  client_id uuid references public.users(id) on delete set null,
   status public.order_status not null default 'new',
   customer_name text not null default '',
   customer_phone text not null default '',
   subtotal integer not null default 0,
-  total integer not null default 0
+  subtotal_amount integer not null default 0,
+  delivery_fee integer not null default 0,
+  total_amount integer not null default 0,
+  total integer not null default 0,
+  payment_status text not null default 'unpaid'
 );
 
 create table public.order_items (

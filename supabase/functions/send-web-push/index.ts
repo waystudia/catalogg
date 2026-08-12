@@ -56,6 +56,9 @@ const appBaseUrl = () => {
 const orderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/orders?order=${encodeURIComponent(orderId)}`;
 
+const clientOrderUrl = (slug: string, orderId: string) =>
+  `${appBaseUrl()}#/restaurants/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
+
 const uniqueSubscriptions = (items: Subscription[]) =>
   Array.from(new Map(items.map((item) => [item.endpoint, item])).values());
 
@@ -128,6 +131,116 @@ Deno.serve(async (request) => {
         admin.from('web_push_subscriptions').select('id, endpoint, p256dh, auth').eq('role', 'super_admin')
       ]);
       subscriptions = [...(restaurantSubscriptions ?? []), ...(adminSubscriptions ?? [])] as Subscription[];
+    }
+
+    if (event.table === 'order_work_assignments') {
+      const orderId = asId(record.order_id);
+      const catalogId = asId(record.catalog_id);
+      const assigneeUserId = asId(record.assignee_user_id);
+      const state = asString(record.state);
+      const [{ data: catalog }, { data: order }] = await Promise.all([
+        admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle(),
+        admin.from('orders').select('client_name, customer_name').eq('id', orderId).maybeSingle()
+      ]);
+      const slug = asString(catalog?.slug);
+      title = state === 'offered' ? 'Новый заказ на сборку' : 'Назначение заказа обновлено';
+      body = `${asString(order?.client_name || order?.customer_name) || 'Клиент'} · заказ #${orderId.slice(0, 8).toUpperCase()}`;
+      url = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+      tag = `order-assignment-${orderId}`;
+
+      if (assigneeUserId && ['offered', 'accepted'].includes(state)) {
+        const { data } = await admin
+          .from('web_push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('role', 'restaurant')
+          .eq('catalog_id', catalogId)
+          .eq('user_id', assigneeUserId);
+        subscriptions = (data ?? []) as Subscription[];
+      }
+    }
+
+    if (event.table === 'order_substitution_requests') {
+      const orderId = asId(record.order_id);
+      const catalogId = asId(record.catalog_id);
+      const state = asString(record.state);
+      const { data: catalog } = await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle();
+      const slug = asString(catalog?.slug);
+      tag = `order-substitution-${asId(record.id) || orderId}`;
+
+      if (state === 'pending') {
+        const proposedTitle = asString(record.proposed_title_snapshot) || 'Предложена замена';
+        const priceDelta = Number(record.price_delta ?? 0);
+        title = 'Товара нет в наличии';
+        body = `${proposedTitle}${priceDelta === 0 ? ' · цена не изменится' : priceDelta > 0 ? ` · доплата ${priceDelta} ₽` : ` · возврат ${Math.abs(priceDelta)} ₽`}`;
+        url = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+        const { data } = await admin
+          .from('web_push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('role', 'client')
+          .eq('order_id', orderId);
+        subscriptions = (data ?? []) as Subscription[];
+      } else if (['accepted', 'removed', 'alternative_requested'].includes(state)) {
+        title = 'Решение по замене';
+        body = state === 'accepted'
+          ? 'Клиент принял предложенную замену'
+          : state === 'removed'
+            ? 'Клиент попросил убрать товар'
+            : 'Клиент попросил предложить другой товар';
+        url = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+        const { data: activeAssignment } = await admin
+          .from('order_work_assignments')
+          .select('assignee_user_id')
+          .eq('order_id', orderId)
+          .eq('state', 'accepted')
+          .maybeSingle();
+        const assigneeUserId = asId(activeAssignment?.assignee_user_id);
+        let query = admin
+          .from('web_push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('role', 'restaurant')
+          .eq('catalog_id', catalogId);
+        if (assigneeUserId) query = query.eq('user_id', assigneeUserId);
+        const { data } = await query;
+        subscriptions = (data ?? []) as Subscription[];
+      }
+    }
+
+    if (event.table === 'order_messages') {
+      const orderId = asId(record.order_id);
+      const catalogId = asId(record.catalog_id);
+      const senderKind = asString(record.sender_kind);
+      const { data: catalog } = await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle();
+      const slug = asString(catalog?.slug);
+      title = 'Новое сообщение по заказу';
+      body = asString(record.body) || 'Откройте заказ, чтобы прочитать сообщение';
+      tag = `order-message-${orderId}`;
+
+      if (senderKind === 'client') {
+        url = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+        const { data: activeAssignment } = await admin
+          .from('order_work_assignments')
+          .select('assignee_user_id')
+          .eq('order_id', orderId)
+          .eq('state', 'accepted')
+          .maybeSingle();
+        const assigneeUserId = asId(activeAssignment?.assignee_user_id);
+        let query = admin
+          .from('web_push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('role', 'restaurant')
+          .eq('catalog_id', catalogId);
+        if (assigneeUserId) query = query.eq('user_id', assigneeUserId);
+        const { data } = await query;
+        subscriptions = (data ?? []) as Subscription[];
+      } else if (senderKind === 'staff') {
+        url = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+        const { data } = await admin
+          .from('web_push_subscriptions')
+          .select('id, endpoint, p256dh, auth')
+          .eq('role', 'client')
+          .eq('order_id', orderId);
+        subscriptions = (data ?? []) as Subscription[];
+      }
     }
 
     if (event.table === 'deliveries') {

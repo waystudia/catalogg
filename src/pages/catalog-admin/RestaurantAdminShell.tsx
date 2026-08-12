@@ -89,6 +89,8 @@ import {
   updateCatalogAssignedOrderStatus
 } from '../../shared/api/catalogStaffApi';
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
+import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
+import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -863,6 +865,8 @@ export function RestaurantAdminShell({
           {section === 'orders' && (
             <OrdersPage
               orders={filteredOrders}
+              products={catalogData.products}
+              businessType={access.catalog?.businessType}
               selectedOrder={selectedOrder}
               selectedAssignment={selectedOrderAssignment}
               query={orderQuery}
@@ -877,6 +881,7 @@ export function RestaurantAdminShell({
               onPaymentStatusChange={setPaymentStatus}
               onDelete={deleteOrder}
               onAcceptAssignment={acceptWorkAssignment}
+              onPickingChanged={() => void refreshData({ silent: true })}
             />
           )}
           {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
@@ -1149,6 +1154,8 @@ function DishesPage({
 
 function OrdersPage({
   orders,
+  products,
+  businessType,
   selectedOrder,
   selectedAssignment,
   query,
@@ -1162,9 +1169,12 @@ function OrdersPage({
   onStatusChange,
   onPaymentStatusChange,
   onDelete,
-  onAcceptAssignment
+  onAcceptAssignment,
+  onPickingChanged
 }: {
   orders: RestaurantOrder[];
+  products: Product[];
+  businessType?: string;
   selectedOrder: RestaurantOrder | null;
   selectedAssignment: CatalogOrderWorkAssignment | null;
   query: string;
@@ -1179,6 +1189,7 @@ function OrdersPage({
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   onDelete: (order: RestaurantOrder) => Promise<void>;
   onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
+  onPickingChanged: () => void;
 }) {
   return (
     <div className="ra-orders-layout">
@@ -1196,6 +1207,8 @@ function OrdersPage({
       {selectedOrder && (
         <OrderDetails
           order={selectedOrder}
+          products={products}
+          businessType={businessType}
           assignment={selectedAssignment}
           paymentSettings={paymentSettings}
           paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)}
@@ -1205,6 +1218,7 @@ function OrdersPage({
           canDeleteOrders={canDeleteOrders}
           workerMode={workerMode}
           onAcceptAssignment={onAcceptAssignment}
+          onPickingChanged={onPickingChanged}
         />
       )}
     </div>
@@ -1213,6 +1227,8 @@ function OrdersPage({
 
 function OrderDetails({
   order,
+  products,
+  businessType,
   assignment,
   paymentSettings,
   paymentStatus,
@@ -1221,9 +1237,12 @@ function OrderDetails({
   canDeleteOrders,
   workerMode,
   onDelete,
-  onAcceptAssignment
+  onAcceptAssignment,
+  onPickingChanged
 }: {
   order: RestaurantOrder;
+  products: Product[];
+  businessType?: string;
   assignment: CatalogOrderWorkAssignment | null;
   paymentSettings: PaymentSettings;
   paymentStatus: PaymentStatus;
@@ -1233,6 +1252,7 @@ function OrderDetails({
   workerMode: boolean;
   onDelete: (order: RestaurantOrder) => Promise<void>;
   onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
+  onPickingChanged: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteOrder = async () => {
@@ -1317,6 +1337,22 @@ function OrderDetails({
           <span key={item.id}>{item.title}<strong>{item.quantity} x {formatPrice(item.unitPrice)}</strong></span>
         ))}
       </div>
+      {businessType === 'grocery' && (
+        <>
+          <GroceryPickingPanel
+            items={order.items}
+            products={products}
+            canPick={!workerMode || assignment?.state === 'accepted'}
+            onChanged={onPickingChanged}
+          />
+          <OrderConversationPanel
+            orderId={order.id}
+            catalogId={order.catalogId}
+            expectedViewer="staff"
+            onChanged={onPickingChanged}
+          />
+        </>
+      )}
       <div className="ra-order-total"><span>Итого</span><strong>{formatPrice(order.total)}</strong></div>
       {!workerMode && <section className="ra-payment-box">
         <h3><WalletCards />Оплата</h3>
