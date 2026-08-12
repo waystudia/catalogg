@@ -37,7 +37,7 @@ export const shouldResolveCustomStorefront = (value: string) => {
   if (!hostname) return false;
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
   if (hostname === 'wayyaam.ru' || hostname === 'www.wayyaam.ru') return false;
-  if (hostname === 'studia95.github.io') return false;
+  if (hostname === 'studia95.github.io' || hostname === 'waystudia.github.io') return false;
   return true;
 };
 

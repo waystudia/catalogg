@@ -36,6 +36,10 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     psql --set ON_ERROR_STOP=1 \
       --file supabase/migrations/20260813000600_weighted_order_variant_pricing_compatibility.sql
   fi
+  if [[ -f supabase/migrations/20260813004827_reserve_wayyaam_github_pages_hostname.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260813004827_reserve_wayyaam_github_pages_hostname.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \

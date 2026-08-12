@@ -58,6 +58,7 @@ describe('white-label storefront context', () => {
     expect(shouldResolveCustomStorefront('wayyaam.ru')).toBe(false);
     expect(shouldResolveCustomStorefront('www.wayyaam.ru')).toBe(false);
     expect(shouldResolveCustomStorefront('studia95.github.io')).toBe(false);
+    expect(shouldResolveCustomStorefront('waystudia.github.io')).toBe(false);
     expect(shouldResolveCustomStorefront('localhost:5173')).toBe(false);
     expect(shouldResolveCustomStorefront('finiki.example')).toBe(true);
   });

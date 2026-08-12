@@ -146,6 +146,20 @@ begin
       if sqlerrm <> 'catalog_storefront_reserved_hostname' then raise; end if;
   end;
 
+  begin
+    perform public.save_catalog_storefront_domain(
+      '00000000-0000-4000-8000-000000000201',
+      'waystudia.github.io',
+      'Reserved Pages',
+      'Reserved'
+    );
+    raise exception 'expected_pages_hostname_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_pages_hostname_rejection' then raise; end if;
+      if sqlerrm <> 'catalog_storefront_reserved_hostname' then raise; end if;
+  end;
+
   domain_id := public.save_catalog_storefront_domain(
     '00000000-0000-4000-8000-000000000201',
     'managed.example',
