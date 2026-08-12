@@ -322,6 +322,15 @@ type PlatformProductRow = {
   is_new: boolean;
   is_promo: boolean;
   custom_fields?: unknown;
+  sku: string;
+  barcode: string;
+  sale_unit: Product['sale_unit'];
+  quantity_unit: Product['quantity_unit'];
+  price_basis_quantity: number;
+  minimum_quantity: number;
+  quantity_step: number;
+  stock_quantity: number;
+  allow_substitution: boolean;
 };
 
 type PlatformProductImageRow = {
@@ -519,6 +528,15 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   category_id: value.category_id ?? '',
   category_ids: value.category_id ? [value.category_id] : [],
   pair_ids: [],
+  sku: value.sku,
+  barcode: value.barcode,
+  sale_unit: value.sale_unit,
+  quantity_unit: value.quantity_unit,
+  price_basis_quantity: value.price_basis_quantity,
+  minimum_quantity: value.minimum_quantity,
+  quantity_step: value.quantity_step,
+  stock_quantity: value.stock_quantity,
+  allow_substitution: value.allow_substitution,
   ...(() => {
     if (!value.custom_fields || typeof value.custom_fields !== 'object' || Array.isArray(value.custom_fields)) return {};
     const source = value.custom_fields as Record<string, unknown>;
@@ -786,7 +804,7 @@ export async function loadCatalog(catalogSlug?: string) {
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
-        .select('id, category_id, title, status, price, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
+        .select('id, category_id, title, status, price, sku, barcode, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, stock_quantity, allow_substitution, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase
@@ -985,6 +1003,15 @@ const productToPlatformRow = (product: Product) => ({
   is_popular: product.is_popular,
   is_new: product.is_new,
   is_promo: product.is_hit,
+  sku: product.sku ?? '',
+  barcode: product.barcode ?? '',
+  sale_unit: product.sale_unit ?? 'piece',
+  quantity_unit: product.quantity_unit ?? 'piece',
+  price_basis_quantity: product.price_basis_quantity ?? 1,
+  minimum_quantity: product.minimum_quantity ?? 1,
+  quantity_step: product.quantity_step ?? 1,
+  stock_quantity: product.stock_quantity ?? product.current_stock ?? product.stock_count ?? 0,
+  allow_substitution: product.allow_substitution ?? false,
   custom_fields: {
     ...getProductConfig(product),
     choice_options: normalizeProductChoiceOptions(product.choice_options, product.price)
@@ -1109,6 +1136,15 @@ const productPatchToPlatformRow = (patch: Partial<Product>) => {
   if (patch.current_stock !== undefined || patch.stock_count !== undefined || patch.daily_stock !== undefined) {
     row.stock_count = patch.current_stock ?? patch.stock_count ?? patch.daily_stock ?? 0;
   }
+  if (patch.sku !== undefined) row.sku = patch.sku;
+  if (patch.barcode !== undefined) row.barcode = patch.barcode;
+  if (patch.sale_unit !== undefined) row.sale_unit = patch.sale_unit;
+  if (patch.quantity_unit !== undefined) row.quantity_unit = patch.quantity_unit;
+  if (patch.price_basis_quantity !== undefined) row.price_basis_quantity = patch.price_basis_quantity;
+  if (patch.minimum_quantity !== undefined) row.minimum_quantity = patch.minimum_quantity;
+  if (patch.quantity_step !== undefined) row.quantity_step = patch.quantity_step;
+  if (patch.stock_quantity !== undefined) row.stock_quantity = patch.stock_quantity;
+  if (patch.allow_substitution !== undefined) row.allow_substitution = patch.allow_substitution;
   if (patch.is_unlimited !== undefined) row.is_unlimited = patch.is_unlimited;
   if (patch.is_popular !== undefined) row.is_popular = patch.is_popular;
   if (patch.is_new !== undefined) row.is_new = patch.is_new;

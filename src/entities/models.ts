@@ -4,6 +4,8 @@ export type HeaderStyle = 'centered' | 'compact';
 export type OrderMode = 'hall' | 'takeaway' | 'delivery';
 export type PricingType = 'fixed' | 'from' | 'per_kg' | 'variant';
 export type PriceTier = 'budget' | 'standard' | 'premium';
+export type CatalogSaleUnit = 'piece' | 'weight';
+export type CatalogQuantityUnit = 'piece' | 'gram';
 
 export type ThemeSettings = {
   id: string;
@@ -144,6 +146,15 @@ export type Product = {
   allow_decoration_comment?: boolean;
   allow_production_schedule?: boolean;
   placeholder_kind?: 'dessert';
+  sku?: string;
+  barcode?: string;
+  sale_unit?: CatalogSaleUnit;
+  quantity_unit?: CatalogQuantityUnit;
+  price_basis_quantity?: number;
+  minimum_quantity?: number;
+  quantity_step?: number;
+  stock_quantity?: number;
+  allow_substitution?: boolean;
 };
 
 export type Cabin = {

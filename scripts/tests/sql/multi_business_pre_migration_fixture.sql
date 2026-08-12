@@ -33,6 +33,8 @@ $$;
 
 create type public.catalog_role as enum ('owner', 'admin', 'editor', 'viewer');
 create type public.catalog_status as enum ('draft', 'published', 'archived');
+create type public.product_status as enum ('draft', 'active', 'hidden', 'sold_out', 'archived');
+create type public.order_status as enum ('new', 'accepted', 'preparing', 'ready', 'completed', 'cancelled');
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -95,7 +97,36 @@ create table public.products (
   id uuid primary key default gen_random_uuid(),
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
   category_id uuid references public.categories(id) on delete set null,
-  name text not null
+  title text not null,
+  slug text not null default gen_random_uuid()::text,
+  sku text not null default '',
+  status public.product_status not null default 'draft',
+  price integer not null default 0 check (price >= 0),
+  stock_count integer not null default 0 check (stock_count >= 0),
+  is_unlimited boolean not null default false,
+  unique (catalog_id, slug)
+);
+
+create table public.orders (
+  id uuid primary key default gen_random_uuid(),
+  catalog_id uuid not null references public.catalogs(id) on delete cascade,
+  status public.order_status not null default 'new',
+  customer_name text not null default '',
+  customer_phone text not null default '',
+  subtotal integer not null default 0,
+  total integer not null default 0
+);
+
+create table public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  catalog_id uuid not null references public.catalogs(id) on delete cascade,
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid references public.products(id) on delete set null,
+  title text not null,
+  quantity integer not null check (quantity > 0),
+  unit_price integer not null check (unit_price >= 0),
+  options jsonb not null default '[]'::jsonb,
+  line_total integer not null check (line_total >= 0)
 );
 
 create table public.restaurant_delivery_settings (
@@ -187,6 +218,20 @@ as $$
   );
 $$;
 
+create or replace function public.is_catalog_published(target_catalog_id uuid)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.catalogs catalog
+    where catalog.id = target_catalog_id
+      and catalog.status = 'published'
+  );
+$$;
+
 create or replace function public.create_restaurant_from_template(
   template_id uuid,
   new_restaurant_name text,
@@ -252,6 +297,7 @@ end;
 $$;
 
 alter table public.catalogs enable row level security;
+alter table public.products enable row level security;
 
 create policy "catalogs public read published"
 on public.catalogs
@@ -265,8 +311,17 @@ for select
 to authenticated
 using (public.is_catalog_member(id));
 
+create policy "products public and member read"
+on public.products
+for select
+using (
+  (status in ('active', 'sold_out') and public.is_catalog_published(catalog_id))
+  or public.is_catalog_member(catalog_id)
+);
+
 grant usage on schema public, auth to anon, authenticated, service_role;
 grant select on public.catalogs to anon, authenticated;
+grant select on public.products to anon, authenticated;
 grant all on all tables in schema public to service_role;
 
 insert into auth.users (id, email)

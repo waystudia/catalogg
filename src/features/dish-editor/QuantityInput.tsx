@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
+import type { CatalogSaleUnit } from '../../entities/models';
 
 function NumericInput({
   value,
@@ -52,7 +53,8 @@ export function QuantityInput({
   onWeightChange,
   onQuantityChange,
   onUnlimitedChange,
-  businessType = 'restaurant'
+  businessType = 'restaurant',
+  saleUnit = 'piece'
 }: {
   weight: number;
   dailyQuantity: number;
@@ -61,29 +63,33 @@ export function QuantityInput({
   onQuantityChange: (quantity: number) => void;
   onUnlimitedChange: (unlimited: boolean) => void;
   businessType?: BusinessType;
+  saleUnit?: CatalogSaleUnit;
 }) {
   const terms = getBusinessTerms(businessType);
+  const isWeightedGrocery = businessType === 'grocery' && saleUnit === 'weight';
   return (
     <section className="dish-section">
       <h3>Параметры</h3>
       <div className="dish-two-fields">
+        {!isWeightedGrocery && (
+          <label>
+            Вес
+            <span>
+              <NumericInput value={weight} onChange={onWeightChange} />
+              г
+            </span>
+          </label>
+        )}
         <label>
-          Вес
-          <span>
-            <NumericInput value={weight} onChange={onWeightChange} />
-            г
-          </span>
-        </label>
-        <label>
-          Остаток на сегодня
+          {isWeightedGrocery ? 'Остаток, кг' : 'Остаток на сегодня'}
           <span>
             <NumericInput
               value={dailyQuantity}
-              step={1}
+              step={isWeightedGrocery ? 0.01 : 1}
               disabled={unlimitedQuantity}
               onChange={onQuantityChange}
             />
-            шт
+            {isWeightedGrocery ? 'кг' : 'шт'}
           </span>
         </label>
       </div>

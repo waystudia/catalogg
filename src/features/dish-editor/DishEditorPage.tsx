@@ -12,8 +12,14 @@ function validateDish(dish: Dish, businessType: BusinessType) {
   if (!dish.name.trim()) return `Введите название: ${terms.itemLower}.`;
   if (dish.price < 0 || Number.isNaN(dish.price)) return 'Введите корректную цену.';
   if (dish.categories.length === 0) return 'Выберите минимум одну категорию.';
-  if (!dish.unlimitedQuantity && (dish.dailyQuantity < 0 || !Number.isInteger(dish.dailyQuantity))) {
-    return 'Количество должно быть целым числом.';
+  if (!dish.unlimitedQuantity && (
+    dish.dailyQuantity < 0
+    || !Number.isFinite(dish.dailyQuantity)
+    || (dish.saleUnit === 'piece' && !Number.isInteger(dish.dailyQuantity))
+  )) {
+    return dish.saleUnit === 'weight'
+      ? 'Введите корректный остаток в килограммах.'
+      : 'Количество должно быть целым числом.';
   }
   return '';
 }

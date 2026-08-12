@@ -79,7 +79,7 @@ select catalog.id, 'Demo grocery category'
 from public.catalogs catalog
 where catalog.is_template = true and catalog.business_type = 'grocery';
 
-insert into public.products (catalog_id, name)
+insert into public.products (catalog_id, title)
 select catalog.id, 'Demo grocery product'
 from public.catalogs catalog
 where catalog.is_template = true and catalog.business_type = 'grocery';
