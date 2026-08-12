@@ -135,7 +135,8 @@ $$;
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
-  name text not null
+  name text not null,
+  slug text not null default gen_random_uuid()::text
 );
 
 create table public.products (

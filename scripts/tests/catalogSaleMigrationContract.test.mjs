@@ -9,6 +9,13 @@ const migration = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260812211500_add_catalog_sale_units.sql'),
   'utf8'
 );
+const compatibilityMigration = readFileSync(
+  resolve(
+    repoRoot,
+    'supabase/migrations/20260813000600_weighted_order_variant_pricing_compatibility.sql'
+  ),
+  'utf8'
+);
 
 describe('catalog sale unit migration', () => {
   it('normalizes SKU, weighted quantity and substitution fields on products', () => {
@@ -52,5 +59,29 @@ describe('catalog sale unit migration', () => {
     }
     assert.doesNotMatch(migration, /alter column quantity type/i);
     assert.match(migration, /new\.requested_quantity := greatest\(new\.quantity, 1\)/);
+  });
+
+  it('keeps weighted totals compatible with the established order pricing trigger', () => {
+    assert.match(
+      compatibilityMigration,
+      /product_sale_unit = 'weight'[\s\S]*new\.requested_quantity[\s\S]*product_price_basis_quantity/
+    );
+    assert.match(
+      compatibilityMigration,
+      /new\.product_id is null or not found[\s\S]*new\.sale_unit_snapshot[\s\S]*new\.price_basis_quantity_snapshot/
+    );
+    assert.match(compatibilityMigration, /weighted_requested_quantity_invalid/);
+    assert.match(compatibilityMigration, /Product stock is not enough/);
+  });
+
+  it('removes inherited anonymous access from private workflow storage', () => {
+    assert.match(
+      compatibilityMigration,
+      /revoke all on table[\s\S]*public\.catalog_staff_memberships[\s\S]*public\.order_messages[\s\S]*from public, anon/
+    );
+    assert.match(
+      compatibilityMigration,
+      /revoke all on sequence[\s\S]*from public, anon, authenticated/
+    );
   });
 });

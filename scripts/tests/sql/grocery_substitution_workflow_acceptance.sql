@@ -34,10 +34,22 @@ values
     'client'
   );
 
-insert into public.client_accounts (id, name, phone, phone_normalized)
+insert into public.client_accounts (id, name, phone, phone_normalized, password_hash)
 values
-  ('00000000-0000-4000-8000-000000000508', 'Клиент продуктов', '+7 999 000-00-08', '79990000008'),
-  ('00000000-0000-4000-8000-000000000510', 'Другой клиент', '+7 999 000-00-10', '79990000010');
+  (
+    '00000000-0000-4000-8000-000000000508',
+    'Клиент продуктов',
+    '+7 999 000-00-08',
+    '79990000008',
+    extensions.crypt('wayyaam-test-only', extensions.gen_salt('bf'))
+  ),
+  (
+    '00000000-0000-4000-8000-000000000510',
+    'Другой клиент',
+    '+7 999 000-00-10',
+    '79990000010',
+    extensions.crypt('wayyaam-test-only', extensions.gen_salt('bf'))
+  );
 
 insert into public.client_account_sessions (id, account_id, token_hash, expires_at)
 values
@@ -174,6 +186,25 @@ begin
   ) then
     raise exception 'pending substitution changed original order amount';
   end if;
+end;
+$$;
+
+do $$
+declare
+  sensitive_table text;
+begin
+  foreach sensitive_table in array array[
+    'order_substitution_requests',
+    'order_payment_adjustments',
+    'order_messages'
+  ] loop
+    if has_table_privilege('anon', format('public.%I', sensitive_table), 'select')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'insert')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'update')
+      or has_table_privilege('anon', format('public.%I', sensitive_table), 'delete') then
+      raise exception 'anonymous role has direct access to %', sensitive_table;
+    end if;
+  end loop;
 end;
 $$;
 

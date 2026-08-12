@@ -74,13 +74,13 @@ values
 insert into public.platform_admins (user_id)
 values ('00000000-0000-4000-8000-000000000101');
 
-insert into public.categories (catalog_id, name)
-select catalog.id, 'Demo grocery category'
+insert into public.categories (catalog_id, name, slug)
+select catalog.id, 'Demo grocery category', 'demo-grocery-category'
 from public.catalogs catalog
 where catalog.is_template = true and catalog.business_type = 'grocery';
 
-insert into public.products (catalog_id, title)
-select catalog.id, 'Demo grocery product'
+insert into public.products (catalog_id, title, slug)
+select catalog.id, 'Demo grocery product', 'demo-grocery-product'
 from public.catalogs catalog
 where catalog.is_template = true and catalog.business_type = 'grocery';
 
@@ -254,6 +254,14 @@ begin
 end;
 $$;
 
+-- Production create_restaurant_from_template uses transaction-local mapping
+-- tables. Each RPC normally runs in its own transaction, while this acceptance
+-- suite intentionally keeps several calls in one transaction for rollback.
+drop table if exists pg_temp.temp_category_map;
+drop table if exists pg_temp.temp_tag_map;
+drop table if exists pg_temp.temp_product_map;
+drop table if exists pg_temp.temp_option_group_map;
+
 alter table public.audit_logs
   add constraint reject_atomic_test_audit
   check (action <> 'client.created') not valid;
@@ -307,6 +315,7 @@ alter table public.audit_logs drop constraint reject_atomic_test_audit;
 
 insert into public.catalogs (
   id,
+  template_version_id,
   slug,
   name,
   status,
@@ -314,15 +323,18 @@ insert into public.catalogs (
   business_type,
   template_type
 )
-values (
+select
   '00000000-0000-4000-8000-000000000201',
+  template_catalog.template_version_id,
   'other-grocery-ci',
   'Other Grocery',
   'draft',
   false,
   'grocery',
   'grocery'
-);
+from public.catalogs template_catalog
+where template_catalog.is_template = true
+  and template_catalog.business_type = 'grocery';
 
 insert into public.catalog_members (catalog_id, user_id, role)
 values (
