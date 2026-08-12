@@ -874,7 +874,7 @@ begin
               from public.client_accounts account
               where account.id = new.user_id
                 and account.phone_normalized = public.normalize_client_phone(
-                  pg_catalog.coalesce(order_record.client_phone, order_record.customer_phone, '')
+                  coalesce(order_record.client_phone, order_record.customer_phone, '')
                 )
             )
           )
@@ -924,7 +924,7 @@ begin
   from public.client_account_sessions session
   join public.client_accounts account on account.id = session.account_id
   where session.token_hash = extensions.digest(
-      pg_catalog.convert_to(pg_catalog.coalesce(client_session_token, ''), 'UTF8'),
+      pg_catalog.convert_to(coalesce(client_session_token, ''), 'UTF8'),
       'sha256'
     )
     and session.expires_at > pg_catalog.now();
@@ -938,7 +938,7 @@ begin
   from public.orders order_record
   where order_record.id = order_id_input
     and public.normalize_client_phone(
-      pg_catalog.coalesce(order_record.client_phone, order_record.customer_phone, '')
+      coalesce(order_record.client_phone, order_record.customer_phone, '')
     ) = account_record.phone_normalized;
 
   if order_catalog_id is null then
@@ -949,11 +949,11 @@ begin
     user_id, role, catalog_id, driver_id, order_id, endpoint, p256dh, auth, app_base_url, user_agent, last_seen_at
   ) values (
     account_record.id, 'client', order_catalog_id, null, order_id_input,
-    pg_catalog.trim(subscription_endpoint), pg_catalog.trim(p256dh_key), pg_catalog.trim(auth_key),
-    case when pg_catalog.trim(pg_catalog.coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
-      then pg_catalog.rtrim(pg_catalog.trim(app_base_url_input), '/') else '' end,
-    pg_catalog.coalesce(
-      pg_catalog.nullif(pg_catalog.current_setting('request.headers', true), '')::json ->> 'user-agent',
+    pg_catalog.btrim(subscription_endpoint), pg_catalog.btrim(p256dh_key), pg_catalog.btrim(auth_key),
+    case when pg_catalog.btrim(coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
+      then pg_catalog.rtrim(pg_catalog.btrim(app_base_url_input), '/') else '' end,
+    coalesce(
+      nullif(pg_catalog.current_setting('request.headers', true), '')::json ->> 'user-agent',
       ''
     ),
     pg_catalog.now()
@@ -973,7 +973,7 @@ begin
   update public.client_account_sessions
   set last_used_at = pg_catalog.now()
   where token_hash = extensions.digest(
-    pg_catalog.convert_to(pg_catalog.coalesce(client_session_token, ''), 'UTF8'),
+    pg_catalog.convert_to(coalesce(client_session_token, ''), 'UTF8'),
     'sha256'
   );
 
