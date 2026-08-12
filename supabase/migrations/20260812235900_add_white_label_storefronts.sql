@@ -22,7 +22,7 @@ create table if not exists public.catalog_storefront_domains (
   catalog_id uuid not null references public.catalogs(id) on delete cascade,
   hostname text not null,
   status text not null default 'pending',
-  verification_token text not null default encode(gen_random_bytes(24), 'hex'),
+  verification_token text not null default encode(extensions.gen_random_bytes(24), 'hex'),
   verified_at timestamptz,
   is_primary boolean not null default true,
   storefront_mode text not null default 'exclusive',
