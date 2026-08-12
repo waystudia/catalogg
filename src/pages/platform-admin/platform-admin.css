@@ -2316,6 +2316,117 @@
   font-weight: 800;
 }
 
+.storefront-settings-card {
+  border: 1px solid #dbe5ff;
+  border-radius: 16px;
+  padding: 18px;
+  background: #f8faff;
+}
+
+.storefront-settings-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.storefront-settings-card__head p {
+  margin: 6px 0 0;
+  color: #667085;
+  line-height: 1.45;
+}
+
+.storefront-settings-card__head > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.storefront-settings-card__head > span[data-status='active'] {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.storefront-settings-card__head > span[data-status='suspended'] {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.storefront-settings-card input[type='color'] {
+  min-height: 46px;
+  padding: 5px;
+}
+
+.storefront-settings-card__verification {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  border: 1px dashed #a5b4fc;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.storefront-settings-card__verification span,
+.storefront-settings-card__verification code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.storefront-settings-card__verification code {
+  grid-column: 1;
+  color: #312e81;
+  font-size: 12px;
+}
+
+.storefront-settings-card__verification button,
+.storefront-settings-card__actions button,
+.storefront-settings-card__actions a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+  color: #3730a3;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.storefront-settings-card__verification button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.storefront-settings-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.storefront-settings-card__actions button:first-child {
+  border-color: var(--platform-accent);
+  background: var(--platform-accent);
+  color: #fff;
+}
+
+.storefront-settings-card__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.client-form .storefront-settings-card > small {
+  color: #667085;
+  line-height: 1.45;
+}
+
 .client-template-picker {
   grid-column: 1 / -1;
   min-width: 0;
@@ -3090,6 +3201,29 @@
 
   .client-geography-settlements__list {
     max-height: 190px;
+  }
+
+  .storefront-settings-card {
+    padding: 14px;
+  }
+
+  .storefront-settings-card__head,
+  .storefront-settings-card__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .storefront-settings-card__head > span {
+    align-self: flex-start;
+  }
+
+  .storefront-settings-card__verification {
+    grid-template-columns: 1fr;
+  }
+
+  .storefront-settings-card__verification button {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .client-template-picker__grid {

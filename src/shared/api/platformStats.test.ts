@@ -109,4 +109,39 @@ describe('platform revenue stats', () => {
     assert.equal(stats.totalDebt, 30);
     assert.equal(stats.restaurantStats[0]?.debt, 30);
   });
+
+  it('includes grocery revenue in the same global and per-business ledger', () => {
+    const groceryClient = {
+      ...clients[0],
+      id: 'client-finiki',
+      companyName: 'Финики',
+      catalogId: 'catalog-finiki',
+      catalogName: 'Финики',
+      catalogSlug: 'finiki',
+      businessType: 'grocery' as const,
+      debtAmount: 45
+    };
+    const stats = summarizePlatformStats([...clients, groceryClient], [
+      { catalog_id: 'catalog-finiki', total_amount: 2450, status: 'completed', delivery_provider: 'platform' }
+    ]);
+
+    assert.equal(stats.monthlyRevenue, 2450);
+    assert.equal(stats.totalDebt, 315);
+    assert.deepEqual(
+      stats.businessStats?.find((business) => business.id === 'catalog-finiki'),
+      {
+        id: 'catalog-finiki',
+        clientId: 'client-finiki',
+        name: 'Финики',
+        slug: 'finiki',
+        businessType: 'grocery',
+        revenue: 2450,
+        debt: 45,
+        testDebt: 0,
+        ordersCount: 1,
+        driverDeliveries: 1
+      }
+    );
+    assert.equal(stats.restaurantStats, stats.businessStats);
+  });
 });

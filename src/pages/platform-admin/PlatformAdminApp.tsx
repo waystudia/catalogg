@@ -132,6 +132,9 @@ import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/Pl
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
 import { RestaurantActivationsAdminPage } from '../../features/platform-admin-activations/RestaurantActivationsAdminPage';
+import { BusinessTypeSelect } from '../../features/platform-admin-business-types/BusinessTypeSelect';
+import { StorefrontSettingsCard } from '../../features/platform-admin-storefronts/StorefrontSettingsCard';
+import { BUSINESS_TYPE_DEFINITIONS } from '../../shared/businessRegistry';
 import { ClientGeographyFields } from './ClientGeographyFields';
 import {
   getRestaurantModuleEntitlementByCatalog,
@@ -229,6 +232,11 @@ const businessTypeLabels: Record<string, string> = {
   restaurant: 'Ресторан',
   coffee_shop: 'Кофейня',
   confectionery: 'Кондитерская',
+  grocery: 'Продуктовый магазин',
+  flowers: 'Цветочный магазин',
+  gifts: 'Магазин подарков',
+  household: 'Хозяйственный магазин',
+  pharmacy: 'Аптека',
   cafe: 'Кофейня',
   salon: 'Салон красоты',
   barbershop: 'Барбершоп',
@@ -486,10 +494,10 @@ function StatsCards({
 
 export function ClientStatsPanel({ stats }: { stats?: PlatformStats }) {
   const [drilldown, setDrilldown] = useState<ClientStatsDrilldown | null>(null);
-  const restaurants = stats?.restaurantStats ?? [];
+  const businesses = stats?.businessStats ?? stats?.restaurantStats ?? [];
   const title = drilldown === 'deliveries'
-    ? 'Доставки по ресторанам'
-    : 'Рестораны: выручка, заказы и долг';
+    ? 'Доставки по бизнесам'
+    : 'Бизнесы: выручка, заказы и долг';
 
   useEffect(() => {
     if (!drilldown) return undefined;
@@ -520,24 +528,24 @@ export function ClientStatsPanel({ stats }: { stats?: PlatformStats }) {
               <button type="button" aria-label="Закрыть" onClick={() => setDrilldown(null)}><X /></button>
             </header>
             <div className="platform-stat-dialog__list">
-              {restaurants.map((restaurant) => (
-                <article key={restaurant.id}>
-                  <strong>{restaurant.name}</strong>
+              {businesses.map((business) => (
+                <article key={business.id}>
+                  <strong>{business.name}</strong>
                   {drilldown === 'deliveries' ? (
-                    <span>Доставок: {restaurant.driverDeliveries}</span>
+                    <span>Доставок: {business.driverDeliveries}</span>
                   ) : (
                     <div>
-                      <span>{formatMoney(restaurant.revenue)}</span>
-                      <span>{restaurant.ordersCount} заказов</span>
-                      <span>Долг {formatMoney(restaurant.debt)}</span>
-                      {(restaurant.testDebt ?? 0) > 0 && (
-                        <span>Тестовый долг {formatMoney(restaurant.testDebt ?? 0)}</span>
+                      <span>{formatMoney(business.revenue)}</span>
+                      <span>{business.ordersCount} заказов</span>
+                      <span>Долг {formatMoney(business.debt)}</span>
+                      {(business.testDebt ?? 0) > 0 && (
+                        <span>Тестовый долг {formatMoney(business.testDebt ?? 0)}</span>
                       )}
                     </div>
                   )}
                 </article>
               ))}
-              {restaurants.length === 0 && <p>Данные появятся после первого заказа ресторана.</p>}
+              {businesses.length === 0 && <p>Данные появятся после первого заказа.</p>}
             </div>
           </section>
         </div>
@@ -547,22 +555,22 @@ export function ClientStatsPanel({ stats }: { stats?: PlatformStats }) {
 }
 
 function RestaurantRevenueSummary({ stats }: { stats?: PlatformStats }) {
-  const restaurants = stats?.restaurantStats ?? [];
+  const businesses = stats?.businessStats ?? stats?.restaurantStats ?? [];
   return (
     <section className="restaurant-revenue-summary">
       <header>
-        <h2>Заведения по выручке</h2>
+        <h2>Бизнесы по выручке</h2>
         <strong>{formatMoney(stats?.monthlyRevenue ?? 0)}</strong>
       </header>
       <div>
-        {restaurants.map((restaurant, index) => (
-          <span key={restaurant.id}>
+        {businesses.map((business, index) => (
+          <span key={business.id}>
             <i style={{ '--legend-index': index } as CSSProperties} />
-            {restaurant.name}
-            <small>{formatMoney(restaurant.revenue)}</small>
+            {business.name}
+            <small>{formatMoney(business.revenue)}</small>
           </span>
         ))}
-        {restaurants.length === 0 && <small>Данные появятся после первого заказа</small>}
+        {businesses.length === 0 && <small>Данные появятся после первого заказа</small>}
       </div>
     </section>
   );
@@ -597,7 +605,7 @@ function DashboardPage() {
 }
 
 function DebtControlPanel({ stats }: { stats?: PlatformStats }) {
-  const debtors = (stats?.restaurantStats ?? []).filter((restaurant) => restaurant.debt > 0);
+  const debtors = (stats?.businessStats ?? stats?.restaurantStats ?? []).filter((business) => business.debt > 0);
 
   return (
     <section className="platform-debt-panel">
@@ -877,7 +885,7 @@ function ClientCards({
     <section className="client-card-list">
       {clients.map((client) => {
         const publicUrl = getCatalogPublicUrl(client.catalogSlug);
-        const clientStats = stats?.restaurantStats.find((restaurant) => restaurant.id === client.catalogId);
+        const clientStats = (stats?.businessStats ?? stats?.restaurantStats)?.find((business) => business.id === client.catalogId);
         return (
           <article className="client-card" key={client.id}>
             <div className="client-card__head">
@@ -1251,18 +1259,14 @@ function CreateClientForm({
               </div>
               {errors.templateVersionId && <small>{errors.templateVersionId.message}</small>}
             </fieldset>
-            <label>
-              <span>
-                Тип заведения <b>*</b>
-              </span>
-              <select {...register('businessType')} aria-invalid={Boolean(errors.businessType)}>
-                <option value="restaurant">🍽 Ресторан</option>
-                <option value="coffee_shop">☕ Кофейня</option>
-                <option value="confectionery">🍰 Кондитерская</option>
-              </select>
-              <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
-              {errors.businessType && <small>{errors.businessType.message}</small>}
-            </label>
+            <input type="hidden" {...register('businessType')} />
+            <BusinessTypeSelect
+              id="create-client-business-type"
+              value={businessType}
+              options={BUSINESS_TYPE_DEFINITIONS}
+              onChange={(value) => setValue('businessType', value, { shouldValidate: true })}
+              error={errors.businessType?.message}
+            />
             <input type="hidden" {...register('templateType')} />
             {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
               <label className="client-form__disabled-option">
@@ -1453,15 +1457,12 @@ function EditClientForm({
         <section className="client-form-section">
           <h3>Данные клиента</h3>
           <div className="client-form-grid">
-            <label>
-              Тип заведения
-              <select value={businessType} onChange={(event) => setBusinessType(event.target.value as PlatformClient['businessType'])}>
-                <option value="restaurant">🍽 Ресторан</option>
-                <option value="coffee_shop">☕ Кофейня</option>
-                <option value="confectionery">🍰 Кондитерская</option>
-              </select>
-              <em>Тексты интерфейса обновятся автоматически, данные сохранятся.</em>
-            </label>
+            <BusinessTypeSelect
+              id="edit-client-business-type"
+              value={businessType}
+              options={BUSINESS_TYPE_DEFINITIONS}
+              onChange={setBusinessType}
+            />
             <label>
               Название клиента
               <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
@@ -1582,7 +1583,7 @@ function EditClientForm({
         </section>
 
         <section className="client-form-section client-module-access">
-          <h3>Дополнительные модули ресторана</h3>
+          <h3>Дополнительные модули бизнеса</h3>
           <p>Включаются только для «{client.companyName}». Существующие блюда, категории, клиенты и заказы сохраняются.</p>
           {modulesQuery.isLoading && <em>Загружаем текущие права…</em>}
           {modulesQuery.isError && (
@@ -1612,6 +1613,8 @@ function EditClientForm({
             </div>
           )}
         </section>
+
+        <StorefrontSettingsCard client={client} />
 
         <footer className="client-form-footer">
           <button type="button" onClick={onClose}>

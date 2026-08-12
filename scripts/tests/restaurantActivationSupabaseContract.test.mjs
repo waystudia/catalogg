@@ -35,6 +35,10 @@ const createClientFunction = readFileSync(
   new URL('../../supabase/functions/create-client/index.ts', import.meta.url),
   'utf8'
 );
+const multiBusinessMigration = readFileSync(
+  new URL('../../supabase/migrations/20260812172641_add_multi_business_foundation.sql', import.meta.url),
+  'utf8'
+);
 const mainSource = readFileSync(new URL('../../src/main.tsx', import.meta.url), 'utf8');
 const platformAdminSource = readFileSync(
   new URL('../../src/pages/platform-admin/PlatformAdminApp.tsx', import.meta.url),
@@ -127,8 +131,9 @@ test('every public order insertion and public catalog read require active legal 
 });
 
 test('new restaurants remain inactive until they complete the activation workflow', () => {
-  assert.match(createClientFunction, /legal_activation_status:\s*'draft'/i);
-  assert.match(createClientFunction, /nextCatalogStatus\s*=\s*'draft'/i);
+  assert.match(createClientFunction, /create_platform_business_from_template/i);
+  assert.match(multiBusinessMigration, /set status = 'draft'/i);
+  assert.match(multiBusinessMigration, /legal_activation_status,[\s\S]*?'draft'/i);
   assert.match(mainSource, /path="\/restaurant\/activation"/i);
   assert.match(platformAdminSource, /Договоры и активации/i);
   assert.match(catalogAdminApiSource, /legalActivationStatus/i);

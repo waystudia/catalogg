@@ -39,12 +39,12 @@ const stats: PlatformStats = {
   ]
 };
 
-test('opens restaurant revenue, order and debt details from the Clients card', async () => {
+test('opens business revenue, order and debt details from the Clients card', async () => {
   const screen = await render(<ClientStatsPanel stats={stats} />);
 
   await screen.getByRole('button', { name: /Клиенты 2/u }).click();
 
-  const dialog = screen.getByRole('dialog', { name: 'Рестораны: выручка, заказы и долг' });
+  const dialog = screen.getByRole('dialog', { name: 'Бизнесы: выручка, заказы и долг' });
   await expect.element(dialog.getByText('Rizih', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('5 930 ₽', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('6 заказов', { exact: true })).toBeVisible();
@@ -53,27 +53,27 @@ test('opens restaurant revenue, order and debt details from the Clients card', a
   await expect.element(dialog.getByText('Долг 0 ₽', { exact: true })).toBeVisible();
 });
 
-test('opens delivery counts by restaurant and closes the details', async () => {
+test('opens delivery counts by business and closes the details', async () => {
   const screen = await render(<ClientStatsPanel stats={stats} />);
 
   await screen.getByRole('button', { name: /Доставки 3/u }).click();
 
-  const dialog = screen.getByRole('dialog', { name: 'Доставки по ресторанам' });
+  const dialog = screen.getByRole('dialog', { name: 'Доставки по бизнесам' });
   await expect.element(dialog.getByText('Rizih', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('Доставок: 2', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('Мангал', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('Доставок: 1', { exact: true })).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Закрыть' }).click();
-  await expect.element(screen.getByRole('dialog', { name: 'Доставки по ресторанам' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('dialog', { name: 'Доставки по бизнесам' })).not.toBeInTheDocument();
 });
 
 test('shows an empty-state explanation and closes it with Escape', async () => {
   const screen = await render(<ClientStatsPanel stats={{ ...stats, totalClients: 0, restaurantStats: [] }} />);
 
   await screen.getByRole('button', { name: /Клиенты 0/u }).click();
-  await expect.element(screen.getByText('Данные появятся после первого заказа ресторана.')).toBeVisible();
+  await expect.element(screen.getByText('Данные появятся после первого заказа.')).toBeVisible();
 
   await userEvent.keyboard('{Escape}');
-  await expect.element(screen.getByRole('dialog', { name: 'Рестораны: выручка, заказы и долг' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('dialog', { name: 'Бизнесы: выручка, заказы и долг' })).not.toBeInTheDocument();
 });

@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { ensurePushServiceWorkerRegistration } from './pushServiceWorker';
 import type { WebPushContext } from './webPushContext';
+import { getStoredClientSessionToken } from './api/clientAccountApi';
 
 export type { WebPushContext, WebPushRole } from './webPushContext';
 
@@ -62,6 +63,7 @@ export async function registerWebPushSubscription(context: WebPushContext): Prom
   const p256dh = json.keys?.p256dh;
   const auth = json.keys?.auth;
   if (!endpoint || !p256dh || !auth) return false;
+  const appBaseUrlInput = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
 
   let catalogId = context.catalogId ?? null;
   if (!catalogId && context.catalogSlug) {
@@ -69,15 +71,25 @@ export async function registerWebPushSubscription(context: WebPushContext): Prom
     catalogId = typeof data?.id === 'string' ? data.id : null;
   }
 
-  const { error } = await supabase.rpc('upsert_web_push_subscription', {
-    subscription_endpoint: endpoint,
-    p256dh_key: p256dh,
-    auth_key: auth,
-    role_name: context.role,
-    catalog_id_input: catalogId,
-    driver_id_input: context.driverId ?? null,
-    order_id_input: context.orderId ?? null
-  });
+  const clientSessionToken = context.role === 'client' ? getStoredClientSessionToken() : '';
+  const { error } = clientSessionToken && context.orderId
+    ? await supabase.rpc('upsert_client_order_push_subscription', {
+        client_session_token: clientSessionToken,
+        subscription_endpoint: endpoint,
+        p256dh_key: p256dh,
+        auth_key: auth,
+        order_id_input: context.orderId,
+        app_base_url_input: appBaseUrlInput
+      })
+    : await supabase.rpc('upsert_web_push_subscription', {
+        subscription_endpoint: endpoint,
+        p256dh_key: p256dh,
+        auth_key: auth,
+        role_name: context.role,
+        catalog_id_input: catalogId,
+        driver_id_input: context.driverId ?? null,
+        order_id_input: context.orderId ?? null
+      });
 
   if (error) throw error;
   return true;

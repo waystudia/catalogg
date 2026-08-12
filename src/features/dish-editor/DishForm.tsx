@@ -121,7 +121,7 @@ export function DishForm({
             />
           </label>
           <label>
-            Цена
+            {businessType === 'grocery' && dish.saleUnit === 'weight' ? 'Цена за 1 кг' : 'Цена'}
             <span>
               <NumericInput required value={dish.price} onChange={(price) => onChange({ price })} />
               ₽
@@ -167,6 +167,79 @@ export function DishForm({
             <label className="dish-switch">Комментарий к декору<input type="checkbox" checked={dish.allowDecorationComment} onChange={(event) => onChange({ allowDecorationComment: event.target.checked })} /><span /></label>
             <label className="dish-switch">Дата и время<input type="checkbox" checked={dish.allowProductionSchedule} onChange={(event) => onChange({ allowProductionSchedule: event.target.checked })} /><span /></label>
           </div>
+        </section>
+      )}
+
+      {businessType === 'grocery' && (
+        <section className="dish-section">
+          <h3>Учёт товара</h3>
+          <div className="dish-two-fields">
+            <label>
+              Артикул SKU
+              <input
+                maxLength={64}
+                value={dish.sku}
+                onChange={(event) => onChange({ sku: event.target.value.slice(0, 64) })}
+                placeholder="DATES-MEDJOUL"
+              />
+            </label>
+            <label>
+              Штрихкод
+              <input
+                inputMode="numeric"
+                maxLength={32}
+                value={dish.barcode}
+                onChange={(event) => onChange({ barcode: event.target.value.replace(/\s/g, '').slice(0, 32) })}
+                placeholder="4601234567890"
+              />
+            </label>
+          </div>
+          <label>
+            Тип продажи
+            <select
+              value={dish.saleUnit}
+              onChange={(event) => {
+                const saleUnit = event.target.value as Dish['saleUnit'];
+                onChange({ saleUnit, pricingType: saleUnit === 'weight' ? 'per_kg' : 'fixed' });
+              }}
+            >
+              <option value="piece">Штучный товар</option>
+              <option value="weight">Весовой товар</option>
+            </select>
+          </label>
+          {dish.saleUnit === 'weight' && (
+            <div className="dish-two-fields">
+              <label>
+                Минимальный вес, кг
+                <input
+                  type="number"
+                  min="0.05"
+                  step="0.05"
+                  value={dish.minimumWeight}
+                  onChange={(event) => onChange({ minimumWeight: Math.max(0.05, Number(event.target.value) || 0.05) })}
+                />
+              </label>
+              <label>
+                Шаг веса, кг
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={dish.weightStep}
+                  onChange={(event) => onChange({ weightStep: Math.max(0.01, Number(event.target.value) || 0.01) })}
+                />
+              </label>
+            </div>
+          )}
+          <label className="dish-switch">
+            Разрешить замену товара
+            <input
+              type="checkbox"
+              checked={dish.allowSubstitution}
+              onChange={(event) => onChange({ allowSubstitution: event.target.checked })}
+            />
+            <span />
+          </label>
         </section>
       )}
 
@@ -286,6 +359,7 @@ export function DishForm({
 
       <QuantityInput
         businessType={businessType}
+        saleUnit={dish.saleUnit}
         weight={dish.weight}
         dailyQuantity={dish.dailyQuantity}
         unlimitedQuantity={dish.unlimitedQuantity}

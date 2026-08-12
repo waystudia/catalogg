@@ -1,0 +1,226 @@
+.catalog-team-page {
+  display: grid;
+  gap: 18px;
+}
+
+.catalog-team-page__intro {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto 1fr auto;
+}
+
+.catalog-team-page__intro > span {
+  align-items: center;
+  background: #eef2ff;
+  border-radius: 16px;
+  color: #4f46e5;
+  display: flex;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.catalog-team-page h2,
+.catalog-team-page h3,
+.catalog-team-page p {
+  margin: 0;
+}
+
+.catalog-team-page__intro button,
+.catalog-team-page__form > button {
+  align-items: center;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.catalog-team-page__intro button {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.catalog-team-page__form {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(190px, .65fr);
+}
+
+.catalog-team-page__form > div,
+.catalog-team-page__role-help,
+.catalog-team-page__form > button {
+  grid-column: 1 / -1;
+}
+
+.catalog-team-page__form h3 {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.catalog-team-page__form label {
+  display: grid;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+}
+
+.catalog-team-page__form input,
+.catalog-team-page__form select {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: #111827;
+  font: inherit;
+  min-height: 46px;
+  padding: 0 13px;
+  width: 100%;
+}
+
+.catalog-team-page__role-help {
+  align-items: center;
+  color: #4b5563;
+  display: flex;
+  font-size: 14px;
+  gap: 8px;
+}
+
+.catalog-team-page__form > button {
+  background: #111827;
+  color: #fff;
+  justify-self: start;
+}
+
+.catalog-team-page button svg,
+.catalog-team-page h3 svg,
+.catalog-team-page__role-help svg {
+  height: 18px;
+  width: 18px;
+}
+
+.catalog-team-page button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.catalog-team-page__members header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.catalog-team-page__members header span {
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #4338ca;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.catalog-team-page__list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.catalog-team-page__list article {
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto auto;
+  padding: 12px;
+}
+
+.catalog-team-page__list article > span {
+  align-items: center;
+  background: #111827;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-weight: 800;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.catalog-team-page__list article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.catalog-team-page__list small {
+  color: #6b7280;
+}
+
+.catalog-team-page__list em {
+  background: #ecfdf5;
+  border-radius: 999px;
+  color: #047857;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.catalog-team-page__list button {
+  align-items: center;
+  background: #fff1f2;
+  border: 0;
+  border-radius: 10px;
+  color: #be123c;
+  cursor: pointer;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.catalog-team-page__empty {
+  align-items: center;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 40px 16px 20px;
+  text-align: center;
+}
+
+.catalog-team-page__empty > svg {
+  height: 36px;
+  width: 36px;
+}
+
+.catalog-team-page__empty strong {
+  color: #111827;
+}
+
+@media (max-width: 760px) {
+  .catalog-team-page__intro,
+  .catalog-team-page__form,
+  .catalog-team-page__list article {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-team-page__intro > span {
+    display: none;
+  }
+
+  .catalog-team-page__intro button,
+  .catalog-team-page__form > button {
+    justify-self: stretch;
+  }
+
+  .catalog-team-page__list article > span {
+    display: none;
+  }
+}

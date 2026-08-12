@@ -69,4 +69,42 @@ describe('dish photo conversion', () => {
     assert.equal(next.current_stock, 9);
     assert.equal(next.is_unlimited, false);
   });
+
+  it('round-trips grocery SKU and weighted inventory in whole grams', () => {
+    const groceryProduct: Product = {
+      ...product,
+      sku: 'DATES-MEDJOUL',
+      barcode: '4601234567890',
+      pricing_type: 'per_kg',
+      sale_unit: 'weight',
+      quantity_unit: 'gram',
+      price_basis_quantity: 1000,
+      minimum_quantity: 250,
+      quantity_step: 50,
+      stock_quantity: 12_500,
+      allow_substitution: true,
+      is_unlimited: false
+    };
+
+    const dish = productToDish(groceryProduct, 'food');
+
+    assert.equal(dish.sku, 'DATES-MEDJOUL');
+    assert.equal(dish.barcode, '4601234567890');
+    assert.equal(dish.saleUnit, 'weight');
+    assert.equal(dish.minimumWeight, 0.25);
+    assert.equal(dish.weightStep, 0.05);
+    assert.equal(dish.dailyQuantity, 12.5);
+    assert.equal(dish.allowSubstitution, true);
+
+    const next = dishToProduct(dish, groceryProduct);
+    assert.equal(next.sale_unit, 'weight');
+    assert.equal(next.quantity_unit, 'gram');
+    assert.equal(next.price_basis_quantity, 1000);
+    assert.equal(next.minimum_quantity, 250);
+    assert.equal(next.quantity_step, 50);
+    assert.equal(next.stock_quantity, 12_500);
+    assert.equal(next.sku, 'DATES-MEDJOUL');
+    assert.equal(next.barcode, '4601234567890');
+    assert.equal(next.allow_substitution, true);
+  });
 });

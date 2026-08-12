@@ -2778,7 +2778,11 @@ function AppContent({
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
         />
-        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} />
+        <PublicOrderStatusScreen
+          catalogSlug={catalogSlug}
+          orderId={routeOrderId}
+          businessType={catalog.restaurant.business_type}
+        />
         <SiteCredit />
       </div>
     );

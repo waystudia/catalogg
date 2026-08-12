@@ -11,11 +11,15 @@ create table if not exists public.web_push_subscriptions (
   endpoint text not null,
   p256dh text not null,
   auth text not null,
+  app_base_url text not null default '',
   user_agent text not null default '',
   last_seen_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   unique (user_id, endpoint)
 );
+
+alter table public.web_push_subscriptions
+  add column if not exists app_base_url text not null default '';
 
 create index if not exists web_push_subscriptions_catalog_idx
   on public.web_push_subscriptions(role, catalog_id);
@@ -32,6 +36,8 @@ create policy "Users manage own web push subscriptions"
   using (user_id = auth.uid() or public.is_platform_admin())
   with check (user_id = auth.uid() or public.is_platform_admin());
 
+drop function if exists public.upsert_web_push_subscription(text, text, text, text, uuid, uuid, uuid);
+
 create or replace function public.upsert_web_push_subscription(
   subscription_endpoint text,
   p256dh_key text,
@@ -39,7 +45,8 @@ create or replace function public.upsert_web_push_subscription(
   role_name text,
   catalog_id_input uuid default null,
   driver_id_input uuid default null,
-  order_id_input uuid default null
+  order_id_input uuid default null,
+  app_base_url_input text default null
 )
 returns uuid
 language plpgsql
@@ -92,15 +99,27 @@ begin
     raise exception 'Only catalog members can register restaurant push subscriptions';
   end if;
 
-  if role_name = 'client' and order_id_input is null then
-    raise exception 'Client push subscriptions require an order';
+  if role_name = 'client'
+    and (
+      order_id_input is null
+      or not exists (
+        select 1
+        from public.orders order_record
+        join public.users platform_user on platform_user.id = order_record.client_id
+        where order_record.id = order_id_input
+          and platform_user.auth_user_id = auth.uid()
+      )
+    ) then
+    raise exception 'Only the order client can register this client push subscription';
   end if;
 
   insert into public.web_push_subscriptions (
-    user_id, role, catalog_id, driver_id, order_id, endpoint, p256dh, auth, user_agent, last_seen_at
+    user_id, role, catalog_id, driver_id, order_id, endpoint, p256dh, auth, app_base_url, user_agent, last_seen_at
   ) values (
     auth.uid(), role_name, catalog_id_input, driver_id_input, order_id_input,
     trim(subscription_endpoint), trim(p256dh_key), trim(auth_key),
+    case when trim(coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
+      then rtrim(trim(app_base_url_input), '/') else '' end,
     coalesce(current_setting('request.headers', true)::json ->> 'user-agent', ''), now()
   )
   on conflict (user_id, endpoint) do update set
@@ -110,6 +129,7 @@ begin
     order_id = excluded.order_id,
     p256dh = excluded.p256dh,
     auth = excluded.auth,
+    app_base_url = excluded.app_base_url,
     user_agent = excluded.user_agent,
     last_seen_at = now()
   returning id into subscription_id;
@@ -118,8 +138,93 @@ begin
 end;
 $$;
 
-grant execute on function public.upsert_web_push_subscription(text, text, text, text, uuid, uuid, uuid)
+grant execute on function public.upsert_web_push_subscription(text, text, text, text, uuid, uuid, uuid, text)
   to authenticated;
+
+create or replace function public.upsert_client_order_push_subscription(
+  client_session_token text,
+  subscription_endpoint text,
+  p256dh_key text,
+  auth_key text,
+  order_id_input uuid,
+  app_base_url_input text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  account_record public.client_accounts%rowtype;
+  order_catalog_id uuid;
+  subscription_id uuid;
+begin
+  select account.*
+  into account_record
+  from public.client_account_sessions session
+  join public.client_accounts account on account.id = session.account_id
+  where session.token_hash = extensions.digest(
+      pg_catalog.convert_to(coalesce(client_session_token, ''), 'UTF8'),
+      'sha256'
+    )
+    and session.expires_at > pg_catalog.now();
+
+  if account_record.id is null then
+    raise exception 'client_session_invalid';
+  end if;
+
+  select order_record.catalog_id
+  into order_catalog_id
+  from public.orders order_record
+  where order_record.id = order_id_input
+    and public.normalize_client_phone(
+      coalesce(order_record.client_phone, order_record.customer_phone, '')
+    ) = account_record.phone_normalized;
+
+  if order_catalog_id is null then
+    raise exception 'client_push_order_ownership_required';
+  end if;
+
+  insert into public.web_push_subscriptions (
+    user_id, role, catalog_id, driver_id, order_id, endpoint, p256dh, auth, app_base_url, user_agent, last_seen_at
+  ) values (
+    account_record.id, 'client', order_catalog_id, null, order_id_input,
+    pg_catalog.btrim(subscription_endpoint), pg_catalog.btrim(p256dh_key), pg_catalog.btrim(auth_key),
+    case when pg_catalog.btrim(coalesce(app_base_url_input, '')) ~ '^https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/[A-Za-z0-9._~!$&''()*+,;=:@%/-]*)?$'
+      then pg_catalog.rtrim(pg_catalog.btrim(app_base_url_input), '/') else '' end,
+    coalesce(
+      nullif(pg_catalog.current_setting('request.headers', true), '')::json ->> 'user-agent',
+      ''
+    ),
+    pg_catalog.now()
+  )
+  on conflict (user_id, endpoint) do update set
+    role = excluded.role,
+    catalog_id = excluded.catalog_id,
+    driver_id = excluded.driver_id,
+    order_id = excluded.order_id,
+    p256dh = excluded.p256dh,
+    auth = excluded.auth,
+    app_base_url = excluded.app_base_url,
+    user_agent = excluded.user_agent,
+    last_seen_at = pg_catalog.now()
+  returning id into subscription_id;
+
+  update public.client_account_sessions
+  set last_used_at = pg_catalog.now()
+  where token_hash = extensions.digest(
+    pg_catalog.convert_to(coalesce(client_session_token, ''), 'UTF8'),
+    'sha256'
+  );
+
+  return subscription_id;
+end;
+$$;
+
+revoke all on function public.upsert_client_order_push_subscription(text, text, text, text, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.upsert_client_order_push_subscription(text, text, text, text, uuid, text)
+  to anon, authenticated;
 
 create or replace function public.delete_web_push_subscription(subscription_endpoint text)
 returns boolean

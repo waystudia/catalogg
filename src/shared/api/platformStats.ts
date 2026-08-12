@@ -1,4 +1,4 @@
-import type { PlatformClient, PlatformRestaurantStats, PlatformStats } from './platformTypes';
+import type { PlatformBusinessStats, PlatformClient, PlatformStats } from './platformTypes';
 
 export type PlatformOrderStatsRow = {
   catalog_id?: string | null;
@@ -14,7 +14,7 @@ export type PlatformOrderStatsRow = {
 
 const canceledStatuses = new Set(['canceled', 'cancelled']);
 
-const getOrderRestaurantId = (order: PlatformOrderStatsRow) =>
+const getOrderBusinessId = (order: PlatformOrderStatsRow) =>
   order.catalog_id || order.restaurant_id || 'unknown-restaurant';
 
 const getOrderAmount = (order: PlatformOrderStatsRow) => {
@@ -28,7 +28,7 @@ export const summarizePlatformStats = (
 ): PlatformStats => {
   const productionClients = clients.filter((client) => client.isTest !== true);
   const productionOrders = orders.filter((order) => order.is_test_order !== true);
-  const restaurantStatsById = new Map<string, PlatformRestaurantStats>(
+  const businessStatsById = new Map<string, PlatformBusinessStats>(
     productionClients.map((client) => [
       client.catalogId || client.id,
       {
@@ -36,6 +36,7 @@ export const summarizePlatformStats = (
         clientId: client.id,
         name: client.catalogName || client.companyName,
         slug: client.catalogSlug,
+        businessType: client.businessType,
         revenue: 0,
         debt: client.debtAmount,
         testDebt: client.testDebtAmount ?? 0,
@@ -46,14 +47,15 @@ export const summarizePlatformStats = (
   );
 
   productionOrders.forEach((order) => {
-    const restaurantId = getOrderRestaurantId(order);
+    const businessId = getOrderBusinessId(order);
     const current =
-      restaurantStatsById.get(restaurantId) ??
+      businessStatsById.get(businessId) ??
       {
-        id: restaurantId,
+        id: businessId,
         clientId: '',
-        name: order.restaurant_name || 'Ресторан',
+        name: order.restaurant_name || 'Бизнес',
         slug: order.restaurant_slug || '',
+        businessType: 'restaurant',
         revenue: 0,
         debt: 0,
         ordersCount: 0,
@@ -70,11 +72,11 @@ export const summarizePlatformStats = (
       current.driverDeliveries += 1;
     }
 
-    restaurantStatsById.set(restaurantId, current);
+    businessStatsById.set(businessId, current);
   });
 
   const completedOrders = productionOrders.filter((order) => !canceledStatuses.has(order.status ?? ''));
-  const restaurantStats = Array.from(restaurantStatsById.values());
+  const businessStats = Array.from(businessStatsById.values());
 
   return {
     totalClients: productionClients.length,
@@ -90,9 +92,10 @@ export const summarizePlatformStats = (
       : 0,
     monthlyRevenue: completedOrders.reduce((sum, order) => sum + getOrderAmount(order), 0),
     monthlyViews: 0,
-    totalDebt: restaurantStats.reduce((sum, restaurant) => sum + restaurant.debt, 0),
+    totalDebt: businessStats.reduce((sum, business) => sum + business.debt, 0),
     totalOrders: productionOrders.length,
     driverDeliveries: productionOrders.filter((order) => order.delivery_provider === 'platform').length,
-    restaurantStats
+    businessStats,
+    restaurantStats: businessStats
   };
 };

@@ -8,8 +8,8 @@ type UpdateClientPayload = {
   phone?: string;
   primaryCity?: string;
   serviceSettlements?: string[];
-  businessType?: 'restaurant' | 'coffee_shop' | 'confectionery';
-  templateType?: 'restaurant' | 'coffee_shop' | 'confectionery';
+  businessType?: string;
+  templateType?: string;
   seedDemoMenu?: boolean;
   password?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
@@ -78,11 +78,11 @@ const assertPayload = (payload: UpdateClientPayload) => {
   if (payload.password !== undefined && payload.password.length > 0 && !isStrongPassword(payload.password)) {
     throw new Error('Password is too weak.');
   }
-  if (payload.businessType !== undefined && !['restaurant', 'coffee_shop', 'confectionery'].includes(payload.businessType)) {
+  if (payload.businessType !== undefined && !payload.businessType.trim()) {
     throw new Error('Business type is invalid.');
   }
-  if (payload.templateType !== undefined && !['restaurant', 'coffee_shop', 'confectionery'].includes(payload.templateType)) {
-    throw new Error('Template type is invalid.');
+  if (payload.templateType !== undefined && payload.templateType !== payload.businessType) {
+    throw new Error('Template type does not match the business type.');
   }
 };
 
@@ -129,6 +129,25 @@ Deno.serve(async (request) => {
     if (payload.serviceSettlements !== undefined) payload.serviceSettlements = normalizeSettlements(payload.serviceSettlements);
     assertPayload(payload);
     const authPhone = payload.phone !== undefined ? normalizeAuthPhone(payload.phone) : undefined;
+
+    if (payload.businessType !== undefined) {
+      const { data: businessTypeData, error: businessTypeError } = await adminClient
+        .from('business_types')
+        .select('code, availability')
+        .eq('code', payload.businessType)
+        .maybeSingle();
+      if (businessTypeError) throw businessTypeError;
+
+      const businessTypeRecord = businessTypeData && typeof businessTypeData === 'object'
+        ? businessTypeData as { code?: unknown; availability?: unknown }
+        : null;
+      if (!businessTypeRecord || businessTypeRecord.code !== payload.businessType) {
+        throw new Error('Business type is invalid.');
+      }
+      if (businessTypeRecord.availability !== 'active') {
+        throw new Error('Business type is not available.');
+      }
+    }
 
     const { data: currentClient, error: currentClientError } = await adminClient
       .from('clients')
@@ -209,7 +228,9 @@ Deno.serve(async (request) => {
       if (payload.companyName !== undefined) catalogUpdates.name = payload.companyName;
       if (payload.businessType !== undefined) catalogUpdates.business_type = payload.businessType;
       if (payload.templateType !== undefined) catalogUpdates.template_type = payload.templateType;
-      if (payload.status !== undefined) {
+      if (payload.businessType === 'grocery') {
+        catalogUpdates.status = 'draft';
+      } else if (payload.status !== undefined) {
         catalogUpdates.status = payload.status === 'blocked' || payload.status === 'inactive' ? 'draft' : 'published';
       }
       const { error: catalogUpdateError } = await adminClient

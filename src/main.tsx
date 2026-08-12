@@ -5,6 +5,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
 import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker';
+import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
   CatalogAdminRoute,
   PwaHomeRoute,
@@ -76,30 +77,32 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <HashRouter>
         <PwaResumeTracker />
         <Suspense fallback={<CatalogLoadingScreen />}>
-          <Routes>
-            {ClientPasskeyPreview && (
-              <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
-            )}
-            <Route path="/" element={<PwaHomeRoute />} />
-            <Route path="/city" element={<ClientPlatformApp />} />
-            <Route path="/categories" element={<ClientPlatformApp />} />
-            <Route path="/restaurants" element={<ClientPlatformApp />} />
-            <Route path="/cart" element={<ClientPlatformApp />} />
-            <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
-            <Route path="/profile/*" element={<ClientPlatformApp />} />
-            <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/scanner" element={<ScannerPage />} />
-            <Route path="/:slug/scanner" element={<ScannerPage />} />
-            <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
-            <Route path="/admin/payments" element={<PaymentsPage />} />
-            <Route path="/admin/*" element={<PlatformAdminApp />} />
-            <Route path="/driver/*" element={<DriverApp />} />
-            <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
-            <Route path="/:slug" element={<RestaurantPublicRoute />} />
-          </Routes>
+          <StorefrontBoundary>
+            <Routes>
+              {ClientPasskeyPreview && (
+                <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
+              )}
+              <Route path="/" element={<PwaHomeRoute />} />
+              <Route path="/city" element={<ClientPlatformApp />} />
+              <Route path="/categories" element={<ClientPlatformApp />} />
+              <Route path="/restaurants" element={<ClientPlatformApp />} />
+              <Route path="/cart" element={<ClientPlatformApp />} />
+              <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
+              <Route path="/profile/*" element={<ClientPlatformApp />} />
+              <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/scanner" element={<ScannerPage />} />
+              <Route path="/:slug/scanner" element={<ScannerPage />} />
+              <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
+              <Route path="/admin/payments" element={<PaymentsPage />} />
+              <Route path="/admin/*" element={<PlatformAdminApp />} />
+              <Route path="/driver/*" element={<DriverApp />} />
+              <Route path="/:slug/*" element={<RestaurantPublicRoute />} />
+              <Route path="/:slug" element={<RestaurantPublicRoute />} />
+            </Routes>
+          </StorefrontBoundary>
           {!passkeyPreviewIsActive && <LegalSurface />}
         </Suspense>
       </HashRouter>
