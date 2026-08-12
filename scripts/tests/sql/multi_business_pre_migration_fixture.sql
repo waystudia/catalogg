@@ -287,8 +287,8 @@ begin
   from public.categories category
   where category.catalog_id = template_id;
 
-  insert into public.products (catalog_id, category_id, name)
-  select created_catalog_id, null, product.name
+  insert into public.products (catalog_id, category_id, title)
+  select created_catalog_id, null, product.title
   from public.products product
   where product.catalog_id = template_id;
 
