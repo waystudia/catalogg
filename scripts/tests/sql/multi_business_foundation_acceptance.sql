@@ -256,7 +256,7 @@ $$;
 
 alter table public.audit_logs
   add constraint reject_atomic_test_audit
-  check (action <> 'client.created');
+  check (action <> 'client.created') not valid;
 
 do $$
 begin
