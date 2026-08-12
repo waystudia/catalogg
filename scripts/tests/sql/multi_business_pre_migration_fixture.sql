@@ -267,6 +267,7 @@ using (public.is_catalog_member(id));
 
 grant usage on schema public, auth to anon, authenticated, service_role;
 grant select on public.catalogs to anon, authenticated;
+grant all on all tables in schema public to service_role;
 
 insert into auth.users (id, email)
 values ('00000000-0000-4000-8000-000000000010', 'fixture-admin@wayyaam.test');
