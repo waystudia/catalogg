@@ -19,6 +19,7 @@ import {
   Tags,
   Trash2,
   Upload,
+  Users,
   UtensilsCrossed,
   WalletCards
 } from 'lucide-react';
@@ -80,8 +81,16 @@ import {
 import { defaultRestaurantDeliverySettings } from '../../features/restaurant-settings';
 import type { CatalogBackupPayload } from '../../features/restaurant-settings/catalogAdminModel';
 import { getBusinessTerms, type BusinessTerms } from '../../shared/businessTerminology';
+import { getCatalogWorkspaceAccess, getVisibleAssignedOrderIds, type CatalogOrderWorkAssignment } from '../../entities/catalogStaff';
+import {
+  acceptCatalogOrderAssignment,
+  escalateCatalogOrderAssignments,
+  getCatalogOrderAssignments,
+  updateCatalogAssignedOrderStatus
+} from '../../shared/api/catalogStaffApi';
+import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 
-type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'settings';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
   | 'hub'
   | 'profile'
@@ -298,7 +307,13 @@ export function RestaurantAdminShell({
   consentModal?: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const [section, setSection] = useState<AdminSection>('home');
+  const workspaceAccess = getCatalogWorkspaceAccess({
+    catalogRole: access.role,
+    staffRole: access.staffRole
+  });
+  const [section, setSection] = useState<AdminSection>(() =>
+    workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : 'home'
+  );
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: demoRestaurant,
@@ -310,6 +325,7 @@ export function RestaurantAdminShell({
     photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS
   });
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
+  const [orderAssignments, setOrderAssignments] = useState<CatalogOrderWorkAssignment[]>([]);
   const [moduleAccess, setModuleAccess] = useState<RestaurantAdminModuleAccess>({
     pos: 'disabled',
     warehouse: 'disabled'
@@ -336,6 +352,9 @@ export function RestaurantAdminShell({
   const terms = getBusinessTerms(access.catalog?.businessType);
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
   const navItems = useMemo(() => {
+    if (!workspaceAccess.canSeeFullWorkspace) {
+      return [{ id: 'orders' as const, label: access.staffRole === 'manager' ? 'Очередь заказов' : 'Мои заказы', icon: ShoppingBag }];
+    }
     const items = baseNavItems.map((item) => item.id === 'dishes' ? { ...item, label: terms.items } : item);
     if (moduleAccess.pos !== 'disabled') {
       items.splice(1, 0, { id: 'pos', label: 'Касса', icon: Calculator });
@@ -344,8 +363,12 @@ export function RestaurantAdminShell({
       const ordersIndex = items.findIndex((item) => item.id === 'orders');
       items.splice(ordersIndex + 1, 0, { id: 'warehouse', label: 'Склад', icon: Package });
     }
+    if (workspaceAccess.canManageTeam) {
+      const settingsIndex = items.findIndex((item) => item.id === 'settings');
+      items.splice(settingsIndex, 0, { id: 'team', label: 'Команда', icon: Users });
+    }
     return items;
-  }, [moduleAccess.pos, moduleAccess.warehouse, terms.items]);
+  }, [access.staffRole, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -364,7 +387,20 @@ export function RestaurantAdminShell({
   const refreshData = useCallback(async (options: { silent?: boolean } = {}) => {
     if (!options.silent) setIsLoadingData(true);
     try {
-      const [catalog, restaurantOrders] = await Promise.all([loadCatalog(slug), getRestaurantOrders(slug)]);
+      const catalogId = access.catalog?.id;
+      const assignmentPromise = catalogId
+        ? (async () => {
+            if (workspaceAccess.canManageTeam || access.staffRole === 'manager') {
+              await escalateCatalogOrderAssignments(catalogId);
+            }
+            return getCatalogOrderAssignments(catalogId);
+          })()
+        : Promise.resolve([]);
+      const [catalog, restaurantOrders, assignments] = await Promise.all([
+        loadCatalog(slug),
+        getRestaurantOrders(slug),
+        assignmentPromise
+      ]);
       setCatalogData({
         restaurant: catalog.restaurant,
         categories: catalog.categories.length ? catalog.categories : demoCategories,
@@ -402,13 +438,14 @@ export function RestaurantAdminShell({
       knownOrderIdsRef.current = new Set(restaurantOrders.map((order) => order.id));
       hasLoadedOrdersRef.current = true;
       setOrders(restaurantOrders);
+      setOrderAssignments(assignments);
       setSelectedOrderId((current) => current ?? restaurantOrders[0]?.id ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить данные ресторана');
     } finally {
       setIsLoadingData(false);
     }
-  }, [slug]);
+  }, [access.catalog?.id, access.staffRole, slug, workspaceAccess.canManageTeam]);
 
   useEffect(() => {
     void refreshData();
@@ -497,11 +534,18 @@ export function RestaurantAdminShell({
     const matchesCategory = categoryFilter === 'all' || product.category_id === categoryFilter;
     return matchesQuery && matchesCategory;
   });
-  const filteredOrders = orders.filter((order) => {
+  const workerOrderIds = getVisibleAssignedOrderIds(orderAssignments);
+  const roleVisibleOrders = access.staffRole === 'picker'
+    ? orders.filter((order) => workerOrderIds.has(order.id))
+    : orders;
+  const filteredOrders = roleVisibleOrders.filter((order) => {
     const text = `${order.orderNumber} ${order.clientName} ${order.clientPhone}`.toLowerCase();
     return text.includes(orderQuery.trim().toLowerCase());
   });
-  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? orders[0] ?? null;
+  const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? roleVisibleOrders[0] ?? null;
+  const selectedOrderAssignment = selectedOrder
+    ? orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null
+    : null;
 
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);
@@ -540,11 +584,30 @@ export function RestaurantAdminShell({
 
   const updateOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus) => {
     try {
-      await updateRestaurantOrderStatus(order, status);
+      if (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace) {
+        await updateCatalogAssignedOrderStatus({
+          orderId: order.id,
+          catalogId: order.catalogId,
+          status
+        });
+      } else {
+        await updateRestaurantOrderStatus(order, status);
+      }
       setOrders((current) => current.map((item) => (item.id === order.id ? { ...item, status } : item)));
       toast.success('Статус заказа обновлён');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось обновить заказ');
+    }
+  };
+
+  const acceptWorkAssignment = async (assignment: CatalogOrderWorkAssignment) => {
+    try {
+      const accepted = await acceptCatalogOrderAssignment(assignment.id, assignment.version);
+      if (!accepted) throw new Error('Назначение уже изменилось. Обновите список заказов.');
+      await refreshData({ silent: true });
+      toast.success('Заказ принят в работу');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось принять заказ');
     }
   };
 
@@ -801,16 +864,19 @@ export function RestaurantAdminShell({
             <OrdersPage
               orders={filteredOrders}
               selectedOrder={selectedOrder}
+              selectedAssignment={selectedOrderAssignment}
               query={orderQuery}
               paymentSettings={paymentSettings}
               paymentStatuses={paymentStatuses}
               recentOrderIds={recentOrderIds}
               canDeleteOrders={access.legalActivationStatus !== 'active'}
+              workerMode={workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace}
               onQueryChange={setOrderQuery}
               onSelectOrder={setSelectedOrderId}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
               onDelete={deleteOrder}
+              onAcceptAssignment={acceptWorkAssignment}
             />
           )}
           {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
@@ -825,6 +891,9 @@ export function RestaurantAdminShell({
               stockDrafts={stockDrafts}
               onStockDraftsChange={setStockDrafts}
             />
+          )}
+          {section === 'team' && workspaceAccess.canManageTeam && access.catalog?.id && (
+            <CatalogTeamPage catalogId={access.catalog.id} />
           )}
           {section === 'settings' && (
             <ExistingRestaurantSettingsPage
@@ -1081,29 +1150,35 @@ function DishesPage({
 function OrdersPage({
   orders,
   selectedOrder,
+  selectedAssignment,
   query,
   paymentSettings,
   paymentStatuses,
   recentOrderIds,
   canDeleteOrders,
+  workerMode,
   onQueryChange,
   onSelectOrder,
   onStatusChange,
   onPaymentStatusChange,
-  onDelete
+  onDelete,
+  onAcceptAssignment
 }: {
   orders: RestaurantOrder[];
   selectedOrder: RestaurantOrder | null;
+  selectedAssignment: CatalogOrderWorkAssignment | null;
   query: string;
   paymentSettings: PaymentSettings;
   paymentStatuses: Record<string, PaymentStatus>;
   recentOrderIds: Set<string>;
   canDeleteOrders: boolean;
+  workerMode: boolean;
   onQueryChange: (query: string) => void;
   onSelectOrder: (id: string) => void;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   onDelete: (order: RestaurantOrder) => Promise<void>;
+  onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
 }) {
   return (
     <div className="ra-orders-layout">
@@ -1121,12 +1196,15 @@ function OrdersPage({
       {selectedOrder && (
         <OrderDetails
           order={selectedOrder}
+          assignment={selectedAssignment}
           paymentSettings={paymentSettings}
           paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)}
           onStatusChange={onStatusChange}
           onPaymentStatusChange={onPaymentStatusChange}
           onDelete={onDelete}
           canDeleteOrders={canDeleteOrders}
+          workerMode={workerMode}
+          onAcceptAssignment={onAcceptAssignment}
         />
       )}
     </div>
@@ -1135,20 +1213,26 @@ function OrdersPage({
 
 function OrderDetails({
   order,
+  assignment,
   paymentSettings,
   paymentStatus,
   onStatusChange,
   onPaymentStatusChange,
   canDeleteOrders,
-  onDelete
+  workerMode,
+  onDelete,
+  onAcceptAssignment
 }: {
   order: RestaurantOrder;
+  assignment: CatalogOrderWorkAssignment | null;
   paymentSettings: PaymentSettings;
   paymentStatus: PaymentStatus;
   onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   canDeleteOrders: boolean;
+  workerMode: boolean;
   onDelete: (order: RestaurantOrder) => Promise<void>;
+  onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteOrder = async () => {
@@ -1170,6 +1254,18 @@ function OrderDetails({
         </div>
         <em data-tone={orderStatusTones[order.status]}>{orderStatusLabels[order.status]}</em>
       </header>
+      {assignment && (
+        <section className="ra-payment-box">
+          <h3><Users />Ответственный</h3>
+          <p>{assignment.isMine ? 'Назначено вам' : assignment.assigneeName}</p>
+          {assignment.state === 'offered' && assignment.isMine && (
+            <button type="button" onClick={() => void onAcceptAssignment(assignment)}>
+              Принять в работу
+            </button>
+          )}
+          {assignment.state === 'accepted' && <small>Заказ принят в работу</small>}
+        </section>
+      )}
       <dl>
         <div><dt>Клиент</dt><dd>{order.clientName}</dd></div>
         <div><dt>Телефон</dt><dd>{order.clientPhone || 'Не указан'}</dd></div>
@@ -1222,7 +1318,7 @@ function OrderDetails({
         ))}
       </div>
       <div className="ra-order-total"><span>Итого</span><strong>{formatPrice(order.total)}</strong></div>
-      <section className="ra-payment-box">
+      {!workerMode && <section className="ra-payment-box">
         <h3><WalletCards />Оплата</h3>
         <p>{paymentStatusLabels[paymentStatus]} · {orderPaymentStatusLabels[order.paymentStatus]}</p>
         <dl>
@@ -1234,7 +1330,7 @@ function OrderDetails({
           <button type="button" onClick={() => onPaymentStatusChange(order.id, 'confirmed')}>Подтвердить оплату</button>
           <button type="button" onClick={() => onPaymentStatusChange(order.id, 'declined')}>Отклонить</button>
         </div>
-      </section>
+      </section>}
       {order.fulfillmentType === 'delivery' && (
         <section className="ra-payment-box">
           <h3><QrCode />Выдача водителю</h3>
@@ -1245,7 +1341,7 @@ function OrderDetails({
           </dl>
         </section>
       )}
-      <div className="ra-order-actions">
+      {(!workerMode || assignment?.state === 'accepted') && <div className="ra-order-actions">
         {order.status === 'new' && (
           <button type="button" onClick={() => onStatusChange(order, 'accepted')}>Принять</button>
         )}
@@ -1255,7 +1351,7 @@ function OrderDetails({
         {order.status === 'preparing' && (
           <button type="button" onClick={() => onStatusChange(order, 'ready')}>Готово</button>
         )}
-        {order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+        {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
           <button
             type="button"
             disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
@@ -1267,14 +1363,14 @@ function OrderDetails({
         {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
           <button type="button" onClick={() => onStatusChange(order, 'completed')}>Завершить</button>
         )}
-        {order.status === 'waiting_driver' && (
+        {!workerMode && order.status === 'waiting_driver' && (
           <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>Передано водителю</button>
         )}
-        {order.status === 'on_the_way' && (
+        {!workerMode && order.status === 'on_the_way' && (
           <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
         )}
         {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
-        {(order.isTestOrder || canDeleteOrders) && (
+        {!workerMode && (order.isTestOrder || canDeleteOrders) && (
           <button
             className="ra-order-actions__danger"
             type="button"
@@ -1285,7 +1381,7 @@ function OrderDetails({
             {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
           </button>
         )}
-      </div>
+      </div>}
     </aside>
   );
 }

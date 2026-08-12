@@ -16,6 +16,10 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     --file supabase/migrations/20260812172641_add_multi_business_foundation.sql
   psql --set ON_ERROR_STOP=1 \
     --file supabase/migrations/20260812211500_add_catalog_sale_units.sql
+  if [[ -f supabase/migrations/20260812223500_add_catalog_staff_workflow.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260812223500_add_catalog_staff_workflow.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \
@@ -23,3 +27,6 @@ psql --set ON_ERROR_STOP=1 \
 
 psql --set ON_ERROR_STOP=1 \
   --file scripts/tests/sql/catalog_sale_foundation_acceptance.sql
+
+psql --set ON_ERROR_STOP=1 \
+  --file scripts/tests/sql/catalog_staff_workflow_acceptance.sql

@@ -4,6 +4,7 @@ import { copySupabaseSessionToScope } from '../supabaseAuthScope';
 import { clearPwaResumePath } from '../pwaSession';
 import { normalizeBusinessType, type BusinessType } from '../businessTerminology';
 import type { SubscriptionStatus } from './platformTypes';
+import type { CatalogStaffRole } from '../../entities/catalogStaff';
 
 export type CatalogLegalActivationStatus =
   | 'draft'
@@ -19,8 +20,10 @@ export type CatalogLegalActivationStatus =
 export type CatalogAdminAccess = {
   hasSession: boolean;
   isMember: boolean;
+  userId: string | null;
   email: string | null;
   role: 'owner' | 'admin' | 'editor' | 'viewer' | null;
+  staffRole: CatalogStaffRole;
   firstLogin: boolean;
   consentGiven: boolean;
   subscriptionStatus: SubscriptionStatus;
@@ -108,8 +111,10 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     return {
       hasSession: true,
       isMember: true,
+      userId: 'demo-owner',
       email: 'client@catalog.app',
       role: 'owner',
+      staffRole: null,
       firstLogin: false,
       consentGiven: true,
       subscriptionStatus: 'active',
@@ -125,8 +130,10 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     return {
       hasSession: false,
       isMember: false,
+      userId: null,
       email: null,
       role: null,
+      staffRole: null,
       firstLogin: false,
       consentGiven: false,
       subscriptionStatus: 'expired',
@@ -140,8 +147,10 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     return {
       hasSession: true,
       isMember: false,
+      userId: session.user.id,
       email: session.user.email ?? null,
       role: null,
+      staffRole: null,
       firstLogin: false,
       consentGiven: false,
       subscriptionStatus: 'expired',
@@ -151,7 +160,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     };
   }
 
-  const [memberResult, clientResult] = await Promise.all([
+  const [memberResult, clientResult, staffResult] = await Promise.all([
     supabase
       .from('catalog_members')
       .select('role')
@@ -162,21 +171,35 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       .from('clients')
       .select('catalog_id, owner_user_id, first_login, consent_given, subscription_status, subscription_ends_at, legal_activation_status')
       .eq('catalog_id', catalog.id)
+      .maybeSingle(),
+    supabase
+      .from('catalog_staff_memberships')
+      .select('role_code, is_active')
+      .eq('catalog_id', catalog.id)
+      .eq('user_id', session.user.id)
       .maybeSingle()
   ]);
 
   const { data: member, error } = memberResult;
   const { data: client, error: clientError } = clientResult;
+  const { data: staff, error: staffError } = staffResult;
   if (error) throw new Error(error.message);
 
   if (clientError) throw new Error(clientError.message);
+  const staffTableMissing = staffError && ['42P01', 'PGRST200', 'PGRST205'].includes(staffError.code ?? '');
+  if (staffError && !staffTableMissing) throw new Error(staffError.message);
   const clientOwnsCatalog = client?.catalog_id === catalog.id && client?.owner_user_id === session.user.id;
+  const staffRole = staff?.is_active && ['manager', 'picker'].includes(staff.role_code)
+    ? staff.role_code as Exclude<CatalogStaffRole, null>
+    : null;
 
   return {
     hasSession: true,
-    isMember: Boolean(member) || clientOwnsCatalog,
+    isMember: Boolean(member) || clientOwnsCatalog || Boolean(staffRole),
+    userId: session.user.id,
     email: session.user.email ?? null,
     role: (member?.role as CatalogRole | undefined) ?? (clientOwnsCatalog ? 'owner' : null),
+    staffRole,
     firstLogin: client?.first_login ?? false,
     consentGiven: client?.consent_given ?? true,
     subscriptionStatus: (client?.subscription_status as SubscriptionStatus | undefined) ?? 'active',
