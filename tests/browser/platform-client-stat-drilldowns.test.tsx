@@ -21,6 +21,7 @@ const stats: PlatformStats = {
       slug: 'rizih',
       revenue: 5930,
       debt: 415,
+      testDebt: 0,
       ordersCount: 6,
       driverDeliveries: 2
     },
@@ -30,7 +31,8 @@ const stats: PlatformStats = {
       name: 'Мангал',
       slug: 'mangal',
       revenue: 2660,
-      debt: 186,
+      debt: 0,
+      testDebt: 30,
       ordersCount: 3,
       driverDeliveries: 1
     }
@@ -47,6 +49,8 @@ test('opens restaurant revenue, order and debt details from the Clients card', a
   await expect.element(dialog.getByText('5 930 ₽', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('6 заказов', { exact: true })).toBeVisible();
   await expect.element(dialog.getByText('Долг 415 ₽', { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText('Тестовый долг 30 ₽', { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText('Долг 0 ₽', { exact: true })).toBeVisible();
 });
 
 test('opens delivery counts by restaurant and closes the details', async () => {

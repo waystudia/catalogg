@@ -23,6 +23,7 @@ const client = (overrides: Partial<PlatformClient> = {}): PlatformClient => ({
   templateVersion: 1,
   businessType: 'restaurant',
   logoUrl: '',
+  debtAmount: 0,
   createdAt: '2026-08-01T00:00:00.000Z',
   ...overrides
 });
@@ -58,6 +59,27 @@ describe('platform statistics test-data isolation', () => {
 
     expect(stats.totalOrders).toBe(1);
     expect(stats.monthlyRevenue).toBe(760);
+  });
+
+  it('keeps persisted restaurant debt independent from order revenue', () => {
+    const stats = summarizePlatformStats(
+      [client({ debtAmount: 30 })],
+      [order({ total_amount: 10_000 })]
+    );
+
+    expect(stats.monthlyRevenue).toBe(10_000);
+    expect(stats.totalDebt).toBe(30);
+    expect(stats.restaurantStats[0]?.debt).toBe(30);
+  });
+
+  it('exposes preactivation test debt without adding it to production debt totals', () => {
+    const stats = summarizePlatformStats(
+      [client({ debtAmount: 60, testDebtAmount: 90 })],
+      [order()]
+    );
+
+    expect(stats.totalDebt).toBe(60);
+    expect(stats.restaurantStats[0]).toMatchObject({ debt: 60, testDebt: 90 });
   });
 
   it('excludes the permanent test restaurant from production client and catalog totals', () => {
