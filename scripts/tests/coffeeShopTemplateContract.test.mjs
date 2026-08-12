@@ -17,16 +17,19 @@ test('coffee shop template is additive, has a readable slug, and preserves resta
 });
 
 test('client creation exposes optional coffee demo seeding without duplicating the app', async () => {
-  const [form, types, createClient] = await Promise.all([
+  const [form, types, createClient, multiBusinessMigration] = await Promise.all([
     readFile(new URL('../../src/pages/platform-admin/PlatformAdminApp.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/shared/api/platformTypes.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../../supabase/functions/create-client/index.ts', import.meta.url), 'utf8')
+    readFile(new URL('../../supabase/functions/create-client/index.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../supabase/migrations/20260812172641_add_multi_business_foundation.sql', import.meta.url), 'utf8')
   ]);
   assert.match(form, /Заполнить демонстрационным меню/);
   assert.match(types, /templateType: BusinessType/);
   assert.match(types, /seedDemoMenu\?: boolean/);
-  assert.match(createClient, /template_type: payload\.templateType/);
-  assert.match(createClient, /seedDemoMenu/);
+  assert.match(createClient, /requested_business_type: payload\.businessType/);
+  assert.match(createClient, /requested_seed_demo_menu: payload\.seedDemoMenu === true/);
+  assert.match(multiBusinessMigration, /template_type = requested_business_type/);
+  assert.match(multiBusinessMigration, /not requested_seed_demo_menu/);
 });
 
 test('editing a coffee product preserves modifier identities used by saved carts and orders', async () => {

@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { copySupabaseSessionToScope } from '../supabaseAuthScope';
 import { clearPwaResumePath } from '../pwaSession';
+import { normalizeBusinessType, type BusinessType } from '../businessTerminology';
 import type { SubscriptionStatus } from './platformTypes';
 
 export type CatalogLegalActivationStatus =
@@ -34,7 +35,7 @@ export type CatalogAdminAccess = {
     logoUrl: string;
     templateName: string;
     templateVersion: number;
-    businessType: string;
+    businessType: BusinessType;
   } | null;
 };
 
@@ -45,6 +46,7 @@ type CatalogRow = {
   status: 'draft' | 'published' | 'archived';
   description: string | null;
   logo_url: string | null;
+  business_type: string | null;
   template_versions?: {
     version?: number;
     templates?: {
@@ -65,7 +67,7 @@ const mapCatalog = (row: CatalogRow): NonNullable<CatalogAdminAccess['catalog']>
   logoUrl: row.logo_url ?? '',
   templateName: row.template_versions?.templates?.name ?? 'Template',
   templateVersion: row.template_versions?.version ?? 1,
-  businessType: row.template_versions?.templates?.business_type ?? 'catalog'
+  businessType: normalizeBusinessType(row.business_type ?? row.template_versions?.templates?.business_type)
 });
 
 async function loadCatalogBySlug(slug: string) {
@@ -79,13 +81,13 @@ async function loadCatalogBySlug(slug: string) {
       logoUrl: '',
       templateName: 'Restaurant Modern',
       templateVersion: 1,
-      businessType: 'restaurant'
+      businessType: normalizeBusinessType('restaurant')
     };
   }
 
   const { data, error } = await supabase
     .from('catalogs')
-    .select('id, name, slug, status, description, logo_url, template_versions(version, templates(name, business_type))')
+    .select('id, name, slug, status, description, logo_url, business_type, template_versions(version, templates(name, business_type))')
     .eq('slug', slug)
     .maybeSingle();
 

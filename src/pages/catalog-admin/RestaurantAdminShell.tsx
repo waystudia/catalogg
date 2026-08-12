@@ -79,6 +79,7 @@ import {
 } from '../../features/restaurant-admin/ExistingRestaurantSettingsPage';
 import { defaultRestaurantDeliverySettings } from '../../features/restaurant-settings';
 import type { CatalogBackupPayload } from '../../features/restaurant-settings/catalogAdminModel';
+import { getBusinessTerms, type BusinessTerms } from '../../shared/businessTerminology';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'settings';
 type SettingsSection =
@@ -332,9 +333,10 @@ export function RestaurantAdminShell({
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
 
   const slug = access.catalog?.slug ?? 'demo';
+  const terms = getBusinessTerms(access.catalog?.businessType);
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
   const navItems = useMemo(() => {
-    const items = [...baseNavItems];
+    const items = baseNavItems.map((item) => item.id === 'dishes' ? { ...item, label: terms.items } : item);
     if (moduleAccess.pos !== 'disabled') {
       items.splice(1, 0, { id: 'pos', label: 'Касса', icon: Calculator });
     }
@@ -343,7 +345,7 @@ export function RestaurantAdminShell({
       items.splice(ordersIndex + 1, 0, { id: 'warehouse', label: 'Склад', icon: Package });
     }
     return items;
-  }, [moduleAccess.pos, moduleAccess.warehouse]);
+  }, [moduleAccess.pos, moduleAccess.warehouse, terms.items]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -724,7 +726,7 @@ export function RestaurantAdminShell({
             <h1>{navItems.find((item) => item.id === section)?.label}</h1>
           </div>
           <div className="restaurant-admin-topbar__actions">
-            <select aria-label="Ресторан" value={slug} onChange={() => toast.info('Переключение ресторанов будет подключено к доступам пользователя')}>
+            <select aria-label={terms.place} value={slug} onChange={() => toast.info('Переключение бизнесов будет подключено к доступам пользователя')}>
               <option value={slug}>{catalogData.restaurant.name}</option>
             </select>
             <button
@@ -759,6 +761,7 @@ export function RestaurantAdminShell({
               orders={orders}
               revenue={revenue}
               popularProducts={popularProducts}
+              terms={terms}
               onNavigate={goTo}
             />
           )}
@@ -788,6 +791,7 @@ export function RestaurantAdminShell({
               categories={catalogData.categories}
               query={dishQuery}
               categoryFilter={categoryFilter}
+              terms={terms}
               onQueryChange={setDishQuery}
               onCategoryFilterChange={setCategoryFilter}
               onStocks={() => goTo('stocks')}
@@ -876,6 +880,7 @@ function DashboardPage({
   orders,
   revenue,
   popularProducts,
+  terms,
   onNavigate
 }: {
   restaurant: Restaurant;
@@ -884,6 +889,7 @@ function DashboardPage({
   orders: RestaurantOrder[];
   revenue: number;
   popularProducts: Product[];
+  terms: BusinessTerms;
   onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void;
 }) {
   const counts = {
@@ -898,12 +904,12 @@ function DashboardPage({
       <section className="ra-welcome">
         <div>
           <span>Добро пожаловать, {restaurant.name}!</span>
-          <h2>Управляйте рестораном и отслеживайте заказы</h2>
+          <h2>Управляйте {terms.placeInstrumental} и отслеживайте заказы</h2>
         </div>
         <button type="button" onClick={() => onNavigate('orders')}>Сегодня</button>
       </section>
       <section className="ra-metrics-grid">
-        <MetricCard label="Блюд" value={String(products.length)} />
+        <MetricCard label={terms.items} value={String(products.length)} />
         <MetricCard label="Категорий" value={String(categories.length)} />
         <MetricCard label="Заказов сегодня" value={String(todayOrders(orders).length)} />
         <MetricCard label="Выручка" value={formatPrice(revenue)} sub="+12% к вчера" />
@@ -925,7 +931,7 @@ function DashboardPage({
           </div>
         </article>
         <article className="ra-card ra-popular">
-          <h3>Популярные блюда</h3>
+          <h3>Популярные {terms.items.toLowerCase()}</h3>
           {popularProducts.map((product) => (
             <button key={product.id} type="button" onClick={() => onNavigate('dishes')}>
               <img src={product.image_url} alt="" />
@@ -935,9 +941,9 @@ function DashboardPage({
         </article>
       </section>
       <section className="ra-quick-actions">
-        <button type="button" onClick={() => toast.info('Форма блюда остаётся в существующем модуле и готова к подключению к этому экрану')}><Plus />Добавить блюдо</button>
+        <button type="button" onClick={() => toast.info(`${terms.addItem}: форма откроется в существующем модуле`)}><Plus />{terms.addItem}</button>
         <button type="button" onClick={() => onNavigate('stocks')}><Package />Обновить остатки</button>
-        <button type="button" onClick={() => onNavigate('settings', 'profile')}><Settings />Настройки ресторана</button>
+        <button type="button" onClick={() => onNavigate('settings', 'profile')}><Settings />Настройки {terms.placeGenitive}</button>
         <button type="button" onClick={() => onNavigate('settings', 'import')}><Upload />Импорт / Экспорт</button>
       </section>
     </div>
@@ -1022,6 +1028,7 @@ function DishesPage({
   categories,
   query,
   categoryFilter,
+  terms,
   onQueryChange,
   onCategoryFilterChange,
   onStocks
@@ -1031,6 +1038,7 @@ function DishesPage({
   categories: Category[];
   query: string;
   categoryFilter: string;
+  terms: BusinessTerms;
   onQueryChange: (query: string) => void;
   onCategoryFilterChange: (categoryId: string) => void;
   onStocks: () => void;
@@ -1038,17 +1046,17 @@ function DishesPage({
   return (
     <div className="ra-page-stack">
       <section className="ra-list-toolbar">
-        <label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск блюд..." /></label>
+        <label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={`Поиск: ${terms.items.toLowerCase()}`} /></label>
         <select value={categoryFilter} onChange={(event) => onCategoryFilterChange(event.target.value)}>
           <option value="all">Все категории</option>
           {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
         </select>
         <button type="button"><Tags />Все метки</button>
-        <button type="button" onClick={() => toast.info('Добавление блюда будет открывать существующую форму блюда')}><Plus />Добавить блюдо</button>
+        <button type="button" onClick={() => toast.info(`${terms.addItem}: открываем существующую форму каталога`)}><Plus />{terms.addItem}</button>
       </section>
       <section className="ra-table ra-dishes-table">
         <div className="ra-table__head">
-          <span>Блюдо</span><span>Категория</span><span>Цена</span><span>Остаток</span><span>Метки</span><span>Действия</span>
+          <span>{terms.item}</span><span>Категория</span><span>Цена</span><span>Остаток</span><span>Метки</span><span>Действия</span>
         </div>
         {products.map((product) => (
           <article key={product.id}>

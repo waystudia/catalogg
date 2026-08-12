@@ -33,6 +33,16 @@ export const platformFallbackTemplates: PlatformTemplateOption[] = [
     templateCatalogSlug: 'confectionery',
     isCatalogTemplate: true,
     previewImage: '/assets/templates/confectionery/preview.webp'
+  },
+  {
+    templateVersionId: '00000000-0000-4000-8000-000000000005',
+    templateKey: 'grocery',
+    templateName: 'Продуктовый магазин',
+    businessType: 'grocery',
+    version: 1,
+    description: 'Чистый каталог продуктового магазина для настройки владельцем.',
+    templateCatalogSlug: 'grocery',
+    isCatalogTemplate: true
   }
 ];
 
@@ -82,7 +92,7 @@ const mapTemplateCatalog = (row: TemplateCatalogRow): PlatformTemplateOption => 
       : undefined
 });
 
-const templateOrder: Record<string, number> = { restaurant: 0, coffee_shop: 1, confectionery: 2 };
+const templateOrder: Record<string, number> = { restaurant: 0, coffee_shop: 1, confectionery: 2, grocery: 3 };
 
 export async function getTemplateOptions(): Promise<PlatformTemplateOption[]> {
   if (!supabase) return platformFallbackTemplates;

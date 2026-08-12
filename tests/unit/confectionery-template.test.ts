@@ -55,7 +55,8 @@ describe('confectionery template', () => {
     expect(platformFallbackTemplates.map((template) => template.businessType)).toEqual([
       'restaurant',
       'coffee_shop',
-      'confectionery'
+      'confectionery',
+      'grocery'
     ]);
     expect(platformFallbackTemplates[2]).toMatchObject({
       templateKey: 'confectionery',

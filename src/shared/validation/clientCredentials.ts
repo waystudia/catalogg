@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BUSINESS_TYPES } from '../businessRegistry';
 
 const transliteration: Record<string, string> = {
   а: 'a',
@@ -107,8 +108,8 @@ export const createClientSchema = z.object({
   serviceSettlementsText: z.string().trim().max(1500, 'Слишком длинный список').optional(),
   password: z.string().refine(isStrongPassword, 'Минимум 10 символов: A-z, цифра и спецсимвол'),
   templateVersionId: z.string().uuid('Выберите шаблон'),
-  businessType: z.enum(['restaurant', 'coffee_shop', 'confectionery']),
-  templateType: z.enum(['restaurant', 'coffee_shop', 'confectionery']),
+  businessType: z.enum(BUSINESS_TYPES),
+  templateType: z.enum(BUSINESS_TYPES),
   seedDemoMenu: z.boolean().default(false),
   planId: z.string().optional(),
   subscriptionEndsAt: z.string().optional(),

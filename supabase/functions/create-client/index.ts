@@ -11,7 +11,7 @@ type CreateClientPayload = {
   password: string;
   templateVersionId: string;
   businessType: string;
-  templateType: 'restaurant' | 'coffee_shop' | 'confectionery';
+  templateType: string;
   seedDemoMenu?: boolean;
   planId?: string;
   subscriptionEndsAt?: string;
@@ -78,8 +78,8 @@ const assertPayload = (payload: CreateClientPayload) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) throw new Error('Email is invalid.');
   if (!isStrongPassword(payload.password)) throw new Error('Password is too weak.');
   if (!payload.templateVersionId) throw new Error('Template is required.');
-  if (!['restaurant', 'coffee_shop', 'confectionery'].includes(payload.businessType)) throw new Error('Business type is invalid.');
-  if (!['restaurant', 'coffee_shop', 'confectionery'].includes(payload.templateType)) throw new Error('Template type is invalid.');
+  if (!payload.businessType?.trim()) throw new Error('Business type is invalid.');
+  if (payload.templateType !== payload.businessType) throw new Error('Template type does not match the business type.');
   if (!payload.adminConsentConfirmed) throw new Error('Client consent confirmation is required.');
 };
 
@@ -131,14 +131,20 @@ Deno.serve(async (request) => {
     const [
       { data: existingClientByEmail, error: existingClientError },
       { data: existingCatalogBySlug, error: existingCatalogError },
-      { data: templateCatalog, error: templateCatalogError }
+      { data: businessTypeData, error: businessTypeError },
+      { data: templateCatalogData, error: templateCatalogError }
     ] =
       await Promise.all([
         adminClient.from('clients').select('id').eq('email', payload.email).maybeSingle(),
         adminClient.from('catalogs').select('id').eq('slug', payload.slug).maybeSingle(),
         adminClient
+          .from('business_types')
+          .select('code, availability')
+          .eq('code', payload.businessType)
+          .maybeSingle(),
+        adminClient
           .from('catalogs')
-          .select('id, template_version_id, is_template, business_type')
+          .select('id, is_template, business_type')
           .eq('id', payload.templateVersionId)
           .eq('is_template', true)
           .maybeSingle()
@@ -146,11 +152,28 @@ Deno.serve(async (request) => {
 
     if (existingClientError) throw existingClientError;
     if (existingCatalogError) throw existingCatalogError;
+    if (businessTypeError) throw businessTypeError;
     if (templateCatalogError) throw templateCatalogError;
     if (existingClientByEmail) throw new Error('Email already exists.');
     if (existingCatalogBySlug) throw new Error('Slug already exists.');
-    if (!templateCatalog) throw new Error('Template catalog is not available.');
-    if ((templateCatalog as { business_type?: string }).business_type !== payload.templateType) {
+
+    const businessTypeRecord = businessTypeData && typeof businessTypeData === 'object'
+      ? businessTypeData as { code?: unknown; availability?: unknown }
+      : null;
+    if (!businessTypeRecord || businessTypeRecord.code !== payload.businessType) {
+      throw new Error('Business type is invalid.');
+    }
+    if (businessTypeRecord.availability !== 'active') {
+      throw new Error('Business type is not available for onboarding.');
+    }
+
+    const templateCatalog = templateCatalogData && typeof templateCatalogData === 'object'
+      ? templateCatalogData as { id?: unknown; business_type?: unknown }
+      : null;
+    if (!templateCatalog || templateCatalog.id !== payload.templateVersionId) {
+      throw new Error('Template catalog is not available.');
+    }
+    if (templateCatalog.business_type !== payload.businessType) {
       throw new Error('Template type does not match the selected template.');
     }
 
@@ -169,140 +192,57 @@ Deno.serve(async (request) => {
     }
 
     const ownerUserId = createdUser.user.id;
-    let catalogId: string | null = null;
-    let clientId: string | null = null;
-
-    try {
-      const { error: actorProfileError } = await adminClient.from('profiles').upsert({
-        id: userData.user.id,
-        email: userData.user.email ?? '',
-        full_name: userData.user.user_metadata?.full_name ?? ''
-      });
-      if (actorProfileError) throw actorProfileError;
-
-      const { error: profileError } = await adminClient.from('profiles').upsert({
-        id: ownerUserId,
-        email: payload.email,
-        full_name: payload.ownerName ?? ''
-      });
-      if (profileError) throw profileError;
-
-      const { data: createdCatalogId, error: catalogError } = await adminClient.rpc('create_restaurant_from_template', {
-        template_id: payload.templateVersionId,
-        new_restaurant_name: payload.name,
-        new_restaurant_slug: payload.slug,
-        new_template_version_id: (templateCatalog as { template_version_id?: string }).template_version_id ?? null,
-        created_by_user_id: userData.user.id
-      });
-      if (catalogError || !createdCatalogId) throw catalogError ?? new Error('Could not create catalog from template.');
-      catalogId = String(createdCatalogId);
-
-      const nextCatalogStatus = 'draft';
-      const { data: catalog, error: catalogFetchError } = await adminClient
-        .from('catalogs')
-        .update({ status: nextCatalogStatus, business_type: payload.businessType, template_type: payload.templateType })
-        .eq('id', catalogId)
-        .select('id, slug')
-        .single();
-      if (catalogFetchError || !catalog) throw catalogFetchError ?? new Error('Could not load created catalog.');
-
-      if (['coffee_shop', 'confectionery'].includes(payload.templateType) && payload.seedDemoMenu !== true) {
-        const { error: productCleanupError } = await adminClient.from('products').delete().eq('catalog_id', catalog.id);
-        if (productCleanupError) throw productCleanupError;
-        const { error: categoryCleanupError } = await adminClient.from('categories').delete().eq('catalog_id', catalog.id);
-        if (categoryCleanupError) throw categoryCleanupError;
+    const { data: onboardingResult, error: onboardingError } = await adminClient.rpc(
+      'create_platform_business_from_template',
+      {
+        requested_template_id: payload.templateVersionId,
+        requested_name: payload.name,
+        requested_slug: payload.slug,
+        requested_business_type: payload.businessType,
+        requested_owner_user_id: ownerUserId,
+        requested_owner_email: payload.email,
+        requested_owner_name: payload.ownerName ?? '',
+        requested_actor_user_id: userData.user.id,
+        requested_actor_email: userData.user.email ?? '',
+        requested_phone: payload.phone ?? '',
+        requested_primary_city: payload.primaryCity ?? '',
+        requested_service_settlements: payload.serviceSettlements,
+        requested_seed_demo_menu: payload.seedDemoMenu === true,
+        requested_plan_code: payload.planId ?? 'trial',
+        requested_subscription_ends_at: payload.subscriptionEndsAt || null,
+        requested_client_status: payload.status ?? 'active',
+        requested_subscription_status: payload.subscriptionStatus ?? 'trial'
       }
+    );
 
-      const { error: memberError } = await adminClient.from('catalog_members').insert({
-        catalog_id: catalog.id,
-        user_id: ownerUserId,
-        role: 'owner'
-      });
-      if (memberError) throw memberError;
-
-      if (payload.primaryCity || payload.serviceSettlements.length > 0) {
-        const { error: deliverySettingsError } = await adminClient.from('restaurant_delivery_settings').upsert(
-          {
-            catalog_id: catalog.id,
-            delivery_area_mode: payload.serviceSettlements.length > 0 ? 'settlements' : 'radius',
-            primary_city: payload.primaryCity ?? '',
-            service_settlements: payload.serviceSettlements
-          },
-          { onConflict: 'catalog_id' }
-        );
-        if (deliverySettingsError) throw deliverySettingsError;
+    if (onboardingError) {
+      const { error: cleanupError } = await adminClient.auth.admin.deleteUser(ownerUserId);
+      if (cleanupError) {
+        throw new Error(`${getErrorMessage(onboardingError)} Auth cleanup failed: ${getErrorMessage(cleanupError)}`);
       }
-
-      const { data: client, error: clientError } = await adminClient
-        .from('clients')
-        .insert({
-          owner_user_id: ownerUserId,
-          catalog_id: catalog.id,
-          company_name: payload.name,
-          business_type: payload.businessType,
-          template_type: payload.templateType,
-          owner_name: payload.ownerName ?? '',
-          email: payload.email,
-          phone: payload.phone ?? '',
-          primary_city: payload.primaryCity ?? '',
-          service_settlements: payload.serviceSettlements,
-          status: payload.status ?? 'active',
-          legal_activation_status: 'draft',
-          plan_code: payload.planId ?? 'trial',
-          subscription_status: payload.subscriptionStatus ?? 'trial',
-          subscription_ends_at: payload.subscriptionEndsAt || null,
-          first_login: true,
-          consent_given: false,
-          consent_source: null,
-          admin_consent_confirmed: true,
-          admin_consent_confirmed_at: new Date().toISOString(),
-          admin_consent_actor_id: userData.user.id,
-          created_by: userData.user.id
-        })
-        .select('id')
-        .single();
-      if (clientError || !client) throw clientError ?? new Error('Could not create client.');
-      clientId = client.id;
-
-      const { error: subscriptionError } = await adminClient.from('client_subscriptions').insert({
-        client_id: client.id,
-        plan_code: payload.planId ?? 'trial',
-        status: payload.subscriptionStatus ?? 'trial',
-        started_at: new Date().toISOString(),
-        ends_at: payload.subscriptionEndsAt || null
-      });
-      if (subscriptionError) throw subscriptionError;
-
-      const { error: auditError } = await adminClient.from('audit_logs').insert({
-        catalog_id: catalog.id,
-        actor_id: userData.user.id,
-        action: 'client.created',
-        entity_table: 'clients',
-        entity_id: client.id,
-        payload: {
-          client_name: payload.name,
-          actor_email: userData.user.email,
-          owner_email: payload.email
-        }
-      });
-      if (auditError) throw auditError;
-
-      return jsonResponse({
-        clientId: client.id,
-        catalogId: catalog.id,
-        slug: catalog.slug,
-        email: payload.email
-      });
-    } catch (error) {
-      if (clientId) {
-        await adminClient.from('clients').delete().eq('id', clientId);
-      }
-      if (catalogId) {
-        await adminClient.from('catalogs').delete().eq('id', catalogId);
-      }
-      await adminClient.auth.admin.deleteUser(ownerUserId);
-      throw error;
+      throw onboardingError;
     }
+
+    if (!onboardingResult || typeof onboardingResult !== 'object') {
+      throw new Error('Onboarding transaction did not return client data.');
+    }
+
+    const result = onboardingResult as Record<string, unknown>;
+    if (
+      typeof result.clientId !== 'string' ||
+      typeof result.catalogId !== 'string' ||
+      typeof result.slug !== 'string' ||
+      typeof result.email !== 'string'
+    ) {
+      throw new Error('Onboarding transaction returned invalid client data.');
+    }
+
+    return jsonResponse({
+      clientId: result.clientId,
+      catalogId: result.catalogId,
+      slug: result.slug,
+      email: result.email
+    });
   } catch (error) {
     const message = getErrorMessage(error);
     return jsonResponse({ error: message }, 400);

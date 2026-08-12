@@ -1,6 +1,11 @@
-export const BUSINESS_TYPES = ['restaurant', 'coffee_shop', 'confectionery'] as const;
+import {
+  BUSINESS_TYPES,
+  isBusinessType,
+  type BusinessType
+} from './businessRegistry';
 
-export type BusinessType = (typeof BUSINESS_TYPES)[number];
+export { BUSINESS_TYPES };
+export type { BusinessType };
 
 export const DEFAULT_BUSINESS_TYPE: BusinessType = 'restaurant';
 
@@ -85,12 +90,72 @@ export const BUSINESS_TERMINOLOGY: Readonly<Record<BusinessType, BusinessTerms>>
     driverAtPlaceStatus: 'На месте в кондитерской',
     orderPrepared: 'Заказ приготовлен кондитерской',
     paymentConfirmation: 'Кондитерская получила заказ и проверяет оплату.'
+  },
+  grocery: {
+    place: 'Магазин',
+    placeLower: 'магазин',
+    placeAccusative: 'магазин',
+    placePrepositional: 'магазине',
+    placeInstrumental: 'магазином',
+    placeGenitive: 'магазина',
+    placeDative: 'магазину',
+    item: 'Товар',
+    itemLower: 'товар',
+    items: 'Товары',
+    itemGenitive: 'товара',
+    addItem: 'Добавить товар',
+    driverRoute: 'Еду в магазин',
+    driverRouteAction: 'Поехать в магазин',
+    driverArrival: 'Я в магазине',
+    driverAtPlaceStatus: 'На месте в магазине',
+    orderPrepared: 'Заказ собран магазином',
+    paymentConfirmation: 'Магазин получил заказ и проверяет оплату.'
+  },
+  flowers: {
+    place: 'Цветочный магазин',
+    placeLower: 'цветочный магазин',
+    placeAccusative: 'цветочный магазин',
+    placePrepositional: 'цветочном магазине',
+    placeInstrumental: 'цветочным магазином',
+    placeGenitive: 'цветочного магазина',
+    placeDative: 'цветочному магазину',
+    item: 'Товар', itemLower: 'товар', items: 'Товары', itemGenitive: 'товара', addItem: 'Добавить товар',
+    driverRoute: 'Еду в цветочный магазин', driverRouteAction: 'Поехать в цветочный магазин',
+    driverArrival: 'Я в цветочном магазине', driverAtPlaceStatus: 'На месте в цветочном магазине',
+    orderPrepared: 'Заказ собран цветочным магазином', paymentConfirmation: 'Магазин получил заказ и проверяет оплату.'
+  },
+  gifts: {
+    place: 'Магазин подарков', placeLower: 'магазин подарков', placeAccusative: 'магазин подарков',
+    placePrepositional: 'магазине подарков', placeInstrumental: 'магазином подарков',
+    placeGenitive: 'магазина подарков', placeDative: 'магазину подарков',
+    item: 'Товар', itemLower: 'товар', items: 'Товары', itemGenitive: 'товара', addItem: 'Добавить товар',
+    driverRoute: 'Еду в магазин подарков', driverRouteAction: 'Поехать в магазин подарков',
+    driverArrival: 'Я в магазине подарков', driverAtPlaceStatus: 'На месте в магазине подарков',
+    orderPrepared: 'Заказ собран магазином', paymentConfirmation: 'Магазин получил заказ и проверяет оплату.'
+  },
+  household: {
+    place: 'Хозяйственный магазин', placeLower: 'хозяйственный магазин', placeAccusative: 'хозяйственный магазин',
+    placePrepositional: 'хозяйственном магазине', placeInstrumental: 'хозяйственным магазином',
+    placeGenitive: 'хозяйственного магазина', placeDative: 'хозяйственному магазину',
+    item: 'Товар', itemLower: 'товар', items: 'Товары', itemGenitive: 'товара', addItem: 'Добавить товар',
+    driverRoute: 'Еду в хозяйственный магазин', driverRouteAction: 'Поехать в хозяйственный магазин',
+    driverArrival: 'Я в хозяйственном магазине', driverAtPlaceStatus: 'На месте в хозяйственном магазине',
+    orderPrepared: 'Заказ собран магазином', paymentConfirmation: 'Магазин получил заказ и проверяет оплату.'
+  },
+  pharmacy: {
+    place: 'Аптека', placeLower: 'аптека', placeAccusative: 'аптеку', placePrepositional: 'аптеке',
+    placeInstrumental: 'аптекой', placeGenitive: 'аптеки', placeDative: 'аптеке',
+    item: 'Товар', itemLower: 'товар', items: 'Товары', itemGenitive: 'товара', addItem: 'Добавить товар',
+    driverRoute: 'Еду в аптеку', driverRouteAction: 'Поехать в аптеку', driverArrival: 'Я в аптеке',
+    driverAtPlaceStatus: 'На месте в аптеке', orderPrepared: 'Заказ собран аптекой',
+    paymentConfirmation: 'Аптека получила заказ и проверяет оплату.'
   }
 };
 
 export const normalizeBusinessType = (value: unknown): BusinessType => {
   if (value === 'coffee_shop' || value === 'coffee') return 'coffee_shop';
   if (value === 'confectionery' || value === 'bakery') return 'confectionery';
+  if (isBusinessType(value)) return value;
   return DEFAULT_BUSINESS_TYPE;
 };
 

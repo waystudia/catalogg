@@ -132,6 +132,8 @@ import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/Pl
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
 import { RestaurantActivationsAdminPage } from '../../features/platform-admin-activations/RestaurantActivationsAdminPage';
+import { BusinessTypeSelect } from '../../features/platform-admin-business-types/BusinessTypeSelect';
+import { BUSINESS_TYPE_DEFINITIONS } from '../../shared/businessRegistry';
 import { ClientGeographyFields } from './ClientGeographyFields';
 import {
   getRestaurantModuleEntitlementByCatalog,
@@ -229,6 +231,11 @@ const businessTypeLabels: Record<string, string> = {
   restaurant: 'Ресторан',
   coffee_shop: 'Кофейня',
   confectionery: 'Кондитерская',
+  grocery: 'Продуктовый магазин',
+  flowers: 'Цветочный магазин',
+  gifts: 'Магазин подарков',
+  household: 'Хозяйственный магазин',
+  pharmacy: 'Аптека',
   cafe: 'Кофейня',
   salon: 'Салон красоты',
   barbershop: 'Барбершоп',
@@ -1251,18 +1258,14 @@ function CreateClientForm({
               </div>
               {errors.templateVersionId && <small>{errors.templateVersionId.message}</small>}
             </fieldset>
-            <label>
-              <span>
-                Тип заведения <b>*</b>
-              </span>
-              <select {...register('businessType')} aria-invalid={Boolean(errors.businessType)}>
-                <option value="restaurant">🍽 Ресторан</option>
-                <option value="coffee_shop">☕ Кофейня</option>
-                <option value="confectionery">🍰 Кондитерская</option>
-              </select>
-              <em>Тип можно изменить позже без потери меню, заказов и статистики.</em>
-              {errors.businessType && <small>{errors.businessType.message}</small>}
-            </label>
+            <input type="hidden" {...register('businessType')} />
+            <BusinessTypeSelect
+              id="create-client-business-type"
+              value={businessType}
+              options={BUSINESS_TYPE_DEFINITIONS}
+              onChange={(value) => setValue('businessType', value, { shouldValidate: true })}
+              error={errors.businessType?.message}
+            />
             <input type="hidden" {...register('templateType')} />
             {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
               <label className="client-form__disabled-option">
@@ -1453,15 +1456,12 @@ function EditClientForm({
         <section className="client-form-section">
           <h3>Данные клиента</h3>
           <div className="client-form-grid">
-            <label>
-              Тип заведения
-              <select value={businessType} onChange={(event) => setBusinessType(event.target.value as PlatformClient['businessType'])}>
-                <option value="restaurant">🍽 Ресторан</option>
-                <option value="coffee_shop">☕ Кофейня</option>
-                <option value="confectionery">🍰 Кондитерская</option>
-              </select>
-              <em>Тексты интерфейса обновятся автоматически, данные сохранятся.</em>
-            </label>
+            <BusinessTypeSelect
+              id="edit-client-business-type"
+              value={businessType}
+              options={BUSINESS_TYPE_DEFINITIONS}
+              onChange={setBusinessType}
+            />
             <label>
               Название клиента
               <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} required />
