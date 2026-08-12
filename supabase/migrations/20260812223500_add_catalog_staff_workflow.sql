@@ -232,7 +232,7 @@ begin
 
   insert into public.catalog_members (catalog_id, user_id, role)
   values (target_catalog_id, resolved_user_id, 'viewer'::public.catalog_role)
-  on conflict (catalog_id, user_id) do nothing;
+  on conflict on constraint catalog_members_pkey do nothing;
 
   insert into public.catalog_staff_memberships (
     catalog_id,
@@ -250,7 +250,7 @@ begin
     target_receives_new_orders,
     (select auth.uid())
   )
-  on conflict (catalog_id, user_id)
+  on conflict on constraint catalog_staff_memberships_pkey
   do update set
     role_code = excluded.role_code,
     is_active = true,
