@@ -1,6 +1,7 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0';
-import { prioritizeEligibleDrivers } from './premiumDispatch.ts';
+import { selectPriorityDriverSubscriptions } from './premiumDispatch.ts';
+import { getRussianPushStatus } from './pushMessages.ts';
 
 type WebhookEvent = {
   type?: string;
@@ -11,6 +12,7 @@ type WebhookEvent = {
 
 type Subscription = {
   id: string;
+  driver_id?: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -115,7 +117,9 @@ Deno.serve(async (request) => {
       const status = asString(record.status) || 'new';
       const isNew = event.type === 'INSERT' || status === 'new';
       title = isNew ? `Новый заказ #${orderId.slice(0, 8).toUpperCase()}` : `Статус заказа #${orderId.slice(0, 8).toUpperCase()}`;
-      body = isNew ? `${asString(record.client_name || record.customer_name) || 'Клиент'} оформил заказ` : `Статус изменён: ${status}`;
+      body = isNew
+        ? `${asString(record.client_name || record.customer_name) || 'Клиент'} оформил заказ`
+        : `Статус изменён: ${getRussianPushStatus(status)}`;
       url = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
       tag = `order-${orderId}`;
 
@@ -136,7 +140,7 @@ Deno.serve(async (request) => {
       const catalogId = asId(order?.catalog_id);
       const driverId = asId(delivery?.driver_id);
       title = event.type === 'INSERT' || record.status === 'waiting_courier' ? 'Новая доставка' : 'Обновление доставки';
-      body = `Заказ #${orderId.slice(0, 8).toUpperCase()} · ${asString(record.status || delivery?.status)}`;
+      body = `Заказ #${orderId.slice(0, 8).toUpperCase()} · ${getRussianPushStatus(record.status || delivery?.status)}`;
       url = `${appBaseUrl()}#/driver/orders/${encodeURIComponent(deliveryId)}`;
       tag = `delivery-${deliveryId}`;
 
@@ -191,17 +195,19 @@ Deno.serve(async (request) => {
           .filter((driver) => driverServesDeliveryLocation(driver, order?.delivery_city, order?.delivery_settlement))
           .filter((driver) => (activeCounts.get(driver.id) ?? 0) < Number(driver.max_active_deliveries ?? 1))
           .filter((driver) => restaurantCourierIds === null || restaurantCourierIds.has(driver.id));
-        const priorityDrivers = prioritizeEligibleDrivers(eligibleDrivers);
-        const onlineDriverIds = priorityDrivers
+        const onlineDriverIds = eligibleDrivers
           .map((driver) => driver.id)
           .filter(Boolean);
         if (onlineDriverIds.length > 0) {
           const { data } = await admin
             .from('web_push_subscriptions')
-            .select('id, endpoint, p256dh, auth')
+            .select('id, driver_id, endpoint, p256dh, auth')
             .eq('role', 'driver')
             .in('driver_id', onlineDriverIds);
-          driverSubscriptions = (data ?? []) as Subscription[];
+          driverSubscriptions = selectPriorityDriverSubscriptions(
+            eligibleDrivers,
+            (data ?? []) as Subscription[]
+          );
         }
       }
 

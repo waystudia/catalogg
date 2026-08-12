@@ -17,6 +17,7 @@ import {
   Coffee,
   CreditCard,
   Database,
+  Download,
   Eye,
   FileKey2,
   FileText,
@@ -113,6 +114,15 @@ import {
   normalizeContentSlug,
   validatePlatformBannerTarget
 } from '../../shared/platformContent';
+import generatedBannerBackgroundUrl from '../../assets/platform-content/wayyaam-banner-template-background.png';
+import generatedPageBackgroundUrl from '../../assets/platform-content/wayyaam-page-template-background.png';
+import { downloadBannerTemplatePng } from '../../features/platform-admin-content/bannerTemplateExport';
+import {
+  bannerLayoutTemplates,
+  buildPlatformPageTemplate,
+  platformPageTemplates,
+  type PlatformPageTemplateId
+} from '../../features/platform-admin-content/platformContentTemplates';
 import { PlatformGeographyPage } from '../../features/platform-admin-geography/PlatformGeographyPage';
 import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformUsersPage';
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
@@ -241,6 +251,8 @@ const formatCount = (value: number, forms: [string, string, string]) => {
   return `${value} ${form}`;
 };
 const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.test(url.trim());
+const bannerChatGptPrompt = 'Используй приложенный макет как точный холст 1600×600 (8:3). Сохрани расположение заголовка, текста и кнопки, их безопасные зоны и читаемость. Измени только фон и визуальный сюжет под моё описание. Не добавляй новый текст, логотипы, водяные знаки или элементы поверх отмеченных зон.';
+const pageChatGptPrompt = 'Используй приложенное изображение как основу вспомогательной страницы WayYaam. Сохрани заданное соотношение сторон, свободные зоны и фирменную палитру. Измени только визуальный сюжет под моё описание. Не добавляй текст, логотипы, водяные знаки или интерфейсные кнопки внутрь фотографии.';
 
 const parseSettlementsInput = (value: string) =>
   Array.from(
@@ -2959,11 +2971,13 @@ function PlatformBannerEditor({
   const [actionLabel, setActionLabel] = useState(banner?.actionLabel ?? 'Подробнее');
   const [contentPosition, setContentPosition] = useState<PlatformBannerAdmin['contentPosition']>(banner?.contentPosition ?? 'top-left');
   const [buttonPosition, setButtonPosition] = useState<PlatformBannerAdmin['buttonPosition']>(banner?.buttonPosition ?? 'bottom-left');
+  const [displayDurationSeconds, setDisplayDurationSeconds] = useState((banner?.displayDurationMs ?? 5000) / 1000);
   const [startsAt, setStartsAt] = useState(banner?.startsAt?.slice(0, 10) ?? '');
   const [endsAt, setEndsAt] = useState(banner?.endsAt?.slice(0, 10) ?? '');
   const [sortOrder, setSortOrder] = useState(banner?.sortOrder ?? defaultSortOrder);
   const [isActive, setIsActive] = useState(banner?.isActive ?? true);
   const [isUploading, setIsUploading] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const uploadMedia = async (file?: File) => {
     if (!file) return;
@@ -2998,6 +3012,7 @@ function PlatformBannerEditor({
         actionLabel: actionLabel.trim() || 'Подробнее',
         contentPosition,
         buttonPosition,
+        displayDurationMs: Math.round(Math.min(60, Math.max(2, displayDurationSeconds || 5)) * 1000),
         startsAt: startsAt ? new Date(`${startsAt}T00:00:00`).toISOString() : null,
         endsAt: endsAt ? new Date(`${endsAt}T23:59:59`).toISOString() : null,
         sortOrder,
@@ -3007,6 +3022,30 @@ function PlatformBannerEditor({
       onSaved();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось сохранить материал');
+    }
+  };
+
+  const applyBannerTemplate = (template: (typeof bannerLayoutTemplates)[number]) => {
+    setContentPosition(template.contentPosition);
+    setButtonPosition(template.buttonPosition);
+    setImageUrl(generatedBannerBackgroundUrl);
+    toast.success(`Шаблон «${template.name}» применён`);
+  };
+
+  const downloadBannerTemplate = async (template: (typeof bannerLayoutTemplates)[number]) => {
+    try {
+      await downloadBannerTemplatePng({
+        sourceUrl: generatedBannerBackgroundUrl,
+        title: title.trim() || 'Заголовок акции',
+        subtitle: subtitle.trim() || 'Короткий текст предложения',
+        actionLabel: actionLabel.trim() || 'Подробнее',
+        contentPosition: template.contentPosition,
+        buttonPosition: template.buttonPosition,
+        fileName: `wayyaam-banner-${template.id}-1600x600.png`
+      });
+      toast.success('PNG-шаблон скачан');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось скачать шаблон');
     }
   };
 
@@ -3025,11 +3064,51 @@ function PlatformBannerEditor({
         <label>Название<input value={name} onChange={(event) => setName(event.target.value)} required placeholder="Внутреннее название материала" /></label>
         <label>Заголовок<input value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
         <label className="is-wide">Краткий текст<textarea value={subtitle} onChange={(event) => setSubtitle(event.target.value)} required rows={3} /></label>
+        <section className="platform-template-library is-wide">
+          <header>
+            <div>
+              <strong>Шаблоны баннера</strong>
+              <small>4 расстановки · точный размер 1600×600 · формат 8:3</small>
+            </div>
+            <button type="button" onClick={() => setShowTemplates((current) => !current)}>
+              <LayoutTemplate />{showTemplates ? 'Скрыть' : 'Шаблоны'}
+            </button>
+          </header>
+          {showTemplates && (
+            <>
+              <p>Заголовок, текст и кнопка берутся из полей выше. Можно применить расположение или скачать готовый PNG для дальнейшей правки в ChatGPT.</p>
+              <div className="platform-banner-template-grid">
+                {bannerLayoutTemplates.map((template) => (
+                  <article key={template.id}>
+                    <div className="platform-banner-template-preview">
+                      <img src={generatedBannerBackgroundUrl} alt="" />
+                      <span className={`platform-banner-template-copy is-${template.contentPosition}`}>
+                        <strong>{title.trim() || 'Заголовок акции'}</strong>
+                        <small>{subtitle.trim() || 'Короткий текст предложения'}</small>
+                      </span>
+                      <i className={`platform-banner-template-action is-${template.buttonPosition}`}>{actionLabel.trim() || 'Подробнее'}</i>
+                    </div>
+                    <strong>{template.name}</strong>
+                    <small>{template.description}</small>
+                    <footer>
+                      <button type="button" onClick={() => applyBannerTemplate(template)}>Применить</button>
+                      <button type="button" className="is-secondary" onClick={() => void downloadBannerTemplate(template)}><Download />Скачать PNG 1600×600</button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+              <div className="platform-template-library__tools">
+                <a className="platform-template-download" href={generatedBannerBackgroundUrl} download="wayyaam-banner-background-1600x600.png"><Download />Скачать чистый фон</a>
+                <button type="button" className="platform-template-prompt" onClick={() => void copyText(bannerChatGptPrompt).then(() => toast.success('Промпт для ChatGPT скопирован'))}><Copy />Скопировать промпт для ChatGPT</button>
+              </div>
+            </>
+          )}
+        </section>
         <label className="platform-banner-media-picker is-wide">
           Изображение / обложка
           <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" onChange={(event) => void uploadMedia(event.target.files?.[0])} disabled={isUploading} />
           <span><Upload />{isUploading ? 'Загружаем…' : 'Выбрать медиа'}</span>
-          <small>Горизонтальный формат 16:5. Изображение или видео заполнит баннер целиком.</small>
+          <small>Рекомендуемый формат 8:3, 1600×600. Изображение или видео заполнит баннер целиком.</small>
         </label>
         {imageUrl && (
           <div className="platform-banner-media-preview is-wide">
@@ -3038,6 +3117,17 @@ function PlatformBannerEditor({
           </div>
         )}
         <label>Текст кнопки<input value={actionLabel} onChange={(event) => setActionLabel(event.target.value)} placeholder="Подробнее" /></label>
+        <label>Время показа, секунд
+          <input
+            type="number"
+            min="2"
+            max="60"
+            step="1"
+            value={displayDurationSeconds}
+            onChange={(event) => setDisplayDurationSeconds(Number(event.target.value))}
+          />
+          <small>Фото держится выбранное время. Видео сначала проигрывается полностью, затем выдерживается этот интервал.</small>
+        </label>
         <label>Расположение текста
           <select value={contentPosition} onChange={(event) => setContentPosition(event.target.value as PlatformBannerAdmin['contentPosition'])}>
             <option value="top-left">Сверху слева</option>
@@ -3104,6 +3194,7 @@ function PlatformContentPageEditor({
   const [blocks, setBlocks] = useState<PlatformContentBlock[]>(page?.blocks ?? []);
   const [newBlockType, setNewBlockType] = useState<PlatformContentBlockType>('heading');
   const [isPreview, setIsPreview] = useState(false);
+  const [showPageTemplates, setShowPageTemplates] = useState(false);
 
   const updateBlock = (id: string, patch: Partial<PlatformContentBlock>) => {
     setBlocks((current) => current.map((block) => block.id === id ? { ...block, ...patch } : block));
@@ -3128,6 +3219,13 @@ function PlatformContentPageEditor({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось загрузить медиа');
     }
+  };
+
+  const applyPageTemplate = (templateId: PlatformPageTemplateId) => {
+    if (blocks.length > 0 && !window.confirm('Заменить текущие блоки шаблоном?')) return;
+    const templateImageUrl = templateId === 'image' ? generatedPageBackgroundUrl : generatedBannerBackgroundUrl;
+    setBlocks(buildPlatformPageTemplate(templateId, templateImageUrl));
+    toast.success('Шаблон страницы применён');
   };
 
   const save = async () => {
@@ -3170,6 +3268,37 @@ function PlatformContentPageEditor({
           <PlatformContentPreview name={name} blocks={blocks} />
         ) : (
           <>
+            <section className="platform-template-library platform-page-template-library">
+              <header>
+                <div>
+                  <strong>Шаблоны страницы</strong>
+                  <small>Текст · большая картинка · гибрид</small>
+                </div>
+                <button type="button" onClick={() => setShowPageTemplates((current) => !current)}>
+                  <LayoutTemplate />{showPageTemplates ? 'Скрыть' : 'Шаблоны'}
+                </button>
+              </header>
+              {showPageTemplates && (
+                <>
+                  <div className="platform-page-template-grid">
+                    {platformPageTemplates.map((template) => (
+                      <article key={template.id}>
+                        <div className={`platform-page-template-preview is-${template.id}`}>
+                          {template.id !== 'text' && <img src={template.id === 'image' ? generatedPageBackgroundUrl : generatedBannerBackgroundUrl} alt="" />}
+                          {template.id !== 'image' && <span><b>Заголовок</b><i>Текст страницы</i></span>}
+                        </div>
+                        <strong>{template.name}</strong>
+                        <small>{template.description}</small>
+                        <button type="button" onClick={() => applyPageTemplate(template.id)}>Применить шаблон</button>
+                        {template.id === 'image' && <a className="platform-page-template-download" href={generatedPageBackgroundUrl} download="wayyaam-page-background-1080x1440.png"><Download />Скачать фон 1080×1440</a>}
+                        {template.id === 'hybrid' && <a className="platform-page-template-download" href={generatedBannerBackgroundUrl} download="wayyaam-page-photo-1600x600.png"><Download />Скачать фото 1600×600</a>}
+                      </article>
+                    ))}
+                  </div>
+                  <button type="button" className="platform-template-prompt" onClick={() => void copyText(pageChatGptPrompt).then(() => toast.success('Промпт для ChatGPT скопирован'))}><Copy />Скопировать промпт для ChatGPT</button>
+                </>
+              )}
+            </section>
             <div className="platform-block-add">
               <select value={newBlockType} onChange={(event) => setNewBlockType(event.target.value as PlatformContentBlockType)}>
                 {Object.entries(contentBlockLabel).map(([type, label]) => <option value={type} key={type}>{label}</option>)}

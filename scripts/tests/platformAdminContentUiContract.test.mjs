@@ -12,6 +12,10 @@ const migrationSource = fs.readFileSync(
   new URL('../../supabase/migrations/20260730120000_add_platform_content_pages_and_support.sql', import.meta.url),
   'utf8'
 );
+const bannerDurationMigrationSource = fs.readFileSync(
+  new URL('../../supabase/migrations/20260809094923_add_platform_banner_display_duration.sql', import.meta.url),
+  'utf8'
+);
 const migrationSql = fs.readdirSync(new URL('../../supabase/migrations', import.meta.url))
   .filter((name) => name.endsWith('.sql'))
   .map((name) => fs.readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8'))
@@ -65,11 +69,11 @@ test('content pages have a database model, banner relation, and a client route',
 });
 
 test('client banners stay horizontal and place text actions above full-bleed media', () => {
-  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
+  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*aspect-ratio:\s*8\s*\/\s*3/);
   assert.match(clientCss, /\.promo-band\s*\{[\s\S]*max-height:\s*280px/);
   assert.match(clientCss, /\.promo-band\s*>\s*\.promo-band__media\s*\{[\s\S]*position:\s*absolute/);
   assert.match(clientCss, /\.promo-band\s*>\s*div,[\s\S]*\.promo-band\s*>\s*a\s*\{[\s\S]*z-index:\s*2/);
-  assert.match(adminCss, /\.platform-banner-media-preview\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
+  assert.match(adminCss, /\.platform-banner-media-preview\s*\{[\s\S]*aspect-ratio:\s*8\s*\/\s*3/);
   assert.match(clientCss, /\.promo-band strong[\s\S]*text-shadow:/);
   assert.match(clientCss, /\.promo-band a[\s\S]*background:\s*rgba\(/);
   assert.match(clientCss, /\.promo-band a[\s\S]*backdrop-filter:\s*blur/);
@@ -82,6 +86,23 @@ test('banner editor controls text and button placement independently', () => {
   assert.match(appSource, /buttonPosition/);
   assert.match(clientSource, /promo-band__copy--\$\{banner\.contentPosition\}/);
   assert.match(clientSource, /promo-band__action--\$\{banner\.buttonPosition\}/);
+});
+
+test('banner editor exposes per-banner timing and four downloadable layout templates', () => {
+  assert.match(appSource, /Время показа, секунд/);
+  assert.match(appSource, /Шаблоны баннера/);
+  assert.match(appSource, /Скачать PNG 1600×600/);
+  assert.match(appSource, /bannerLayoutTemplates\.map/);
+  assert.match(clientSource, /displayDurationMs:\s*activeBanner\?\.displayDurationMs/);
+  assert.match(bannerDurationMigrationSource, /add column if not exists display_duration_ms integer not null default 5000/);
+  assert.match(bannerDurationMigrationSource, /display_duration_ms between 2000 and 60000/);
+});
+
+test('content page editor offers text, image, and hybrid starter templates', () => {
+  assert.match(appSource, /Шаблоны страницы/);
+  assert.match(appSource, /platformPageTemplates\.map/);
+  assert.match(appSource, /buildPlatformPageTemplate/);
+  assert.match(appSource, /Заменить текущие блоки шаблоном/);
 });
 
 test('carousel waits for scroll settling and resets cloned slides without animation', () => {

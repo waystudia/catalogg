@@ -228,11 +228,11 @@
   display: grid;
   width: calc(100% - 32px);
   min-width: calc(100% - 32px);
-  aspect-ratio: 16 / 5;
+  aspect-ratio: 8 / 3;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
   gap: 8px;
-  min-height: 132px;
+  min-height: 148px;
   max-height: 280px;
   border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: 20px;

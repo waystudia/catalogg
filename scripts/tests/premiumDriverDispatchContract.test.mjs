@@ -65,6 +65,7 @@ describe('premium driver dispatch', () => {
 
   it('sends a new-delivery push only to eligible premium drivers when any are available', () => {
     assert.match(pushSource, /is_premium/);
-    assert.match(pushSource, /prioritizeEligibleDrivers\(eligibleDrivers\)/);
+    assert.match(pushSource, /selectPriorityDriverSubscriptions\(\s*eligibleDrivers/);
+    assert.match(pushSource, /select\('id, driver_id, endpoint, p256dh, auth'\)/);
   });
 });
