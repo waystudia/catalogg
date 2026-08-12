@@ -5,8 +5,9 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('white-label storefronts resolve through a verified domain without exposing all tenants', async () => {
-  const [migration, clientApi, runtime, manifest, boundary, publicOrder, app] = await Promise.all([
+  const [migration, reservedHostMigration, clientApi, runtime, manifest, boundary, publicOrder, app] = await Promise.all([
     read('supabase/migrations/20260812235900_add_white_label_storefronts.sql'),
+    read('supabase/migrations/20260813004827_reserve_wayyaam_github_pages_hostname.sql'),
     read('src/shared/api/storefrontApi.ts'),
     read('src/shared/storefrontRuntime.ts'),
     read('supabase/functions/storefront-manifest/index.ts'),
@@ -21,6 +22,9 @@ test('white-label storefronts resolve through a verified domain without exposing
   assert.match(migration, /catalog\.status = 'published'/i);
   assert.match(migration, /create or replace function public\.get_public_storefront_by_hostname/i);
   assert.match(migration, /revoke all on table public\.catalog_storefront_domains from public, anon/i);
+  assert.match(reservedHostMigration, /waystudia\.github\.io/);
+  assert.match(reservedHostMigration, /catalog_storefront_reserved_hostname/);
+  assert.match(reservedHostMigration, /revoke all on function public\.reject_catalog_storefront_reserved_hostname/i);
   assert.match(clientApi, /get_public_storefront_by_hostname/);
   assert.match(runtime, /manifest\.webmanifest/);
   assert.match(runtime, /apple-touch-icon/);
