@@ -102,4 +102,127 @@ $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000105', false);
+set role authenticated;
+
+do $$
+begin
+  begin
+    perform public.save_catalog_storefront_domain(
+      '00000000-0000-4000-8000-000000000201',
+      'ordinary.example',
+      'Ordinary',
+      'Ordinary'
+    );
+    raise exception 'expected_non_admin_storefront_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_non_admin_storefront_rejection' then raise; end if;
+      if sqlerrm <> 'platform_admin_required' then raise; end if;
+  end;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000101', false);
+set role authenticated;
+
+do $$
+declare
+  domain_id uuid;
+  verification_token text;
+begin
+  begin
+    perform public.save_catalog_storefront_domain(
+      '00000000-0000-4000-8000-000000000201',
+      'wayyaam.ru',
+      'Reserved',
+      'Reserved'
+    );
+    raise exception 'expected_reserved_hostname_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_reserved_hostname_rejection' then raise; end if;
+      if sqlerrm <> 'catalog_storefront_reserved_hostname' then raise; end if;
+  end;
+
+  domain_id := public.save_catalog_storefront_domain(
+    '00000000-0000-4000-8000-000000000201',
+    'managed.example',
+    'Managed Grocery',
+    'Managed',
+    '/managed-logo.png',
+    '/managed-192.png',
+    '/managed-512.png',
+    '#123456',
+    '#F4F5F6',
+    'exclusive'
+  );
+
+  select domain.verification_token
+  into verification_token
+  from public.catalog_storefront_domains domain
+  where domain.id = domain_id;
+
+  begin
+    perform public.set_catalog_storefront_domain_status(domain_id, 'active', verification_token);
+    raise exception 'expected_draft_catalog_activation_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_draft_catalog_activation_rejection' then raise; end if;
+      if sqlerrm <> 'catalog_storefront_published_catalog_required' then raise; end if;
+  end;
+end;
+$$;
+
+reset role;
+update public.catalogs
+set status = 'published'
+where id = '00000000-0000-4000-8000-000000000201';
+
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000101', false);
+set role authenticated;
+
+do $$
+declare
+  domain_record public.catalog_storefront_domains%rowtype;
+begin
+  select domain.*
+  into domain_record
+  from public.catalog_storefront_domains domain
+  where domain.catalog_id = '00000000-0000-4000-8000-000000000201'
+    and domain.is_primary;
+
+  begin
+    perform public.set_catalog_storefront_domain_status(domain_record.id, 'active', 'wrong-token');
+    raise exception 'expected_wrong_token_rejection';
+  exception
+    when others then
+      if sqlerrm = 'expected_wrong_token_rejection' then raise; end if;
+      if sqlerrm <> 'catalog_storefront_verification_required' then raise; end if;
+  end;
+
+  if public.set_catalog_storefront_domain_status(
+    domain_record.id,
+    'active',
+    domain_record.verification_token
+  ) <> 'active' then
+    raise exception 'platform admin could not activate verified storefront';
+  end if;
+
+  if not exists (
+    select 1
+    from public.catalog_storefront_domain_events event
+    where event.domain_id = domain_record.id
+      and event.action = 'activated'
+      and event.actor_user_id = '00000000-0000-4000-8000-000000000101'
+  ) then
+    raise exception 'storefront activation audit event missing';
+  end if;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
 \echo 'White-label storefront acceptance passed.'

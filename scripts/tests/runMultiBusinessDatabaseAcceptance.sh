@@ -28,6 +28,10 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     psql --set ON_ERROR_STOP=1 \
       --file supabase/migrations/20260812235900_add_white_label_storefronts.sql
   fi
+  if [[ -f supabase/migrations/20260813000500_manage_white_label_storefronts.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260813000500_manage_white_label_storefronts.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \

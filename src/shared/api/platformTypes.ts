@@ -175,17 +175,21 @@ export type PlatformContentPage = {
   updatedAt: string;
 };
 
-export type PlatformRestaurantStats = {
+export type PlatformBusinessStats = {
   id: string;
   clientId: string;
   name: string;
   slug: string;
+  businessType?: BusinessType;
   revenue: number;
   debt: number;
   testDebt?: number;
   ordersCount: number;
   driverDeliveries: number;
 };
+
+/** @deprecated Use PlatformBusinessStats. Kept while older consumers migrate. */
+export type PlatformRestaurantStats = PlatformBusinessStats;
 
 export type ClientListParams = {
   search?: string;
@@ -205,6 +209,8 @@ export type PlatformStats = {
   totalDebt: number;
   totalOrders: number;
   driverDeliveries: number;
+  businessStats?: PlatformBusinessStats[];
+  /** @deprecated Use businessStats. */
   restaurantStats: PlatformRestaurantStats[];
 };
 
