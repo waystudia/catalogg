@@ -69,6 +69,8 @@ from public.link_catalog_staff_by_email(
   true
 );
 
+reset role;
+
 do $$
 begin
   if not exists (
@@ -96,7 +98,6 @@ begin
 end;
 $$;
 
-reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
 insert into public.orders (id, catalog_id, customer_name, customer_phone)
