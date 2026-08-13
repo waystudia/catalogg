@@ -47,9 +47,9 @@ test('role sessions use the Safari-compatible storage adapter for persistence an
   assert.match(authScope, /export const getSupabaseAuthStorage/);
   assert.match(authScope, /storage\.setItem\(targetKey, session\)/);
   assert.match(authScope, /storage\.removeItem\(key\)/);
-  assert.match(navigation, /if \(currentUrl\.search\)/);
   assert.match(navigation, /window\.history\.replaceState/);
-  assert.match(navigation, /window\.location\.replace\(buildRoleAppUrl\(path\)\)/);
+  assert.match(navigation, /replaceState\(window\.history\.state, '', buildRoleAppUrl\(path\)\)/);
+  assert.match(navigation, /window\.location\.reload\(\)/);
   assert.doesNotMatch(navigation, /buildRoleAppUrl\(path, window\.location\.search\)/);
   assert.match(delivery, /getSupabaseAuthStorage\(\)\.removeItem\(getSupabaseAuthStorageKey\('driver'\)\)/);
 });

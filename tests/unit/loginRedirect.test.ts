@@ -49,18 +49,22 @@ describe('staff login role selection', () => {
     expect(buildRoleAppUrl('admin/clients')).toBe('/#/admin/clients');
   });
 
-  it('removes a stale-client query in place before replacing only the role hash', () => {
+  it('selects the clean role URL before reloading into its isolated auth scope', () => {
     const previousWindow = globalThis.window;
     let cleanedState: unknown;
     let cleanedTitle = 'not-called';
     let cleanedUrl = '';
     let replacedUrl = '';
+    let reloadCalls = 0;
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
         location: {
           href: 'https://wayyaam.ru/?auth-refresh=index-current123#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
           search: '?auth-refresh=index-current123',
+          reload: () => {
+            reloadCalls += 1;
+          },
           replace: (url: string) => {
             replacedUrl = url;
           }
@@ -87,27 +91,34 @@ describe('staff login role selection', () => {
 
     expect(cleanedState).toEqual({ preserved: true });
     expect(cleanedTitle).toBe('');
-    expect(cleanedUrl).toBe('/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik');
-    expect(replacedUrl).toBe('/#/admin/clients');
+    expect(cleanedUrl).toBe('/#/admin/clients');
+    expect(replacedUrl).toBe('');
+    expect(reloadCalls).toBe(1);
   });
 
-  it('does not rewrite browser history when the address is already short', () => {
+  it('still reloads from a clean profile URL so the destination scope owns the Supabase client', () => {
     const previousWindow = globalThis.window;
     let historyCalls = 0;
+    let cleanedUrl = '';
     let replacedUrl = '';
+    let reloadCalls = 0;
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
         location: {
           href: 'https://wayyaam.ru/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          reload: () => {
+            reloadCalls += 1;
+          },
           replace: (url: string) => {
             replacedUrl = url;
           }
         },
         history: {
           state: null,
-          replaceState: () => {
+          replaceState: (_state: unknown, _title: string, url: string) => {
             historyCalls += 1;
+            cleanedUrl = url;
           }
         }
       }
@@ -122,8 +133,47 @@ describe('staff login role selection', () => {
       });
     }
 
-    expect(historyCalls).toBe(0);
-    expect(replacedUrl).toBe('/#/business/finik');
+    expect(historyCalls).toBe(1);
+    expect(cleanedUrl).toBe('/#/business/finik');
+    expect(replacedUrl).toBe('');
+    expect(reloadCalls).toBe(1);
+  });
+
+  it('falls back to location replacement before reloading when browser history is unavailable', () => {
+    const previousWindow = globalThis.window;
+    let replacedUrl = '';
+    let reloadCalls = 0;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          reload: () => {
+            reloadCalls += 1;
+          },
+          replace: (url: string) => {
+            replacedUrl = url;
+          }
+        },
+        history: {
+          state: null,
+          replaceState: () => {
+            throw new DOMException('History unavailable', 'SecurityError');
+          }
+        }
+      }
+    });
+
+    try {
+      redirectToRoleApp('/driver');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    expect(replacedUrl).toBe('/#/driver');
+    expect(reloadCalls).toBe(1);
   });
 
   it('leaves role navigation inert during server rendering', () => {
