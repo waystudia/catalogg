@@ -2241,8 +2241,9 @@
     left: 0;
     display: flex;
     overflow-x: auto;
-    gap: 2px;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    gap: 6px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    scroll-snap-type: x proximity;
     scrollbar-width: none;
   }
 
@@ -2251,7 +2252,19 @@
   }
 
   .business-workspace-shell .restaurant-admin-bottom-nav .restaurant-admin-nav__item {
-    min-width: 76px;
-    flex: 0 0 76px;
+    min-width: 84px;
+    min-height: 56px;
+    flex: 0 0 84px;
+    padding: 3px 4px 2px;
+    font-size: 10px;
+    line-height: 1.15;
+    text-align: center;
+    scroll-snap-align: start;
+  }
+
+  .business-workspace-shell .restaurant-admin-bottom-nav .restaurant-admin-nav__item span {
+    display: block;
+    width: 100%;
+    line-height: 1.15;
   }
 }
