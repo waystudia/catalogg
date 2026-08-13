@@ -64,12 +64,15 @@ separate stages. Prove which stage failed before changing passwords or role rows
   already-open tab runs an older hashed main asset, reload the document with the
   same hash/`returnTo` before accepting credentials. Never persist the password
   across this refresh.
-- After that refresh, remove the transient document query with
-  `history.replaceState` while preserving the current hash, then replace only
-  the hash with the authenticated role route. This avoids a second document
-  load between `setSession()` and the cabinet access check while keeping final
-  links short (`#/mangal/dashboard`, `#/business/finik`, `#/driver`, and
-  `#/admin/clients`).
+- After the completed session is handed from the source scope to the
+  destination scope, atomically select the clean role URL with
+  `history.replaceState` and reload exactly once. The current Supabase client
+  remains bound to its startup storage key, so a hash-only transition makes
+  the destination cabinet read the emptied source scope and bounce back to
+  login. The new document must start on `restaurant-admin`, `driver`, or
+  `platform-admin` and read the already persisted destination session. Keep
+  final links short (`#/mangal/dashboard`, `#/business/finik`, `#/driver`, and
+  `#/admin/clients`) and never leave an `auth-refresh` query behind.
 
 ## Release hook
 
