@@ -4,6 +4,7 @@ import {
   Eye,
   EyeOff,
   Home,
+  KeyRound,
   MapPin,
   Menu,
   MoreVertical,
@@ -53,7 +54,10 @@ import {
 import { saveRestaurantPayments } from '../../shared/api/restaurantPaymentsApi';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
-import type { CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
+import {
+  changeCatalogAdminPassword,
+  type CatalogAdminAccess
+} from '../../shared/api/catalogAdminApi';
 import {
   getRestaurantOrderNotificationPermission,
   requestRestaurantOrderNotificationPermission,
@@ -102,6 +106,7 @@ type SettingsSection =
   | 'delivery'
   | 'hours'
   | 'payments'
+  | 'password'
   | 'import'
   | 'backups'
   | 'danger';
@@ -346,6 +351,9 @@ export function RestaurantAdminShell({
     readJson(paymentStatusStorageKey(access.catalog?.slug ?? 'demo'), {})
   );
   const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings>(defaultRestaurantDeliverySettings);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
@@ -901,7 +909,56 @@ export function RestaurantAdminShell({
             <CatalogTeamPage catalogId={access.catalog.id} />
           )}
           {section === 'settings' && (
-            <ExistingRestaurantSettingsPage
+            settingsSection === 'password' ? (
+              <section className="ra-card catalog-admin-password">
+                <KeyRound />
+                <div>
+                  <h2>Сменить пароль</h2>
+                  <p>Используйте не менее 10 символов. После сохранения вход будет работать с новым паролем.</p>
+                </div>
+                <label>
+                  Новый пароль
+                  <input
+                    type="password"
+                    value={newPassword}
+                    minLength={10}
+                    autoComplete="new-password"
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Повторите пароль
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    minLength={10}
+                    autoComplete="new-password"
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                </label>
+                <div className="catalog-admin-password__actions">
+                  <button type="button" onClick={() => setSettingsSection('hub')}>Назад</button>
+                  <button
+                    type="button"
+                    disabled={isSavingPassword || newPassword.length < 10 || newPassword !== confirmPassword}
+                    onClick={() => {
+                      setIsSavingPassword(true);
+                      void changeCatalogAdminPassword(newPassword)
+                        .then(() => {
+                          setNewPassword('');
+                          setConfirmPassword('');
+                          setSettingsSection('hub');
+                          toast.success('Пароль обновлён');
+                        })
+                        .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сменить пароль'))
+                        .finally(() => setIsSavingPassword(false));
+                    }}
+                  >
+                    {isSavingPassword ? 'Сохраняем...' : 'Сохранить пароль'}
+                  </button>
+                </div>
+              </section>
+            ) : <ExistingRestaurantSettingsPage
               key={settingsSection}
               initialView={existingSettingsViews[settingsSection] ?? 'home'}
               catalogSlug={slug}
@@ -924,6 +981,7 @@ export function RestaurantAdminShell({
               onSaveDelivery={saveExistingDelivery}
               onImport={importExistingSettings}
               onSignOut={onSignOut}
+              onChangePassword={() => setSettingsSection('password')}
               onActivate={() => navigate('/restaurant/activation')}
               legalActivationStatus={access.legalActivationStatus}
             />

@@ -14,6 +14,7 @@ describe('Supabase auth scopes', () => {
     assert.equal(getSupabaseAuthScope('#/mangal/settings'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('#/mangal/pos'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('/rizih/dashboard'), 'restaurant-admin');
+    assert.equal(getSupabaseAuthScope('/business/finik'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('/restaurant/activation'), 'restaurant-admin');
     assert.equal(getSupabaseAuthScope('#/admin/subscriptions'), 'platform-admin');
   });

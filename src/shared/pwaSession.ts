@@ -39,6 +39,7 @@ export const routeIsRoleAppPath = (path: string) => {
   const normalizedPath = path.trim().split('?')[0].replace(/\/+$/, '') || '/';
   if (normalizedPath === '/driver' || normalizedPath.startsWith('/driver/')) return true;
   if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) return true;
+  if (normalizedPath.startsWith('/business/')) return true;
 
   const [, slug, section] = normalizedPath.split('/');
   return Boolean(
@@ -53,6 +54,10 @@ const roleAppKey = (path: string) => {
   const normalizedPath = path.trim().split('?')[0].replace(/\/+$/, '') || '/';
   if (normalizedPath === '/driver' || normalizedPath.startsWith('/driver/')) return 'driver';
   if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) return 'admin';
+  if (normalizedPath.startsWith('/business/')) {
+    const businessSlug = normalizedPath.split('/')[2];
+    return businessSlug ? `business:${businessSlug}` : null;
+  }
 
   const [, slug, section] = normalizedPath.split('/');
   return slug && !reservedRootRoutes.has(slug) && section && ['dashboard', 'orders', 'dishes', 'settings', 'scanner', 'pos', 'payments'].includes(section)

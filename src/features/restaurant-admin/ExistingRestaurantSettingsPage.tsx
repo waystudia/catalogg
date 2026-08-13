@@ -64,6 +64,7 @@ export function ExistingRestaurantSettingsPage({
   onSaveDelivery,
   onImport,
   onSignOut,
+  onChangePassword,
   onActivate,
   legalActivationStatus
 }: {
@@ -88,6 +89,7 @@ export function ExistingRestaurantSettingsPage({
   onSaveDelivery: (settings: RestaurantDeliverySettings) => void;
   onImport: (payload: CatalogBackupPayload) => void;
   onSignOut: () => void;
+  onChangePassword?: () => void;
   onActivate?: () => void;
   legalActivationStatus?: RestaurantLegalStatus | null;
 }) {
@@ -114,6 +116,7 @@ export function ExistingRestaurantSettingsPage({
         onImport={() => setView('backup')}
         onDelivery={() => setView('delivery')}
         onLogout={onSignOut}
+        onPassword={onChangePassword}
         onActivate={onActivate}
         activationStatus={legalActivationStatus}
       />

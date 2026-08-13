@@ -32,7 +32,7 @@ test('white-label storefronts resolve through a verified domain without exposing
   assert.match(manifest, /get_public_storefront_by_hostname/);
   assert.match(manifest, /powered_by_wayyaam/);
   assert.match(boundary, /storefrontMode === 'exclusive'/);
-  assert.match(boundary, /Navigate replace to={`\/\$\{storefront\.catalogSlug\}`}/);
+  assert.match(boundary, /getExclusiveStorefrontHomePath\(storefront\)/);
   assert.match(publicOrder, /OrderConversationPanel/);
   assert.match(publicOrder, /businessType === 'grocery'/);
   assert.match(app, /businessType={catalog\.restaurant\.business_type}/);

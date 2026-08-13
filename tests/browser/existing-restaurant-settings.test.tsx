@@ -38,6 +38,16 @@ test('active restaurant does not see a repeated activation action', async () => 
   await expect.element(screen.getByRole('button', { name: 'Активировать ресторан' })).not.toBeInTheDocument();
 });
 
+test('business owner can open password change from the existing settings hub', async () => {
+  const callbacks = { ...settingsHubCallbacks(), onPassword: vi.fn() };
+  const screen = await render(
+    <SettingsHub {...callbacks} activationStatus="active" />
+  );
+
+  await screen.getByRole('button', { name: 'Сменить пароль' }).click();
+  expect(callbacks.onPassword).toHaveBeenCalledOnce();
+});
+
 test('current admin reuses the existing settings without a second login', async () => {
   const screen = await render(
     <ExistingRestaurantSettingsPage

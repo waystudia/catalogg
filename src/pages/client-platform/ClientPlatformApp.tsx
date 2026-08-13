@@ -1475,7 +1475,9 @@ function RestaurantCatalogPage({
           <h1>{restaurant.name}</h1>
           <p>{restaurant.description}</p>
           <div className="restaurant-facts">
-            <Link className="restaurant-rating-link" to={`/${restaurant.slug}/reviews`}>
+            <Link className="restaurant-rating-link" to={restaurant.businessType === 'grocery'
+              ? `/r/${restaurant.slug}/reviews`
+              : `/${restaurant.slug}/reviews`}>
               <Star /> {restaurant.rating.toFixed(1)}
               <small>{formatReviewCount(restaurant.reviewCount)}</small>
             </Link>
@@ -3176,6 +3178,9 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   const renderOrder = (order: ClientOrder) => {
     const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+    const orderPathPrefix = restaurant?.businessType === 'grocery'
+      ? `/r/${order.restaurantSlug}`
+      : `/${order.restaurantSlug}`;
     const restaurantMapHref = restaurant
       ? buildYandexMapsUrl({
           addressLine: restaurant.addressLine,
@@ -3194,7 +3199,7 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <small>{order.addressLine}</small>
       </span>
       <div className="order-card__actions">
-        <Link to={`/${order.restaurantSlug}/order/${order.id}`}>
+        <Link to={`${orderPathPrefix}/order/${order.id}`}>
           <ReceiptText />
           Подробнее о заказе
         </Link>
@@ -3209,7 +3214,7 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           onClick={() => {
             repeatOrder(order);
             restoreRestaurantCartFromOrder(snapshot, order);
-            navigate(`/${order.restaurantSlug}/checkout`);
+            navigate(`${orderPathPrefix}/checkout`);
           }}
         >
           <Repeat2 />
@@ -3320,7 +3325,12 @@ function FavoritesPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <h2>Любимые блюда</h2>
         <div className="favorite-dish-list">
           {dishes.map((dish) => (
-            <Link to={`/${dish.restaurantSlug}`} key={dish.id}>
+            <Link
+              to={buildRestaurantPublicPath(snapshot.restaurants.find((item) => item.slug === dish.restaurantSlug) ?? {
+                slug: dish.restaurantSlug
+              })}
+              key={dish.id}
+            >
               <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
               <span>
                 <strong>{dish.name}</strong>

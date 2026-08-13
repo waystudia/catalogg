@@ -15,6 +15,7 @@ const PROFILE_SERVICE_ERROR = 'Сервис профилей временно н
 const isRestaurantRedirect = (redirect: string) =>
   redirect === '/admin' ||
   redirect === '/restaurant/activation' ||
+  /^\/business\/[^/]+(?:\/|$)/.test(redirect) ||
   /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
 
 export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLoginRole) => {
@@ -60,9 +61,36 @@ const isMissingRedirectRpc = (error: unknown) => {
   );
 };
 
-const getClientCatalogSlug = (client: { catalogs?: { slug?: string } | { slug?: string }[] | null } | null) => {
+type LoginCatalog = {
+  slug?: string;
+  business_type?: string | null;
+};
+
+const getClientCatalog = (client: { catalogs?: LoginCatalog | LoginCatalog[] | null } | null) => {
   const catalog = client?.catalogs;
-  return Array.isArray(catalog) ? catalog[0]?.slug : catalog?.slug;
+  return Array.isArray(catalog) ? catalog[0] : catalog;
+};
+
+export const getCatalogWorkspaceRedirect = (catalog: LoginCatalog | null | undefined) => {
+  const slug = catalog?.slug?.trim();
+  if (!slug) return null;
+  return catalog?.business_type === 'grocery'
+    ? `/business/${slug}`
+    : `/${slug}/dashboard`;
+};
+
+const normalizeCatalogWorkspaceRedirect = async (redirect: string) => {
+  const match = /^\/([^/]+)\/dashboard(?:\/|$)/.exec(redirect);
+  if (!match || !supabase) return redirect;
+
+  const { data: catalog, error } = await supabase
+    .from('catalogs')
+    .select('slug, business_type')
+    .eq('slug', decodeURIComponent(match[1]))
+    .maybeSingle();
+
+  if (error || !catalog) return redirect;
+  return getCatalogWorkspaceRedirect(catalog) ?? redirect;
 };
 
 const metadataRole = (metadata: unknown) => {
@@ -95,33 +123,33 @@ async function resolveSessionRedirectLegacy(user: Session['user'], emailFallback
 
   const { data: client } = await supabase
     .from('clients')
-    .select('catalogs(slug)')
+    .select('catalogs(slug, business_type)')
     .eq('owner_user_id', user.id)
     .maybeSingle();
 
-  const ownedSlug = getClientCatalogSlug(client);
-  if (ownedSlug) return `/${ownedSlug}/dashboard`;
+  const ownedRedirect = getCatalogWorkspaceRedirect(getClientCatalog(client));
+  if (ownedRedirect) return ownedRedirect;
 
   if (normalizedEmail) {
     const { data: clientByEmail } = await supabase
       .from('clients')
-      .select('catalogs(slug)')
+      .select('catalogs(slug, business_type)')
       .eq('email', normalizedEmail)
       .maybeSingle();
 
-    const emailOwnedSlug = getClientCatalogSlug(clientByEmail);
-    if (emailOwnedSlug) return `/${emailOwnedSlug}/dashboard`;
+    const emailOwnedRedirect = getCatalogWorkspaceRedirect(getClientCatalog(clientByEmail));
+    if (emailOwnedRedirect) return emailOwnedRedirect;
   }
 
   const { data: member } = await supabase
     .from('catalog_members')
-    .select('catalogs(slug)')
+    .select('catalogs(slug, business_type)')
     .eq('user_id', user.id)
     .limit(1)
     .maybeSingle();
 
-  const memberSlug = getClientCatalogSlug(member);
-  if (memberSlug) return `/${memberSlug}/dashboard`;
+  const memberRedirect = getCatalogWorkspaceRedirect(getClientCatalog(member));
+  if (memberRedirect) return memberRedirect;
 
   const { data: isPlatformAdmin } = await supabase.rpc('is_platform_admin');
   if (isPlatformAdmin) return '/admin';
@@ -137,7 +165,9 @@ export async function resolveSessionRedirect(emailFallback = '', knownSession?: 
   const { data: redirect, error } = await settleProfileCheck(
     supabase.rpc('resolve_current_login_redirect')
   );
-  if (!error && typeof redirect === 'string' && redirect.startsWith('/')) return redirect;
+  if (!error && typeof redirect === 'string' && redirect.startsWith('/')) {
+    return settleProfileCheck(normalizeCatalogWorkspaceRedirect(redirect));
+  }
 
   if (isMissingRedirectRpc(error)) {
     return settleProfileCheck(resolveSessionRedirectLegacy(session.user, emailFallback));

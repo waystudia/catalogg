@@ -228,6 +228,17 @@ export async function signOutCatalogAdmin() {
   await supabase.auth.signOut();
 }
 
+export async function changeCatalogAdminPassword(newPassword: string) {
+  const normalizedPassword = newPassword.trim();
+  if (normalizedPassword.length < 10) {
+    throw new Error('Пароль должен содержать минимум 10 символов');
+  }
+  if (!supabase) return;
+
+  const { error } = await supabase.auth.updateUser({ password: normalizedPassword });
+  if (error) throw new Error(error.message);
+}
+
 export async function confirmPersonalDataConsent(slug: string): Promise<CatalogAdminAccess> {
   if (!supabase) {
     localStorage.setItem('waycatalog:demo-consent-given', 'true');

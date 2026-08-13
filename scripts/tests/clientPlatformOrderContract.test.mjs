@@ -7,18 +7,21 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('client platform restaurant order contract', () => {
-  it('opens restaurant cards through editable catalog routes instead of the alternate /r UI', () => {
+  it('keeps restaurant cards on editable routes while groceries use weighted /r checkout', () => {
     const apiSource = readFileSync(resolve(repoRoot, 'src/shared/api/clientPlatformApi.ts'), 'utf8');
     const mockSource = readFileSync(resolve(repoRoot, 'src/features/client-platform/mockData.ts'), 'utf8');
     const mainSource = readFileSync(resolve(repoRoot, 'src/main.tsx'), 'utf8');
     const routeSource = readFileSync(resolve(repoRoot, 'src/PwaRoutes.tsx'), 'utf8');
 
-    assert.match(apiSource, /publicPath:\s*`\/\$\{catalog\.slug\}`/);
-    assert.doesNotMatch(apiSource, /publicPath:\s*`\/r\/\$\{catalog\.slug\}`/);
+    assert.match(apiSource, /normalizeBusinessType\(catalog\.business_type\) === 'grocery'/);
+    assert.match(apiSource, /\? `\/r\/\$\{catalog\.slug\}`[\s\S]*: `\/\$\{catalog\.slug\}`/);
     assert.doesNotMatch(mockSource, /publicPath:\s*'\/r\//);
     assert.doesNotMatch(mainSource, /path="\/r\/:slug\/\*" element=\{<ClientPlatformApp \/>}/);
     assert.match(mainSource, /path="\/r\/:slug\/\*" element=\{<RestaurantRouteRedirect \/>}/);
-    assert.match(routeSource, /function RestaurantRouteRedirect/);
+    assert.match(mainSource, /path="\/business\/:slug\/\*" element=\{<BusinessAdminRoute \/>}/);
+    assert.match(routeSource, /function RestaurantRouteRedirect\(\)[\s\S]*return <ClientPlatformApp \/>/);
+    assert.match(routeSource, /function BusinessAdminRoute\(\)[\s\S]*return <CatalogAdminApp slug=\{decodeURIComponent\(slug\)\} \/>/);
+    assert.doesNotMatch(routeSource, /Navigate replace to=\{`\/\$\{decodeURIComponent\(slug\)\}`\}/);
   });
 
   it('does not write catalog ids into the platform restaurant foreign key', () => {

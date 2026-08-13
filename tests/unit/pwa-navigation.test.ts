@@ -13,6 +13,7 @@ describe('PWA navigation', () => {
     expect(routeIsRoleAppPath('/admin')).toBe(true);
     expect(routeIsRoleAppPath('/admin/restaurants')).toBe(true);
     expect(routeIsRoleAppPath('/mangal/dashboard')).toBe(true);
+    expect(routeIsRoleAppPath('/business/finik')).toBe(true);
     expect(routeIsRoleAppPath('/mangal/settings/?tab=delivery')).toBe(true);
     expect(routeIsRoleAppPath('/profile/settings')).toBe(false);
     expect(routeIsRoleAppPath('/mangal/menu')).toBe(false);

@@ -29,6 +29,7 @@ export const getSupabaseAuthScope = (route: string): SupabaseAuthScope => {
 
   if (segments[0] === 'driver') return 'driver';
   if (segments[0] === 'admin') return 'platform-admin';
+  if (segments[0] === 'business' && segments[1]) return 'restaurant-admin';
   if (segments[0] === 'restaurant' && segments[1] === 'activation') return 'restaurant-admin';
   if (segments[0] === 'login') return 'login';
   if (clientRoots.has(segments[0] ?? '')) return 'client';

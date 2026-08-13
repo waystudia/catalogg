@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PwaHomeRouteBase } from './PwaHomeRoute';
 export { PwaResumeTracker } from './PwaHomeRoute';
 
@@ -18,9 +18,13 @@ export function CatalogAdminRoute() {
   return <CatalogAdminApp slug={decodeURIComponent(slug)} />;
 }
 
-export function RestaurantRouteRedirect() {
+export function BusinessAdminRoute() {
   const { slug = '' } = useParams();
-  return <Navigate replace to={`/${decodeURIComponent(slug)}`} />;
+  return <CatalogAdminApp slug={decodeURIComponent(slug)} />;
+}
+
+export function RestaurantRouteRedirect() {
+  return <ClientPlatformApp />;
 }
 
 export function RestaurantPublicRoute() {

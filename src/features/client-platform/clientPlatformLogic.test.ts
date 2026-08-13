@@ -263,6 +263,13 @@ describe('client platform restaurant links', () => {
   it('keeps editable catalog public paths on the editable restaurant app', () => {
     assert.equal(buildRestaurantPublicPath({ slug: 'mangal', publicPath: '/mangal' }), '/mangal');
   });
+
+  it('opens grocery catalogs in the weighted marketplace flow', () => {
+    assert.equal(
+      buildRestaurantPublicPath({ slug: 'finik', publicPath: '/finik', businessType: 'grocery' }),
+      '/r/finik'
+    );
+  });
 });
 
 describe('client platform address maps', () => {
