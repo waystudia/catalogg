@@ -538,7 +538,6 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   stock_quantity: value.stock_quantity,
   allow_substitution: value.allow_substitution,
   ...(value.sale_unit === 'weight' ? {
-    pricing_type: 'per_kg' as const,
     unit: 'кг' as const,
     minimum_weight: value.minimum_quantity / 1000,
     weight_step: value.quantity_step / 1000

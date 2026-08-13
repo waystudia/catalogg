@@ -9,6 +9,8 @@ import { redirectToClientHome } from '../shared/appNavigation';
 type CartStore = {
   items: CartItem[];
   updatedAt: number | null;
+  catalogSlug: string | null;
+  setCatalogScope: (catalogSlug: string) => void;
   add: (product: Product, selectedChoice?: string, selectedModifiers?: SelectedProductModifier[], configuration?: CartConfiguration) => void;
   remove: (lineIdOrProductId: string) => void;
   decrement: (lineIdOrProductId: string) => void;
@@ -61,6 +63,11 @@ export const useCartStore = create<CartStore>()(
     (set) => ({
       items: [],
       updatedAt: null,
+      catalogSlug: null,
+      setCatalogScope: (catalogSlug) =>
+        set((state) => state.catalogSlug === catalogSlug
+          ? state
+          : { catalogSlug, items: [], updatedAt: null }),
       add: (product, selectedChoice, selectedModifiers = [], configuration = {}) =>
         set((state) => {
           if (!product.is_unlimited && product.stock_count <= 0) {
@@ -128,14 +135,16 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'mangal-cart',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items, updatedAt: state.updatedAt }),
+      partialize: (state) => ({ items: state.items, updatedAt: state.updatedAt, catalogSlug: state.catalogSlug }),
       merge: (persisted, current) => {
         if (!isRecord(persisted)) return current;
         const items = Array.isArray(persisted.items) ? (persisted.items as CartItem[]) : [];
+        const catalogSlug = typeof persisted.catalogSlug === 'string' ? persisted.catalogSlug : null;
         return {
           ...current,
           items,
-          updatedAt: items.length > 0 && typeof persisted.updatedAt === 'number' ? persisted.updatedAt : null
+          updatedAt: items.length > 0 && typeof persisted.updatedAt === 'number' ? persisted.updatedAt : null,
+          catalogSlug
         };
       }
     }

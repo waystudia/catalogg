@@ -2293,6 +2293,158 @@
   line-height: 1.5;
 }
 
+.driver-activation-page {
+  background: #f7f5ff;
+}
+
+.driver-activation-screen {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: max(24px, env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #f2eeff 0, #fff 260px);
+}
+
+.driver-activation-screen__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 4px 4px;
+}
+
+.driver-activation-screen__head > span {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 18px;
+  background: #5b3df4;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(91, 61, 244, 0.25);
+}
+
+.driver-activation-screen__head svg {
+  width: 28px;
+  height: 28px;
+}
+
+.driver-activation-screen__head small {
+  color: #6941c6;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.driver-activation-screen__head h1 {
+  margin: 2px 0 0;
+  color: #111827;
+  font-size: 27px;
+  line-height: 1.1;
+}
+
+.driver-activation-card {
+  padding: 20px;
+  border: 1px solid #e4e0f3;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgba(31, 20, 74, 0.08);
+}
+
+.driver-activation-card h2 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 20px;
+}
+
+.driver-activation-card > p {
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.driver-activation-documents {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.driver-activation-documents a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid #d7d0f5;
+  border-radius: 14px;
+  color: #4d32ce;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.driver-activation-documents svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.driver-activation-confirmations {
+  display: grid;
+  gap: 12px;
+}
+
+.driver-activation-confirmations label {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-height: 48px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.driver-activation-confirmations input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #5b3df4;
+}
+
+.driver-activation-submit {
+  min-height: 58px;
+  border-radius: 17px;
+}
+
+.driver-activation-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.driver-activation-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  font: inherit;
+  font-weight: 900;
+}
+
+.driver-activation-signout svg {
+  width: 18px;
+  height: 18px;
+}
+
 .driver-bottom-nav {
   position: fixed;
   right: calc(50% - min(50%, 215px));

@@ -1,16 +1,10 @@
-import { CheckCircle2, LogOut, RefreshCw, ShieldAlert } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type UIEvent } from 'react';
+import { LogOut, RefreshCw, ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Toaster, toast } from 'sonner';
-import {
-  confirmPersonalDataConsent,
-  getCatalogAdminAccess,
-  signOutCatalogAdmin,
-  type CatalogAdminAccess
-} from '../../shared/api/catalogAdminApi';
+import { Toaster } from 'sonner';
+import { getCatalogAdminAccess, signOutCatalogAdmin, type CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { buildProfileLoginPath, redirectToClientHome } from '../../shared/appNavigation';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
-import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
 import './catalog-admin.css';
 
@@ -48,13 +42,11 @@ function CatalogForbidden({
 function CatalogDashboard({
   access,
   onRefresh,
-  onSignOut,
-  onConsentConfirmed
+  onSignOut
 }: {
   access: CatalogAdminAccess;
   onRefresh: () => void;
   onSignOut: () => void;
-  onConsentConfirmed: (access: CatalogAdminAccess) => void;
 }) {
   const catalog = access.catalog;
   if (!catalog) {
@@ -67,8 +59,6 @@ function CatalogDashboard({
     );
   }
 
-  const isBlockedByConsent = access.firstLogin || !access.consentGiven;
-
   return (
     <>
       <Toaster richColors position="top-center" />
@@ -76,106 +66,8 @@ function CatalogDashboard({
         access={access}
         onRefresh={onRefresh}
         onSignOut={onSignOut}
-        consentModal={isBlockedByConsent ? (
-          <ConsentModal
-            slug={catalog.slug}
-            onConfirmed={onConsentConfirmed}
-          />
-        ) : undefined}
       />
     </>
-  );
-}
-
-export function ConsentModal({
-  slug,
-  onConfirmed
-}: {
-  slug: string;
-  onConfirmed: (access: CatalogAdminAccess) => void;
-}) {
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
-  const [accepted, setAccepted] = useState(false);
-  const [acceptedOffer, setAcceptedOffer] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  const checkScroll = (element: HTMLDivElement) => {
-    const isBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 8;
-    setScrolledToBottom(isBottom);
-  };
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (element) checkScroll(element);
-  }, []);
-
-  const onScroll = (event: UIEvent<HTMLDivElement>) => {
-    checkScroll(event.currentTarget);
-  };
-
-  const onConfirm = async () => {
-    if (!accepted || !acceptedOffer || !scrolledToBottom) return;
-
-    setIsSubmitting(true);
-    try {
-      const nextAccess = await confirmPersonalDataConsent(slug);
-      toast.success('Согласие подтверждено');
-      onConfirmed(nextAccess);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось подтвердить согласие');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="consent-modal-backdrop">
-      <section className="consent-modal" role="dialog" aria-modal="true" aria-labelledby="consent-title">
-        <span className="consent-modal__icon">
-          <CheckCircle2 />
-        </span>
-        <h2 id="consent-title">Обработка персональных данных</h2>
-        <p>
-          Для использования WayYaam представитель заведения отдельно принимает оферту и согласие на обработку данных.
-        </p>
-        <p>Пожалуйста, ознакомьтесь с политикой ниже:</p>
-
-        <div className="consent-modal__scroll" ref={scrollRef} onScroll={onScroll} tabIndex={0}>
-          <h3>Документы для заведения</h3>
-          <p>Оферта определяет условия кабинета, заказов, контента, расчётов, защиты клиентских данных и удаления ресторана.</p>
-          <p>Отдельное согласие представителя охватывает его ФИО, телефон, email, полномочия, договорные и платёжные сведения.</p>
-          <p><a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">Открыть оферту для ресторанов</a></p>
-          <p><a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">Открыть согласие представителя ресторана</a></p>
-          <p><a href={legalDocuments.policy} target="_blank" rel="noreferrer">Открыть политику обработки персональных данных</a></p>
-          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Оферта для ресторанов представлена в редакции {legalDocumentReleases.restaurant_offer.version} от 6 августа 2026 года.</p>
-        </div>
-
-        <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
-          <input
-            type="checkbox"
-            checked={accepted}
-            disabled={!scrolledToBottom}
-            onChange={(event) => setAccepted(event.target.checked)}
-          />
-          <span>Даю отдельное согласие представителя ресторана на обработку персональных данных</span>
-        </label>
-
-        <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
-          <input
-            type="checkbox"
-            checked={acceptedOffer}
-            disabled={!scrolledToBottom}
-            onChange={(event) => setAcceptedOffer(event.target.checked)}
-          />
-          <span>Принимаю оферту для ресторанов и подтверждаю права на загружаемые материалы</span>
-        </label>
-
-        <button type="button" disabled={!accepted || !acceptedOffer || !scrolledToBottom || isSubmitting} onClick={onConfirm}>
-          {isSubmitting ? 'Подтверждаем...' : 'Подтвердить'}
-        </button>
-      </section>
-    </div>
   );
 }
 
@@ -248,7 +140,6 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
             redirectToClientHome();
           });
         }}
-        onConsentConfirmed={(nextAccess) => setAccess(nextAccess)}
       />
   );
 }

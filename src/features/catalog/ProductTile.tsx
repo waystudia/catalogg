@@ -2,7 +2,7 @@ import { Edit3, Eye, EyeOff, Minus, Plus, Star, Trash2, X, ZoomIn, ZoomOut } fro
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../entities/models';
 import { getProductChoiceOptions } from '../../entities/productVariants';
-import { formatCatalogProductPrice, formatRublePrice } from '../../entities/productPricing';
+import { formatCatalogProductPrice, formatRublePrice, isWeightPricedProduct } from '../../entities/productPricing';
 import { SafeImage } from '../../shared/SafeImage';
 import { useAuthStore, useCartStore } from '../stores';
 import {
@@ -198,7 +198,7 @@ export function ProductTile({
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
   const requiresConfiguration = choiceOptions.length > 0
-    || product.pricing_type === 'per_kg'
+    || isWeightPricedProduct(product)
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
     || product.allow_inscription
     || product.allow_decoration_comment

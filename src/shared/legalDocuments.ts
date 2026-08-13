@@ -14,6 +14,11 @@ export const legalDocumentReleases = {
     publishedAt: '2026-08-06',
     sha256: '0c0f5c662c5d4b72b09776a380c9f59dca73c9a53a79252d07cc6d2fcaab223f'
   },
+  driver_consent: {
+    version: '1.0',
+    publishedAt: '2026-07-31',
+    sha256: 'd69209f4c9829694f512d4da6c0947d6a5bbaf0d5c15b84068d42360d9bdbb39'
+  },
   client_consent: {
     version: '1.0',
     publishedAt: '2026-07-31',
