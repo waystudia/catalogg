@@ -2139,9 +2139,34 @@
 
   .business-workspace-shell--pos .business-workspace-content {
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     margin-top: 8px;
+    padding-bottom: 18px;
   }
+}
+
+.ra-order-chat-button {
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d8d0ff;
+  border-radius: 13px;
+  background: #f0edff;
+  color: #5b3df4;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ra-order-chat-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 @media (max-width: 1199px) {

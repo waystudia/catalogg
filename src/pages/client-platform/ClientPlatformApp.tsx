@@ -44,7 +44,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, filterRestaurantsWithCityFallback, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
@@ -72,7 +72,9 @@ import type {
 } from '../../features/client-platform/types';
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
+import { formatPublicOrderNumber } from '../../shared/publicOrderNumber';
 import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
+import { OrderConversationInbox, type OrderConversationInboxItem } from '../../features/order-conversation/OrderConversationInbox';
 import { scopeSnapshotToStorefront } from '../../entities/storefront';
 import { useStorefrontContext } from '../../features/storefront/storefrontContext';
 import {
@@ -2342,6 +2344,7 @@ function PaymentConfirmPage({
 
     const order = buildOrderAfterClientPaymentNotice({
       id: orderId,
+      catalogId: restaurant.id,
       restaurantSlug: restaurant.slug,
       restaurantName: restaurant.name,
       orderType: draft.orderType,
@@ -2544,13 +2547,12 @@ function OrderStatusPage({
               />
             </section>
           )}
-        {restaurant.businessType === 'grocery' && (
-          <OrderConversationPanel
-            orderId={order.id}
-            catalogId={restaurant.id}
-            expectedViewer="client"
-          />
-        )}
+        <OrderConversationPanel
+          orderId={order.id}
+          catalogId={restaurant.id}
+          expectedViewer="client"
+          merchantLabel={terms.place}
+        />
         {canCancel && (
           <button
             className="secondary-flow-button order-cancel-button"
@@ -2713,6 +2715,7 @@ function ProfilePage() {
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
+    { to: '/profile/orders?tab=chats', label: 'Чаты по заказам', Icon: MessageCircle },
     { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/addresses', label: 'Адреса доставки', Icon: MapPin },
     { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle }
@@ -3146,6 +3149,7 @@ function ProfilePage() {
 
 function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const profile = useClientPlatformStore((state) => state.profile);
   const orders = useClientPlatformStore((state) => state.orders);
@@ -3157,10 +3161,28 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const [reviewMessage, setReviewMessage] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [isReviewSending, setIsReviewSending] = useState(false);
+  const [selectedChatOrderId, setSelectedChatOrderId] = useState<string | null>(null);
+  const activeView = searchParams.get('tab') === 'chats' ? 'chats' : 'orders';
   const currentOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
   const currentOrderIds = currentOrders.map((order) => order.id).sort().join('|');
   const finishedOrders = orders.filter((order) => order.status === 'completed');
   const canceledOrders = orders.filter((order) => order.status === 'canceled');
+  const chatItems = useMemo<OrderConversationInboxItem[]>(() => orders.flatMap((order) => {
+    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+    const catalogId = order.catalogId || restaurant?.id;
+    if (!catalogId) return [];
+    return [{
+      orderId: order.id,
+      catalogId,
+      orderNumber: formatPublicOrderNumber(order.id, order.restaurantName),
+      merchantName: order.restaurantName,
+      merchantLabel: getBusinessTerms(restaurant?.businessType).place,
+      customerName: order.clientName,
+      statusLabel: statusLabels[order.status],
+      createdAt: order.createdAt,
+      totalLabel: formatPrice(order.totalAmount)
+    }];
+  }).sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()), [orders, snapshot.restaurants]);
 
   useEffect(() => {
     if (!currentOrderIds) return undefined;
@@ -3248,6 +3270,16 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <button
           type="button"
           onClick={() => {
+            setSelectedChatOrderId(order.id);
+            setSearchParams({ tab: 'chats' });
+          }}
+        >
+          <MessageCircle />
+          Чат
+        </button>
+        <button
+          type="button"
+          onClick={() => {
             repeatOrder(order);
             restoreRestaurantCartFromOrder(snapshot, order);
             navigate(`${orderPathPrefix}/checkout`);
@@ -3312,11 +3344,30 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   return (
     <>
       <PageHeader title="Мои заказы" backTo="/profile" />
-      <OrderGroup title="Текущие" orders={currentOrders} renderOrder={renderOrder} />
-      <OrderGroup title="Завершённые" orders={finishedOrders} renderOrder={renderOrder} />
-      <OrderGroup title="Отменённые" orders={canceledOrders} renderOrder={renderOrder} />
-      {reviewMessage && <p className="form-success">{reviewMessage}</p>}
-      {orders.length === 0 && <EmptyState title="Заказов пока нет" linkTo="/restaurants" linkText="Выбрать ресторан" />}
+      <nav className="client-order-tabs" aria-label="Заказы и чаты">
+        <button type="button" data-active={activeView === 'orders'} onClick={() => setSearchParams({})}>
+          <ReceiptText /> Заказы <b>{orders.length}</b>
+        </button>
+        <button type="button" data-active={activeView === 'chats'} onClick={() => setSearchParams({ tab: 'chats' })}>
+          <MessageCircle /> Чаты <b>{chatItems.length}</b>
+        </button>
+      </nav>
+      {activeView === 'orders' ? (
+        <>
+          <OrderGroup title="Текущие" orders={currentOrders} renderOrder={renderOrder} />
+          <OrderGroup title="Завершённые" orders={finishedOrders} renderOrder={renderOrder} />
+          <OrderGroup title="Отменённые" orders={canceledOrders} renderOrder={renderOrder} />
+          {reviewMessage && <p className="form-success">{reviewMessage}</p>}
+          {orders.length === 0 && <EmptyState title="Заказов пока нет" linkTo="/restaurants" linkText="Выбрать ресторан" />}
+        </>
+      ) : (
+        <OrderConversationInbox
+          items={chatItems}
+          expectedViewer="client"
+          selectedOrderId={selectedChatOrderId}
+          onSelectedOrderChange={setSelectedChatOrderId}
+        />
+      )}
     </>
   );
 }

@@ -27,6 +27,7 @@ type RestaurantFilter = {
 
 type OrderPaymentNoticeInput = {
   id: string;
+  catalogId?: string;
   restaurantSlug: string;
   restaurantName: string;
   orderType: ClientOrderType;
@@ -357,6 +358,7 @@ export const buildOrderAfterClientPaymentNotice = (input: OrderPaymentNoticeInpu
 
   return {
     id: input.id,
+    catalogId: input.catalogId,
     restaurantSlug: input.restaurantSlug,
     restaurantName: input.restaurantName,
     orderType: input.orderType,

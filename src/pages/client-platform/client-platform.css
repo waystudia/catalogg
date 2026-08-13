@@ -2364,6 +2364,53 @@
   padding: 12px;
 }
 
+.client-order-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  padding: 5px;
+  background: #f2f4f7;
+}
+
+.client-order-tabs button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #667085;
+  font: inherit;
+  font-weight: 900;
+}
+
+.client-order-tabs button[data-active='true'] {
+  background: #fff;
+  color: #5b3df4;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+}
+
+.client-order-tabs svg {
+  width: 18px;
+  height: 18px;
+}
+
+.client-order-tabs b {
+  min-width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 6px;
+  background: #f0edff;
+  color: #5b3df4;
+  font-size: 11px;
+}
+
 .order-review-form {
   grid-column: 1 / -1;
   display: grid;

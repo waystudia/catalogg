@@ -13,6 +13,7 @@ import {
   KeyRound,
   MapPin,
   Menu,
+  MessageCircle,
   MoreVertical,
   Package,
   Pencil,
@@ -61,7 +62,7 @@ import { getCatalogWorkspaceAccess, getVisibleAssignedOrderIds, type CatalogOrde
 import { acceptCatalogOrderAssignment, escalateCatalogOrderAssignments, getCatalogOrderAssignments, updateCatalogAssignedOrderStatus } from '../../shared/api/catalogStaffApi';
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
-import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
+import { OrderConversationInbox, type OrderConversationInboxItem } from '../../features/order-conversation/OrderConversationInbox';
 import { loadGroceryInventory, postGroceryReceiving, saveGroceryInventoryItem, type GroceryInventoryMovement, type GroceryReceivingLineInput } from '../../shared/api/groceryInventoryApi';
 import { GroceryProductsPage } from '../../features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../features/grocery-operations/GroceryReceivingPage';
@@ -75,7 +76,7 @@ import '../../features/grocery-operations/grocery-operations.css';
 import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 import { BrandLogo } from '../../shared/BrandLogo';
 
-type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
   | 'hub'
   | 'profile'
@@ -116,6 +117,7 @@ function resolveBusinessAdminRoutePath(routePath = ''): {
     'shared-products': 'shared-products',
     receiving: 'receiving',
     orders: 'orders',
+    chats: 'chats',
     warehouse: 'warehouse',
     stocks: 'stocks',
     team: 'team',
@@ -297,7 +299,11 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     staffRole: access.staffRole
   });
   const initialRoute = resolveBusinessAdminRoutePath(routePath);
-  const [section, setSection] = useState<AdminSection>(() => (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : initialRoute.section));
+  const [section, setSection] = useState<AdminSection>(() => (
+    workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace
+      ? (initialRoute.section === 'chats' ? 'chats' : 'orders')
+      : initialRoute.section
+  ));
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(initialRoute.settingsSection);
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: isGrocery ? groceryRestaurant : demoRestaurant,
@@ -351,7 +357,8 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
           id: 'orders' as const,
           label: access.staffRole === 'manager' ? 'Очередь заказов' : 'Мои заказы',
           icon: ShoppingBag
-        }
+        },
+        { id: 'chats' as const, label: 'Чаты', icon: MessageCircle }
       ];
     }
     if (isGrocery) {
@@ -366,6 +373,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         { id: 'shared-products', label: 'База товаров', icon: Database },
         { id: 'receiving', label: 'Поступление', icon: ClipboardPlus },
         { id: 'orders', label: 'Заказы', icon: ShoppingBag },
+        { id: 'chats', label: 'Чаты', icon: MessageCircle },
         { id: 'warehouse', label: 'Склад', icon: Package },
         { id: 'catalog', label: 'Витрина', icon: Store },
         { id: 'settings', label: 'Настройки', icon: Settings }
@@ -387,21 +395,28 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         icon: Package
       });
     }
+    const warehouseIndex = items.findIndex((item) => item.id === 'warehouse');
+    const chatInsertIndex = warehouseIndex >= 0 ? warehouseIndex : items.findIndex((item) => item.id === 'stocks');
     if (workspaceAccess.canManageTeam) {
-      const settingsIndex = items.findIndex((item) => item.id === 'settings');
-      items.splice(settingsIndex, 0, {
+      items.splice(chatInsertIndex, 0, {
         id: 'team',
         label: 'Команда',
         icon: Users
       });
     }
+    const chatIndex = items.findIndex((item) => item.id === 'warehouse');
+    items.splice(chatIndex >= 0 ? chatIndex : items.findIndex((item) => item.id === 'stocks'), 0, {
+      id: 'chats',
+      label: 'Чаты',
+      icon: MessageCircle
+    });
     return items;
   }, [access.staffRole, isGrocery, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
 
   useEffect(() => {
     const nextRoute = resolveBusinessAdminRoutePath(routePath);
     if (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace) {
-      setSection('orders');
+      setSection(nextRoute.section === 'chats' ? 'chats' : 'orders');
       setSettingsSection('hub');
       return;
     }
@@ -601,6 +616,17 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   });
   const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? roleVisibleOrders[0] ?? null;
   const selectedOrderAssignment = selectedOrder ? (orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null) : null;
+  const businessChatItems = useMemo<OrderConversationInboxItem[]>(() => roleVisibleOrders.map((order) => ({
+    orderId: order.id,
+    catalogId: order.catalogId,
+    orderNumber: order.orderNumber,
+    merchantName: catalogData.restaurant.name || terms.place,
+    merchantLabel: terms.place,
+    customerName: order.clientName || 'Клиент',
+    statusLabel: getAdminOrderStatusLabel(order.status, access.catalog?.businessType),
+    createdAt: order.createdAt,
+    totalLabel: formatPrice(order.total)
+  })), [access.catalog?.businessType, catalogData.restaurant.name, roleVisibleOrders, terms.place]);
 
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);
@@ -964,6 +990,19 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               onDelete={deleteOrder}
               onAcceptAssignment={acceptWorkAssignment}
               onPickingChanged={() => void refreshData({ silent: true })}
+              onOpenChat={(orderId) => {
+                setSelectedOrderId(orderId);
+                goTo('chats');
+              }}
+            />
+          )}
+          {section === 'chats' && (
+            <OrderConversationInbox
+              items={businessChatItems}
+              expectedViewer="staff"
+              selectedOrderId={selectedOrder?.id ?? null}
+              onSelectedOrderChange={setSelectedOrderId}
+              onChanged={() => void refreshData({ silent: true })}
             />
           )}
           {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
@@ -1329,7 +1368,8 @@ function OrdersPage({
   onPaymentStatusChange,
   onDelete,
   onAcceptAssignment,
-  onPickingChanged
+  onPickingChanged,
+  onOpenChat
 }: {
   orders: RestaurantOrder[];
   products: Product[];
@@ -1349,6 +1389,7 @@ function OrdersPage({
   onDelete: (order: RestaurantOrder) => Promise<void>;
   onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
   onPickingChanged: () => void;
+  onOpenChat: (orderId: string) => void;
 }) {
   return (
     <div className="ra-orders-layout">
@@ -1362,7 +1403,7 @@ function OrdersPage({
         <RestaurantOrdersBoard orders={orders} selectedOrderId={selectedOrder?.id ?? null} recentOrderIds={recentOrderIds} businessType={businessType} onSelectOrder={onSelectOrder} />
       </section>
       {selectedOrder && (
-        <OrderDetails order={selectedOrder} products={products} businessType={businessType} assignment={selectedAssignment} paymentSettings={paymentSettings} paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)} onStatusChange={onStatusChange} onPaymentStatusChange={onPaymentStatusChange} onDelete={onDelete} canDeleteOrders={canDeleteOrders} workerMode={workerMode} onAcceptAssignment={onAcceptAssignment} onPickingChanged={onPickingChanged} />
+        <OrderDetails order={selectedOrder} products={products} businessType={businessType} assignment={selectedAssignment} paymentSettings={paymentSettings} paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)} onStatusChange={onStatusChange} onPaymentStatusChange={onPaymentStatusChange} onDelete={onDelete} canDeleteOrders={canDeleteOrders} workerMode={workerMode} onAcceptAssignment={onAcceptAssignment} onPickingChanged={onPickingChanged} onOpenChat={onOpenChat} />
       )}
     </div>
   );
@@ -1381,7 +1422,8 @@ function OrderDetails({
   workerMode,
   onDelete,
   onAcceptAssignment,
-  onPickingChanged
+  onPickingChanged,
+  onOpenChat
 }: {
   order: RestaurantOrder;
   products: Product[];
@@ -1396,6 +1438,7 @@ function OrderDetails({
   onDelete: (order: RestaurantOrder) => Promise<void>;
   onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
   onPickingChanged: () => void;
+  onOpenChat: (orderId: string) => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isGroceryBusiness = businessType === 'grocery';
@@ -1557,11 +1600,11 @@ function OrderDetails({
         ))}
       </div>
       {businessType === 'grocery' && (
-        <>
-          <GroceryPickingPanel items={order.items} products={products} canPick={!workerMode || assignment?.state === 'accepted'} onChanged={onPickingChanged} />
-          <OrderConversationPanel orderId={order.id} catalogId={order.catalogId} expectedViewer="staff" onChanged={onPickingChanged} />
-        </>
+        <GroceryPickingPanel items={order.items} products={products} canPick={!workerMode || assignment?.state === 'accepted'} onChanged={onPickingChanged} />
       )}
+      <button className="ra-order-chat-button" type="button" onClick={() => onOpenChat(order.id)}>
+        <MessageCircle /> Открыть чат заказа
+      </button>
       <div className="ra-order-total">
         <span>Итого</span>
         <strong>{formatPrice(order.total)}</strong>

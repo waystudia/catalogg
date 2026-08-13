@@ -21,6 +21,10 @@ const order = (overrides: Partial<Parameters<typeof buildOrderAfterClientPayment
   });
 
 describe('client platform order status helpers', () => {
+  it('keeps the tenant catalog id for the order chat', () => {
+    expect(order({ catalogId: 'catalog-rizih' }).catalogId).toBe('catalog-rizih');
+  });
+
   it('finds the exact requested order id for the status page', () => {
     expect(
       selectClientOrderForStatus(
