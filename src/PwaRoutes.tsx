@@ -21,7 +21,7 @@ export function CatalogAdminRoute() {
 
 export function BusinessAdminRoute() {
   const { slug = '' } = useParams();
-  return <CatalogAdminApp slug={decodeURIComponent(slug)} />;
+  return <Navigate replace to={`/${encodeURIComponent(decodeURIComponent(slug))}/dashboard`} />;
 }
 
 export function RestaurantRouteRedirect() {
