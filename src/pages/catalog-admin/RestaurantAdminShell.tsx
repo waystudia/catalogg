@@ -43,7 +43,7 @@ import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
 import { changeCatalogAdminPassword, type CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission, restoreRestaurantOrderNotificationSubscription, showRestaurantOrderNotification } from '../../shared/restaurantOrderNotifications';
-import { formatAdminOrderItemQuantity, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
+import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, getOrderPaymentMethod, getVisibleAdminOrderComment, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
 import { getRestaurantModuleEntitlementByCatalog } from '../../shared/api/restaurantModulesApi';
 import { getRestaurantAdminModuleAccess, type RestaurantAdminModuleAccess } from '../../features/platform-admin-modules/restaurantModuleAccess';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../../features/restaurant-pos/RestaurantPosPage';
@@ -63,7 +63,7 @@ import { GroceryProductsPage } from '../../features/grocery-operations/GroceryPr
 import { GroceryReceivingPage } from '../../features/grocery-operations/GroceryReceivingPage';
 import { GroceryWarehousePage } from '../../features/grocery-operations/GroceryWarehousePage';
 import { GroceryPosPage, type GroceryPosLine } from '../../features/grocery-operations/GroceryPosPage';
-import type { GroceryPosPayment } from '../../features/grocery-operations/groceryPosModel';
+import { formatGroceryPosOrderComment, type GroceryPosPayment } from '../../features/grocery-operations/groceryPosModel';
 import { GroceryProductEditor } from '../../features/grocery-operations/GroceryProductEditor';
 import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
@@ -627,7 +627,7 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
       ),
       fulfillmentType: 'takeaway',
       customerName: customerName || 'Покупатель на кассе',
-      comment: [`Касса магазина · ${payment.method === 'cash' ? 'Наличные' : 'Перевод'}`, payment.method === 'cash' && payment.cashReceived > 0 ? `Получено: ${payment.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${payment.cashChange.toLocaleString('ru-RU')} ₽` : ''].filter(Boolean).join(' · ')
+      comment: formatGroceryPosOrderComment(payment)
     });
     await refreshData({ silent: true });
     toast.success('Заказ с кассы добавлен в общую очередь');
@@ -1360,8 +1360,11 @@ function OrderDetails({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isGroceryBusiness = businessType === 'grocery';
-  const groceryCashOrder = isGroceryBusiness && order.comment.includes('Наличные');
-  const paymentStatusLabel = orderPaymentStatusLabels[order.paymentStatus].replace('рестораном', isGroceryBusiness ? 'магазином' : 'рестораном');
+  const groceryCashOrder = isGroceryBusiness && getOrderPaymentMethod(order.comment) === 'cash';
+  const visibleOrderComment = isGroceryBusiness ? getVisibleAdminOrderComment(order.comment) : order.comment;
+  const paymentStatusLabel = getBusinessPaymentStatusLabel(orderPaymentStatusLabels[order.paymentStatus], businessType);
+  const localPaymentStatusLabel = getBusinessPaymentStatusLabel(paymentStatusLabels[paymentStatus], businessType);
+  const paymentSummary = formatAdminPaymentSummary(groceryCashOrder ? 'Наличными на кассе' : localPaymentStatusLabel, paymentStatusLabel);
   const deleteOrder = async () => {
     if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
@@ -1485,7 +1488,7 @@ function OrderDetails({
         )}
         <div>
           <dt>{isGroceryBusiness ? 'Информация' : 'Комментарий'}</dt>
-          <dd>{order.comment || (isGroceryBusiness ? 'Нет дополнительной информации' : 'Нет комментария')}</dd>
+          <dd>{visibleOrderComment || (isGroceryBusiness ? 'Нет дополнительной информации' : 'Нет комментария')}</dd>
         </div>
         <div>
           <dt>Оплата</dt>
@@ -1530,9 +1533,7 @@ function OrderDetails({
             <WalletCards />
             Оплата
           </h3>
-        <p>
-          {groceryCashOrder ? 'Наличными на кассе' : paymentStatusLabels[paymentStatus]} · {paymentStatusLabel}
-        </p>
+          <p>{paymentSummary}</p>
           <dl>
             <div>
               <dt>Способ</dt>

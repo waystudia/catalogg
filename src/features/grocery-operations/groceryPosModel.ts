@@ -1,4 +1,5 @@
 import type { Product } from '../../entities/models';
+import { formatOrderPaymentMethodMarker } from '../restaurant-admin/orderPresentation';
 
 export type GroceryPosPaymentMethod = 'cash' | 'transfer';
 
@@ -7,6 +8,18 @@ export type GroceryPosPayment = {
   cashReceived: number;
   cashChange: number;
 };
+
+export function formatGroceryPosOrderComment(payment: GroceryPosPayment) {
+  return [
+    formatOrderPaymentMethodMarker(payment.method === 'cash' ? 'cash' : 'bank_transfer'),
+    `Касса магазина · ${payment.method === 'cash' ? 'Наличные' : 'Перевод'}`,
+    payment.method === 'cash' && payment.cashReceived > 0
+      ? `Получено: ${payment.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${payment.cashChange.toLocaleString('ru-RU')} ₽`
+      : ''
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
 export function getWeightSaleMinimum(product: Product) {
   if (product.sale_unit !== 'weight') return 1;

@@ -117,6 +117,15 @@ export function getAdminOrderStatusLabel(status: RestaurantOrderStatus, business
   return adminOrderStatusLabels[status];
 }
 
+export function getBusinessPaymentStatusLabel(label: string, businessType?: string) {
+  if (businessType !== 'grocery') return label;
+  return label.replace(/рестораном/gu, 'магазином').replace(/ресторана/gu, 'магазина');
+}
+
+export function formatAdminPaymentSummary(...labels: string[]) {
+  return [...new Set(labels.filter(Boolean))].join(' · ');
+}
+
 export function getAdminOrderFulfillmentLabel(order: RestaurantOrder, businessType?: string) {
   if (businessType !== 'grocery') return fulfillmentLabels[order.fulfillmentType];
   if (order.fulfillmentType === 'delivery') return 'Доставка';
