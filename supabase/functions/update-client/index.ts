@@ -13,6 +13,7 @@ type UpdateClientPayload = {
   seedDemoMenu?: boolean;
   password?: string;
   status?: 'active' | 'inactive' | 'blocked' | 'pending';
+  catalogStatus?: 'draft' | 'published';
   planId?: string;
   subscriptionStatus?: 'trial' | 'active' | 'past_due' | 'expired' | 'cancelled';
   subscriptionEndsAt?: string | null;
@@ -84,6 +85,9 @@ const assertPayload = (payload: UpdateClientPayload) => {
   if (payload.templateType !== undefined && payload.templateType !== payload.businessType) {
     throw new Error('Template type does not match the business type.');
   }
+  if (payload.catalogStatus !== undefined && !['draft', 'published'].includes(payload.catalogStatus)) {
+    throw new Error('Catalog status is invalid.');
+  }
 };
 
 Deno.serve(async (request) => {
@@ -151,7 +155,7 @@ Deno.serve(async (request) => {
 
     const { data: currentClient, error: currentClientError } = await adminClient
       .from('clients')
-      .select('id, owner_user_id, catalog_id, email, company_name')
+      .select('id, owner_user_id, catalog_id, email, company_name, status')
       .eq('id', payload.clientId)
       .single();
     if (currentClientError || !currentClient) throw currentClientError ?? new Error('Client not found.');
@@ -223,13 +227,23 @@ Deno.serve(async (request) => {
       if (clientUpdateError) throw clientUpdateError;
     }
 
-    if (payload.companyName !== undefined || payload.status !== undefined || payload.businessType !== undefined || payload.templateType !== undefined) {
+    if (
+      payload.companyName !== undefined ||
+      payload.status !== undefined ||
+      payload.catalogStatus !== undefined ||
+      payload.businessType !== undefined ||
+      payload.templateType !== undefined
+    ) {
       const catalogUpdates: Record<string, unknown> = {};
       if (payload.companyName !== undefined) catalogUpdates.name = payload.companyName;
       if (payload.businessType !== undefined) catalogUpdates.business_type = payload.businessType;
       if (payload.templateType !== undefined) catalogUpdates.template_type = payload.templateType;
-      if (payload.businessType === 'grocery') {
-        catalogUpdates.status = 'draft';
+      const effectiveClientStatus = payload.status ?? currentClient.status;
+      if (payload.catalogStatus === 'published' && effectiveClientStatus !== 'active') {
+        throw new Error('Only an active client can publish a catalog.');
+      }
+      if (payload.catalogStatus !== undefined) {
+        catalogUpdates.status = effectiveClientStatus === 'active' ? payload.catalogStatus : 'draft';
       } else if (payload.status !== undefined) {
         catalogUpdates.status = payload.status === 'blocked' || payload.status === 'inactive' ? 'draft' : 'published';
       }
@@ -299,6 +313,7 @@ Deno.serve(async (request) => {
         actor_email: userData.user.email,
         changed_email: payload.email !== undefined,
         changed_password: Boolean(payload.password),
+        changed_catalog_status: payload.catalogStatus !== undefined,
         changed_subscription: payload.subscriptionStatus !== undefined || payload.subscriptionEndsAt !== undefined
       }
     });

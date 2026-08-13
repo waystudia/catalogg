@@ -7,19 +7,18 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('client platform restaurant order contract', () => {
-  it('keeps restaurant cards on editable routes while groceries use weighted /r checkout', () => {
+  it('keeps every business card on the shared editable public catalog route', () => {
     const apiSource = readFileSync(resolve(repoRoot, 'src/shared/api/clientPlatformApi.ts'), 'utf8');
     const mockSource = readFileSync(resolve(repoRoot, 'src/features/client-platform/mockData.ts'), 'utf8');
     const mainSource = readFileSync(resolve(repoRoot, 'src/main.tsx'), 'utf8');
     const routeSource = readFileSync(resolve(repoRoot, 'src/PwaRoutes.tsx'), 'utf8');
 
-    assert.match(apiSource, /normalizeBusinessType\(catalog\.business_type\) === 'grocery'/);
-    assert.match(apiSource, /\? `\/r\/\$\{catalog\.slug\}`[\s\S]*: `\/\$\{catalog\.slug\}`/);
+    assert.match(apiSource, /publicPath: `\/\$\{catalog\.slug\}`/);
     assert.doesNotMatch(mockSource, /publicPath:\s*'\/r\//);
     assert.doesNotMatch(mainSource, /path="\/r\/:slug\/\*" element=\{<ClientPlatformApp \/>}/);
     assert.match(mainSource, /path="\/r\/:slug\/\*" element=\{<RestaurantRouteRedirect \/>}/);
     assert.match(mainSource, /path="\/business\/:slug\/\*" element=\{<BusinessAdminRoute \/>}/);
-    assert.match(routeSource, /function RestaurantRouteRedirect\(\)[\s\S]*return <ClientPlatformApp \/>/);
+    assert.match(routeSource, /function RestaurantRouteRedirect\(\)[\s\S]*return <Navigate replace to=/);
     assert.match(routeSource, /function BusinessAdminRoute\(\)[\s\S]*return <CatalogAdminApp slug=\{decodeURIComponent\(slug\)\} \/>/);
     assert.doesNotMatch(routeSource, /Navigate replace to=\{`\/\$\{decodeURIComponent\(slug\)\}`\}/);
   });
@@ -36,6 +35,15 @@ describe('client platform restaurant order contract', () => {
     assert.match(apiSource, /catalog\.slug\s*===\s*'mangal'/);
     assert.match(apiSource, /\.from\('category'\)/);
     assert.match(apiSource, /\.from\('product'\)/);
+  });
+
+  it('keeps universal weighted fields when the shared catalog loads grocery products', () => {
+    const catalogSource = readFileSync(resolve(repoRoot, 'src/shared/supabase.ts'), 'utf8');
+    const orderSource = readFileSync(resolve(repoRoot, 'src/shared/api/restaurantOrderPayload.ts'), 'utf8');
+
+    assert.match(catalogSource, /value\.sale_unit === 'weight'[\s\S]*pricing_type: 'per_kg'/);
+    assert.match(orderSource, /requested_quantity:[\s\S]*normalizeSelectedWeight/);
+    assert.match(orderSource, /businessType === 'grocery'[\s\S]*create_client_platform_catalog_order/);
   });
 
   it('shows a newly submitted order as waiting for restaurant acceptance', () => {

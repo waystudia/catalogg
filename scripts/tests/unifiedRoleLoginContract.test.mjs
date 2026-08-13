@@ -5,17 +5,20 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('all role entry points use the embedded phone-or-email profile login', async () => {
-  const [main, profile, app, catalogAdmin, platformAdmin, driver] = await Promise.all([
+  const [main, profile, app, catalogAdmin, platformAdmin, driver, loginRedirect] = await Promise.all([
     read('src/main.tsx'),
     read('src/pages/client-platform/ClientPlatformApp.tsx'),
     read('src/app/App.tsx'),
     read('src/pages/catalog-admin/CatalogAdminApp.tsx'),
     read('src/pages/platform-admin/PlatformAdminApp.tsx'),
-    read('src/pages/driver/DriverApp.tsx')
+    read('src/pages/driver/DriverApp.tsx'),
+    read('src/shared/api/loginRedirectApi.ts')
   ]);
 
   assert.doesNotMatch(main, /pages\/login\/LoginPage/);
-  assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+  assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword, expectedLoginRole\)/);
+  assert.match(profile, /if \(!expectedLoginRole\)\s*\{\s*setClientMessage\('Вы вошли в аккаунт'\)/);
+  assert.match(loginRedirect, /usesEmail \|\| expectedRole \|\| !isCredentialError\(error\)/);
   assert.match(profile, /redirectToRoleApp\(targetPath\)/);
   assert.match(profile, /Для клиентов, ресторанов и водителей/);
   assert.doesNotMatch(app, /<LoginModal/);

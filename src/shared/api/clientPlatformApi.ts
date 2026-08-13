@@ -920,9 +920,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         paymentByCatalog.get(catalog.id)?.enable_transfer === false ? undefined : 'bank_transfer',
         paymentByCatalog.get(catalog.id)?.allow_cash === false ? undefined : 'cash'
       ].filter((method): method is ClientPaymentMethod => Boolean(method)),
-      publicPath: normalizeBusinessType(catalog.business_type) === 'grocery'
-        ? `/r/${catalog.slug}`
-        : `/${catalog.slug}`,
+      publicPath: `/${catalog.slug}`,
       businessType: normalizeBusinessType(catalog.business_type)
     };
   });

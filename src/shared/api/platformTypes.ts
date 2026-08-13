@@ -372,6 +372,7 @@ export type UpdateClientPayload = {
   seedDemoMenu?: boolean;
   password?: string;
   status?: ClientStatus;
+  catalogStatus?: 'draft' | 'published';
   planId?: string;
   subscriptionStatus?: SubscriptionStatus;
   subscriptionEndsAt?: string | null;

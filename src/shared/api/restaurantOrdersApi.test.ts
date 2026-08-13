@@ -128,6 +128,33 @@ describe('public restaurant order payload', () => {
     assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_restaurant_order');
   });
 
+  it('uses the grocery RPC and sends exact grams for a weighted catalog product', () => {
+    const items: CartItem[] = [{
+      product: product({
+        id: '11111111-1111-4111-8111-111111111111',
+        sale_unit: 'weight',
+        pricing_type: 'per_kg',
+        minimum_weight: 0.25,
+        weight_step: 0.05
+      }),
+      quantity: 1,
+      selected_weight: 0.35
+    }];
+
+    assert.equal(resolvePublicOrderRpcName(items, 'grocery'), 'create_client_platform_catalog_order');
+    assert.deepEqual(buildPublicRestaurantOrderItems(items), [{
+      product_id: '11111111-1111-4111-8111-111111111111',
+      quantity: 1,
+      requested_quantity: 350,
+      options: [{
+        key: 'weight',
+        name: 'Вес: 0.35 кг',
+        value: '0.35',
+        product_id: '11111111-1111-4111-8111-111111111111'
+      }]
+    }]);
+  });
+
   it('clamps persisted invalid quantities before sending the order to Supabase', () => {
     const items: CartItem[] = [{ product: product({ id: 'product-2' }), quantity: 0 }];
 

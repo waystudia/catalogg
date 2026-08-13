@@ -264,10 +264,10 @@ describe('client platform restaurant links', () => {
     assert.equal(buildRestaurantPublicPath({ slug: 'mangal', publicPath: '/mangal' }), '/mangal');
   });
 
-  it('opens grocery catalogs in the weighted marketplace flow', () => {
+  it('opens grocery catalogs in the same public catalog flow as restaurants', () => {
     assert.equal(
       buildRestaurantPublicPath({ slug: 'finik', publicPath: '/finik', businessType: 'grocery' }),
-      '/r/finik'
+      '/finik'
     );
   });
 });

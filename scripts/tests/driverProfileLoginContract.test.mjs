@@ -24,7 +24,7 @@ describe('driver login from the client profile', () => {
     assert.match(redirect, /Сервис профилей временно не отвечает/);
     assert.match(redirect, /PGRST202/i);
     assert.match(redirect, /expectedRole/);
-    assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+    assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword, expectedLoginRole\)/);
     assert.match(profile, /Телефон или почта/);
     assert.doesNotMatch(profile, /profile-login-methods/);
     assert.doesNotMatch(profile, /Открыть единый вход/);
