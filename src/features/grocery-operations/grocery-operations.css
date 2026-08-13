@@ -1013,9 +1013,6 @@
 .grocery-pos-transfer__empty svg {
   width: 28px;
 }
-.grocery-pos-transfer__empty small {
-  display: none;
-}
 .grocery-pos-transfer > div {
   min-width: 0;
   display: grid;
@@ -1028,6 +1025,13 @@
 }
 .grocery-pos-transfer > div small {
   color: var(--grocery-muted);
+}
+.grocery-pos-transfer > div .grocery-pos-transfer__hint {
+  overflow: visible;
+  white-space: normal;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #6d5bd0;
 }
 .grocery-pos-transfer > div b {
   font-size: 13px;

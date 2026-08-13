@@ -5,7 +5,7 @@ import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { BarcodeCaptureDialog } from './BarcodeCaptureDialog';
 import { findProductByBarcode, normalizeBarcode, playBarcodeBeep, useHardwareBarcodeScanner } from './barcodeScanner';
 import { formatInventoryQuantity, getProductScanIncrement } from './inventoryModel';
-import { calculateCashSettlement, getCashQuickAmounts, getWeightSaleMinimum, type GroceryPosPayment } from './groceryPosModel';
+import { calculateCashSettlement, getCashQuickAmounts, getGroceryTransferBankLabel, getWeightSaleMinimum, type GroceryPosPayment } from './groceryPosModel';
 
 export type GroceryPosLine = { product: Product; quantity: number };
 
@@ -27,6 +27,7 @@ export function GroceryPosPage({ storeName, products, categories, paymentSetting
   const searchRef = useRef<HTMLInputElement>(null);
   const weightInputRef = useRef<HTMLInputElement>(null);
   const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
+  const transferBankLabel = getGroceryTransferBankLabel(paymentSettings.bankName);
 
   const addProduct = useCallback(
     (product: Product, quantity = getProductScanIncrement(product)) => {
@@ -318,14 +319,14 @@ export function GroceryPosPage({ storeName, products, categories, paymentSetting
                 {paymentSettings.qrUrl ? (
                   <img src={paymentSettings.qrUrl} alt="QR-код для перевода магазину" />
                 ) : (
-                  <span className="grocery-pos-transfer__empty">
+                  <span className="grocery-pos-transfer__empty" role="img" aria-label="QR-код не добавлен">
                     <QrCode />
-                    <small>QR-код пока не добавлен. Добавьте его в «Настройки → Платежи».</small>
                   </span>
                 )}
                 <div>
                   <strong>{paymentSettings.displayName || 'Получатель не указан'}</strong>
-                  {paymentSettings.bankName && <small>{paymentSettings.bankName}</small>}
+                  {!paymentSettings.qrUrl && <small className="grocery-pos-transfer__hint">QR-код не добавлен — загрузите его в «Настройки → Платежи».</small>}
+                  {transferBankLabel && <small>{transferBankLabel}</small>}
                   {paymentSettings.transferNumber && <b>{paymentSettings.transferNumber}</b>}
                 </div>
               </section>

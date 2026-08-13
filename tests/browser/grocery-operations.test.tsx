@@ -187,3 +187,31 @@ test('POS scanner requests camera access immediately when the dialog opens', asy
     else Reflect.deleteProperty(navigator, 'mediaDevices');
   }
 });
+
+test('POS transfer explains a missing QR and normalizes legacy restaurant wording for a grocery store', async () => {
+  const screen = await render(
+    <GroceryPosPage
+      storeName="Финик"
+      products={groceryProducts}
+      categories={groceryCategories}
+      paymentSettings={{
+        ...defaultPaymentSettings,
+        transferEnabled: true,
+        displayName: 'Исаев Магомед',
+        bankName: 'Банк / перевод ресторану',
+        transferNumber: '+7 999 000-00-00',
+        qrUrl: ''
+      }}
+      readOnly={false}
+      autoAddProduct={null}
+      onConsumeAutoAdd={() => undefined}
+      onCreateProduct={() => undefined}
+      onSubmit={async () => undefined}
+    />
+  );
+
+  await screen.getByRole('button', { name: 'Перевод' }).click();
+  await expect.element(screen.getByText('QR-код не добавлен — загрузите его в «Настройки → Платежи».', { exact: true })).toBeVisible();
+  await expect.element(screen.getByText('Банк / перевод магазину', { exact: true })).toBeVisible();
+  expect(document.body.textContent).not.toContain('Банк / перевод ресторану');
+});

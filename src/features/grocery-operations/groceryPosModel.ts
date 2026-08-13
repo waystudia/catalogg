@@ -21,6 +21,10 @@ export function formatGroceryPosOrderComment(payment: GroceryPosPayment) {
     .join('\n');
 }
 
+export function getGroceryTransferBankLabel(bankName: string) {
+  return bankName.replace(/ресторану/giu, 'магазину').replace(/ресторана/giu, 'магазина');
+}
+
 export function getWeightSaleMinimum(product: Product) {
   if (product.sale_unit !== 'weight') return 1;
   const legacyMinimumGrams = Math.round(Math.max(0, product.minimum_weight ?? 0) * 1000);
