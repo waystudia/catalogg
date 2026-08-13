@@ -83,6 +83,35 @@ describe('Supabase auth scopes', () => {
     assert.equal(values.get('waycatalog-auth-driver'), 'independent-driver-session');
   });
 
+  it('moves an inline profile login out of the client scope into the destination role', () => {
+    const values = new Map<string, string>([
+      ['waycatalog-auth-client', 'fresh-finik-session']
+    ]);
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+          removeItem: (key: string) => values.delete(key),
+          setItem: (key: string, value: string) => values.set(key, value)
+        }
+      }
+    });
+
+    try {
+      handoffSupabaseSessionToScope('restaurant-admin', 'fresh-finik-session', 'client');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    assert.equal(values.get('waycatalog-auth-restaurant-admin'), 'fresh-finik-session');
+    assert.equal(values.has('waycatalog-auth-client'), false);
+  });
+
   it('does not disturb role sessions when there is no completed login session to hand off', () => {
     const values = new Map<string, string>([
       ['waycatalog-auth-driver', 'independent-driver-session']

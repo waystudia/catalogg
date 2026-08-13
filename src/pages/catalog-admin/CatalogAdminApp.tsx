@@ -8,7 +8,7 @@ import {
   signOutCatalogAdmin,
   type CatalogAdminAccess
 } from '../../shared/api/catalogAdminApi';
-import { redirectToClientHome } from '../../shared/appNavigation';
+import { buildProfileLoginPath, redirectToClientHome } from '../../shared/appNavigation';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import { RestaurantAdminShell } from './RestaurantAdminShell';
@@ -18,8 +18,8 @@ type CatalogAdminAppProps = {
   slug: string;
 };
 
-function CatalogLogin() {
-  return <Navigate to="/login" replace />;
+function CatalogLogin({ slug }: { slug: string }) {
+  return <Navigate to={buildProfileLoginPath(`/business/${slug}`)} replace />;
 }
 
 function CatalogForbidden({
@@ -220,7 +220,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
 
   if (!access?.hasSession) {
     return (
-      <CatalogLogin />
+      <CatalogLogin slug={slug} />
     );
   }
 

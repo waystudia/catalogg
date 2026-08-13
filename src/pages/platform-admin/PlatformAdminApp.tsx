@@ -148,7 +148,7 @@ import {
   requestRestaurantOrderNotificationPermission,
   restoreRestaurantOrderNotificationSubscription
 } from '../../shared/restaurantOrderNotifications';
-import { redirectToClientHome } from '../../shared/appNavigation';
+import { buildProfileLoginPath, redirectToClientHome } from '../../shared/appNavigation';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
   createClientSchema,
@@ -3449,7 +3449,7 @@ function PlaceholderPage({ route }: { route: PlatformRoute }) {
 }
 
 function PlatformLoginState() {
-  return <Navigate to="/login" replace />;
+  return <Navigate to={buildProfileLoginPath('/admin/clients')} replace />;
 }
 
 function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut: () => void }) {

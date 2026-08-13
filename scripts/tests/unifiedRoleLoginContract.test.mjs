@@ -4,23 +4,25 @@ import test from 'node:test';
 
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
-test('all role entry points use the shared phone-or-email login page', async () => {
-  const [loginPage, app, catalogAdmin, platformAdmin, driver] = await Promise.all([
-    read('src/pages/login/LoginPage.tsx'),
+test('all role entry points use the embedded phone-or-email profile login', async () => {
+  const [main, profile, app, catalogAdmin, platformAdmin, driver] = await Promise.all([
+    read('src/main.tsx'),
+    read('src/pages/client-platform/ClientPlatformApp.tsx'),
     read('src/app/App.tsx'),
     read('src/pages/catalog-admin/CatalogAdminApp.tsx'),
     read('src/pages/platform-admin/PlatformAdminApp.tsx'),
     read('src/pages/driver/DriverApp.tsx')
   ]);
 
-  assert.match(loginPage, /resolveUnifiedLogin\(identifier, password\)/);
-  assert.match(loginPage, /'phone' \| 'email'/);
-  assert.match(loginPage, /Клиенты · рестораны · водители/);
-  assert.doesNotMatch(loginPage, /Клиенты · рестораны · водители · суперадмин/);
+  assert.doesNotMatch(main, /pages\/login\/LoginPage/);
+  assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+  assert.match(profile, /redirectToRoleApp\(targetPath\)/);
+  assert.match(profile, /Для клиентов, ресторанов и водителей/);
   assert.doesNotMatch(app, /<LoginModal/);
-  assert.match(catalogAdmin, /function CatalogLogin\(\)[\s\S]*<Navigate to="\/login" replace \/>/);
-  assert.match(platformAdmin, /function PlatformLoginState\(\)[\s\S]*<Navigate to="\/login" replace \/>/);
+  assert.match(catalogAdmin, /buildProfileLoginPath/);
+  assert.match(platformAdmin, /buildProfileLoginPath/);
   assert.match(driver, /телефон или email и пароль/);
+  assert.doesNotMatch(driver, /to="\/login"/);
 });
 
 test('staff password auth sends either an email or an E.164 phone to Supabase', async () => {

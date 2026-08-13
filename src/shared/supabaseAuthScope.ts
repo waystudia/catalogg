@@ -76,7 +76,8 @@ export const copySupabaseSessionToScope = (scope: SupabaseAuthScope, serializedS
 
 export const handoffSupabaseSessionToScope = (
   scope: SupabaseAuthScope,
-  serializedSession?: string | null
+  serializedSession?: string | null,
+  sourceScope?: SupabaseAuthScope
 ) => {
   if (typeof window === 'undefined') return;
   try {
@@ -90,7 +91,10 @@ export const handoffSupabaseSessionToScope = (
     if (!session) return;
 
     window.localStorage.setItem(targetKey, session);
-    sourceKeys
+    [...new Set([
+      ...sourceKeys,
+      ...(sourceScope ? [getSupabaseAuthStorageKey(sourceScope)] : [])
+    ])]
       .filter((key) => key !== targetKey)
       .forEach((key) => window.localStorage.removeItem(key));
   } catch {

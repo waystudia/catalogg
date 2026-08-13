@@ -1,5 +1,6 @@
 import { Camera, LogIn, MapPin, Search, Store, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { buildProfileLoginPath } from '../shared/appNavigation';
 
 const restaurants = [
   { name: 'Мангал', slug: 'mangal', description: 'Шашлык, блюда на углях, зал и самовывоз' },
@@ -44,7 +45,7 @@ export function Home() {
         </div>
 
         <div style={styles.actions}>
-          <Link style={styles.primaryButton} to="/login"><LogIn />Войти</Link>
+          <Link style={styles.primaryButton} to={buildProfileLoginPath()}><LogIn />Войти</Link>
           <Link style={styles.secondaryButton} to="/admin/clients/new"><UserPlus />Регистрация</Link>
           <Link style={styles.secondaryButton} to="/scanner"><Camera />Сканер</Link>
           <Link style={styles.ghostButton} to="/mangal">Пропустить</Link>

@@ -9,6 +9,7 @@ import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
   BusinessAdminRoute,
   CatalogAdminRoute,
+  LegacyLoginRedirect,
   PwaHomeRoute,
   PwaResumeTracker,
   RestaurantPublicRoute,
@@ -24,9 +25,6 @@ const ClientPlatformApp = lazy(() =>
 );
 const DriverApp = lazy(() =>
   import('./pages/driver/DriverApp').then((module) => ({ default: module.DriverApp }))
-);
-const LoginPage = lazy(() =>
-  import('./pages/login/LoginPage').then((module) => ({ default: module.LoginPage }))
 );
 const PlatformAdminApp = lazy(() =>
   import('./pages/platform-admin/PlatformAdminApp').then((module) => ({ default: module.PlatformAdminApp }))
@@ -91,7 +89,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
               <Route path="/profile/*" element={<ClientPlatformApp />} />
               <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
-              <Route path="/login" element={<LoginPage />} />
+              <Route path="/login" element={<LegacyLoginRedirect />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
               <Route path="/business/:slug/*" element={<BusinessAdminRoute />} />
               <Route path="/privacy" element={<PrivacyPage />} />

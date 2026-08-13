@@ -6,7 +6,6 @@ const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.t
 const legacyCheckoutSource = fs.readFileSync('src/features/checkout/CheckoutScreen.tsx', 'utf8');
 const restaurantAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientAccountApi.ts', 'utf8');
-const loginPageSource = fs.readFileSync('src/pages/login/LoginPage.tsx', 'utf8');
 const loginRedirectSource = fs.readFileSync('src/shared/api/loginRedirectApi.ts', 'utf8');
 const migrationFiles = fs
   .readdirSync('supabase/migrations')
@@ -35,7 +34,6 @@ test('client profile keeps registration and embeds the unified login panel', () 
   assert.doesNotMatch(appSource, /profile-login-methods/);
   assert.doesNotMatch(appSource, /loginMethod/);
   assert.doesNotMatch(appSource, /Открыть единый вход/);
-  assert.match(loginPageSource, /resolveUnifiedLogin/);
   assert.match(loginRedirectSource, /loginClientAccount/);
   assert.match(appSource, /Аккаунт защищён паролем/);
   assert.match(appSource, /Гостевой профиль/);

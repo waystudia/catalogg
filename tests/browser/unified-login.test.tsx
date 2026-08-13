@@ -1,45 +1,39 @@
-import { expect, test, vi } from 'vitest';
+import { expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { MemoryRouter } from 'react-router-dom';
-import { LoginPage } from '../../src/pages/login/LoginPage';
-import { resolveUnifiedLogin } from '../../src/shared/api/loginRedirectApi';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { LegacyLoginRedirect } from '../../src/PwaRoutes';
 
-vi.mock('../../src/shared/api/loginRedirectApi', { spy: true });
+function LocationProbe() {
+  const location = useLocation();
+  return <output aria-label="Текущий маршрут">{`${location.pathname}${location.search}`}</output>;
+}
 
-test('one login panel serves every WayYaam account by phone or email', async () => {
+test('legacy standalone login opens the embedded profile login instead', async () => {
   const screen = await render(
-    <MemoryRouter>
-      <LoginPage />
+    <MemoryRouter initialEntries={['/login']}>
+      <Routes>
+        <Route path="/login" element={<LegacyLoginRedirect />} />
+        <Route path="/profile" element={<LocationProbe />} />
+      </Routes>
     </MemoryRouter>
   );
 
-  await expect.element(screen.getByRole('heading', { name: 'Единый вход WayYaam' })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Телефон' })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Почта' })).toBeVisible();
-  await expect.element(screen.getByText('Клиенты · рестораны · водители')).toBeVisible();
-
-  await screen.getByRole('button', { name: 'Почта' }).click();
-  await expect.element(screen.getByLabelText('Email')).toBeVisible();
-  await screen.getByRole('button', { name: 'Телефон' }).click();
-  await expect.element(screen.getByLabelText('Телефон')).toBeVisible();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent(
+    '/profile?login=1&returnTo=%2Fprofile'
+  );
 });
 
-test('successful superadmin login hands the session to the platform admin app', async () => {
-  const navigateToRoleApp = vi.fn();
-  vi.mocked(resolveUnifiedLogin).mockResolvedValue('/admin');
+test('legacy login preserves a safe requested role route', async () => {
   const screen = await render(
-    <MemoryRouter>
-      <LoginPage
-        navigateToRoleApp={navigateToRoleApp}
-      />
+    <MemoryRouter initialEntries={['/login?returnTo=%2Fbusiness%2Ffinik']}>
+      <Routes>
+        <Route path="/login" element={<LegacyLoginRedirect />} />
+        <Route path="/profile" element={<LocationProbe />} />
+      </Routes>
     </MemoryRouter>
   );
 
-  await screen.getByRole('button', { name: 'Почта' }).click();
-  await screen.getByLabelText('Email').fill('admin@example.ru');
-  await screen.getByLabelText('Пароль').fill('correct-password');
-  await screen.getByRole('button', { name: 'Войти' }).click();
-
-  expect(navigateToRoleApp).toHaveBeenCalledOnce();
-  expect(navigateToRoleApp).toHaveBeenCalledWith('/admin/clients');
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent(
+    '/profile?login=1&returnTo=%2Fbusiness%2Ffinik'
+  );
 });
