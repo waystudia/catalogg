@@ -52,6 +52,10 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     psql --set ON_ERROR_STOP=1 \
       --file supabase/migrations/20260813010500_add_catalog_staff_account_onboarding.sql
   fi
+  if [[ -f supabase/migrations/20260813020133_fix_catalog_order_assignment_membership_signature.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260813020133_fix_catalog_order_assignment_membership_signature.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \

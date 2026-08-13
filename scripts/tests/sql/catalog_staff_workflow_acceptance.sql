@@ -191,6 +191,28 @@ $$;
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000102', false);
+set role authenticated;
+
+do $$
+declare
+  assignment_count integer;
+begin
+  select count(*)
+  into assignment_count
+  from public.get_catalog_order_assignments(
+    (select catalog.id from public.catalogs catalog where catalog.slug = 'finiki-ci')
+  );
+
+  if assignment_count < 1 then
+    raise exception 'catalog owner could not read tenant assignments';
+  end if;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', '', false);
+
 do $$
 begin
   if not exists (

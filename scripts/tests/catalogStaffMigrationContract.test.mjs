@@ -6,6 +6,10 @@ const migrationUrl = new URL(
   '../../supabase/migrations/20260812223500_add_catalog_staff_workflow.sql',
   import.meta.url
 );
+const assignmentCompatibilityMigrationUrl = new URL(
+  '../../supabase/migrations/20260813020133_fix_catalog_order_assignment_membership_signature.sql',
+  import.meta.url
+);
 
 test('catalog staff migration keeps roles tenant-scoped and assignments atomic', async () => {
   const sql = await readFile(migrationUrl, 'utf8');
@@ -23,4 +27,18 @@ test('catalog staff migration keeps roles tenant-scoped and assignments atomic',
   assert.match(sql, /business_type = 'grocery'/i);
   assert.match(sql, /enable row level security/i);
   assert.match(sql, /revoke all on function public\.link_catalog_staff_by_email/i);
+});
+
+test('catalog order assignment reads use the existing explicit membership signature', async () => {
+  const sql = await readFile(assignmentCompatibilityMigrationUrl, 'utf8');
+
+  assert.match(sql, /create or replace function public\.get_catalog_order_assignments/i);
+  assert.match(
+    sql,
+    /public\.is_catalog_member\([\s\S]*target_catalog_id,[\s\S]*array\['owner', 'admin', 'editor', 'viewer'\]::public\.catalog_role\[\]/i
+  );
+  assert.doesNotMatch(sql, /public\.is_catalog_member\(target_catalog_id\)/i);
+  assert.match(sql, /coalesce\(auth_user\.email::text, profile\.email, ''\)/i);
+  assert.match(sql, /revoke all on function public\.get_catalog_order_assignments\(uuid\) from public, anon/i);
+  assert.match(sql, /grant execute on function public\.get_catalog_order_assignments\(uuid\) to authenticated, service_role/i);
 });
