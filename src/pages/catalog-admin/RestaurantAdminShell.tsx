@@ -1,4 +1,31 @@
-import { Bell, Calculator, ClipboardPlus, Eye, EyeOff, Home, KeyRound, MapPin, Menu, MoreVertical, Package, Pencil, Plus, QrCode, RefreshCw, Search, Settings, ShoppingBag, Store, Tags, Trash2, Upload, Users, UtensilsCrossed, WalletCards } from 'lucide-react';
+import {
+  Bell,
+  Calculator,
+  ClipboardPlus,
+  Database,
+  Eye,
+  EyeOff,
+  Home,
+  KeyRound,
+  MapPin,
+  Menu,
+  MoreVertical,
+  Package,
+  Pencil,
+  Plus,
+  QrCode,
+  RefreshCw,
+  Search,
+  Settings,
+  ShoppingBag,
+  Store,
+  Tags,
+  Trash2,
+  Upload,
+  Users,
+  UtensilsCrossed,
+  WalletCards
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -41,9 +68,22 @@ import { GroceryProductEditor } from '../../features/grocery-operations/GroceryP
 import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
 import '../../features/grocery-operations/grocery-operations.css';
+import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 
-type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
-type SettingsSection = 'hub' | 'profile' | 'taxonomy' | 'design' | 'catalog' | 'delivery' | 'hours' | 'payments' | 'password' | 'import' | 'backups' | 'danger';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
+type SettingsSection =
+  | 'hub'
+  | 'profile'
+  | 'taxonomy'
+  | 'design'
+  | 'catalog'
+  | 'delivery'
+  | 'hours'
+  | 'payments'
+  | 'password'
+  | 'import'
+  | 'backups'
+  | 'danger';
 type PaymentStatus = 'not_required' | 'cash_on_delivery' | 'awaiting_transfer' | 'client_marked_paid' | 'confirmed' | 'declined';
 
 const existingSettingsViews: Partial<Record<SettingsSection, ExistingRestaurantSettingsView>> = {
@@ -283,6 +323,7 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
         { id: 'home', label: 'Главная', icon: Home },
         { id: 'pos', label: 'Касса', icon: Calculator },
         { id: 'dishes', label: 'Товары', icon: Package },
+        { id: 'shared-products', label: 'База товаров', icon: Database },
         { id: 'receiving', label: 'Поступление', icon: ClipboardPlus },
         { id: 'orders', label: 'Заказы', icon: ShoppingBag },
         { id: 'warehouse', label: 'Склад', icon: Package },
@@ -821,9 +862,32 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
             (isGrocery ? (
               <GroceryProductsPage products={catalogData.products} categories={catalogData.categories} readOnly={groceryAccessMode === 'read_only'} publicUrl={publicUrl} onEdit={(product) => openGroceryProductEditor('products', product)} onCreate={(barcode) => openGroceryProductEditor('products', null, barcode)} onReceiving={() => goTo('receiving')} />
             ) : (
-              <DishesPage products={filteredProducts} allProducts={catalogData.products} categories={catalogData.categories} query={dishQuery} categoryFilter={categoryFilter} terms={terms} onQueryChange={setDishQuery} onCategoryFilterChange={setCategoryFilter} onStocks={() => goTo('stocks')} />
-            ))}
-          {section === 'receiving' && isGrocery && <GroceryReceivingPage products={catalogData.products} readOnly={groceryAccessMode === 'read_only'} autoAddProduct={receivingAutoProduct} onConsumeAutoAdd={() => setReceivingAutoProduct(null)} onCreateProduct={(barcode) => openGroceryProductEditor('receiving', null, barcode)} onPost={postReceiving} />}
+              <DishesPage
+                products={filteredProducts}
+                allProducts={catalogData.products}
+                categories={catalogData.categories}
+                query={dishQuery}
+                categoryFilter={categoryFilter}
+                terms={terms}
+                onQueryChange={setDishQuery}
+                onCategoryFilterChange={setCategoryFilter}
+                onStocks={() => goTo('stocks')}
+              />
+            )
+          )}
+          {section === 'receiving' && isGrocery && (
+            <GroceryReceivingPage
+              products={catalogData.products}
+              readOnly={groceryAccessMode === 'read_only'}
+              autoAddProduct={receivingAutoProduct}
+              onConsumeAutoAdd={() => setReceivingAutoProduct(null)}
+              onCreateProduct={(barcode) => openGroceryProductEditor('receiving', null, barcode)}
+              onPost={postReceiving}
+            />
+          )}
+          {section === 'shared-products' && access.catalog?.businessType === 'grocery' && access.catalog.id && (
+            <SharedProductCatalogPage mode="merchant" catalogId={access.catalog.id} />
+          )}
           {section === 'orders' && (
             <OrdersPage
               orders={filteredOrders}
@@ -846,11 +910,35 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
               onPickingChanged={() => void refreshData({ silent: true })}
             />
           )}
-          {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (isGrocery ? <GroceryWarehousePage products={catalogData.products} movements={inventoryMovements} readOnly={groceryAccessMode === 'read_only'} onReceiving={() => goTo('receiving')} onEditProduct={(product) => openGroceryProductEditor('products', product)} /> : <RestaurantWarehousePage restaurantName={catalogData.restaurant.name} accessMode={moduleAccess.warehouse} />)}
-          {section === 'stocks' && <StocksPage products={catalogData.products} stockDrafts={stockDrafts} onStockDraftsChange={setStockDrafts} />}
-          {section === 'team' && workspaceAccess.canManageTeam && access.catalog?.id && <CatalogTeamPage catalogId={access.catalog.id} />}
-          {section === 'settings' &&
-            (settingsSection === 'password' ? (
+          {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
+            isGrocery ? (
+              <GroceryWarehousePage
+                products={catalogData.products}
+                movements={inventoryMovements}
+                readOnly={groceryAccessMode === 'read_only'}
+                onReceiving={() => goTo('receiving')}
+                onEditProduct={(product) => openGroceryProductEditor('products', product)}
+                onOpenSharedProducts={() => goTo('shared-products')}
+              />
+            ) : (
+              <RestaurantWarehousePage
+                restaurantName={catalogData.restaurant.name}
+                accessMode={moduleAccess.warehouse}
+              />
+            )
+          )}
+          {section === 'stocks' && (
+            <StocksPage
+              products={catalogData.products}
+              stockDrafts={stockDrafts}
+              onStockDraftsChange={setStockDrafts}
+            />
+          )}
+          {section === 'team' && workspaceAccess.canManageTeam && access.catalog?.id && (
+            <CatalogTeamPage catalogId={access.catalog.id} />
+          )}
+          {section === 'settings' && (
+            settingsSection === 'password' ? (
               <section className="ra-card catalog-admin-password">
                 <KeyRound />
                 <div>

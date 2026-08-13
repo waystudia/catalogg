@@ -18,6 +18,24 @@ if [[ ! -f ${source_dir}/index.html || ! -d ${source_dir}/assets ]]; then
   exit 2
 fi
 
+main_asset=$(sed -nE 's#.*<script[^>]+src="([^"]*/assets/index-[^"]+\.js)".*#\1#p' "${source_dir}/index.html" | head -n 1)
+main_asset_path=${source_dir}/${main_asset#/}
+
+if [[ -z ${main_asset} || ! -f ${main_asset_path} ]]; then
+  echo "Production bundle is missing its main JavaScript asset" >&2
+  exit 4
+fi
+
+if ! grep -Fq 'api.wayyaam.ru' "${main_asset_path}"; then
+  echo "Refusing release: main bundle has no api.wayyaam.ru Supabase URL" >&2
+  exit 4
+fi
+
+if ! grep -Eq 'sb_publishable_[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}' "${main_asset_path}"; then
+  echo "Refusing release: main bundle has no browser-safe Supabase key" >&2
+  exit 4
+fi
+
 release_dir=${web_root}/releases/${release_name}
 shared_assets_dir=${web_root}/shared-static/assets
 

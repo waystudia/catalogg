@@ -20,6 +20,8 @@ test('all role entry points use the embedded phone-or-email profile login', asyn
   assert.match(profile, /if \(!expectedLoginRole\)\s*\{[\s\S]*setClientMessage\('Вы вошли в аккаунт'\)/);
   assert.match(profile, /expectedLoginRole \? '' : profile\.phone/);
   assert.match(loginRedirect, /has_catalog_admin_access/);
+  assert.match(loginRedirect, /getProductionAuthConfigurationError/);
+  assert.match(loginRedirect, /Сервис входа временно не настроен/);
   assert.match(loginRedirect, /preserveSupabaseSessionForRedirect\(redirect, data\.session\)/);
   assert.match(loginRedirect, /usesEmail \|\| expectedRole \|\| !isCredentialError\(error\)/);
   assert.match(profile, /redirectToRoleApp\(targetPath\)/);

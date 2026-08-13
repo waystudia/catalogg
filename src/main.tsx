@@ -59,6 +59,12 @@ const ClientPasskeyPreview = import.meta.env.DEV
         default: module.ClientPasskeyPreview
       })))
   : null;
+const SharedProductPreviewPage = import.meta.env.DEV
+  ? lazy(() =>
+      import('./pages/shared-product-preview/SharedProductPreviewPage').then((module) => ({
+        default: module.SharedProductPreviewPage
+      })))
+  : null;
 const passkeyPreviewIsActive = import.meta.env.DEV && window.location.hash.startsWith('#/__passkey-preview/');
 
 const restoreGitHubPagesRedirect = () => {
@@ -90,6 +96,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
             <Routes>
               {ClientPasskeyPreview && (
                 <Route path="/__passkey-preview/:mode" element={<ClientPasskeyPreview />} />
+              )}
+              {SharedProductPreviewPage && (
+                <Route path="/__shared-product-preview" element={<SharedProductPreviewPage />} />
               )}
               <Route path="/" element={<PwaHomeRoute />} />
               <Route path="/city" element={<ClientPlatformApp />} />
