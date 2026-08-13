@@ -61,11 +61,7 @@ export function RestaurantActivationPage({
   const activatedWord = ['coffee_shop', 'confectionery', 'pharmacy'].includes(businessType)
     ? 'активирована'
     : 'активирован';
-  const cabinetHref = view
-    ? businessType === 'restaurant'
-      ? `#/${view.catalogSlug}/dashboard`
-      : `#/business/${view.catalogSlug}`
-    : '#/profile';
+  const cabinetHref = view ? `#/business/${view.catalogSlug}` : '#/profile';
 
   useEffect(() => {
     let active = true;

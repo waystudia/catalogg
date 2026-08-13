@@ -111,7 +111,7 @@ export function ExistingRestaurantSettingsPage({
   }
 
   if (view === 'delivery') {
-    return <DeliverySettingsCard catalogSlug={catalogSlug} settings={deliverySettings} onSave={onSaveDelivery} onOpenBackup={() => setView('backup')} onBack={() => setView('home')} />;
+    return <DeliverySettingsCard businessType={businessType} catalogSlug={catalogSlug} settings={deliverySettings} onSave={onSaveDelivery} onOpenBackup={() => setView('backup')} onBack={() => setView('home')} />;
   }
 
   return (
@@ -132,9 +132,9 @@ export function ExistingRestaurantSettingsPage({
       </button>
 
       {view === 'profile' && <ProfileSettings restaurant={restaurant} businessType={businessType} onSave={onSaveRestaurant} />}
-      {view === 'design' && <DesignSettingsHome onOpenTheme={() => setView('theme')} onOpenPhotoQuality={() => setView('photo-quality')} />}
-      {view === 'theme' && <ThemeSettingsScreen theme={theme} onChange={onSaveTheme} />}
-      {view === 'photo-quality' && <PhotoQualitySettingsScreen products={products} value={photoQuality} onSave={onSavePhotoQuality} />}
+      {view === 'design' && <DesignSettingsHome businessType={businessType} onOpenTheme={() => setView('theme')} onOpenPhotoQuality={() => setView('photo-quality')} />}
+      {view === 'theme' && <ThemeSettingsScreen businessType={businessType} theme={theme} onChange={onSaveTheme} />}
+      {view === 'photo-quality' && <PhotoQualitySettingsScreen businessType={businessType} products={products} value={photoQuality} onSave={onSavePhotoQuality} />}
       {view === 'categories' && (
         <CategoriesSettings
           categories={categories}
@@ -156,10 +156,11 @@ export function ExistingRestaurantSettingsPage({
           onChangeCategories={onSaveCategories}
           onChangeCabins={onSaveCabins}
           onChangeTags={onSaveTags}
+          businessType={businessType}
         />
       )}
       {view === 'payments' && <PaymentSettingsCard slug={catalogSlug} settings={paymentSettings} businessType={businessType} onSave={onSavePayments} />}
-      {view === 'backup' && <BackupSettings restaurant={restaurant} categories={categories} cabins={cabins} tags={tags} products={products} theme={theme} onImport={onImport} />}
+      {view === 'backup' && <BackupSettings businessType={businessType} restaurant={restaurant} categories={categories} cabins={cabins} tags={tags} products={products} theme={theme} onImport={onImport} />}
     </section>
   );
 }

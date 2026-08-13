@@ -23,6 +23,7 @@ import {
   getDeliverySettlementOptions,
   keepSettlementsAvailableForCity
 } from '../../shared/deliveryGeography';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 import { getCourierBillingRule, restaurantCourierTypeLabels, type RestaurantCourierType } from '../restaurant-billing/restaurantBillingRules';
 
 type DetailSection = null | 'couriers' | 'parameters' | 'zones' | 'qr';
@@ -54,6 +55,7 @@ export function DeliverySettingsCard({
   onSave,
   onOpenBackup,
   onBack,
+  businessType = 'restaurant',
   courierService = defaultCourierService
 }: {
   settings: RestaurantDeliverySettings;
@@ -61,8 +63,11 @@ export function DeliverySettingsCard({
   onSave: (settings: RestaurantDeliverySettings) => void;
   onOpenBackup: () => void;
   onBack: () => void;
+  businessType?: BusinessType;
   courierService?: RestaurantCourierService;
 }) {
+  const terms = getBusinessTerms(businessType);
+  const supportsSeating = businessType === 'restaurant' || businessType === 'coffee_shop';
   const [draft, setDraft] = useState(settings);
   const [section, setSection] = useState<DetailSection>(null);
   const [courierEmail, setCourierEmail] = useState('');
@@ -128,7 +133,7 @@ export function DeliverySettingsCard({
         : [...current.service_settlements, value]
     }));
   };
-  const save = () => onSave(draft);
+  const save = () => onSave(supportsSeating ? draft : { ...draft, enable_hall_orders: false });
   const addCourier = async () => {
     const normalizedEmail = courierEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -145,7 +150,7 @@ export function DeliverySettingsCard({
       const courier = await courierService.link(catalogSlug, normalizedEmail, courierType);
       setCourierEmail('');
       setCourierType('');
-      setCourierMessage(`${courier.name} добавлен в курьеры ресторана.`);
+      setCourierMessage(`${courier.name} добавлен в курьеры ${terms.placeGenitive}.`);
       await refetchOwnCouriers();
     } catch (error) {
       setCourierMessage(error instanceof Error ? error.message : 'Не удалось добавить курьера.');
@@ -178,7 +183,7 @@ export function DeliverySettingsCard({
     setCourierMessage('');
     try {
       await courierService.remove(catalogSlug, driverId);
-      setCourierMessage('Курьер удалён из ресторана.');
+      setCourierMessage(`Курьер удалён из ${terms.placeGenitive}.`);
       await refetchOwnCouriers();
     } catch (error) {
       setCourierMessage(error instanceof Error ? error.message : 'Не удалось удалить курьера.');
@@ -197,7 +202,7 @@ export function DeliverySettingsCard({
 
         {section === 'couriers' && (
           <div className="delivery-settings-switches">
-            <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} /><span><strong>Свой курьер</strong><small>Назначать водителей ресторана.</small></span></label>
+            <label className="settings-toggle-row"><input type="checkbox" checked={draft.use_own_courier} onChange={(event) => setBoolean('use_own_courier', event.target.checked)} /><span><strong>Свой курьер</strong><small>Назначать водителей {terms.placeGenitive}.</small></span></label>
             {draft.use_own_courier && (
               <section className="restaurant-courier-linker">
                 <label>
@@ -231,7 +236,7 @@ export function DeliverySettingsCard({
                         <small className={courier.courierType ? 'restaurant-courier-type' : 'restaurant-courier-type is-missing'}>
                           {courier.courierType ? restaurantCourierTypeLabels[courier.courierType] : 'Тип не выбран'}
                         </small>
-                        {!courier.courierType && <small className="restaurant-courier-warning">Нельзя назначать на новые доставки, пока ресторан не выберет тип.</small>}
+                        {!courier.courierType && <small className="restaurant-courier-warning">Нельзя назначать на новые доставки, пока {terms.placeLower} не выберет тип.</small>}
                       </span>
                       <span className="restaurant-courier-classifier">
                         <label>
@@ -267,7 +272,7 @@ export function DeliverySettingsCard({
           <div className="delivery-settings-grid">
             <label>Минимальный заказ, ₽<input value={draft.minimum_order_amount} inputMode="numeric" onChange={(event) => setNumber('minimum_order_amount', event.target.value)} /></label>
             <label>Бесплатная доставка от, ₽<input value={draft.free_delivery_from} inputMode="numeric" onChange={(event) => setNumber('free_delivery_from', event.target.value)} /></label>
-            <label>Время приготовления, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>
+            <label>{supportsSeating ? 'Время приготовления' : 'Время сборки'}, мин<input value={draft.default_preparation_minutes} inputMode="numeric" onChange={(event) => setNumber('default_preparation_minutes', event.target.value)} /></label>
             <label>Радиус доставки, км<input value={draft.delivery_radius_km} inputMode="decimal" onChange={(event) => setNumber('delivery_radius_km', event.target.value)} /></label>
             <label>Ожидание курьера, мин<input value={draft.own_courier_wait_minutes} inputMode="numeric" onChange={(event) => setNumber('own_courier_wait_minutes', event.target.value)} /></label>
           </div>
@@ -297,7 +302,7 @@ export function DeliverySettingsCard({
               {draft.primary_city && (
                 <span className="delivery-settings-point-label">
                   <MapPin aria-hidden="true" />
-                  <small>Точка ресторана: <strong>{draft.primary_city}</strong></small>
+                  <small>Точка {terms.placeGenitive}: <strong>{draft.primary_city}</strong></small>
                 </span>
               )}
             </label>
@@ -335,12 +340,12 @@ export function DeliverySettingsCard({
     <section className="admin-section-card delivery-settings-card delivery-settings-hub">
       <header className="delivery-settings-hub__header">
         <button type="button" onClick={onBack} aria-label="Назад к настройкам"><ArrowLeft /></button>
-        <div><small>Настройки ресторана</small><h2>Доставка и заказы</h2></div>
+        <div><small>Настройки {terms.placeGenitive}</small><h2>Доставка и заказы</h2></div>
       </header>
 
       <div className="delivery-settings-basic">
-        <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} /><span><strong>Заказы в зале</strong><small>Столики и кабинки.</small></span></label>
-        <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} /><span><strong>Самовывоз</strong><small>Получение в ресторане.</small></span></label>
+        {supportsSeating && <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_hall_orders} onChange={(event) => setBoolean('enable_hall_orders', event.target.checked)} /><span><strong>Заказы в зале</strong><small>Столики и кабинки.</small></span></label>}
+        <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_pickup} onChange={(event) => setBoolean('enable_pickup', event.target.checked)} /><span><strong>Самовывоз</strong><small>Получение в {terms.placePrepositional}.</small></span></label>
         <label className="settings-toggle-row"><input type="checkbox" checked={draft.enable_delivery} onChange={(event) => setBoolean('enable_delivery', event.target.checked)} /><span><strong>Доставка</strong><small>Доставка по адресу клиента.</small></span></label>
       </div>
 

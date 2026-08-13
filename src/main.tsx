@@ -9,6 +9,7 @@ import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
   BusinessAdminRoute,
   CatalogAdminRoute,
+  LegacyBusinessAdminRedirect,
   LegacyLoginRedirect,
   PwaHomeRoute,
   PwaResumeTracker,
@@ -113,9 +114,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/login" element={<LegacyLoginRedirect />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
               <Route path="/business/:slug/*" element={<BusinessAdminRoute />} />
+              <Route path="/:slug/:section" element={<LegacyBusinessAdminRedirect />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/scanner" element={<ScannerPage />} />
-              <Route path="/:slug/scanner" element={<ScannerPage />} />
               <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
               <Route path="/admin/payments" element={<PaymentsPage />} />
               <Route path="/admin/*" element={<PlatformAdminApp />} />

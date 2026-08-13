@@ -84,7 +84,7 @@ test('owner reviews separate documents and confirmations before activating with 
   await expect.element(screen.getByText('ИП Алиев Магомед Ахмедович')).toBeVisible();
   await expect.element(screen.getByText('326200000000001')).toBeVisible();
   await expect.element(screen.getByText('Первые 14 дней без абонентской платы')).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: 'Вернуться в кабинет' })).toHaveAttribute('href', '#/mangal/dashboard');
+  await expect.element(screen.getByRole('link', { name: 'Вернуться в кабинет' })).toHaveAttribute('href', '#/business/mangal');
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
 
   const checkboxes = screen.getByRole('checkbox');
@@ -109,7 +109,7 @@ test('owner reviews separate documents and confirmations before activating with 
 
   await expect.element(screen.getByText('5 из 5')).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Ресторан активирован' })).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: /перейти в кабинет/i })).toHaveAttribute('href', '#/mangal/dashboard');
+  await expect.element(screen.getByRole('link', { name: /перейти в кабинет/i })).toHaveAttribute('href', '#/business/mangal');
   expect(service.confirmActivation).toHaveBeenCalledWith('request-1', '123456');
 });
 

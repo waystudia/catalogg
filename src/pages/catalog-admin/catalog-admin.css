@@ -1846,3 +1846,412 @@
     aspect-ratio: 1;
   }
 }
+
+/* One visual workspace for restaurants and retail businesses. */
+.restaurant-admin-shell.business-workspace-shell {
+  grid-template-columns: 168px minmax(0, 1fr);
+  background: #f4f7fb;
+}
+
+.business-workspace-shell .business-workspace-sidebar {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 20px;
+  padding: 20px 12px;
+}
+
+.business-workspace-sidebar .brand-logo--compact {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 8px;
+}
+
+.business-workspace-sidebar .brand-logo--compact > img {
+  max-width: calc(100% - 1px);
+}
+
+.business-workspace-sidebar .brand-logo--compact > div {
+  min-width: 0;
+}
+
+.business-workspace-sidebar .brand-logo--compact strong {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 24px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-workspace-shell .restaurant-admin-nav__item {
+  min-height: 42px;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.business-workspace-main {
+  display: block;
+  min-width: 0;
+  padding: 22px 24px 32px;
+}
+
+.business-workspace-hero,
+.business-dashboard-finance,
+.business-dashboard-today {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+}
+
+.business-workspace-hero {
+  display: flex;
+  min-height: 154px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+}
+
+.business-workspace-hero > div:first-child {
+  min-width: 0;
+}
+
+.business-workspace-hero span,
+.business-workspace-hero p,
+.business-dashboard-today span,
+.business-dashboard-today small {
+  color: #667085;
+}
+
+.business-workspace-hero h1 {
+  margin: 6px 0;
+  font-size: clamp(28px, 5vw, 32px);
+  line-height: 1.05;
+}
+
+.business-workspace-hero p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-workspace-hero__actions {
+  display: grid;
+  grid-template-columns: auto auto;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 8px;
+}
+
+.business-workspace-hero__logo {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  grid-column: 1 / -1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #eef2ff;
+  color: #5b3df4;
+}
+
+.business-workspace-hero__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.business-workspace-hero__logo svg,
+.business-workspace-refresh svg,
+.business-workspace-notifications svg {
+  width: 18px;
+  height: 18px;
+}
+
+.business-workspace-refresh,
+.business-workspace-notifications {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #d8dee9;
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-weight: 900;
+}
+
+.business-workspace-notifications {
+  width: 40px;
+  padding: 0;
+}
+
+.business-workspace-content {
+  padding: 0;
+  margin-top: 14px;
+}
+
+.business-dashboard-finance {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.business-dashboard-finance header,
+.business-dashboard-finance header small,
+.business-dashboard-today,
+.business-dashboard-today button {
+  display: flex;
+  align-items: center;
+}
+
+.business-dashboard-finance header {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.business-dashboard-finance h2,
+.business-dashboard-finance p {
+  margin: 0;
+}
+
+.business-dashboard-finance header small {
+  gap: 5px;
+  color: #475467;
+  font-weight: 800;
+}
+
+.business-dashboard-finance header svg {
+  width: 16px;
+  height: 16px;
+}
+
+.business-dashboard-finance > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.business-dashboard-finance article {
+  position: relative;
+  min-height: 124px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #f8f9fc;
+}
+
+.business-dashboard-finance article > span {
+  display: block;
+  max-width: calc(100% - 30px);
+  color: #667085;
+  font-weight: 800;
+}
+
+.business-dashboard-finance article > strong {
+  display: block;
+  margin-top: 28px;
+  font-size: 28px;
+}
+
+.business-dashboard-finance article > svg {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 18px;
+  height: 18px;
+  color: #5b3df4;
+}
+
+.business-dashboard-finance > p {
+  color: #667085;
+  font-weight: 800;
+}
+
+.business-dashboard-today {
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+}
+
+.business-dashboard-today > div {
+  display: grid;
+  gap: 4px;
+}
+
+.business-dashboard-today strong {
+  font-size: 30px;
+}
+
+.business-dashboard-today button {
+  min-height: 48px;
+  gap: 10px;
+  border: 1px solid #d8dee9;
+  border-radius: 14px;
+  padding: 0 16px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-weight: 900;
+}
+
+.business-dashboard-today button svg {
+  width: 19px;
+  height: 19px;
+}
+
+@media (min-width: 768px) {
+  .business-workspace-shell--pos {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .business-workspace-shell--pos .business-workspace-main {
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 10px 12px 12px;
+  }
+
+  .business-workspace-shell--pos .business-workspace-hero {
+    min-height: 76px;
+    padding: 8px 14px;
+  }
+
+  .business-workspace-shell--pos .business-workspace-hero h1 {
+    margin: 2px 0;
+    font-size: 24px;
+  }
+
+  .business-workspace-shell--pos .business-workspace-hero p,
+  .business-workspace-shell--pos .business-workspace-hero > div:first-child > span,
+  .business-workspace-shell--pos .business-workspace-hero__logo {
+    display: none;
+  }
+
+  .business-workspace-shell--pos .business-workspace-content {
+    min-height: 0;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .restaurant-admin-shell.business-workspace-shell {
+    grid-template-columns: 144px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .restaurant-admin-shell.business-workspace-shell {
+    display: block;
+    padding: 14px 12px calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .business-workspace-shell .business-workspace-sidebar {
+    display: none;
+  }
+
+  .business-workspace-main {
+    padding: 0;
+  }
+
+  .business-workspace-hero {
+    min-height: 142px;
+    align-items: flex-start;
+    padding: 18px;
+  }
+
+  .business-workspace-hero p {
+    max-width: 210px;
+    white-space: normal;
+  }
+
+  .business-workspace-hero__actions {
+    grid-template-columns: auto;
+  }
+
+  .business-workspace-hero__logo {
+    grid-column: auto;
+  }
+
+  .business-workspace-notifications {
+    display: none;
+  }
+
+  .business-workspace-refresh {
+    width: 54px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .business-workspace-content {
+    margin-top: 12px;
+  }
+
+  .business-dashboard-finance {
+    padding: 14px;
+  }
+
+  .business-dashboard-finance > div {
+    gap: 6px;
+  }
+
+  .business-dashboard-finance article {
+    min-height: 116px;
+    padding: 10px 8px;
+  }
+
+  .business-dashboard-finance article > span {
+    max-width: 100%;
+    font-size: clamp(9px, 3.05vw, 12px);
+  }
+
+  .business-dashboard-finance article > strong {
+    margin-top: 26px;
+    font-size: clamp(15px, 5vw, 22px);
+  }
+
+  .business-dashboard-finance article > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .business-dashboard-today {
+    padding: 16px;
+  }
+
+  .business-dashboard-today button {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .business-workspace-shell .restaurant-admin-bottom-nav {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    overflow-x: auto;
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    scrollbar-width: none;
+  }
+
+  .business-workspace-shell .restaurant-admin-bottom-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .business-workspace-shell .restaurant-admin-bottom-nav .restaurant-admin-nav__item {
+    min-width: 76px;
+    flex: 0 0 76px;
+  }
+}

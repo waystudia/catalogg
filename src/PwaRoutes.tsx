@@ -20,8 +20,29 @@ export function CatalogAdminRoute() {
 }
 
 export function BusinessAdminRoute() {
-  const { slug = '' } = useParams();
-  return <CatalogAdminApp slug={decodeURIComponent(slug)} />;
+  const { slug = '', '*': routePath = '' } = useParams();
+  return <CatalogAdminApp slug={decodeURIComponent(slug)} routePath={routePath} />;
+}
+
+const legacyBusinessSectionMap: Readonly<Record<string, string>> = {
+  dashboard: '',
+  orders: 'orders',
+  dishes: 'products',
+  settings: 'settings',
+  scanner: 'pos',
+  pos: 'pos',
+  payments: 'settings/payments'
+};
+
+export function LegacyBusinessAdminRedirect() {
+  const { slug = '', section = '' } = useParams();
+  const location = useLocation();
+  if (!(section in legacyBusinessSectionMap)) return <App />;
+  const cleanSlug = decodeURIComponent(slug);
+  const targetSection = legacyBusinessSectionMap[section];
+  const suffix = targetSection ? `/${targetSection}` : '';
+
+  return <Navigate replace to={`/business/${cleanSlug}${suffix}${location.search}`} />;
 }
 
 export function RestaurantRouteRedirect() {

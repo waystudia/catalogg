@@ -2000,7 +2000,7 @@ function AppContent({
   };
   const openRestaurantAdminPath = useCallback(
     (nextScreen: Screen = 'admin-home') => {
-      const targetPath = nextScreen === 'settings-payments' ? `/${catalogSlug}/payments` : `/${catalogSlug}/dashboard`;
+      const targetPath = nextScreen === 'settings-payments' ? `/business/${catalogSlug}/settings/payments` : `/business/${catalogSlug}`;
       setScreen(nextScreen);
       rememberPwaResumePath(targetPath);
       navigate(targetPath, { replace: true });
@@ -2008,7 +2008,7 @@ function AppContent({
     [catalogSlug, navigate]
   );
   const openRestaurantSettingsHub = useCallback(() => {
-    const targetPath = `/${catalogSlug}/settings`;
+    const targetPath = `/business/${catalogSlug}/settings`;
     setScreen('admin-home');
     rememberPwaResumePath(targetPath);
     navigate(targetPath, { replace: true });
@@ -2806,7 +2806,7 @@ function AppContent({
           onBack={() => navigate(`/${catalogSlug}`)}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
-          onAdmin={() => navigate(buildProfileLoginPath(`/${catalogSlug}/dashboard`))}
+          onAdmin={() => navigate(buildProfileLoginPath(`/business/${catalogSlug}`))}
           logoUrl={catalog.restaurant.logo_url}
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
@@ -2847,7 +2847,7 @@ function AppContent({
       <Toaster richColors position="top-center" />
       {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (
         adminSessionChecked ? (
-          <Navigate to={buildProfileLoginPath(`/${catalogSlug}/dashboard`)} replace />
+          <Navigate to={buildProfileLoginPath(`/business/${catalogSlug}`)} replace />
         ) : (
           <main className="restaurant-session-check" role="status" aria-live="polite">
             <span />
@@ -2882,7 +2882,7 @@ function AppContent({
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
             onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
-            onAdmin={() => navigate(buildProfileLoginPath(`/${catalogSlug}/dashboard`))}
+            onAdmin={() => navigate(buildProfileLoginPath(`/business/${catalogSlug}`))}
             logoUrl={catalog.restaurant.logo_url}
             restaurantName={catalog.restaurant.name}
             restaurantSubtitle={catalog.restaurant.subtitle}

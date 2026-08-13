@@ -1,11 +1,15 @@
 import {
+  ArrowRight,
   Bell,
   Calculator,
+  ClipboardList,
   ClipboardPlus,
+  CreditCard,
   Database,
   Eye,
   EyeOff,
   Home,
+  Info,
   KeyRound,
   MapPin,
   Menu,
@@ -69,6 +73,7 @@ import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeC
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
 import '../../features/grocery-operations/grocery-operations.css';
 import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
+import { BrandLogo } from '../../shared/BrandLogo';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -84,6 +89,50 @@ type SettingsSection =
   | 'import'
   | 'backups'
   | 'danger';
+
+const businessAdminSettingsSections = new Set<SettingsSection>([
+  'profile',
+  'taxonomy',
+  'design',
+  'catalog',
+  'delivery',
+  'hours',
+  'payments',
+  'password',
+  'import',
+  'backups',
+  'danger'
+]);
+
+function resolveBusinessAdminRoutePath(routePath = ''): {
+  section: AdminSection;
+  settingsSection: SettingsSection;
+} {
+  const [rawSection = '', rawSettingsSection = ''] = routePath.split('/').filter(Boolean);
+  const routeSections: Readonly<Record<string, AdminSection>> = {
+    pos: 'pos',
+    catalog: 'catalog',
+    products: 'dishes',
+    'shared-products': 'shared-products',
+    receiving: 'receiving',
+    orders: 'orders',
+    warehouse: 'warehouse',
+    stocks: 'stocks',
+    team: 'team',
+    settings: 'settings'
+  };
+  const section = routeSections[rawSection] ?? 'home';
+  const settingsSection = section === 'settings' && businessAdminSettingsSections.has(rawSettingsSection as SettingsSection)
+    ? rawSettingsSection as SettingsSection
+    : 'hub';
+  return { section, settingsSection };
+}
+
+function buildBusinessAdminRoutePath(slug: string, section: AdminSection, settingsSection: SettingsSection) {
+  const sectionPath = section === 'home' ? '' : section === 'dishes' ? 'products' : section;
+  const settingsPath = section === 'settings' && settingsSection !== 'hub' ? `/${settingsSection}` : '';
+  return `/business/${slug}${sectionPath ? `/${sectionPath}` : ''}${settingsPath}`;
+}
 type PaymentStatus = 'not_required' | 'cash_on_delivery' | 'awaiting_transfer' | 'client_marked_paid' | 'confirmed' | 'declined';
 
 const existingSettingsViews: Partial<Record<SettingsSection, ExistingRestaurantSettingsView>> = {
@@ -240,25 +289,16 @@ function SectionButton({ active, icon: Icon, label, onClick }: { active: boolean
   );
 }
 
-function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <article className="ra-card ra-metric">
-      <small>{label}</small>
-      <strong>{value}</strong>
-      {sub && <span>{sub}</span>}
-    </article>
-  );
-}
-
-export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access: CatalogAdminAccess; onRefresh: () => void; onSignOut: () => void }) {
+export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSignOut }: { access: CatalogAdminAccess; routePath?: string; onRefresh: () => void; onSignOut: () => void }) {
   const navigate = useNavigate();
   const isGrocery = access.catalog?.businessType === 'grocery';
   const workspaceAccess = getCatalogWorkspaceAccess({
     catalogRole: access.role,
     staffRole: access.staffRole
   });
-  const [section, setSection] = useState<AdminSection>(() => (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : 'home'));
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
+  const initialRoute = resolveBusinessAdminRoutePath(routePath);
+  const [section, setSection] = useState<AdminSection>(() => (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : initialRoute.section));
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(initialRoute.settingsSection);
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: isGrocery ? groceryRestaurant : demoRestaurant,
     categories: isGrocery ? groceryCategories : demoCategories,
@@ -357,6 +397,17 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
     }
     return items;
   }, [access.staffRole, isGrocery, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
+
+  useEffect(() => {
+    const nextRoute = resolveBusinessAdminRoutePath(routePath);
+    if (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace) {
+      setSection('orders');
+      setSettingsSection('hub');
+      return;
+    }
+    setSection(navItems.some((item) => item.id === nextRoute.section) ? nextRoute.section : 'home');
+    setSettingsSection(nextRoute.settingsSection);
+  }, [navItems, routePath, workspaceAccess.canSeeFullWorkspace, workspaceAccess.isOrderWorker]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -388,12 +439,19 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
         const inventoryPromise = isGrocery && catalogId ? loadGroceryInventory(catalogId) : Promise.resolve({ items: [], movements: [] });
         const [catalog, restaurantOrders, assignments, inventory] = await Promise.all([loadCatalog(slug), getRestaurantOrders(slug), assignmentPromise, inventoryPromise]);
         const inventoryByProduct = new Map(inventory.items.map((item) => [item.productId, item]));
-        const isGroceryDemo = isGrocery && access.userId === 'demo-owner';
-        const loadedProducts = isGroceryDemo ? groceryProducts : catalog.products.length ? catalog.products : isGrocery ? [] : demoProducts;
+        const catalogMatchesBusinessType = (catalog.restaurant.business_type ?? 'restaurant') === access.catalog?.businessType;
+        const useGroceryFallback = isGrocery && (access.userId === 'demo-owner' || !catalogMatchesBusinessType);
+        const loadedProducts = useGroceryFallback ? groceryProducts : catalog.products.length ? catalog.products : isGrocery ? [] : demoProducts;
         setCatalogData({
-          restaurant: isGroceryDemo ? groceryRestaurant : catalog.restaurant,
-          categories: isGroceryDemo ? groceryCategories : catalog.categories.length ? catalog.categories : isGrocery ? [] : demoCategories,
-          cabins: catalog.cabins.length ? catalog.cabins : demoCabins,
+          restaurant: useGroceryFallback
+            ? {
+                ...groceryRestaurant,
+                name: access.catalog?.name || groceryRestaurant.name,
+                subtitle: access.catalog?.description || groceryRestaurant.subtitle
+              }
+            : catalog.restaurant,
+          categories: useGroceryFallback ? groceryCategories : catalog.categories.length ? catalog.categories : isGrocery ? [] : demoCategories,
+          cabins: isGrocery ? [] : catalog.cabins.length ? catalog.cabins : demoCabins,
           products: loadedProducts.map((product) => {
             const inventoryItem = inventoryByProduct.get(product.id);
             return inventoryItem
@@ -405,7 +463,7 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
               : product;
           }),
           tags: catalog.tags,
-          theme: isGroceryDemo ? groceryTheme : catalog.theme,
+          theme: useGroceryFallback ? groceryTheme : catalog.theme,
           photoQuality: catalog.photoQuality ?? DEFAULT_PHOTO_QUALITY_SETTINGS
         });
         setInventoryMovements(inventory.movements);
@@ -443,7 +501,7 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
         setIsLoadingData(false);
       }
     },
-    [access.catalog?.id, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]
+    [access.catalog?.businessType, access.catalog?.description, access.catalog?.id, access.catalog?.name, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]
   );
 
   useEffect(() => {
@@ -530,7 +588,6 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
   const today = useMemo(() => todayOrders(orders), [orders]);
   const revenue = today.reduce((sum, order) => sum + order.total, 0);
   const visibleProducts = catalogData.products.filter((product) => !product.is_hidden);
-  const popularProducts = visibleProducts.filter((product) => product.is_popular || product.is_hit).slice(0, 5);
   const filteredProducts = catalogData.products.filter((product) => {
     const matchesQuery = product.title.toLowerCase().includes(dishQuery.trim().toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category_id === categoryFilter;
@@ -548,6 +605,7 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);
     setSettingsSection(nextSettingsSection);
+    navigate(buildBusinessAdminRoutePath(slug, nextSection, nextSettingsSection));
   };
 
   const submitPosOrder = async (draft: RestaurantPosOrderDraft) => {
@@ -803,53 +861,51 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
   };
 
   return (
-    <main className="restaurant-admin-shell" data-business-type={isGrocery ? 'grocery' : access.catalog?.businessType}>
-      <aside className="restaurant-admin-sidebar">
-        <div className="restaurant-admin-logo">
-          <span>W</span>
-          <strong>WayYaam</strong>
-        </div>
-        <nav>
+    <main
+      className={section === 'pos' ? 'restaurant-admin-shell business-workspace-shell business-workspace-shell--pos' : 'restaurant-admin-shell business-workspace-shell'}
+      data-business-type={isGrocery ? 'grocery' : access.catalog?.businessType}
+    >
+      <aside className="restaurant-admin-sidebar business-workspace-sidebar">
+        <BrandLogo compact />
+        <nav aria-label="Разделы кабинета бизнеса">
           {navItems.map((item) => (
             <SectionButton key={item.id} active={section === item.id} icon={item.icon} label={item.label} onClick={() => goTo(item.id)} />
           ))}
         </nav>
-        <div className="restaurant-admin-sidebar__restaurant">
-          {catalogData.restaurant.logo_url ? <img src={catalogData.restaurant.logo_url} alt="" /> : <Store />}
-          <div>
-            <strong>{catalogData.restaurant.name}</strong>
-            <small>{catalogData.restaurant.subtitle || (isGrocery ? 'Продуктовый магазин' : access.catalog?.businessType || 'restaurant')}</small>
-          </div>
-        </div>
       </aside>
 
-      <div className="restaurant-admin-main">
-        <header className="restaurant-admin-topbar">
+      <div className="restaurant-admin-main business-workspace-main">
+        <section className="business-workspace-hero">
           <div>
-            <button className="ra-icon-button" type="button" aria-label="Меню">
-              <Menu />
-            </button>
-            <h1>{navItems.find((item) => item.id === section)?.label}</h1>
+            <span>Панель: {terms.placeLower}</span>
+            <h1>{catalogData.restaurant.name || terms.place}</h1>
+            <p>{catalogData.restaurant.subtitle || `Управляйте ${terms.placeInstrumental}, каталогом и заказами`}</p>
           </div>
-          <div className="restaurant-admin-topbar__actions">
-            <select aria-label={terms.place} value={slug} onChange={() => toast.info('Переключение бизнесов будет подключено к доступам пользователя')}>
-              <option value={slug}>{catalogData.restaurant.name}</option>
-            </select>
-            <button className="ra-icon-button" type="button" onClick={() => void refreshData({ silent: true })} aria-label="Обновить данные">
+          <div className="business-workspace-hero__actions">
+            <div className="business-workspace-hero__logo">
+              {catalogData.restaurant.logo_url ? <img src={catalogData.restaurant.logo_url} alt="" /> : <Store />}
+            </div>
+            <button
+              className="business-workspace-refresh"
+              type="button"
+              onClick={() => {
+                onRefresh();
+                void refreshData({ silent: true });
+              }}
+            >
               <RefreshCw />
+              Обновить
             </button>
-            <button className="ra-icon-button" type="button" onClick={enableOrderNotifications} aria-label={notificationPermission === 'granted' ? 'Уведомления включены' : 'Включить уведомления'}>
-              <Bell />
-              {orders.some((order) => order.status === 'new') && <span />}
-            </button>
-            <button className="ra-avatar" type="button" onClick={onRefresh} aria-label="Обновить доступ">
-              {access.email?.slice(0, 1).toUpperCase() ?? 'A'}
-            </button>
+            {notificationPermission !== 'granted' && (
+              <button className="business-workspace-notifications" type="button" onClick={enableOrderNotifications} aria-label="Включить уведомления">
+                <Bell />
+              </button>
+            )}
           </div>
-        </header>
+        </section>
 
-        <section className="restaurant-admin-content" aria-busy={isLoadingData}>
-          {section === 'home' && <DashboardPage restaurant={catalogData.restaurant} products={catalogData.products} categories={catalogData.categories} orders={orders} revenue={revenue} popularProducts={popularProducts} terms={terms} isGrocery={isGrocery} onAddProduct={() => openGroceryProductEditor('products')} onNavigate={goTo} />}
+        <section className="restaurant-admin-content business-workspace-content" aria-busy={isLoadingData}>
+          {section === 'home' && <DashboardPage products={catalogData.products} categories={catalogData.categories} orders={orders} todayRevenue={revenue} terms={terms} isGrocery={isGrocery} onAddProduct={() => openGroceryProductEditor('products')} onNavigate={goTo} />}
           {section === 'pos' &&
             moduleAccess.pos !== 'disabled' &&
             (isGrocery ? (
@@ -1030,72 +1086,55 @@ export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access:
   );
 }
 
-function DashboardPage({ restaurant, products, categories, orders, revenue, popularProducts, terms, isGrocery, onAddProduct, onNavigate }: { restaurant: Restaurant; products: Product[]; categories: Category[]; orders: RestaurantOrder[]; revenue: number; popularProducts: Product[]; terms: BusinessTerms; isGrocery: boolean; onAddProduct: () => void; onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void }) {
-  const counts = {
-    new: orders.filter((order) => order.status === 'new').length,
-    preparing: orders.filter((order) => order.status === 'preparing').length,
-    onWay: orders.filter((order) => order.status === 'on_the_way').length,
-    completed: orders.filter((order) => order.status === 'completed' || order.status === 'delivered').length
-  };
+function DashboardPage({ products, categories, orders, todayRevenue, terms, isGrocery, onAddProduct, onNavigate }: { products: Product[]; categories: Category[]; orders: RestaurantOrder[]; todayRevenue: number; terms: BusinessTerms; isGrocery: boolean; onAddProduct: () => void; onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void }) {
+  const currentMonth = new Date();
+  const monthOrders = orders.filter((order) => {
+    const createdAt = new Date(order.createdAt);
+    return createdAt.getFullYear() === currentMonth.getFullYear() && createdAt.getMonth() === currentMonth.getMonth();
+  });
+  const completedMonthOrders = monthOrders.filter((order) => !['cancelled', 'canceled'].includes(order.status));
+  const monthRevenue = completedMonthOrders.reduce((total, order) => total + order.total, 0);
+  const averageOrder = completedMonthOrders.length ? Math.round(monthRevenue / completedMonthOrders.length) : 0;
+  const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status));
 
   return (
-    <div className="ra-page-stack">
-      <section className="ra-welcome">
+    <div className="ra-page-stack business-dashboard">
+      <section className="business-dashboard-finance">
+        <header>
+          <h2>Финансы</h2>
+          <small>{formatPrice(monthRevenue)} за месяц <Info /></small>
+        </header>
         <div>
-          <span>Добро пожаловать, {restaurant.name}!</span>
-          <h2>Управляйте {terms.placeInstrumental} и отслеживайте заказы</h2>
+          <article>
+            <span>Получено {terms.placeInstrumental}</span>
+            <strong>{formatPrice(monthRevenue)}</strong>
+            <ArrowRight />
+          </article>
+          <article>
+            <span>Заказов за месяц</span>
+            <strong>{monthOrders.length}</strong>
+            <ClipboardList />
+          </article>
+          <article>
+            <span>Средний чек</span>
+            <strong>{formatPrice(averageOrder)}</strong>
+            <CreditCard />
+          </article>
+        </div>
+        <p>{products.length} {terms.items.toLocaleLowerCase('ru-RU')} · {categories.length} категорий</p>
+      </section>
+      <section className="business-dashboard-today">
+        <div>
+          <span>Сегодня</span>
+          <strong>{formatPrice(todayRevenue)}</strong>
+          <small>• {todayOrders(orders).length} заказов сегодня</small>
+          <small>• {activeOrders.length} активных</small>
         </div>
         <button type="button" onClick={() => onNavigate('orders')}>
-          Сегодня
+          <ClipboardList />
+          Заказы
+          <ArrowRight />
         </button>
-      </section>
-      <section className="ra-metrics-grid">
-        <MetricCard label={terms.items} value={String(products.length)} />
-        <MetricCard label="Категорий" value={String(categories.length)} />
-        <MetricCard label="Заказов сегодня" value={String(todayOrders(orders).length)} />
-        <MetricCard label="Выручка" value={formatPrice(revenue)} sub="+12% к вчера" />
-        <MetricCard label="Рейтинг" value="4.8" />
-      </section>
-      <section className="ra-dashboard-grid">
-        <article className="ra-card ra-status-list">
-          <h3>Заказы</h3>
-          <button type="button" onClick={() => onNavigate('orders')}>
-            <span data-dot="red" />
-            Новые<strong>{counts.new}</strong>
-          </button>
-          <button type="button" onClick={() => onNavigate('orders')}>
-            <span data-dot="amber" />
-            Готовятся<strong>{counts.preparing}</strong>
-          </button>
-          <button type="button" onClick={() => onNavigate('orders')}>
-            <span data-dot="green" />В пути<strong>{counts.onWay}</strong>
-          </button>
-          <button type="button" onClick={() => onNavigate('orders')}>
-            <span data-dot="violet" />
-            Завершённые<strong>{counts.completed}</strong>
-          </button>
-        </article>
-        <article className="ra-card ra-revenue">
-          <h3>Выручка</h3>
-          <strong>{formatPrice(revenue)}</strong>
-          <div aria-hidden="true">
-            {[24, 36, 30, 52, 46, 70, 58, 76].map((height, index) => (
-              <span key={index} style={{ height }} />
-            ))}
-          </div>
-        </article>
-        <article className="ra-card ra-popular">
-          <h3>Популярные {terms.items.toLowerCase()}</h3>
-          {popularProducts.map((product) => (
-            <button key={product.id} type="button" onClick={() => onNavigate('dishes')}>
-              <img src={product.image_url} alt="" />
-              <span>
-                {product.title}
-                <small>{getProductStock(product)} осталось</small>
-              </span>
-            </button>
-          ))}
-        </article>
       </section>
       <section className="ra-quick-actions">
         <button type="button" onClick={() => (isGrocery ? onAddProduct() : toast.info(`${terms.addItem}: форма откроется в существующем модуле`))}>

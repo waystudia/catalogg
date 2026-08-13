@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { RestaurantAdminShell } from '../../src/pages/catalog-admin/RestaurantAdminShell';
+import '../../src/pages/catalog-admin/catalog-admin.css';
 import type { CatalogAdminAccess } from '../../src/shared/api/catalogAdminApi';
 
 const groceryOwnerAccess = (): CatalogAdminAccess => ({
@@ -45,7 +46,9 @@ test('shows a grocery owner store and product language in the shared workspace',
   );
 
   await expect.element(screen.getByRole('button', { name: 'Товары' }).first()).toBeVisible();
-  await expect.element(screen.getByText(/управляйте магазином и отслеживайте заказы/i)).toBeVisible();
+  await expect.element(screen.getByText('Панель: магазин')).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: /^Финик/ })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Финансы' })).toBeVisible();
   await expect.element(screen.getByText('Блюда')).not.toBeInTheDocument();
   await expect.element(screen.getByRole('button', { name: 'Команда' }).first()).toBeVisible();
 });

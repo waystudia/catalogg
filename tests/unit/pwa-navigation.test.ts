@@ -39,23 +39,23 @@ describe('PWA navigation', () => {
     expect(resolvePwaHomeTarget({
       explicitNavigation: false,
       savedPath: '/driver/orders',
-      sessionRedirect: '/mangal/dashboard',
+      sessionRedirect: '/business/mangal',
       standalone: true
-    })).toBe('/mangal/dashboard');
+    })).toBe('/business/mangal');
 
     expect(resolvePwaHomeTarget({
       explicitNavigation: false,
-      savedPath: '/mangal/orders',
-      sessionRedirect: '/mangal/dashboard',
+      savedPath: '/business/mangal/orders',
+      sessionRedirect: '/business/mangal',
       standalone: true
-    })).toBe('/mangal/orders');
+    })).toBe('/business/mangal/orders');
 
     expect(resolvePwaHomeTarget({
       explicitNavigation: false,
-      savedPath: '/mangal/orders',
-      sessionRedirect: '/rizih/dashboard',
+      savedPath: '/business/mangal/orders',
+      sessionRedirect: '/business/rizih',
       standalone: true
-    })).toBe('/rizih/dashboard');
+    })).toBe('/business/rizih');
   });
 
   it('rejects staff routes for expired sessions but resumes public pages only in standalone mode', () => {
@@ -89,11 +89,11 @@ describe('PWA navigation', () => {
   });
 
   it('gives every restaurant tab a stable resumable route', () => {
-    expect(buildRestaurantAdminTabPath('  mangal  ', 'home')).toBe('/mangal/dashboard');
-    expect(buildRestaurantAdminTabPath('mangal', 'orders')).toBe('/mangal/orders');
-    expect(buildRestaurantAdminTabPath('mangal', 'dishes')).toBe('/mangal/dishes');
-    expect(buildRestaurantAdminTabPath('mangal', 'scanner')).toBe('/mangal/scanner');
-    expect(buildRestaurantAdminTabPath('mangal', 'pos')).toBe('/mangal/pos');
-    expect(buildRestaurantAdminTabPath('mangal', 'settings')).toBe('/mangal/settings');
+    expect(buildRestaurantAdminTabPath('  mangal  ', 'home')).toBe('/business/mangal');
+    expect(buildRestaurantAdminTabPath('mangal', 'orders')).toBe('/business/mangal/orders');
+    expect(buildRestaurantAdminTabPath('mangal', 'dishes')).toBe('/business/mangal/products');
+    expect(buildRestaurantAdminTabPath('mangal', 'scanner')).toBe('/business/mangal/pos');
+    expect(buildRestaurantAdminTabPath('mangal', 'pos')).toBe('/business/mangal/pos');
+    expect(buildRestaurantAdminTabPath('mangal', 'settings')).toBe('/business/mangal/settings');
   });
 });

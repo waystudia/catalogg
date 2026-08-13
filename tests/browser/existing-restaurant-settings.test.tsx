@@ -1,6 +1,8 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { cabins, categories, products, restaurant, themeSettings } from '../../src/data/catalog';
+import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../src/data/groceryCatalog';
 import { ExistingRestaurantSettingsPage } from '../../src/features/restaurant-admin/ExistingRestaurantSettingsPage';
 import { SettingsHub, defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
@@ -84,6 +86,55 @@ test('current admin reuses the existing settings without a second login', async 
   await screen.getByRole('button', { name: 'Вернуться к настройкам' }).click();
   await screen.getByRole('button', { name: 'Платежи' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Реквизиты для перевода' })).toBeVisible();
+});
+
+test('grocery settings keep the shared design but remove restaurant-only hall semantics', async () => {
+  const onSaveDelivery = vi.fn();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <ExistingRestaurantSettingsPage
+        businessType="grocery"
+        catalogSlug="finik"
+        restaurant={groceryRestaurant}
+        categories={groceryCategories}
+        cabins={cabins}
+        tags={[]}
+        products={groceryProducts}
+        theme={groceryTheme}
+        photoQuality={DEFAULT_PHOTO_QUALITY_SETTINGS}
+        paymentSettings={defaultPaymentSettings}
+        deliverySettings={{ ...defaultRestaurantDeliverySettings, enable_hall_orders: true }}
+        onSaveRestaurant={vi.fn()}
+        onSaveCategories={vi.fn()}
+        onSaveCabins={vi.fn()}
+        onSaveTags={vi.fn()}
+        onSaveTheme={vi.fn()}
+        onSavePhotoQuality={vi.fn()}
+        onSavePayments={vi.fn()}
+        onSaveDelivery={onSaveDelivery}
+        onImport={vi.fn()}
+        onSignOut={vi.fn()}
+      />
+    </QueryClientProvider>
+  );
+
+  await expect.element(screen.getByRole('heading', { name: 'Настройки магазина' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Зал' })).not.toBeInTheDocument();
+
+  await screen.getByRole('button', { name: 'Категории' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Столики и кабинки' })).not.toBeInTheDocument();
+  await expect.element(screen.getByText(/блюд/i)).not.toBeInTheDocument();
+
+  await screen.getByRole('button', { name: 'Вернуться к настройкам' }).click();
+  await screen.getByRole('button', { name: 'Доставка и заказы' }).click();
+  await expect.element(screen.getByText('Настройки магазина')).toBeVisible();
+  await expect.element(screen.getByText('Получение в магазине.')).toBeVisible();
+  await expect.element(screen.getByText('Заказы в зале')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Столики и кабинки.')).not.toBeInTheDocument();
+
+  await screen.getByRole('button', { name: 'Сохранить доставку' }).click();
+  expect(onSaveDelivery).toHaveBeenCalledWith(expect.objectContaining({ enable_hall_orders: false }));
 });
 
 test('restaurant owner opens seating settings and edits a table used by POS', async () => {
