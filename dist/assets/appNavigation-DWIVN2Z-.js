@@ -1,1 +1,0 @@
-const t=()=>`${"/".endsWith("/")?"/":"//"}#/`,r=()=>{typeof window>"u"||window.location.replace(t())},i=e=>{const n="/".endsWith("/")?"/":"//",o=e.startsWith("/")?e:`/${e}`;return`${n}#${o}`},s=e=>{typeof window>"u"||window.location.replace(i(e))};export{s as a,r};

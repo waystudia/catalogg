@@ -4,8 +4,10 @@ import { imageFileToDataUrl } from '../../shared/images';
 import { BackgroundSetting, ColorSetting } from './ThemeControls';
 import { darkThemePreset, lightThemePreset } from './themePresets';
 import { readableTextFor } from './themeUtils';
+import { type BusinessType } from '../../shared/businessTerminology';
 
-export function ThemeSettingsScreen({ theme, onChange }: { theme: ThemeSettings; onChange: (patch: Partial<ThemeSettings>) => void }) {
+export function ThemeSettingsScreen({ theme, onChange, businessType = 'restaurant' }: { theme: ThemeSettings; onChange: (patch: Partial<ThemeSettings>) => void; businessType?: BusinessType }) {
+  const itemsLabel = businessType === 'restaurant' ? 'блюд' : businessType === 'coffee_shop' ? 'позиций' : 'товаров';
   const primaryColors = ['#e8a23a', '#3b82f6', '#16a34a', '#ef4444', '#a855f7', '#111827'];
   const accentColors = ['#ffd082', '#f59e0b', '#f97316', '#ec4899', '#06b6d4', '#84cc16'];
   const backgroundColors = ['#070809', '#101419', '#f7f3ec', '#f8fafc', '#fff7ed', '#f1f5f9'];
@@ -39,8 +41,8 @@ export function ThemeSettingsScreen({ theme, onChange }: { theme: ThemeSettings;
         <ColorSetting label="Цвет карточек" value={theme.card_color} palette={cardColors} onChange={(color) => onChange({ card_color: color })} />
         <ColorSetting label="Цвет текста" value={theme.text_primary} palette={textColors} onChange={(color) => onChange({ text_primary: color })} />
         <ColorSetting label="Вторичный текст" value={theme.text_secondary} palette={mutedColors} onChange={(color) => onChange({ text_secondary: color })} />
-        <ColorSetting label="Карточки блюд" value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color, product_card_text_color: readableTextFor(color) })} />
-        <ColorSetting label="Текст карточек блюд" value={theme.product_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ product_card_text_color: color })} />
+        <ColorSetting label={`Карточки ${itemsLabel}`} value={theme.product_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ product_card_color: color, product_card_text_color: readableTextFor(color) })} />
+        <ColorSetting label={`Текст карточек ${itemsLabel}`} value={theme.product_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ product_card_text_color: color })} />
         <ColorSetting label="Карточки настроек" value={theme.settings_card_color ?? theme.card_color} palette={cardColors} onChange={(color) => onChange({ settings_card_color: color, settings_card_text_color: readableTextFor(color) })} />
         <ColorSetting label="Текст карточек настроек" value={theme.settings_card_text_color ?? theme.text_primary} palette={textColors} onChange={(color) => onChange({ settings_card_text_color: color })} />
         <ColorSetting label="Панель корзины" value={theme.cart_panel_color ?? '#111111'} palette={cardColors} onChange={(color) => onChange({ cart_panel_color: color, cart_panel_text_color: readableTextFor(color) })} />

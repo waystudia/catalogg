@@ -110,23 +110,13 @@ const getClientCatalog = (client: { catalogs?: LoginCatalog | LoginCatalog[] | n
 export const getCatalogWorkspaceRedirect = (catalog: LoginCatalog | null | undefined) => {
   const slug = catalog?.slug?.trim();
   if (!slug) return null;
-  return catalog?.business_type === 'grocery'
-    ? `/business/${slug}`
-    : `/${slug}/dashboard`;
+  return `/business/${slug}`;
 };
 
 const normalizeCatalogWorkspaceRedirect = async (redirect: string) => {
   const match = /^\/([^/]+)\/dashboard(?:\/|$)/.exec(redirect);
-  if (!match || !supabase) return redirect;
-
-  const { data: catalog, error } = await supabase
-    .from('catalogs')
-    .select('slug, business_type')
-    .eq('slug', decodeURIComponent(match[1]))
-    .maybeSingle();
-
-  if (error || !catalog) return redirect;
-  return getCatalogWorkspaceRedirect(catalog) ?? redirect;
+  if (!match) return redirect;
+  return `/business/${decodeURIComponent(match[1])}`;
 };
 
 const resolveRequestedCatalogWorkspace = async (returnTo?: string) => {
@@ -250,7 +240,7 @@ export async function resolveLoginRedirect(
   if (!supabase) {
     const redirect =
       identifier.trim().toLowerCase() === 'admin' && password.trim() === '1234'
-        ? '/mangal/dashboard'
+        ? '/business/mangal'
         : null;
     if (redirect) assertExpectedLoginRole(redirect, expectedRole);
     return redirect;

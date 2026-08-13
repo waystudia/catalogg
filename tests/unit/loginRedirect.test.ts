@@ -190,9 +190,9 @@ describe('staff login role selection', () => {
     }
   });
 
-  it('routes groceries to the universal business workspace without changing restaurants', () => {
+  it('routes every business type to the same universal workspace', () => {
     expect(getCatalogWorkspaceRedirect({ slug: 'finik', business_type: 'grocery' })).toBe('/business/finik');
-    expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/mangal/dashboard');
+    expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/business/mangal');
   });
 
   it('extracts the exact requested business profile before resolving a shared role', () => {

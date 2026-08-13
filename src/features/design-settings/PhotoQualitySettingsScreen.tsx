@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '../../entities/models';
+import { type BusinessType } from '../../shared/businessTerminology';
 import {
   DEFAULT_PHOTO_QUALITY_SETTINGS,
   getPhotoQualityFilter,
@@ -28,12 +29,16 @@ const signed = (value: number) => value > 0 ? `+${value}` : String(value);
 export function PhotoQualitySettingsScreen({
   products,
   value,
-  onSave
+  onSave,
+  businessType = 'restaurant'
 }: {
   products: Product[];
   value: PhotoQualitySettings;
   onSave: (settings: PhotoQualitySettings) => Promise<void>;
+  businessType?: BusinessType;
 }) {
+  const itemsLabel = businessType === 'restaurant' ? 'блюд' : businessType === 'coffee_shop' ? 'позиций' : 'товаров';
+  const itemLabel = businessType === 'restaurant' ? 'блюдо' : businessType === 'coffee_shop' ? 'позицию' : 'товар';
   const imageProducts = useMemo(() => products.filter((product) => Boolean(productImage(product))), [products]);
   const [draft, setDraft] = useState(() => normalizePhotoQualitySettings(value));
   const [selectedId, setSelectedId] = useState(imageProducts[0]?.id ?? '');
@@ -58,13 +63,13 @@ export function PhotoQualitySettingsScreen({
   return (
     <main className="settings-screen photo-quality-screen">
       <p className="photo-quality-screen__intro">
-        Отрегулируйте отображение фотографий блюд. Настройки автоматически применяются ко всему каталогу.
+        Отрегулируйте отображение фотографий {itemsLabel}. Настройки автоматически применяются ко всему каталогу.
       </p>
 
       <section className="photo-quality-card photo-quality-toggle">
         <span>
           <strong>Автоматическая обработка фотографий</strong>
-          <small>Применять настройки ко всем фотографиям блюд.</small>
+          <small>Применять настройки ко всем фотографиям {itemsLabel}.</small>
         </span>
         <button
           className={draft.enabled ? 'settings-switch is-active' : 'settings-switch'}
@@ -79,7 +84,7 @@ export function PhotoQualitySettingsScreen({
 
       <section className="photo-quality-card photo-quality-preview">
         <h2>Предпросмотр</h2>
-        <select value={selectedProduct?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} aria-label="Выбрать блюдо">
+        <select value={selectedProduct?.id ?? ''} onChange={(event) => setSelectedId(event.target.value)} aria-label={`Выбрать ${itemLabel}`}>
           {imageProducts.map((product) => <option value={product.id} key={product.id}>{product.title}</option>)}
         </select>
         {selectedProduct ? (
@@ -99,7 +104,7 @@ export function PhotoQualitySettingsScreen({
               {showOriginal ? 'Показать сравнение' : 'Показать оригинал'}
             </button>
           </>
-        ) : <p className="photo-quality-empty">Добавьте фотографию блюда, чтобы увидеть предпросмотр.</p>}
+        ) : <p className="photo-quality-empty">Добавьте фотографию {itemLabel === 'блюдо' ? 'блюда' : itemLabel === 'позицию' ? 'позиции' : 'товара'}, чтобы увидеть предпросмотр.</p>}
       </section>
 
       <section className={draft.enabled ? 'photo-quality-card photo-quality-controls' : 'photo-quality-card photo-quality-controls is-disabled'}>
@@ -128,4 +133,3 @@ export function PhotoQualitySettingsScreen({
     </main>
   );
 }
-

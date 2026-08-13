@@ -10,6 +10,7 @@ import './catalog-admin.css';
 
 type CatalogAdminAppProps = {
   slug: string;
+  routePath?: string;
 };
 
 function CatalogLogin({ slug }: { slug: string }) {
@@ -41,10 +42,12 @@ function CatalogForbidden({
 
 function CatalogDashboard({
   access,
+  routePath,
   onRefresh,
   onSignOut
 }: {
   access: CatalogAdminAccess;
+  routePath?: string;
   onRefresh: () => void;
   onSignOut: () => void;
 }) {
@@ -64,6 +67,7 @@ function CatalogDashboard({
       <Toaster richColors position="top-center" />
       <RestaurantAdminShell
         access={access}
+        routePath={routePath}
         onRefresh={onRefresh}
         onSignOut={onSignOut}
       />
@@ -71,7 +75,7 @@ function CatalogDashboard({
   );
 }
 
-export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
+export function CatalogAdminApp({ slug, routePath }: CatalogAdminAppProps) {
   const [access, setAccess] = useState<CatalogAdminAccess | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -133,6 +137,7 @@ export function CatalogAdminApp({ slug }: CatalogAdminAppProps) {
   return (
       <CatalogDashboard
         access={access}
+        routePath={routePath}
         onRefresh={() => void refresh()}
         onSignOut={() => {
           if (!confirmRoleSignOut('заведения')) return;

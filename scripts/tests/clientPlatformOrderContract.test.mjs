@@ -21,7 +21,7 @@ describe('client platform restaurant order contract', () => {
     assert.match(routeSource, /function RestaurantRouteRedirect\(\)[\s\S]*return <Navigate replace to=/);
     assert.match(
       routeSource,
-      /function BusinessAdminRoute\(\)[\s\S]*return <CatalogAdminApp slug=\{decodeURIComponent\(slug\)\} \/>/
+      /function BusinessAdminRoute\(\)[\s\S]*return <CatalogAdminApp slug=\{decodeURIComponent\(slug\)\} routePath=\{routePath\} \/>/
     );
   });
 

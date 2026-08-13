@@ -2,6 +2,7 @@ import { ClipboardList, CloudUpload, Download, RefreshCcw, Trash2 } from 'lucide
 import { useEffect, useMemo, useState } from 'react';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { SafeImage } from '../../shared/SafeImage';
+import { type BusinessType } from '../../shared/businessTerminology';
 import {
   createCatalogBackupPayload,
   downloadCatalogZip,
@@ -104,7 +105,8 @@ export function BackupSettings({
   tags,
   products,
   theme,
-  onImport
+  onImport,
+  businessType = 'restaurant'
 }: {
   restaurant: Restaurant;
   categories: Category[];
@@ -113,7 +115,10 @@ export function BackupSettings({
   products: Product[];
   theme: ThemeSettings;
   onImport: (payload: CatalogBackupPayload) => void;
+  businessType?: BusinessType;
 }) {
+  const supportsSeating = businessType === 'restaurant' || businessType === 'coffee_shop';
+  const itemsLabel = businessType === 'restaurant' ? 'блюда' : businessType === 'coffee_shop' ? 'позиции' : 'товары';
   const [error, setError] = useState('');
   const exportCatalog = () =>
     void downloadCatalogZip(createCatalogBackupPayload({ restaurant, categories, cabins, tags, products, theme })).catch(() => {
@@ -124,7 +129,7 @@ export function BackupSettings({
     <main className="settings-screen">
       <section className="settings-form-card backup-card">
         <h2>Экспорт каталога</h2>
-        <p>Сохраните полную резервную копию: меню, блюда, фото, категории, метки, залы, дизайн и контакты.</p>
+        <p>Сохраните полную резервную копию: каталог, {itemsLabel}, фото, категории, метки{supportsSeating ? ', залы' : ''}, дизайн и контакты.</p>
         <button className="primary-wide" type="button" onClick={exportCatalog}>
           <Download /> Экспортировать ZIP
         </button>

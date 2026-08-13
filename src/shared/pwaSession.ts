@@ -61,7 +61,7 @@ const roleAppKey = (path: string) => {
 
   const [, slug, section] = normalizedPath.split('/');
   return slug && !reservedRootRoutes.has(slug) && section && ['dashboard', 'orders', 'dishes', 'settings', 'scanner', 'pos', 'payments'].includes(section)
-    ? `restaurant:${slug}`
+    ? `business:${slug}`
     : null;
 };
 
@@ -89,7 +89,7 @@ export const resolvePwaHomeTarget = ({
 };
 
 export const buildRestaurantAdminTabPath = (catalogSlug: string, tab: RestaurantAdminTab) =>
-  `/${catalogSlug.trim()}/${tab === 'home' ? 'dashboard' : tab}`;
+  `/business/${catalogSlug.trim()}${tab === 'home' ? '' : `/${tab === 'dishes' ? 'products' : tab === 'scanner' ? 'pos' : tab}`}`;
 
 export const rememberPwaResumePath = (path: string) => {
   if (!isBrowser() || !routeCanBeResumed(path)) return;

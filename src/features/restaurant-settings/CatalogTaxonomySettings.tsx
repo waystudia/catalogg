@@ -1,4 +1,5 @@
 import {
+  Apple,
   ArrowRight,
   Beef,
   ChefHat,
@@ -11,16 +12,20 @@ import {
   Ham,
   Info,
   Link2,
+  Milk,
+  Package,
   Pizza,
   Plus,
   Salad,
   Sandwich,
   Soup,
   Store,
+  ShoppingBasket,
   Tags,
   Trash2,
   Utensils,
   UtensilsCrossed,
+  Wheat,
   X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -28,6 +33,7 @@ import { categories as demoCategories } from '../../data/catalog';
 import type { Cabin, CatalogTag, Category, Product } from '../../entities/models';
 import { imageFileToDataUrl } from '../../shared/images';
 import { SafeImage } from '../../shared/SafeImage';
+import { type BusinessType } from '../../shared/businessTerminology';
 import {
   createCabinDraft,
   defaultCabinMeta,
@@ -77,6 +83,19 @@ const categoryIconOptions = [
   { id: 'sauce', label: 'Соусы', Icon: Soup },
   { id: 'salad', label: 'Салаты', Icon: Salad }
 ];
+const retailCategoryIconOptions = [
+  { id: 'package', label: 'Товары', Icon: Package },
+  { id: 'fruit', label: 'Фрукты', Icon: Apple },
+  { id: 'dairy', label: 'Молочные продукты', Icon: Milk },
+  { id: 'bakery', label: 'Хлеб и выпечка', Icon: Wheat },
+  { id: 'grocery', label: 'Бакалея', Icon: ShoppingBasket },
+  { id: 'tags', label: 'Другое', Icon: Tags }
+];
+const catalogItemsPluralGenitive = (businessType: BusinessType) => {
+  if (businessType === 'restaurant') return 'блюд';
+  if (businessType === 'coffee_shop') return 'позиций';
+  return 'товаров';
+};
 const isSauceCategory = (category: Category) => {
   const text = `${category.name} ${category.slug ?? ''} ${category.icon}`.toLocaleLowerCase('ru');
   return text.includes('соус') || text.includes('sauce');
@@ -98,7 +117,8 @@ export function CategoriesSettings({
   onModeChange,
   onChangeCategories,
   onChangeCabins,
-  onChangeTags
+  onChangeTags,
+  businessType = 'restaurant'
 }: {
   categories: Category[];
   cabins: Cabin[];
@@ -115,7 +135,11 @@ export function CategoriesSettings({
   onChangeCategories: (categories: Category[]) => void;
   onChangeCabins: (cabins: Cabin[]) => void;
   onChangeTags: (tags: CatalogTag[]) => void;
+  businessType?: BusinessType;
 }) {
+  const supportsSeating = businessType === 'restaurant' || businessType === 'coffee_shop';
+  const iconOptions = supportsSeating ? categoryIconOptions : retailCategoryIconOptions;
+  const itemsLabel = catalogItemsPluralGenitive(businessType);
   const move = (index: number, direction: -1 | 1) => {
     const nextIndex = index + direction;
     if (nextIndex < 0 || nextIndex >= categories.length) return;
@@ -182,7 +206,7 @@ export function CategoriesSettings({
 
   const tabs = [
     ['tags', Tags, 'Метки'],
-    ['cabins', Store, 'Столики и кабинки'],
+    ...(supportsSeating ? [['cabins', Store, 'Столики и кабинки'] as const] : []),
     ['categories', Tags, 'Категории']
   ] as const;
 
@@ -201,6 +225,7 @@ export function CategoriesSettings({
     return (
       <TagsSettingsScreen
         tags={tags}
+        itemsLabel={itemsLabel}
         onSave={saveTag}
         onDelete={deleteTag}
         renderTabs={renderTabs}
@@ -208,7 +233,7 @@ export function CategoriesSettings({
     );
   }
 
-  if (activeTab === 'cabins') {
+  if (activeTab === 'cabins' && supportsSeating) {
     if (cabinMode === 'add' || cabinMode === 'edit') {
       return (
         <CabinEditScreen
@@ -273,6 +298,8 @@ export function CategoriesSettings({
         onCancel={() => onModeChange('list')}
         onMove={mode === 'edit' && editingCategory ? (direction) => move(categories.findIndex((item) => item.id === editingCategory.id), direction) : undefined}
         onSave={saveCategory}
+        iconOptions={iconOptions}
+        defaultIcon={supportsSeating ? 'flame' : 'package'}
       />
     );
   }
@@ -303,7 +330,7 @@ export function CategoriesSettings({
                     category.showInOrderFlow === true ? 'Дополнительное' : ''
                   ].filter(Boolean).join(' / ') || 'Скрыта'}
                 </small>
-                <em>{productCountFor(category.id)} блюд</em>
+                <em>{productCountFor(category.id)} {itemsLabel}</em>
               </span>
               <ArrowRight className="category-list-card__arrow" />
             </button>
@@ -320,11 +347,13 @@ export function CategoriesSettings({
 
 export function TagsSettingsScreen({
   tags,
+  itemsLabel = 'блюд',
   onSave,
   onDelete,
   renderTabs
 }: {
   tags: CatalogTag[];
+  itemsLabel?: string;
   onSave: (tag: CatalogTag) => void;
   onDelete: (tagId: string) => void;
   renderTabs: () => JSX.Element;
@@ -359,7 +388,7 @@ export function TagsSettingsScreen({
       <section className="category-settings-card tag-settings-card">
         <div className="category-settings-tip">
           <Info />
-          <span>Метки помогают быстро выделять блюда и категории: хит, новинка, популярное или любой ваш статус.</span>
+          <span>Метки помогают быстро выделять {itemsLabel} и категории: хит, новинка, популярное или любой ваш статус.</span>
         </div>
 
         <div className="tag-edit-panel">
@@ -434,7 +463,9 @@ function CategoryEditScreen({
   sortIndex,
   onCancel,
   onMove,
-  onSave
+  onSave,
+  iconOptions = categoryIconOptions,
+  defaultIcon = 'flame'
 }: {
   category?: Category;
   categories: Category[];
@@ -444,12 +475,14 @@ function CategoryEditScreen({
   onCancel: () => void;
   onMove?: (direction: -1 | 1) => void;
   onSave: (category: Category) => void;
+  iconOptions?: typeof categoryIconOptions;
+  defaultIcon?: string;
 }) {
-  const [draft, setDraft] = useState<Category>(() => category ?? createCategoryDraft(''));
+  const [draft, setDraft] = useState<Category>(() => category ?? { ...createCategoryDraft(''), icon: defaultIcon });
 
   useEffect(() => {
-    setDraft(category ?? createCategoryDraft(''));
-  }, [category, mode]);
+    setDraft(category ?? { ...createCategoryDraft(''), icon: defaultIcon });
+  }, [category, defaultIcon, mode]);
 
   const selectedTags = tags.slice(0, mode === 'edit' ? 2 : 0);
   const activeAdditionalCategories = categories.filter((item) => item.showInOrderFlow === true);
@@ -533,7 +566,7 @@ function CategoryEditScreen({
         <div className="category-edit-field">
           <strong>Иконки категории</strong>
           <div className="category-edit-icons">
-            {categoryIconOptions.slice(0, 12).map(({ id, label, Icon }) => (
+            {iconOptions.slice(0, 12).map(({ id, label, Icon }) => (
               <button
                 className={draft.icon === id ? 'is-active' : ''}
                 type="button"

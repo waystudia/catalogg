@@ -99,7 +99,7 @@ export function ScannerPage({
       return;
     }
     if (parsed.kind === 'order') {
-      navigate(`/${slug || 'mangal'}/dashboard?order=${encodeURIComponent(parsed.orderId)}`);
+      navigate(`/business/${slug || 'mangal'}/orders?order=${encodeURIComponent(parsed.orderId)}`);
       return;
     }
     if (parsed.kind === 'delivery') {
@@ -131,11 +131,11 @@ export function ScannerPage({
         setMessage('Неправильный QR-код выдачи');
         return;
       }
-      navigate(`/${slug || 'mangal'}/dashboard?delivery=${encodeURIComponent(parsed.orderId)}`);
+      navigate(`/business/${slug || 'mangal'}/orders?delivery=${encodeURIComponent(parsed.orderId)}`);
       return;
     }
     if (parsed.kind === 'payment') {
-      navigate(`/${slug || 'mangal'}/payments`);
+      navigate(`/business/${slug || 'mangal'}/settings/payments`);
       return;
     }
     setScanState('error');

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   BUSINESS_TYPE_DEFINITIONS,
   getBusinessTypeDefinition,
@@ -13,6 +13,8 @@ import {
 import { platformFallbackTemplates } from '../../src/shared/api/templatesApi';
 import { getCatalogAdminAccess } from '../../src/shared/api/catalogAdminApi';
 import { createClientSchema } from '../../src/shared/validation/clientCredentials';
+
+vi.mock('../../src/shared/supabase', () => ({ supabase: null }));
 
 describe('multi-business tenant foundation', () => {
   it('offers the four launch types and keeps future regulated types unavailable', () => {
