@@ -64,10 +64,12 @@ separate stages. Prove which stage failed before changing passwords or role rows
   already-open tab runs an older hashed main asset, reload the document with the
   same hash/`returnTo` before accepting credentials. Never persist the password
   across this refresh.
-- After that refresh, preserve `window.location.search` when replacing the hash
-  with the authenticated role route. Dropping the `auth-refresh` query forces a
-  second document load between `setSession()` and the cabinet access check and
-  can expose Safari storage fallbacks unnecessarily.
+- After that refresh, remove the transient document query with
+  `history.replaceState` while preserving the current hash, then replace only
+  the hash with the authenticated role route. This avoids a second document
+  load between `setSession()` and the cabinet access check while keeping final
+  links short (`#/mangal/dashboard`, `#/business/finik`, `#/driver`, and
+  `#/admin/clients`).
 
 ## Release hook
 

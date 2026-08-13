@@ -8,13 +8,10 @@ export const redirectToClientHome = () => {
   window.location.replace(buildClientHomeUrl());
 };
 
-export const buildRoleAppUrl = (path: string, pageSearch = '') => {
+export const buildRoleAppUrl = (path: string) => {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const normalizedSearch = pageSearch
-    ? pageSearch.startsWith('?') ? pageSearch : `?${pageSearch}`
-    : '';
-  return `${base}${normalizedSearch}#${normalizedPath}`;
+  return `${base}#${normalizedPath}`;
 };
 
 export const buildProfileLoginPath = (returnTo = '/profile') => {
@@ -38,5 +35,19 @@ export const resolveProfileLoginTarget = (redirect: string, requestedReturnTo: s
 
 export const redirectToRoleApp = (path: string) => {
   if (typeof window === 'undefined') return;
-  window.location.replace(buildRoleAppUrl(path, window.location.search));
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.search) {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${currentUrl.pathname}${currentUrl.hash}`
+      );
+    }
+  } catch {
+    // The scoped session fallback still protects a full-navigation handoff.
+  }
+
+  window.location.replace(buildRoleAppUrl(path));
 };

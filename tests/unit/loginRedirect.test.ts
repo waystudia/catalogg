@@ -40,37 +40,37 @@ describe('staff login role selection', () => {
     expect(resolveProfileLoginTarget('/profile', '/business/finik')).toBe('/profile');
   });
 
-  it('keeps the current document query while moving an authenticated user into every role cabinet', () => {
-    const refreshedClientSearch = '?auth-refresh=index-current123';
-
-    expect(buildRoleAppUrl('/business/finik', refreshedClientSearch)).toBe(
-      '/?auth-refresh=index-current123#/business/finik'
-    );
-    expect(buildRoleAppUrl('/mangal/dashboard', refreshedClientSearch)).toBe(
-      '/?auth-refresh=index-current123#/mangal/dashboard'
-    );
-    expect(buildRoleAppUrl('/driver', refreshedClientSearch)).toBe(
-      '/?auth-refresh=index-current123#/driver'
-    );
-    expect(buildRoleAppUrl('/admin/clients', refreshedClientSearch)).toBe(
-      '/?auth-refresh=index-current123#/admin/clients'
-    );
-    expect(buildRoleAppUrl('driver', 'auth-refresh=index-current123')).toBe(
-      '/?auth-refresh=index-current123#/driver'
-    );
+  it('builds short shareable links for every role cabinet', () => {
+    expect(buildRoleAppUrl('/business/finik')).toBe('/#/business/finik');
+    expect(buildRoleAppUrl('/mangal/dashboard')).toBe('/#/mangal/dashboard');
+    expect(buildRoleAppUrl('/driver')).toBe('/#/driver');
+    expect(buildRoleAppUrl('/admin/clients')).toBe('/#/admin/clients');
+    expect(buildRoleAppUrl('driver')).toBe('/#/driver');
     expect(buildRoleAppUrl('admin/clients')).toBe('/#/admin/clients');
   });
 
-  it('replaces only the hash after a stale production client refresh', () => {
+  it('removes a stale-client query in place before replacing only the role hash', () => {
     const previousWindow = globalThis.window;
+    let cleanedState: unknown;
+    let cleanedTitle = 'not-called';
+    let cleanedUrl = '';
     let replacedUrl = '';
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
       value: {
         location: {
+          href: 'https://wayyaam.ru/?auth-refresh=index-current123#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
           search: '?auth-refresh=index-current123',
           replace: (url: string) => {
             replacedUrl = url;
+          }
+        },
+        history: {
+          state: { preserved: true },
+          replaceState: (state: unknown, title: string, url: string) => {
+            cleanedState = state;
+            cleanedTitle = title;
+            cleanedUrl = url;
           }
         }
       }
@@ -85,7 +85,45 @@ describe('staff login role selection', () => {
       });
     }
 
-    expect(replacedUrl).toBe('/?auth-refresh=index-current123#/admin/clients');
+    expect(cleanedState).toEqual({ preserved: true });
+    expect(cleanedTitle).toBe('');
+    expect(cleanedUrl).toBe('/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik');
+    expect(replacedUrl).toBe('/#/admin/clients');
+  });
+
+  it('does not rewrite browser history when the address is already short', () => {
+    const previousWindow = globalThis.window;
+    let historyCalls = 0;
+    let replacedUrl = '';
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          href: 'https://wayyaam.ru/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          replace: (url: string) => {
+            replacedUrl = url;
+          }
+        },
+        history: {
+          state: null,
+          replaceState: () => {
+            historyCalls += 1;
+          }
+        }
+      }
+    });
+
+    try {
+      redirectToRoleApp('/business/finik');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    expect(historyCalls).toBe(0);
+    expect(replacedUrl).toBe('/#/business/finik');
   });
 
   it('leaves role navigation inert during server rendering', () => {
