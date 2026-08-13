@@ -789,6 +789,7 @@ function ClientTable({ clients, onEdit }: { clients: PlatformClient[]; onEdit: (
                       <strong>{client.companyName}</strong>
                       <small>{client.catalogSlug}</small>
                       {client.ownerName && <small>{client.ownerName}</small>}
+                      {client.onboardingSource === 'self_service' && <small className="self-service-badge">Саморегистрация · {client.reviewState === 'pending' ? 'на проверке' : client.reviewState === 'draft' ? 'черновик' : client.reviewState}</small>}
                     </span>
                   </div>
                 </td>
@@ -896,6 +897,7 @@ function ClientCards({
               <div>
                 <strong>{client.companyName}</strong>
                 <small>{client.email}</small>
+                {client.onboardingSource === 'self_service' && <small className="self-service-badge">Саморегистрация · {client.reviewState === 'pending' ? 'на проверке' : client.reviewState === 'draft' ? 'черновик' : client.reviewState}</small>}
               </div>
               <button type="button" aria-label="Действия" onClick={() => onEdit(client)}>
                 <MoreHorizontal />

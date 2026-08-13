@@ -3083,8 +3083,14 @@ function ProfilePage() {
             )}
             {clientAuthMode === 'register' && (
               <small className="form-muted">
-                Регистрация создаёт аккаунт клиента. Аккаунты ресторанов и водителей выдаёт администратор.
+                Регистрация создаёт аккаунт покупателя.
               </small>
+            )}
+            {clientAuthMode === 'register' && (
+              <button className="profile-partner-registration" type="button" onClick={() => navigate('/partner-registration')}>
+                <Building2 />
+                Зарегистрировать бизнес или курьера
+              </button>
             )}
           </form>
         </section>
