@@ -16,8 +16,11 @@ test('all role entry points use the embedded phone-or-email profile login', asyn
   ]);
 
   assert.doesNotMatch(main, /pages\/login\/LoginPage/);
-  assert.match(profile, /resolveUnifiedLogin\(identifier, clientPassword, expectedLoginRole\)/);
-  assert.match(profile, /if \(!expectedLoginRole\)\s*\{\s*setClientMessage\('Вы вошли в аккаунт'\)/);
+  assert.match(profile, /resolveUnifiedLogin\([\s\S]*identifier,[\s\S]*clientPassword,[\s\S]*expectedLoginRole,[\s\S]*clientReturnTo[\s\S]*\)/);
+  assert.match(profile, /if \(!expectedLoginRole\)\s*\{[\s\S]*setClientMessage\('Вы вошли в аккаунт'\)/);
+  assert.match(profile, /expectedLoginRole \? '' : profile\.phone/);
+  assert.match(loginRedirect, /has_catalog_admin_access/);
+  assert.match(loginRedirect, /preserveSupabaseSessionForRedirect\(redirect, data\.session\)/);
   assert.match(loginRedirect, /usesEmail \|\| expectedRole \|\| !isCredentialError\(error\)/);
   assert.match(profile, /redirectToRoleApp\(targetPath\)/);
   assert.match(profile, /Для клиентов, ресторанов и водителей/);

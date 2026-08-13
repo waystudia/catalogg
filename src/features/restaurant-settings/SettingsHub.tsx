@@ -11,6 +11,7 @@ import {
   User
 } from 'lucide-react';
 import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 
 export function SettingsHub({
   onProfile,
@@ -23,7 +24,8 @@ export function SettingsHub({
   onLogout,
   onPassword,
   onActivate,
-  activationStatus
+  activationStatus,
+  businessType = 'restaurant'
 }: {
   onProfile: () => void;
   onDesign: () => void;
@@ -36,18 +38,20 @@ export function SettingsHub({
   onPassword?: () => void;
   onActivate?: () => void;
   activationStatus?: RestaurantLegalStatus | null;
+  businessType?: BusinessType;
 }) {
+  const terms = getBusinessTerms(businessType);
   return (
     <section className="admin-section-card restaurant-settings-hub">
-      <h2>Настройки ресторана</h2>
+      <h2>Настройки {terms.placeGenitive}</h2>
       {onActivate && activationStatus && activationStatus !== 'active' && (
         <div className="restaurant-settings-activation">
           <ShieldCheck />
           <div>
-            <strong>Ресторан работает в тестовом режиме</strong>
-            <small>Проверьте меню и настройки, затем завершите юридическое подключение.</small>
+            <strong>{terms.place} работает в тестовом режиме</strong>
+            <small>Проверьте каталог и настройки, затем завершите юридическое подключение.</small>
           </div>
-          <button type="button" onClick={onActivate}>Активировать ресторан</button>
+          <button type="button" onClick={onActivate}>Активировать {terms.placeAccusative}</button>
         </div>
       )}
       <div className="restaurant-settings-tiles">

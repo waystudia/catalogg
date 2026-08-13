@@ -239,7 +239,15 @@
 }
 
 .profile-inline-form .client-passkey-sign-in {
-  margin-bottom: 4px;
+  margin-top: -2px;
+}
+
+.profile-inline-form .client-passkey-sign-in .client-pairing-primary {
+  min-height: 40px;
+  border: 1px solid #d9d2ff;
+  background: #f6f4ff;
+  color: #4b32d0;
+  font-size: 14px;
 }
 
 .client-pairing-fallback {

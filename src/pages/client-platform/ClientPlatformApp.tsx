@@ -107,7 +107,6 @@ import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
   ClientPasskeyCard,
-  ClientPasskeyReturnPanel,
   ClientPasskeySignInButton,
   ClientPwaPairingCodeCard
 } from '../../features/client-pairing/ClientPairing';
@@ -2685,8 +2684,15 @@ function ProfilePage() {
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
+  const returnToValue = searchParams.get('returnTo') ?? '';
+  const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
+    ? returnToValue
+    : '/profile';
+  const expectedLoginRole = getExpectedLoginRoleForReturnTo(clientReturnTo);
   const [clientName, setClientName] = useState(profile.name);
-  const [accountIdentifier, setAccountIdentifier] = useState(profile.phone);
+  const [accountIdentifier, setAccountIdentifier] = useState(
+    expectedLoginRole ? '' : profile.phone
+  );
   const [clientPassword, setClientPassword] = useState('');
   const [acceptedClientAgreement, setAcceptedClientAgreement] = useState(false);
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
@@ -2713,11 +2719,13 @@ function ProfilePage() {
   const displayName = profile.name || 'Гость WayYaam';
   const displayPhone = profile.phone || 'Телефон не указан';
   const displayAddress = addresses.find((address) => address.isDefault)?.addressLine ?? addresses[0]?.addressLine ?? '';
-  const returnToValue = searchParams.get('returnTo') ?? '';
-  const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
-    ? returnToValue
-    : '/profile';
-  const expectedLoginRole = getExpectedLoginRoleForReturnTo(clientReturnTo);
+
+  useEffect(() => {
+    if (!expectedLoginRole) return;
+    setAccountIdentifier('');
+    setClientPassword('');
+    setClientMessage('');
+  }, [clientReturnTo, expectedLoginRole]);
 
   useEffect(() => {
     let isMounted = true;
@@ -2732,8 +2740,8 @@ function ProfilePage() {
           if (session) {
             saveProfile({ name: session.name, phone: session.phone });
             setClientName(session.name);
-            setAccountIdentifier(session.phone);
             if (!expectedLoginRole) {
+              setAccountIdentifier(session.phone);
               setClientMessage('Вы вошли в аккаунт');
             }
           }
@@ -2765,7 +2773,12 @@ function ProfilePage() {
 
       setIsSavingClient(true);
       try {
-        const redirect = await resolveUnifiedLogin(identifier, clientPassword, expectedLoginRole);
+        const redirect = await resolveUnifiedLogin(
+          identifier,
+          clientPassword,
+          expectedLoginRole,
+          clientReturnTo
+        );
         if (!redirect) {
           setClientError('Неверный телефон, email или пароль.');
           return;
@@ -2945,11 +2958,6 @@ function ProfilePage() {
                   : 'Создайте аккаунт клиента для заказов и избранного'}
               </p>
             </header>
-            {clientAuthMode === 'login' && (
-              appIsRunningStandalone()
-                ? <ClientPasskeyReturnPanel onSignedIn={completePasskeySignIn} />
-                : <ClientPasskeySignInButton onSignedIn={completePasskeySignIn} />
-            )}
             {clientAuthMode === 'register' && (
               <div className="profile-auth-field">
                 <label htmlFor="profile-auth-name">Имя</label>
@@ -3075,6 +3083,9 @@ function ProfilePage() {
                 {isSavingClient ? 'Входим...' : 'Войти'}
               </button>
             )}
+            {clientAuthMode === 'login' && !expectedLoginRole && (
+              <ClientPasskeySignInButton onSignedIn={completePasskeySignIn} />
+            )}
             {clientAuthMode === 'register' && (
               <button className="profile-auth-submit" type="submit" disabled={isSavingClient}>
                 <UserRoundCheck />
@@ -3098,7 +3109,7 @@ function ProfilePage() {
 
       {clientSession && (
         <>
-          <ClientPasskeyCard />
+          <ClientPasskeyCard accountId={clientSession.accountId} />
           {appIsRunningStandalone() && (
             <details className="client-pairing-fallback">
               <summary>Если Face ID не работает</summary>

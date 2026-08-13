@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { BrandLogo } from '../../shared/BrandLogo';
+import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   REQUIRED_ACTIVATION_CONFIRMATIONS,
   createEmptyActivationConfirmations,
@@ -55,6 +56,16 @@ export function RestaurantActivationPage({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [activated, setActivated] = useState(false);
+  const businessType = view?.businessType ?? 'restaurant';
+  const terms = getBusinessTerms(businessType);
+  const activatedWord = ['coffee_shop', 'confectionery', 'pharmacy'].includes(businessType)
+    ? 'активирована'
+    : 'активирован';
+  const cabinetHref = view
+    ? businessType === 'restaurant'
+      ? `#/${view.catalogSlug}/dashboard`
+      : `#/business/${view.catalogSlug}`
+    : '#/profile';
 
   useEffect(() => {
     let active = true;
@@ -97,7 +108,7 @@ export function RestaurantActivationPage({
   );
 
   const details = useMemo(() => view ? [
-    ['Ресторан', view.restaurant.name],
+    [terms.place, view.restaurant.name],
     ['Форма организации', view.restaurant.organizationType],
     ['Юридическое наименование', view.restaurant.legalName],
     ['ИНН', view.restaurant.inn],
@@ -110,7 +121,16 @@ export function RestaurantActivationPage({
     ['Телефон', view.restaurant.phone],
     ['Email', view.restaurant.email],
     ['Модель доставки', view.restaurant.deliveryModel]
-  ] : [], [view]);
+  ] : [], [terms.place, view]);
+  const activationConfirmations = useMemo(() => REQUIRED_ACTIVATION_CONFIRMATIONS.map((confirmation) => {
+    if (confirmation.key === 'restaurant_data') {
+      return { ...confirmation, label: `Я подтверждаю достоверность предоставленных сведений о ${terms.placePrepositional}.` };
+    }
+    if (confirmation.key === 'authority') {
+      return { ...confirmation, label: `Я подтверждаю, что являюсь владельцем, руководителем или имею достаточные полномочия действовать от имени ${terms.placeGenitive}.` };
+    }
+    return confirmation;
+  }), [terms.placeGenitive, terms.placePrepositional]);
 
   const openDocument = async (document: RestaurantActivationDocument) => {
     setSelectedDocument(document);
@@ -157,7 +177,7 @@ export function RestaurantActivationPage({
       setActivated(true);
     } catch (nextError) {
       const errorCode = nextError instanceof Error ? nextError.message : '';
-      setError(activationErrorMessages[errorCode] ?? (errorCode || 'Не удалось активировать ресторан.'));
+      setError(activationErrorMessages[errorCode] ?? (errorCode || `Не удалось активировать ${terms.placeAccusative}.`));
     } finally {
       setSubmitting(false);
     }
@@ -181,15 +201,15 @@ export function RestaurantActivationPage({
       <header className="restaurant-activation-header">
         <BrandLogo />
         <div className="restaurant-activation-header__actions">
-          <a aria-label="Вернуться в кабинет" href={`#/${view.catalogSlug}/dashboard`}><ArrowLeft /><span>В кабинет</span></a>
+          <a aria-label="Вернуться в кабинет" href={cabinetHref}><ArrowLeft /><span>В кабинет</span></a>
           <button type="button" onClick={() => void service.signOut()}><LogOut /> Выйти</button>
         </div>
       </header>
 
       <section className="restaurant-activation-hero">
         <span className="restaurant-activation-kicker"><ShieldCheck /> Юридическое подключение</span>
-        <h1>Активация ресторана в WayYaam</h1>
-        <p>Проверьте данные ресторана, ознакомьтесь с условиями подключения и подтвердите активацию.</p>
+        <h1>Активация {terms.placeGenitive} в WayYaam</h1>
+        <p>Проверьте данные {terms.placeGenitive}, ознакомьтесь с условиями подключения и подтвердите активацию.</p>
         <div className="restaurant-activation-progress" aria-label={`Этап ${progress} из 5`}>
           <strong>{progress} из 5</strong>
           <span>{['Проверка данных', 'Документы', 'Полномочия', 'Код', 'Активация'][progress - 1]}</span>
@@ -200,9 +220,9 @@ export function RestaurantActivationPage({
       {activated ? (
         <section className="restaurant-activation-success">
           <span><Check /></span>
-          <h2>Ресторан активирован</h2>
+          <h2>{terms.place} {activatedWord}</h2>
           <p>Договор зафиксирован. Рабочие функции и приём реальных заказов теперь доступны.</p>
-          <a href={`#/${view.catalogSlug}/dashboard`}>Перейти в кабинет <ChevronRight /></a>
+          <a href={cabinetHref}>Перейти в кабинет <ChevronRight /></a>
         </section>
       ) : (
         <div className="restaurant-activation-layout">
@@ -211,7 +231,7 @@ export function RestaurantActivationPage({
           )}
           <section className="restaurant-activation-card">
             <div className="restaurant-activation-card__head">
-              <span>1</span><div><h2>Проверьте данные</h2><p>Реквизиты и индивидуальный тариф настроены для вашего ресторана и останутся в снимке акцепта.</p></div>
+              <span>1</span><div><h2>Проверьте данные</h2><p>Реквизиты и индивидуальный тариф настроены для {terms.placeGenitive} и останутся в снимке акцепта.</p></div>
             </div>
             <dl className="restaurant-activation-details">
               {details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{valueOrDash(value)}</dd></div>)}
@@ -273,7 +293,7 @@ export function RestaurantActivationPage({
               <div className="restaurant-activation-notice is-danger">У вашей роли нет права принимать юридические документы. Обратитесь к владельцу или супер-администратору.</div>
             )}
             <div className="restaurant-activation-checks">
-              {REQUIRED_ACTIVATION_CONFIRMATIONS.map(({ key, label }) => (
+              {activationConfirmations.map(({ key, label }) => (
                 <label key={key}>
                   <input
                     type="checkbox"
@@ -307,7 +327,7 @@ export function RestaurantActivationPage({
                 <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
               </label>
               <button className="restaurant-activation-primary" type="button" disabled={!/^\d{6}$/.test(code) || submitting} onClick={() => void confirmActivation()}>
-                {submitting ? 'Проверяем...' : 'Активировать ресторан'}
+                {submitting ? 'Проверяем...' : `Активировать ${terms.placeAccusative}`}
               </button>
             </section>
           )}

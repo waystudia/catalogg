@@ -43,6 +43,7 @@ type RegisterPasskey = () => Promise<unknown>;
 type SignInWithPasskey = () => Promise<ClientAccountSession>;
 
 const pairingDismissedKey = 'wayyaam:client-pairing-prompt-dismissed';
+const passkeyEnabledKey = (accountId: string) => `wayyaam:client-passkey-enabled:${accountId}`;
 
 const readPairingDismissed = () => {
   if (typeof window === 'undefined') return false;
@@ -111,26 +112,36 @@ function ClientPasskeyProfilePreview({
 
 export function ClientPasskeyCard({
   registerPasskey = registerClientPasskey,
-  supported = clientPasskeyIsSupported()
+  supported = clientPasskeyIsSupported(),
+  accountId = 'current'
 }: {
   registerPasskey?: RegisterPasskey;
   supported?: boolean;
+  accountId?: string;
 }) {
   const [isRegistering, setIsRegistering] = useState(false);
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(passkeyEnabledKey(accountId)) === '1';
+  });
   const [error, setError] = useState('');
 
-  if (!supported) return null;
+  if (!supported || enabled) return null;
+
+  const rememberEnabled = () => {
+    window.localStorage.setItem(passkeyEnabledKey(accountId), '1');
+    setEnabled(true);
+  };
 
   const enable = async () => {
     setIsRegistering(true);
     setError('');
     try {
       await registerPasskey();
-      setEnabled(true);
+      rememberEnabled();
     } catch (cause) {
       if (cause instanceof ClientPasskeyError && cause.code === 'already_registered') {
-        setEnabled(true);
+        rememberEnabled();
       } else {
         setError(cause instanceof Error ? cause.message : 'Не удалось включить Face ID.');
       }
@@ -143,20 +154,14 @@ export function ClientPasskeyCard({
     <section className="client-pairing-card client-passkey-card" aria-label="Вход по Face ID">
       <span className="client-pairing-card__icon"><Fingerprint aria-hidden="true" /></span>
       <div className="client-pairing-card__copy">
-        <strong>{enabled ? 'Face ID подключён' : 'Вход без пароля'}</strong>
-        <p>
-          {enabled
-            ? 'Теперь этот профиль можно открыть через Face ID и в приложении WayYaam, и в Safari.'
-            : 'Подключите Face ID, чтобы сохранять скидки, заказы и вход по ссылкам.'}
-        </p>
+        <strong>Вход без пароля</strong>
+        <p>Подключите Face ID, чтобы сохранять скидки, заказы и вход по ссылкам.</p>
       </div>
-      <button className="client-pairing-primary" type="button" onClick={() => void enable()} disabled={isRegistering || enabled}>
+      <button className="client-pairing-primary" type="button" onClick={() => void enable()} disabled={isRegistering}>
         {isRegistering
           ? <LoaderCircle className="is-spinning" aria-hidden="true" />
-          : enabled
-            ? <ShieldCheck aria-hidden="true" />
-            : <Fingerprint aria-hidden="true" />}
-        {isRegistering ? 'Подтвердите Face ID…' : enabled ? 'Face ID включён' : 'Включить вход по Face ID'}
+          : <Fingerprint aria-hidden="true" />}
+        {isRegistering ? 'Подтвердите Face ID…' : 'Включить вход по Face ID'}
       </button>
       {error && <small className="client-pairing-error" role="alert">{error}</small>}
     </section>

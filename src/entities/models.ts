@@ -148,6 +148,8 @@ export type Product = {
   placeholder_kind?: 'dessert';
   sku?: string;
   barcode?: string;
+  cost_price?: number;
+  minimum_stock?: number;
   sale_unit?: CatalogSaleUnit;
   quantity_unit?: CatalogQuantityUnit;
   price_basis_quantity?: number;

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   assertExpectedLoginRole,
   getExpectedLoginRoleForReturnTo,
-  getCatalogWorkspaceRedirect
+  getCatalogWorkspaceRedirect,
+  getRequestedCatalogSlugForReturnTo
 } from '../../src/shared/api/loginRedirectApi';
 import { buildProfileLoginPath, resolveProfileLoginTarget } from '../../src/shared/appNavigation';
 
@@ -29,6 +30,13 @@ describe('staff login role selection', () => {
     expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/mangal/dashboard');
   });
 
+  it('extracts the exact requested business profile before resolving a shared role', () => {
+    expect(getRequestedCatalogSlugForReturnTo('/business/finik')).toBe('finik');
+    expect(getRequestedCatalogSlugForReturnTo('/mangal/dashboard')).toBe('mangal');
+    expect(getRequestedCatalogSlugForReturnTo('/profile')).toBeNull();
+    expect(getRequestedCatalogSlugForReturnTo('//external.example/dashboard')).toBeNull();
+  });
+
   it('does not let a role login fall back to an ordinary customer account', () => {
     expect(getExpectedLoginRoleForReturnTo('/business/finik')).toBe('restaurant');
     expect(getExpectedLoginRoleForReturnTo('/admin/clients')).toBe('restaurant');
@@ -45,10 +53,10 @@ describe('staff login role selection', () => {
 
   it('explains when a restaurant account is entered under driver', () => {
     expect(() => assertExpectedLoginRole('/mangal/dashboard', 'driver')).toThrow(
-      'Это аккаунт ресторана. Выберите «Ресторан».'
+      'Это бизнес-аккаунт. Откройте его бизнес-профиль.'
     );
     expect(() => assertExpectedLoginRole('/business/finik', 'driver')).toThrow(
-      'Это аккаунт ресторана. Выберите «Ресторан».'
+      'Это бизнес-аккаунт. Откройте его бизнес-профиль.'
     );
   });
 
@@ -60,10 +68,10 @@ describe('staff login role selection', () => {
 
   it('rejects accounts that have no selected staff role', () => {
     expect(() => assertExpectedLoginRole('/', 'restaurant')).toThrow(
-      'Этот аккаунт не привязан к ресторану.'
+      'Этот аккаунт не привязан к бизнес-профилю.'
     );
     expect(() => assertExpectedLoginRole('/admin', 'driver')).toThrow(
-      'Это аккаунт ресторана. Выберите «Ресторан».'
+      'Это бизнес-аккаунт. Откройте его бизнес-профиль.'
     );
   });
 });

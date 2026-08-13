@@ -1,6 +1,7 @@
 import {
   Bell,
   Calculator,
+  ClipboardPlus,
   Eye,
   EyeOff,
   Home,
@@ -29,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
+import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../data/groceryCatalog';
 import {
   deleteRestaurantTestOrder,
   getRestaurantDeliverySettings,
@@ -49,6 +51,7 @@ import { getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
   loadCatalog,
   replaceCatalogInSupabase,
+  saveProductToSupabase,
   savePhotoQualityToSupabase
 } from '../../shared/supabase';
 import { saveRestaurantPayments } from '../../shared/api/restaurantPaymentsApi';
@@ -95,8 +98,23 @@ import {
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
 import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
+import {
+  loadGroceryInventory,
+  postGroceryReceiving,
+  saveGroceryInventoryItem,
+  type GroceryInventoryMovement,
+  type GroceryReceivingLineInput
+} from '../../shared/api/groceryInventoryApi';
+import { GroceryProductsPage } from '../../features/grocery-operations/GroceryProductsPage';
+import { GroceryReceivingPage } from '../../features/grocery-operations/GroceryReceivingPage';
+import { GroceryWarehousePage } from '../../features/grocery-operations/GroceryWarehousePage';
+import { GroceryPosPage, type GroceryPosLine } from '../../features/grocery-operations/GroceryPosPage';
+import { GroceryProductEditor } from '../../features/grocery-operations/GroceryProductEditor';
+import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
+import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
+import '../../features/grocery-operations/grocery-operations.css';
 
-type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
   | 'hub'
   | 'profile'
@@ -312,6 +330,7 @@ export function RestaurantAdminShell({
   onSignOut: () => void;
 }) {
   const navigate = useNavigate();
+  const isGrocery = access.catalog?.businessType === 'grocery';
   const workspaceAccess = getCatalogWorkspaceAccess({
     catalogRole: access.role,
     staffRole: access.staffRole
@@ -321,12 +340,12 @@ export function RestaurantAdminShell({
   );
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
   const [catalogData, setCatalogData] = useState<CatalogData>({
-    restaurant: demoRestaurant,
-    categories: demoCategories,
+    restaurant: isGrocery ? groceryRestaurant : demoRestaurant,
+    categories: isGrocery ? groceryCategories : demoCategories,
     cabins: demoCabins,
-    products: demoProducts,
+    products: isGrocery ? groceryProducts : demoProducts,
     tags: [],
-    theme: demoTheme,
+    theme: isGrocery ? groceryTheme : demoTheme,
     photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS
   });
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
@@ -335,6 +354,15 @@ export function RestaurantAdminShell({
     pos: 'disabled',
     warehouse: 'disabled'
   });
+  const [inventoryMovements, setInventoryMovements] = useState<GroceryInventoryMovement[]>([]);
+  const [productEditor, setProductEditor] = useState<{
+    product: Product | null;
+    barcode: string;
+    intent: 'products' | 'receiving' | 'pos';
+  } | null>(null);
+  const [editorScannerOpen, setEditorScannerOpen] = useState(false);
+  const [receivingAutoProduct, setReceivingAutoProduct] = useState<Product | null>(null);
+  const [posAutoProduct, setPosAutoProduct] = useState<Product | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dishQuery, setDishQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -358,10 +386,30 @@ export function RestaurantAdminShell({
 
   const slug = access.catalog?.slug ?? 'demo';
   const terms = getBusinessTerms(access.catalog?.businessType);
+  const groceryAccessMode = access.role === 'viewer'
+    || !['active', 'trial'].includes(access.subscriptionStatus)
+    ? 'read_only'
+    : 'active';
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
   const navItems = useMemo(() => {
     if (!workspaceAccess.canSeeFullWorkspace) {
       return [{ id: 'orders' as const, label: access.staffRole === 'manager' ? 'Очередь заказов' : 'Мои заказы', icon: ShoppingBag }];
+    }
+    if (isGrocery) {
+      const items: Array<{ id: AdminSection; label: string; icon: typeof Home }> = [
+        { id: 'home', label: 'Главная', icon: Home },
+        { id: 'pos', label: 'Касса', icon: Calculator },
+        { id: 'dishes', label: 'Товары', icon: Package },
+        { id: 'receiving', label: 'Поступление', icon: ClipboardPlus },
+        { id: 'orders', label: 'Заказы', icon: ShoppingBag },
+        { id: 'warehouse', label: 'Склад', icon: Package },
+        { id: 'catalog', label: 'Витрина', icon: Store },
+        { id: 'settings', label: 'Настройки', icon: Settings }
+      ];
+      if (workspaceAccess.canManageTeam) {
+        items.splice(6, 0, { id: 'team', label: 'Команда', icon: Users });
+      }
+      return items;
     }
     const items = baseNavItems.map((item) => item.id === 'dishes' ? { ...item, label: terms.items } : item);
     if (moduleAccess.pos !== 'disabled') {
@@ -376,7 +424,7 @@ export function RestaurantAdminShell({
       items.splice(settingsIndex, 0, { id: 'team', label: 'Команда', icon: Users });
     }
     return items;
-  }, [access.staffRole, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
+  }, [access.staffRole, isGrocery, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -404,20 +452,37 @@ export function RestaurantAdminShell({
             return getCatalogOrderAssignments(catalogId);
           })()
         : Promise.resolve([]);
-      const [catalog, restaurantOrders, assignments] = await Promise.all([
+      const inventoryPromise = isGrocery && catalogId
+        ? loadGroceryInventory(catalogId)
+        : Promise.resolve({ items: [], movements: [] });
+      const [catalog, restaurantOrders, assignments, inventory] = await Promise.all([
         loadCatalog(slug),
         getRestaurantOrders(slug),
-        assignmentPromise
+        assignmentPromise,
+        inventoryPromise
       ]);
+      const inventoryByProduct = new Map(inventory.items.map((item) => [item.productId, item]));
+      const isGroceryDemo = isGrocery && access.userId === 'demo-owner';
+      const loadedProducts = isGroceryDemo
+        ? groceryProducts
+        : catalog.products.length ? catalog.products : isGrocery ? [] : demoProducts;
       setCatalogData({
-        restaurant: catalog.restaurant,
-        categories: catalog.categories.length ? catalog.categories : demoCategories,
+        restaurant: isGroceryDemo ? groceryRestaurant : catalog.restaurant,
+        categories: isGroceryDemo
+          ? groceryCategories
+          : catalog.categories.length ? catalog.categories : isGrocery ? [] : demoCategories,
         cabins: catalog.cabins.length ? catalog.cabins : demoCabins,
-        products: catalog.products.length ? catalog.products : demoProducts,
+        products: loadedProducts.map((product) => {
+          const inventoryItem = inventoryByProduct.get(product.id);
+          return inventoryItem
+            ? { ...product, cost_price: inventoryItem.costPrice, minimum_stock: inventoryItem.minimumStock }
+            : product;
+        }),
         tags: catalog.tags,
-        theme: catalog.theme,
+        theme: isGroceryDemo ? groceryTheme : catalog.theme,
         photoQuality: catalog.photoQuality ?? DEFAULT_PHOTO_QUALITY_SETTINGS
       });
+      setInventoryMovements(inventory.movements);
       const knownIds = knownOrderIdsRef.current;
       const newOrders = hasLoadedOrdersRef.current
         ? restaurantOrders.filter((order) => order.status === 'new' && !knownIds.has(order.id))
@@ -449,11 +514,11 @@ export function RestaurantAdminShell({
       setOrderAssignments(assignments);
       setSelectedOrderId((current) => current ?? restaurantOrders[0]?.id ?? null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Не удалось загрузить данные ресторана');
+      toast.error(error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`);
     } finally {
       setIsLoadingData(false);
     }
-  }, [access.catalog?.id, access.staffRole, slug, workspaceAccess.canManageTeam]);
+  }, [access.catalog?.id, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]);
 
   useEffect(() => {
     void refreshData();
@@ -474,6 +539,10 @@ export function RestaurantAdminShell({
   }, [slug]);
 
   useEffect(() => {
+    if (isGrocery) {
+      setModuleAccess({ pos: groceryAccessMode, warehouse: groceryAccessMode });
+      return;
+    }
     if (!access.catalog?.id) return;
     let active = true;
     void getRestaurantModuleEntitlementByCatalog(access.catalog.id)
@@ -493,7 +562,7 @@ export function RestaurantAdminShell({
     return () => {
       active = false;
     };
-  }, [access.catalog?.id, access.subscriptionEndsAt, access.subscriptionStatus]);
+  }, [access.catalog?.id, access.subscriptionEndsAt, access.subscriptionStatus, groceryAccessMode, isGrocery]);
 
   useEffect(
     () => subscribeToRestaurantOrdersRealtime(access.catalog?.id, () => void refreshData()),
@@ -590,6 +659,66 @@ export function RestaurantAdminShell({
     toast.success('POS-заказ добавлен в общий список заказов');
   };
 
+  const openGroceryProductEditor = (
+    intent: 'products' | 'receiving' | 'pos',
+    product: Product | null = null,
+    barcode = ''
+  ) => {
+    setProductEditor({ intent, product, barcode });
+  };
+
+  const saveGroceryProduct = async (product: Product) => {
+    await saveProductToSupabase(product);
+    if (access.catalog?.id) {
+      await saveGroceryInventoryItem({
+        catalogId: access.catalog.id,
+        productId: product.id,
+        costPrice: product.cost_price ?? 0,
+        minimumStock: product.minimum_stock ?? 0
+      });
+    }
+    setCatalogData((current) => ({
+      ...current,
+      products: current.products.some((item) => item.id === product.id)
+        ? current.products.map((item) => item.id === product.id ? product : item)
+        : [...current.products, product]
+    }));
+    if (productEditor?.intent === 'receiving') setReceivingAutoProduct(product);
+    if (productEditor?.intent === 'pos') setPosAutoProduct(product);
+    toast.success(productEditor?.product ? 'Карточка товара обновлена' : 'Товар добавлен');
+  };
+
+  const postReceiving = async (
+    supplierName: string,
+    note: string,
+    lines: GroceryReceivingLineInput[]
+  ) => {
+    if (!access.catalog?.id) throw new Error('Каталог магазина не найден');
+    await postGroceryReceiving({ catalogId: access.catalog.id, supplierName, note, lines });
+    setCatalogData((current) => ({ ...current, products: applyReceivingLines(current.products, lines) }));
+    await refreshData({ silent: true });
+    toast.success('Поступление проведено');
+  };
+
+  const submitGroceryPosOrder = async (
+    lines: GroceryPosLine[],
+    customerName: string,
+    paymentMethod: 'cash' | 'transfer'
+  ) => {
+    await createRestaurantOrderFromCart({
+      slug,
+      businessType: 'grocery',
+      items: lines.map((line) => line.product.sale_unit === 'weight'
+        ? { product: line.product, quantity: 1, selected_weight: line.quantity / 1000 }
+        : { product: line.product, quantity: line.quantity }),
+      fulfillmentType: 'takeaway',
+      customerName: customerName || 'Покупатель на кассе',
+      comment: `Касса магазина · ${paymentMethod === 'cash' ? 'Наличные' : 'Перевод'}`
+    });
+    await refreshData({ silent: true });
+    toast.success('Заказ с кассы добавлен в общую очередь');
+  };
+
   const updateOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus) => {
     try {
       if (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace) {
@@ -676,7 +805,7 @@ export function RestaurantAdminShell({
 
   const saveExistingRestaurant = (restaurant: Restaurant) => {
     setCatalogData((current) => ({ ...current, restaurant }));
-    persistCatalogChange({ restaurant }, 'Профиль ресторана сохранён');
+    persistCatalogChange({ restaurant }, `Профиль ${terms.placeGenitive} сохранён`);
   };
 
   const saveExistingCategories = (categories: Category[]) => {
@@ -762,7 +891,7 @@ export function RestaurantAdminShell({
   };
 
   return (
-    <main className="restaurant-admin-shell">
+    <main className="restaurant-admin-shell" data-business-type={isGrocery ? 'grocery' : access.catalog?.businessType}>
       <aside className="restaurant-admin-sidebar">
         <div className="restaurant-admin-logo">
           <span>W</span>
@@ -783,7 +912,7 @@ export function RestaurantAdminShell({
           {catalogData.restaurant.logo_url ? <img src={catalogData.restaurant.logo_url} alt="" /> : <Store />}
           <div>
             <strong>{catalogData.restaurant.name}</strong>
-            <small>{catalogData.restaurant.subtitle || access.catalog?.businessType || 'restaurant'}</small>
+            <small>{catalogData.restaurant.subtitle || (isGrocery ? 'Продуктовый магазин' : access.catalog?.businessType || 'restaurant')}</small>
           </div>
         </div>
       </aside>
@@ -833,18 +962,33 @@ export function RestaurantAdminShell({
               revenue={revenue}
               popularProducts={popularProducts}
               terms={terms}
+              isGrocery={isGrocery}
+              onAddProduct={() => openGroceryProductEditor('products')}
               onNavigate={goTo}
             />
           )}
           {section === 'pos' && moduleAccess.pos !== 'disabled' && (
-            <RestaurantPosPage
-              restaurantName={catalogData.restaurant.name}
-              categories={catalogData.categories}
-              cabins={catalogData.cabins}
-              products={catalogData.products}
-              accessMode={moduleAccess.pos}
-              onSubmitOrder={submitPosOrder}
-            />
+            isGrocery ? (
+              <GroceryPosPage
+                storeName={catalogData.restaurant.name}
+                categories={catalogData.categories}
+                products={catalogData.products}
+                readOnly={groceryAccessMode === 'read_only'}
+                autoAddProduct={posAutoProduct}
+                onConsumeAutoAdd={() => setPosAutoProduct(null)}
+                onCreateProduct={(barcode) => openGroceryProductEditor('pos', null, barcode)}
+                onSubmit={submitGroceryPosOrder}
+              />
+            ) : (
+              <RestaurantPosPage
+                restaurantName={catalogData.restaurant.name}
+                categories={catalogData.categories}
+                cabins={catalogData.cabins}
+                products={catalogData.products}
+                accessMode={moduleAccess.pos}
+                onSubmitOrder={submitPosOrder}
+              />
+            )
           )}
           {section === 'catalog' && (
             <CatalogPreviewPage
@@ -856,16 +1000,38 @@ export function RestaurantAdminShell({
             />
           )}
           {section === 'dishes' && (
-            <DishesPage
-              products={filteredProducts}
-              allProducts={catalogData.products}
-              categories={catalogData.categories}
-              query={dishQuery}
-              categoryFilter={categoryFilter}
-              terms={terms}
-              onQueryChange={setDishQuery}
-              onCategoryFilterChange={setCategoryFilter}
-              onStocks={() => goTo('stocks')}
+            isGrocery ? (
+              <GroceryProductsPage
+                products={catalogData.products}
+                categories={catalogData.categories}
+                readOnly={groceryAccessMode === 'read_only'}
+                publicUrl={publicUrl}
+                onEdit={(product) => openGroceryProductEditor('products', product)}
+                onCreate={(barcode) => openGroceryProductEditor('products', null, barcode)}
+                onReceiving={() => goTo('receiving')}
+              />
+            ) : (
+              <DishesPage
+                products={filteredProducts}
+                allProducts={catalogData.products}
+                categories={catalogData.categories}
+                query={dishQuery}
+                categoryFilter={categoryFilter}
+                terms={terms}
+                onQueryChange={setDishQuery}
+                onCategoryFilterChange={setCategoryFilter}
+                onStocks={() => goTo('stocks')}
+              />
+            )
+          )}
+          {section === 'receiving' && isGrocery && (
+            <GroceryReceivingPage
+              products={catalogData.products}
+              readOnly={groceryAccessMode === 'read_only'}
+              autoAddProduct={receivingAutoProduct}
+              onConsumeAutoAdd={() => setReceivingAutoProduct(null)}
+              onCreateProduct={(barcode) => openGroceryProductEditor('receiving', null, barcode)}
+              onPost={postReceiving}
             />
           )}
           {section === 'orders' && (
@@ -891,10 +1057,20 @@ export function RestaurantAdminShell({
             />
           )}
           {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
-            <RestaurantWarehousePage
-              restaurantName={catalogData.restaurant.name}
-              accessMode={moduleAccess.warehouse}
-            />
+            isGrocery ? (
+              <GroceryWarehousePage
+                products={catalogData.products}
+                movements={inventoryMovements}
+                readOnly={groceryAccessMode === 'read_only'}
+                onReceiving={() => goTo('receiving')}
+                onEditProduct={(product) => openGroceryProductEditor('products', product)}
+              />
+            ) : (
+              <RestaurantWarehousePage
+                restaurantName={catalogData.restaurant.name}
+                accessMode={moduleAccess.warehouse}
+              />
+            )
           )}
           {section === 'stocks' && (
             <StocksPage
@@ -982,6 +1158,7 @@ export function RestaurantAdminShell({
               onChangePassword={() => setSettingsSection('password')}
               onActivate={() => navigate('/restaurant/activation')}
               legalActivationStatus={access.legalActivationStatus}
+              businessType={access.catalog?.businessType}
             />
           )}
         </section>
@@ -998,6 +1175,28 @@ export function RestaurantAdminShell({
           />
         ))}
       </nav>
+
+      {isGrocery && productEditor && (
+        <GroceryProductEditor
+          open
+          product={productEditor.product}
+          initialBarcode={productEditor.barcode}
+          categories={catalogData.categories}
+          barcodeExists={(barcode, exceptProductId) => catalogData.products.some((product) => product.id !== exceptProductId && product.barcode === barcode)}
+          onRequestScan={() => setEditorScannerOpen(true)}
+          onClose={() => setProductEditor(null)}
+          onSave={saveGroceryProduct}
+        />
+      )}
+      <BarcodeCaptureDialog
+        open={isGrocery && editorScannerOpen}
+        title="Штрих‑код карточки товара"
+        onClose={() => setEditorScannerOpen(false)}
+        onScan={(barcode) => {
+          setProductEditor((current) => current ? { ...current, barcode } : current);
+          setEditorScannerOpen(false);
+        }}
+      />
     </main>
   );
 }
@@ -1010,6 +1209,8 @@ function DashboardPage({
   revenue,
   popularProducts,
   terms,
+  isGrocery,
+  onAddProduct,
   onNavigate
 }: {
   restaurant: Restaurant;
@@ -1019,6 +1220,8 @@ function DashboardPage({
   revenue: number;
   popularProducts: Product[];
   terms: BusinessTerms;
+  isGrocery: boolean;
+  onAddProduct: () => void;
   onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void;
 }) {
   const counts = {
@@ -1070,8 +1273,9 @@ function DashboardPage({
         </article>
       </section>
       <section className="ra-quick-actions">
-        <button type="button" onClick={() => toast.info(`${terms.addItem}: форма откроется в существующем модуле`)}><Plus />{terms.addItem}</button>
-        <button type="button" onClick={() => onNavigate('stocks')}><Package />Обновить остатки</button>
+        <button type="button" onClick={() => isGrocery ? onAddProduct() : toast.info(`${terms.addItem}: форма откроется в существующем модуле`)}><Plus />{terms.addItem}</button>
+        <button type="button" onClick={() => onNavigate(isGrocery ? 'receiving' : 'stocks')}>{isGrocery ? <ClipboardPlus /> : <Package />}{isGrocery ? 'Новое поступление' : 'Обновить остатки'}</button>
+        {isGrocery && <button type="button" onClick={() => onNavigate('warehouse')}><Package />Открыть склад</button>}
         <button type="button" onClick={() => onNavigate('settings', 'profile')}><Settings />Настройки {terms.placeGenitive}</button>
         <button type="button" onClick={() => onNavigate('settings', 'import')}><Upload />Импорт / Экспорт</button>
       </section>

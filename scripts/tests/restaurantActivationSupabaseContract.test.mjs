@@ -152,7 +152,8 @@ test('restaurant owner enters the demo cabinet first and starts legal activation
     catalogAdminSource,
     /if\s*\(access\.legalActivationStatus\s*!==\s*'active'\)[\s\S]{0,200}<Navigate[^>]+restaurant\/activation/i
   );
-  assert.match(settingsHubSource, /Активировать ресторан/i);
+  assert.match(settingsHubSource, /businessType\s*=\s*'restaurant'/i);
+  assert.match(settingsHubSource, /Активировать \{terms\.placeAccusative\}/i);
   assert.match(restaurantWorkspaceSource, /getCatalogAdminAccess\(catalogSlug\)/i);
   assert.match(restaurantWorkspaceSource, /navigate\('\/restaurant\/activation'\)/i);
 });

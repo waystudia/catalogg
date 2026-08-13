@@ -1,6 +1,7 @@
 import { LocateFixed, MapPin, Plus, Store, X } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Restaurant } from '../../entities/models';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import { imageFileToDataUrl } from '../../shared/images';
 import {
@@ -14,11 +15,14 @@ const DEFAULT_RESTAURANT_LOCATION = { lat: 43.3184, lng: 45.6927 };
 
 export function ProfileSettings({
   restaurant,
+  businessType = 'restaurant',
   onSave
 }: {
   restaurant: Restaurant;
+  businessType?: BusinessType;
   onSave: (restaurant: Restaurant) => void;
 }) {
+  const terms = getBusinessTerms(businessType);
   const [draft, setDraft] = useState(restaurant);
   const [error, setError] = useState('');
   const [isLocating, setIsLocating] = useState(false);
@@ -68,7 +72,7 @@ export function ProfileSettings({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!draft.name.trim()) {
-      setError('Название ресторана обязательно.');
+      setError(`Название ${terms.placeGenitive} обязательно.`);
       return;
     }
     if (draft.whatsapp && !/^\+?\d{10,15}$/.test(draft.whatsapp)) {
@@ -89,7 +93,7 @@ export function ProfileSettings({
     const coordinatesFromFields = makeRestaurantCoordinates(draft.lat, draft.lng);
     const coordinatesFromLink = parseRestaurantCoordinatesFromMapLink(draft.mapLink);
     if ((draft.lat !== null || draft.lng !== null) && !coordinatesFromFields && !coordinatesFromLink) {
-      setError('Укажите корректные координаты ресторана.');
+      setError(`Укажите корректные координаты ${terms.placeGenitive}.`);
       return;
     }
     const coordinates = coordinatesFromLink ?? coordinatesFromFields;
@@ -150,7 +154,7 @@ export function ProfileSettings({
     <main className="settings-screen">
       <form className="settings-form-card" onSubmit={submit}>
         <div className="profile-field">
-          <span>Название ресторана</span>
+          <span>Название {terms.placeGenitive}</span>
           <div className="profile-identity-field">
             <label className="profile-logo-picker" aria-label="Заменить логотип">
               <input
@@ -185,7 +189,7 @@ export function ProfileSettings({
           <small>{draft.subtitle.length}/200</small>
         </label>
         <div className="profile-field">
-          <span>Обложки ресторана</span>
+          <span>Обложки {terms.placeGenitive}</span>
           <div className="profile-cover-grid">
             {[0, 1, 2].map((index) => (
               <div className="profile-cover-slot" key={index}>
@@ -271,7 +275,7 @@ export function ProfileSettings({
           </label>
         </div>
         <small className="profile-location-note">
-          Координаты используются в нашей карте и в маршруте до ресторана. Яндекс-ссылка нужна для внешней навигации.
+          Координаты используются в нашей карте и в маршруте до {terms.placeGenitive}. Яндекс-ссылка нужна для внешней навигации.
         </small>
         {isRestaurantMapOpen && (
           <div className="modal-backdrop delivery-map-backdrop">
@@ -284,7 +288,7 @@ export function ProfileSettings({
               >
                 <X />
               </button>
-              <h2>Точка ресторана</h2>
+              <h2>Точка {terms.placeGenitive}</h2>
               <DeliveryMapPicker
                 lat={draft.lat ?? DEFAULT_RESTAURANT_LOCATION.lat}
                 lng={draft.lng ?? DEFAULT_RESTAURANT_LOCATION.lng}
