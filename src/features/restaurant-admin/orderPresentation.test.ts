@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatOrderPaymentMethodMarker, formatAdminOrderItemQuantity, getAdminOrderFulfillmentLabel, getAdminOrderLocationLabel, getAdminOrderStatusLabel, groupAdminOrdersByMonth, getOrderPaymentMethod, getVisibleAdminOrderComment } from './orderPresentation';
+import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, formatOrderPaymentMethodMarker, getAdminOrderFulfillmentLabel, getAdminOrderLocationLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, groupAdminOrdersByMonth, getOrderPaymentMethod, getVisibleAdminOrderComment } from './orderPresentation';
 import type { RestaurantOrder } from '../../shared/api/restaurantOrdersApi';
 
 describe('order payment presentation', () => {
@@ -50,6 +50,14 @@ describe('order payment presentation', () => {
     const comment = ['[payment_method:cash]', 'Без лука'].join('\n');
 
     assert.equal(getVisibleAdminOrderComment(comment), 'Без лука');
+  });
+
+  it('uses only store payment wording and removes duplicate statuses for grocery orders', () => {
+    const savedStatus = getBusinessPaymentStatusLabel('Подтверждён рестораном', 'grocery');
+    const orderStatus = getBusinessPaymentStatusLabel('Подтверждён рестораном', 'grocery');
+
+    assert.equal(savedStatus, 'Подтверждён магазином');
+    assert.equal(formatAdminPaymentSummary(savedStatus, orderStatus), 'Подтверждён магазином');
   });
 
   it('raises active deliveries above month history using the latest delivery update', () => {
