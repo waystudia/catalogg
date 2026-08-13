@@ -810,3 +810,49 @@
     font-size: 14px;
   }
 }
+.dish-barcode-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.dish-barcode-field button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid #bcd9c8;
+  border-radius: 12px;
+  color: #176c47;
+  background: #effaf3;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.dish-barcode-field button:disabled { opacity: .55; }
+.dish-barcode-field svg { width: 18px; height: 18px; }
+.dish-barcode-field .is-spinning { animation: dish-shared-spin .8s linear infinite; }
+
+.dish-shared-lookup {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #77551f;
+  background: #fff6e7;
+  font-size: 13px;
+}
+
+.dish-shared-lookup--found { color: #176342; background: #eaf8ef; }
+.dish-shared-lookup svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+@keyframes dish-shared-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .dish-barcode-field { grid-template-columns: 1fr; }
+  .dish-barcode-field button { width: 100%; }
+}

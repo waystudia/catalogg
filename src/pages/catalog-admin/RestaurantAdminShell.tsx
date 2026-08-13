@@ -2,6 +2,7 @@ import {
   Bell,
   Calculator,
   ClipboardPlus,
+  Database,
   Eye,
   EyeOff,
   Home,
@@ -113,8 +114,9 @@ import { GroceryProductEditor } from '../../features/grocery-operations/GroceryP
 import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
 import '../../features/grocery-operations/grocery-operations.css';
+import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 
-type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
+type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
   | 'hub'
   | 'profile'
@@ -400,6 +402,7 @@ export function RestaurantAdminShell({
         { id: 'home', label: 'Главная', icon: Home },
         { id: 'pos', label: 'Касса', icon: Calculator },
         { id: 'dishes', label: 'Товары', icon: Package },
+        { id: 'shared-products', label: 'База товаров', icon: Database },
         { id: 'receiving', label: 'Поступление', icon: ClipboardPlus },
         { id: 'orders', label: 'Заказы', icon: ShoppingBag },
         { id: 'warehouse', label: 'Склад', icon: Package },
@@ -1034,6 +1037,9 @@ export function RestaurantAdminShell({
               onPost={postReceiving}
             />
           )}
+          {section === 'shared-products' && access.catalog?.businessType === 'grocery' && access.catalog.id && (
+            <SharedProductCatalogPage mode="merchant" catalogId={access.catalog.id} />
+          )}
           {section === 'orders' && (
             <OrdersPage
               orders={filteredOrders}
@@ -1064,6 +1070,7 @@ export function RestaurantAdminShell({
                 readOnly={groceryAccessMode === 'read_only'}
                 onReceiving={() => goTo('receiving')}
                 onEditProduct={(product) => openGroceryProductEditor('products', product)}
+                onOpenSharedProducts={() => goTo('shared-products')}
               />
             ) : (
               <RestaurantWarehousePage

@@ -11,7 +11,7 @@ describe('catalog sale persistence adapter', () => {
   it('reads normalized sale and inventory columns from platform products', () => {
     assert.match(
       source,
-      /select\('id, category_id, title, status, price,[^']*sku, barcode, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, stock_quantity, allow_substitution[^']*'\)/
+      /select\('id, category_id,[^']*title, status, price,[^']*sku, barcode, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, stock_quantity, allow_substitution[^']*'\)/
     );
   });
 
