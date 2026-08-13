@@ -4,9 +4,11 @@ import { render } from 'vitest-browser-react';
 import { useState } from 'react';
 import { groceryCategories, groceryProducts } from '../../src/data/groceryCatalog';
 import { GroceryPosPage } from '../../src/features/grocery-operations/GroceryPosPage';
+import { BarcodeCaptureDialog } from '../../src/features/grocery-operations/BarcodeCaptureDialog';
 import { GroceryProductEditor } from '../../src/features/grocery-operations/GroceryProductEditor';
 import { GroceryProductsPage } from '../../src/features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../src/features/grocery-operations/GroceryReceivingPage';
+import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
 import '../../src/features/grocery-operations/grocery-operations.css';
 
 function ProductEditorHarness() {
@@ -109,8 +111,8 @@ test('receiving finds a barcode and a repeated scan increments the same line', a
   }
 });
 
-test('POS repeated selection increments quantity and remains usable on desktop', async () => {
-  await page.viewport(1440, 900);
+test('POS repeated selection increments quantity and keeps the total visible in the reported compact desktop viewport', async () => {
+  await page.viewport(951, 576);
   try {
     const submit = vi.fn().mockResolvedValue(undefined);
     const screen = await render(
@@ -118,6 +120,15 @@ test('POS repeated selection increments quantity and remains usable on desktop',
         storeName="Финик"
         products={groceryProducts}
         categories={groceryCategories}
+        paymentSettings={{
+          ...defaultPaymentSettings,
+          transferEnabled: true,
+          allowCash: true,
+          displayName: 'Исаев Магомед',
+          bankName: 'Тестовый банк',
+          transferNumber: '+7 999 000-00-00',
+          qrUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20"/%3E'
+        }}
         readOnly={false}
         autoAddProduct={null}
         onConsumeAutoAdd={() => undefined}
@@ -137,7 +148,42 @@ test('POS repeated selection increments quantity and remains usable on desktop',
     await expect.element(screen.getByRole('spinbutton', { name: 'Количество Pepsi 1,5 л' })).toHaveValue(3);
     await expect.element(screen.getByText('525 ₽', { exact: true }).last()).toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Создать заказ' })).toBeEnabled();
+
+    await screen.getByLabelText('Получено наличными').fill('1000');
+    await expect.element(screen.getByText('Сдача 475 ₽', { exact: true })).toBeVisible();
+
+    await screen.getByRole('button', { name: /^Курага отборная/ }).click();
+    await expect.element(screen.getByRole('heading', { name: 'Введите вес' })).toBeVisible();
+    await screen.getByLabelText('Вес Курага отборная в граммах').fill('350');
+    await screen.getByRole('button', { name: 'Добавить в заказ' }).click();
+    await expect.element(screen.getByRole('spinbutton', { name: 'Количество Курага отборная' })).toHaveValue(350);
+
+    await screen.getByRole('button', { name: 'Перевод' }).click();
+    await expect.element(screen.getByRole('img', { name: 'QR-код для перевода магазину' })).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Создать заказ' })).toBeVisible();
+    const cart = document.querySelector<HTMLElement>('.grocery-pos-cart')!;
+    const footer = document.querySelector<HTMLElement>('.grocery-pos-cart > footer')!;
+    const posRoot = document.querySelector<HTMLElement>('.grocery-pos-page')!;
+    expect(footer.getBoundingClientRect().bottom).toBeLessThanOrEqual(cart.getBoundingClientRect().bottom + 1);
+    expect(cart.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth + 1);
+    expect(posRoot.scrollWidth).toBeLessThanOrEqual(posRoot.clientWidth + 1);
   } finally {
     await page.viewport(414, 896);
+  }
+});
+
+test('POS scanner requests camera access immediately when the dialog opens', async () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const getUserMedia = vi.fn(() => new Promise<MediaStream>(() => undefined));
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  try {
+    const screen = await render(
+      <BarcodeCaptureDialog open autoStartCamera onClose={() => undefined} onScan={() => undefined} />
+    );
+    await expect.poll(() => getUserMedia.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole('button', { name: 'Включаем камеру…' })).toBeVisible();
+  } finally {
+    if (originalDescriptor) Object.defineProperty(navigator, 'mediaDevices', originalDescriptor);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
   }
 });

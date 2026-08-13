@@ -1,43 +1,16 @@
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
-import type {
-  Cabin,
-  CatalogTag,
-  Category,
-  Product,
-  Restaurant,
-  ThemeSettings
-} from '../../entities/models';
+import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import type { RestaurantDeliverySettings } from '../../shared/api/restaurantOrdersApi';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import type { PhotoQualitySettings } from '../../shared/photoQuality';
-import {
-  DesignSettingsHome,
-  PhotoQualitySettingsScreen,
-  ThemeSettingsScreen
-} from '../design-settings';
-import {
-  BackupSettings,
-  CategoriesSettings,
-  DeliverySettingsCard,
-  PaymentSettingsCard,
-  ProfileSettings,
-  SettingsHub
-} from '../restaurant-settings';
+import { DesignSettingsHome, PhotoQualitySettingsScreen, ThemeSettingsScreen } from '../design-settings';
+import { BackupSettings, CategoriesSettings, DeliverySettingsCard, PaymentSettingsCard, ProfileSettings, SettingsHub } from '../restaurant-settings';
 import type { CatalogBackupPayload } from '../restaurant-settings/catalogAdminModel';
 import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
 import type { BusinessType } from '../../shared/businessTerminology';
 
-export type ExistingRestaurantSettingsView =
-  | 'home'
-  | 'profile'
-  | 'design'
-  | 'theme'
-  | 'photo-quality'
-  | 'categories'
-  | 'payments'
-  | 'backup'
-  | 'delivery';
+export type ExistingRestaurantSettingsView = 'home' | 'profile' | 'design' | 'theme' | 'photo-quality' | 'categories' | 'payments' | 'backup' | 'delivery';
 
 type SettingsCatalogTab = 'tags' | 'cabins' | 'categories';
 type CategoryEditorMode = 'list' | 'edit' | 'add';
@@ -98,8 +71,14 @@ export function ExistingRestaurantSettingsPage({
 }) {
   const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
   const [catalogTab, setCatalogTab] = useState<SettingsCatalogTab>('categories');
-  const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; id?: string }>({ mode: 'list' });
-  const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; id?: string }>({ mode: 'list' });
+  const [categoryEditor, setCategoryEditor] = useState<{
+    mode: CategoryEditorMode;
+    id?: string;
+  }>({ mode: 'list' });
+  const [cabinEditor, setCabinEditor] = useState<{
+    mode: CabinEditorMode;
+    id?: string;
+  }>({ mode: 'list' });
 
   if (view === 'home') {
     return (
@@ -110,11 +89,15 @@ export function ExistingRestaurantSettingsPage({
           setCatalogTab('categories');
           setView('categories');
         }}
-        onSeating={businessType === 'restaurant' || businessType === 'coffee_shop' ? () => {
-          setCatalogTab('cabins');
-          setCabinEditor({ mode: 'list' });
-          setView('categories');
-        } : undefined}
+        onSeating={
+          businessType === 'restaurant' || businessType === 'coffee_shop'
+            ? () => {
+                setCatalogTab('cabins');
+                setCabinEditor({ mode: 'list' });
+                setView('categories');
+              }
+            : undefined
+        }
         onPayments={() => setView('payments')}
         onImport={() => setView('backup')}
         onDelivery={() => setView('delivery')}
@@ -128,41 +111,30 @@ export function ExistingRestaurantSettingsPage({
   }
 
   if (view === 'delivery') {
-    return (
-      <DeliverySettingsCard
-        catalogSlug={catalogSlug}
-        settings={deliverySettings}
-        onSave={onSaveDelivery}
-        onOpenBackup={() => setView('backup')}
-        onBack={() => setView('home')}
-      />
-    );
+    return <DeliverySettingsCard catalogSlug={catalogSlug} settings={deliverySettings} onSave={onSaveDelivery} onOpenBackup={() => setView('backup')} onBack={() => setView('home')} />;
   }
 
   return (
     <section className="existing-restaurant-settings">
-      <button className="ra-back-button" type="button" onClick={() => {
-        if (view === 'theme' || view === 'photo-quality') {
-          setView('design');
-          return;
-        }
-        setView('home');
-      }}>
+      <button
+        className="ra-back-button"
+        type="button"
+        onClick={() => {
+          if (view === 'theme' || view === 'photo-quality') {
+            setView('design');
+            return;
+          }
+          setView('home');
+        }}
+      >
         <ArrowLeft />
         Вернуться к настройкам
       </button>
 
       {view === 'profile' && <ProfileSettings restaurant={restaurant} businessType={businessType} onSave={onSaveRestaurant} />}
-      {view === 'design' && (
-        <DesignSettingsHome
-          onOpenTheme={() => setView('theme')}
-          onOpenPhotoQuality={() => setView('photo-quality')}
-        />
-      )}
+      {view === 'design' && <DesignSettingsHome onOpenTheme={() => setView('theme')} onOpenPhotoQuality={() => setView('photo-quality')} />}
       {view === 'theme' && <ThemeSettingsScreen theme={theme} onChange={onSaveTheme} />}
-      {view === 'photo-quality' && (
-        <PhotoQualitySettingsScreen products={products} value={photoQuality} onSave={onSavePhotoQuality} />
-      )}
+      {view === 'photo-quality' && <PhotoQualitySettingsScreen products={products} value={photoQuality} onSave={onSavePhotoQuality} />}
       {view === 'categories' && (
         <CategoriesSettings
           categories={categories}
@@ -186,20 +158,8 @@ export function ExistingRestaurantSettingsPage({
           onChangeTags={onSaveTags}
         />
       )}
-      {view === 'payments' && (
-        <PaymentSettingsCard slug={catalogSlug} settings={paymentSettings} onSave={onSavePayments} />
-      )}
-      {view === 'backup' && (
-        <BackupSettings
-          restaurant={restaurant}
-          categories={categories}
-          cabins={cabins}
-          tags={tags}
-          products={products}
-          theme={theme}
-          onImport={onImport}
-        />
-      )}
+      {view === 'payments' && <PaymentSettingsCard slug={catalogSlug} settings={paymentSettings} businessType={businessType} onSave={onSavePayments} />}
+      {view === 'backup' && <BackupSettings restaurant={restaurant} categories={categories} cabins={cabins} tags={tags} products={products} theme={theme} onImport={onImport} />}
     </section>
   );
 }

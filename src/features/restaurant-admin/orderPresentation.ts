@@ -1,8 +1,5 @@
 import { buildYandexMapsRouteUrl } from '../order/orderLifecycle';
-import type {
-  RestaurantOrder,
-  RestaurantOrderStatus
-} from '../../shared/api/restaurantOrdersApi';
+import type { RestaurantOrder, RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 import type { PaymentStatus } from '../../shared/paymentSettings';
 
 export type AdminOrderFilter = 'all' | 'new' | 'preparing' | 'on_the_way' | 'delivered' | 'cancelled';
@@ -27,10 +24,7 @@ export const adminOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
   canceled: 'Отменен'
 };
 
-export const adminOrderStatusTones: Record<
-  RestaurantOrderStatus,
-  'new' | 'work' | 'ready' | 'delivery' | 'done' | 'danger'
-> = {
+export const adminOrderStatusTones: Record<RestaurantOrderStatus, 'new' | 'work' | 'ready' | 'delivery' | 'done' | 'danger'> = {
   new: 'new',
   waiting_payment_confirmation: 'work',
   payment_confirmed: 'work',
@@ -56,11 +50,31 @@ export const adminOrderStatusFilters: Array<{
   orderStatuses: RestaurantOrderStatus[];
 }> = [
   { status: 'all', label: 'Все', orderStatuses: [] },
-  { status: 'new', label: 'Новые', orderStatuses: ['new', 'waiting_payment_confirmation', 'payment_confirmed'] },
-  { status: 'preparing', label: 'Готовятся', orderStatuses: ['accepted', 'confirmed', 'preparing', 'cooking', 'ready'] },
-  { status: 'on_the_way', label: 'В пути', orderStatuses: ['waiting_driver', 'driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'] },
-  { status: 'delivered', label: 'Доставлены', orderStatuses: ['delivered', 'completed'] },
-  { status: 'cancelled', label: 'Отменены', orderStatuses: ['cancelled', 'canceled'] }
+  {
+    status: 'new',
+    label: 'Новые',
+    orderStatuses: ['new', 'waiting_payment_confirmation', 'payment_confirmed']
+  },
+  {
+    status: 'preparing',
+    label: 'Готовятся',
+    orderStatuses: ['accepted', 'confirmed', 'preparing', 'cooking', 'ready']
+  },
+  {
+    status: 'on_the_way',
+    label: 'В пути',
+    orderStatuses: ['waiting_driver', 'driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way']
+  },
+  {
+    status: 'delivered',
+    label: 'Доставлены',
+    orderStatuses: ['delivered', 'completed']
+  },
+  {
+    status: 'cancelled',
+    label: 'Отменены',
+    orderStatuses: ['cancelled', 'canceled']
+  }
 ];
 
 export const fulfillmentLabels: Record<string, string> = {
@@ -96,14 +110,32 @@ export function getAdminOrderItemsCount(order: RestaurantOrder) {
   return order.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
 }
 
-export function getAdminOrderLocationLabel(order: RestaurantOrder) {
-  return (
-    order.deliverySettlement ||
-    order.deliveryCity ||
-    order.deliveryAddress ||
-    order.cabinLabel ||
-    (order.fulfillmentType === 'takeaway' ? 'Самовывоз' : 'В зале')
-  );
+export function getAdminOrderStatusLabel(status: RestaurantOrderStatus, businessType?: string) {
+  if (businessType !== 'grocery') return adminOrderStatusLabels[status];
+  if (status === 'preparing' || status === 'cooking') return 'Собирается';
+  if (status === 'ready') return 'Собран';
+  return adminOrderStatusLabels[status];
+}
+
+export function getAdminOrderFulfillmentLabel(order: RestaurantOrder, businessType?: string) {
+  if (businessType !== 'grocery') return fulfillmentLabels[order.fulfillmentType];
+  if (order.fulfillmentType === 'delivery') return 'Доставка';
+  return order.comment.includes('Касса магазина') ? 'Покупка в магазине' : 'Самовывоз';
+}
+
+export function getAdminOrderLocationLabel(order: RestaurantOrder, businessType?: string) {
+  if (businessType === 'grocery' && order.fulfillmentType !== 'delivery') {
+    return order.comment.includes('Касса магазина') ? 'Касса магазина' : 'Самовывоз';
+  }
+  return order.deliverySettlement || order.deliveryCity || order.deliveryAddress || order.cabinLabel || (order.fulfillmentType === 'takeaway' ? 'Самовывоз' : 'В зале');
+}
+
+export function formatAdminOrderItemQuantity(item: RestaurantOrder['items'][number], businessType?: string) {
+  if (businessType === 'grocery' && item.saleUnit === 'weight') {
+    const grams = Math.max(0, Math.round(item.requestedQuantity ?? item.quantity));
+    return `${new Intl.NumberFormat('ru-RU').format(grams)} г × ${new Intl.NumberFormat('ru-RU').format(item.unitPrice)} ₽/кг`;
+  }
+  return `${item.quantity} × ${new Intl.NumberFormat('ru-RU').format(item.unitPrice)} ₽`;
 }
 
 export function getVisibleAdminOrderComment(comment: string) {
@@ -124,12 +156,7 @@ export function getAdminOrderWhatsAppHref(phone: string) {
 }
 
 export function getAdminOrderRouteHref(order: RestaurantOrder) {
-  if (
-    order.deliveryLat === null ||
-    order.deliveryLng === null ||
-    !Number.isFinite(order.deliveryLat) ||
-    !Number.isFinite(order.deliveryLng)
-  ) return '';
+  if (order.deliveryLat === null || order.deliveryLng === null || !Number.isFinite(order.deliveryLat) || !Number.isFinite(order.deliveryLng)) return '';
 
   return buildYandexMapsRouteUrl({
     from: {
@@ -146,36 +173,36 @@ export function getAdminOrderRouteHref(order: RestaurantOrder) {
 }
 
 export function groupAdminOrdersByMonth(orders: readonly RestaurantOrder[]) {
-  const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
+  const formatter = new Intl.DateTimeFormat('ru-RU', {
+    month: 'long',
+    year: 'numeric'
+  });
   const groups = new Map<string, { key: string; label: string; orders: RestaurantOrder[] }>();
-  const activeDeliveryOrders = orders
-    .filter(
-      (order) =>
-        order.fulfillmentType === 'delivery' &&
-        !['delivered', 'completed', 'cancelled', 'canceled'].includes(order.status) &&
-        !['delivered', 'failed'].includes(order.deliveryStatus)
-    )
-    .sort(
-      (left, right) =>
-        new Date(right.deliveryUpdatedAt ?? right.createdAt).getTime() -
-        new Date(left.deliveryUpdatedAt ?? left.createdAt).getTime()
-    );
+  const activeDeliveryOrders = orders.filter((order) => order.fulfillmentType === 'delivery' && !['delivered', 'completed', 'cancelled', 'canceled'].includes(order.status) && !['delivered', 'failed'].includes(order.deliveryStatus)).sort((left, right) => new Date(right.deliveryUpdatedAt ?? right.createdAt).getTime() - new Date(left.deliveryUpdatedAt ?? left.createdAt).getTime());
   const activeOrderIds = new Set(activeDeliveryOrders.map((order) => order.id));
-  const sortedOrders = orders.filter((order) => !activeOrderIds.has(order.id)).sort(
-    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
-  );
+  const sortedOrders = orders.filter((order) => !activeOrderIds.has(order.id)).sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
 
   for (const order of sortedOrders) {
     const date = new Date(order.createdAt);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const group = groups.get(key) ?? { key, label: formatter.format(date), orders: [] };
+    const group = groups.get(key) ?? {
+      key,
+      label: formatter.format(date),
+      orders: []
+    };
     group.orders.push(order);
     groups.set(key, group);
   }
 
   return [
     ...(activeDeliveryOrders.length > 0
-      ? [{ key: 'active-deliveries', label: 'Активные доставки', orders: activeDeliveryOrders }]
+      ? [
+          {
+            key: 'active-deliveries',
+            label: 'Активные доставки',
+            orders: activeDeliveryOrders
+          }
+        ]
       : []),
     ...groups.values()
   ];
@@ -183,7 +210,9 @@ export function groupAdminOrdersByMonth(orders: readonly RestaurantOrder[]) {
 
 export function playRestaurantAdminOrderSound() {
   try {
-    const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+    const audioWindow = window as typeof window & {
+      webkitAudioContext?: typeof AudioContext;
+    };
     const AudioContextCtor = window.AudioContext ?? audioWindow.webkitAudioContext;
     if (!AudioContextCtor) return;
 
@@ -213,10 +242,7 @@ export function playRestaurantAdminOrderSound() {
       oscillator.start(startsAt);
       oscillator.stop(endsAt);
     });
-    window.setTimeout(
-      () => void audio.close(),
-      Math.max(100, Math.ceil((soundEndsAt - audio.currentTime) * 1000) + 100)
-    );
+    window.setTimeout(() => void audio.close(), Math.max(100, Math.ceil((soundEndsAt - audio.currentTime) * 1000) + 100));
   } catch {
     // Browsers may block notification sounds until a user gesture.
   }
