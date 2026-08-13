@@ -61,6 +61,7 @@ import {
   deletePlatformContestTicket,
   deletePlatformBanner,
   getClients,
+  getSellerApplicationDocuments,
   getPlatformContestTickets,
   getPlatformAnalytics,
   getPlatformBanners,
@@ -640,6 +641,35 @@ function ClientAvatar({ client }: { client: PlatformClient }) {
   );
 }
 
+const partnerDocumentLabels: Record<string, string> = {
+  registration: 'Регистрация бизнеса',
+  identity: 'Документ владельца'
+};
+
+function SellerApplicationDocuments({ client }: { client: PlatformClient }) {
+  const documentsQuery = useQuery({
+    queryKey: ['seller-application-documents', client.id],
+    queryFn: () => getSellerApplicationDocuments(client.id),
+    enabled: client.onboardingSource === 'self_service' && Boolean(client.documentsSubmittedAt),
+    staleTime: 5 * 60 * 1000
+  });
+
+  if (client.onboardingSource !== 'self_service') return null;
+  if (!client.documentsSubmittedAt) return <small className="self-service-documents">Документы ещё не отправлены</small>;
+  if (documentsQuery.isLoading) return <small className="self-service-documents">Загружаем документы…</small>;
+  if (documentsQuery.isError) return <small className="self-service-documents is-error">Не удалось открыть документы</small>;
+
+  return (
+    <span className="self-service-documents">
+      {(documentsQuery.data ?? []).map((document) => (
+        <a href={document.signedUrl} target="_blank" rel="noreferrer" key={document.id}>
+          {partnerDocumentLabels[document.documentType] ?? document.fileName}
+        </a>
+      ))}
+    </span>
+  );
+}
+
 function StatusBadge({ status }: { status: PlatformClient['status'] }) {
   return <span className={`status-badge status-badge--${status}`}>{statusLabels[status]}</span>;
 }
@@ -790,6 +820,7 @@ function ClientTable({ clients, onEdit }: { clients: PlatformClient[]; onEdit: (
                       <small>{client.catalogSlug}</small>
                       {client.ownerName && <small>{client.ownerName}</small>}
                       {client.onboardingSource === 'self_service' && <small className="self-service-badge">Саморегистрация · {client.reviewState === 'pending' ? 'на проверке' : client.reviewState === 'draft' ? 'черновик' : client.reviewState}</small>}
+                      <SellerApplicationDocuments client={client} />
                     </span>
                   </div>
                 </td>
@@ -898,6 +929,7 @@ function ClientCards({
                 <strong>{client.companyName}</strong>
                 <small>{client.email}</small>
                 {client.onboardingSource === 'self_service' && <small className="self-service-badge">Саморегистрация · {client.reviewState === 'pending' ? 'на проверке' : client.reviewState === 'draft' ? 'черновик' : client.reviewState}</small>}
+                <SellerApplicationDocuments client={client} />
               </div>
               <button type="button" aria-label="Действия" onClick={() => onEdit(client)}>
                 <MoreHorizontal />
