@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['react-dom/client']
+    include: ['react-dom/client', '@huggingface/transformers']
   },
   test: {
     projects: [
