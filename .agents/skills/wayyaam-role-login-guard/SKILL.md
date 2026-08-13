@@ -28,6 +28,10 @@ separate stages. Prove which stage failed before changing passwords or role rows
    Never create a parallel role table or authorize from `user_metadata`.
 6. If role resolution is correct, inspect scoped browser-session handoff and
    `returnTo` routing rather than modifying the database.
+7. Reproduce the route from a plain `#/profile` tab as well as a direct
+   `returnTo` URL. Hash-only navigation does not reload the document, so compare
+   the active `assets/index-*.js` with the current no-store shell before blaming
+   credentials or role rows.
 
 ## Required invariants
 
@@ -41,6 +45,10 @@ separate stages. Prove which stage failed before changing passwords or role rows
   unsafe or cross-role `returnTo` values.
 - A missing production Supabase configuration must report a service
   configuration error, not “account is not linked.”
+- Opening the production login panel must call `refreshStaleAuthClient()`. If an
+  already-open tab runs an older hashed main asset, reload the document with the
+  same hash/`returnTo` before accepting credentials. Never persist the password
+  across this refresh.
 
 ## Release hook
 
