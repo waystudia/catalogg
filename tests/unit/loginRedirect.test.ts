@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertExpectedLoginRole,
+  getExpectedLoginRoleForReturnTo,
   getCatalogWorkspaceRedirect
 } from '../../src/shared/api/loginRedirectApi';
 import { buildProfileLoginPath, resolveProfileLoginTarget } from '../../src/shared/appNavigation';
@@ -26,6 +27,13 @@ describe('staff login role selection', () => {
   it('routes groceries to the universal business workspace without changing restaurants', () => {
     expect(getCatalogWorkspaceRedirect({ slug: 'finik', business_type: 'grocery' })).toBe('/business/finik');
     expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/mangal/dashboard');
+  });
+
+  it('does not let a role login fall back to an ordinary customer account', () => {
+    expect(getExpectedLoginRoleForReturnTo('/business/finik')).toBe('restaurant');
+    expect(getExpectedLoginRoleForReturnTo('/admin/clients')).toBe('restaurant');
+    expect(getExpectedLoginRoleForReturnTo('/driver/orders')).toBe('driver');
+    expect(getExpectedLoginRoleForReturnTo('/r/finik/checkout')).toBeUndefined();
   });
 
   it('accepts the matching driver and restaurant destinations', () => {

@@ -64,9 +64,10 @@ describe('white-label storefront context', () => {
     expect(shouldResolveCustomStorefront('finiki.example')).toBe(true);
   });
 
-  it('opens exclusive grocery domains in the weighted catalog without changing restaurant domains', () => {
-    expect(getExclusiveStorefrontHomePath(storefront)).toBe('/r/finiki');
+  it('opens every exclusive business type in the shared catalog interface', () => {
+    expect(getExclusiveStorefrontHomePath(storefront)).toBe('/finiki');
     expect(getExclusiveStorefrontHomePath({ ...storefront, businessType: 'restaurant' })).toBe('/finiki');
+    expect(getExclusiveStorefrontHomePath({ ...storefront, businessType: 'flowers' })).toBe('/finiki');
   });
 
   it('removes every other merchant while retaining shared WayYaam campaigns and support', () => {

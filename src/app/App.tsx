@@ -1005,7 +1005,7 @@ function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-function CatalogScreen({
+export function CatalogScreen({
   restaurant,
   categories,
   products,

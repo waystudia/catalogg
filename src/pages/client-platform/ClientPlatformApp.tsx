@@ -97,7 +97,10 @@ import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
-import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
+import {
+  getExpectedLoginRoleForReturnTo,
+  resolveUnifiedLogin
+} from '../../shared/api/loginRedirectApi';
 import { redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
@@ -2710,6 +2713,7 @@ function ProfilePage() {
   const clientReturnTo = returnToValue.startsWith('/') && !returnToValue.startsWith('//')
     ? returnToValue
     : '/profile';
+  const expectedLoginRole = getExpectedLoginRoleForReturnTo(clientReturnTo);
 
   useEffect(() => {
     let isMounted = true;
@@ -2725,7 +2729,9 @@ function ProfilePage() {
             saveProfile({ name: session.name, phone: session.phone });
             setClientName(session.name);
             setAccountIdentifier(session.phone);
-            setClientMessage('Вы вошли в аккаунт');
+            if (!expectedLoginRole) {
+              setClientMessage('Вы вошли в аккаунт');
+            }
           }
         })
         .catch(() => {
@@ -2740,7 +2746,7 @@ function ProfilePage() {
       isMounted = false;
       if (retryId !== null) window.clearTimeout(retryId);
     };
-  }, [saveProfile]);
+  }, [expectedLoginRole, saveProfile]);
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2755,7 +2761,7 @@ function ProfilePage() {
 
       setIsSavingClient(true);
       try {
-        const redirect = await resolveUnifiedLogin(identifier, clientPassword);
+        const redirect = await resolveUnifiedLogin(identifier, clientPassword, expectedLoginRole);
         if (!redirect) {
           setClientError('Неверный телефон, email или пароль.');
           return;

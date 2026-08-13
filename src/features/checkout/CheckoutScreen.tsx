@@ -1075,6 +1075,7 @@ export function CheckoutScreen({
             saveClientProfile({ name: profileName, phone: profilePhone });
             const orderPayload: CreateRestaurantOrderFromCartInput = {
               slug: catalogSlug,
+              businessType: restaurant.business_type,
               items,
               fulfillmentType: mode,
               cabinLabel: mode === 'hall' ? selectedCabin?.title ?? '' : '',

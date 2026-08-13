@@ -9,6 +9,7 @@ const migration = migrationName
   : '';
 const createClientFunction = readFileSync('supabase/functions/create-client/index.ts', 'utf8');
 const updateClientFunction = readFileSync('supabase/functions/update-client/index.ts', 'utf8');
+const platformAdminSource = readFileSync('src/pages/platform-admin/PlatformAdminApp.tsx', 'utf8');
 const catalogPolicyMigration = readFileSync(
   'supabase/migrations/20260809090226_restaurant_preactivation_test_catalogs.sql',
   'utf8'
@@ -56,7 +57,15 @@ describe('multi-business onboarding contract', () => {
     assert.match(updateClientFunction, /from\('business_types'\)[\s\S]*\.eq\('code', payload\.businessType\)/);
     assert.match(updateClientFunction, /businessTypeRecord\.availability !== 'active'/);
     assert.doesNotMatch(updateClientFunction, /\['restaurant', 'coffee_shop', 'confectionery'\]\.includes\(payload\.businessType\)/);
-    assert.match(updateClientFunction, /payload\.businessType === 'grocery'[\s\S]*?'draft'/);
+    assert.match(updateClientFunction, /payload\.catalogStatus === 'published'[\s\S]*?effectiveClientStatus !== 'active'/);
+    assert.match(updateClientFunction, /catalogUpdates\.status = effectiveClientStatus === 'active' \? payload\.catalogStatus : 'draft'/);
+    assert.doesNotMatch(updateClientFunction, /payload\.businessType === 'grocery'[\s\S]*?catalogUpdates\.status = 'draft'/);
+  });
+
+  it('lets the platform administrator publish an active grocery catalog explicitly', () => {
+    assert.match(platformAdminSource, /catalogStatus: 'published'/);
+    assert.match(platformAdminSource, /Опубликовать/);
+    assert.match(updateClientFunction, /changed_catalog_status: payload\.catalogStatus !== undefined/);
   });
 
   it('keeps draft catalogs private and member access scoped to the current catalog', () => {

@@ -1,7 +1,7 @@
 export function getCatalogPublicUrl(slug: string): string {
   const cleanSlug = slug.replace(/^\/+|\/+$/g, '');
   const base = new URL(import.meta.env.BASE_URL, window.location.origin);
-  base.hash = `/r/${cleanSlug}`;
+  base.hash = `/${cleanSlug}`;
   return base.toString();
 }
 

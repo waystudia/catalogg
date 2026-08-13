@@ -13,10 +13,16 @@ const PROFILE_CHECK_TIMEOUT_MS = 10_000;
 const PROFILE_SERVICE_ERROR = 'Сервис профилей временно не отвечает. Повторите вход через несколько секунд.';
 
 const isRestaurantRedirect = (redirect: string) =>
-  redirect === '/admin' ||
+  /^\/admin(?:\/|$)/.test(redirect) ||
   redirect === '/restaurant/activation' ||
   /^\/business\/[^/]+(?:\/|$)/.test(redirect) ||
   /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
+
+export const getExpectedLoginRoleForReturnTo = (returnTo: string): StaffLoginRole | undefined => {
+  if (/^\/driver(?:\/|$)/.test(returnTo)) return 'driver';
+  if (isRestaurantRedirect(returnTo)) return 'restaurant';
+  return undefined;
+};
 
 export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLoginRole) => {
   if (!expectedRole) return;
@@ -221,20 +227,26 @@ export async function resolveLoginRedirect(
 const isCredentialError = (error: unknown) =>
   error instanceof Error && /неверн|invalid login credentials/i.test(error.message);
 
-export async function resolveUnifiedLogin(identifier: string, password: string) {
+export async function resolveUnifiedLogin(
+  identifier: string,
+  password: string,
+  expectedRole?: StaffLoginRole
+) {
   const normalizedIdentifier = identifier.trim();
   const usesEmail = normalizedIdentifier.includes('@');
 
   try {
-    const redirect = await resolveLoginRedirect(normalizedIdentifier, password);
+    const redirect = await resolveLoginRedirect(normalizedIdentifier, password, expectedRole);
     if (redirect && redirect !== '/') {
       if (redirect === '/profile') await loginCurrentAuthClientAccount();
       return redirect;
     }
   } catch (error) {
-    if (usesEmail || !isCredentialError(error)) throw error;
+    if (usesEmail || expectedRole || !isCredentialError(error)) throw error;
   }
 
+  if (expectedRole === 'driver') throw new Error('Этот аккаунт не является водителем.');
+  if (expectedRole === 'restaurant') throw new Error('Этот аккаунт не привязан к ресторану.');
   if (usesEmail) {
     throw new Error('Аккаунт не привязан к WayYaam.');
   }

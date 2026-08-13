@@ -875,11 +875,15 @@ function ClientEmptyState({ onCreate }: { onCreate: () => void }) {
 function ClientCards({
   clients,
   stats,
-  onEdit
+  onEdit,
+  onPublish,
+  publishingClientId
 }: {
   clients: PlatformClient[];
   stats?: PlatformStats;
   onEdit: (client: PlatformClient) => void;
+  onPublish: (client: PlatformClient) => void;
+  publishingClientId: string | null;
 }) {
   return (
     <section className="client-card-list">
@@ -906,13 +910,25 @@ function ClientCards({
               <span><strong>{formatMoney(clientStats?.revenue ?? 0)}</strong><small>Выручка</small></span>
               <span><strong>{clientStats?.ordersCount ?? 0}</strong><small>Заказы</small></span>
             </div>
-            <button
-              className="client-card__open"
-              type="button"
-              onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')}
-            >
-              Открыть
-            </button>
+            <div className="client-card__actions">
+              <button
+                className="client-card__open"
+                type="button"
+                onClick={() => window.open(publicUrl, '_blank', 'noopener,noreferrer')}
+              >
+                Открыть
+              </button>
+              {client.catalogStatus !== 'published' && (
+                <button
+                  className="client-card__publish"
+                  type="button"
+                  disabled={client.status !== 'active' || publishingClientId === client.id}
+                  onClick={() => onPublish(client)}
+                >
+                  {publishingClientId === client.id ? 'Публикуем…' : 'Опубликовать'}
+                </button>
+              )}
+            </div>
           </article>
         );
       })}
@@ -1693,6 +1709,7 @@ function ClientsPage({
   const [templateId, setTemplateId] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [publishingClientId, setPublishingClientId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search);
 
   const templatesQuery = useQuery({
@@ -1723,6 +1740,23 @@ function ClientsPage({
     (left, right) => Number(right.status === 'active') - Number(left.status === 'active')
   );
   const total = clientsQuery.data?.count ?? 0;
+
+  const publishClient = async (client: PlatformClient) => {
+    if (client.status !== 'active') {
+      toast.error('Сначала сделайте клиента активным');
+      return;
+    }
+    setPublishingClientId(client.id);
+    try {
+      await updateClient({ clientId: client.id, catalogStatus: 'published' });
+      toast.success(`Каталог «${client.companyName}» опубликован`);
+      await Promise.all([clientsQuery.refetch(), statsQuery.refetch()]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось опубликовать каталог');
+    } finally {
+      setPublishingClientId(null);
+    }
+  };
 
   return (
     <main className="platform-page clients-page">
@@ -1778,7 +1812,13 @@ function ClientsPage({
             <small>Сначала активные</small>
           </header>
           <ClientTable clients={clients} onEdit={onEdit} />
-          <ClientCards clients={clients} stats={statsQuery.data} onEdit={onEdit} />
+          <ClientCards
+            clients={clients}
+            stats={statsQuery.data}
+            onEdit={onEdit}
+            onPublish={(client) => void publishClient(client)}
+            publishingClientId={publishingClientId}
+          />
           <Pagination
             page={page}
             pageSize={pageSize}

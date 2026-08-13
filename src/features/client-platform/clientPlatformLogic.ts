@@ -110,9 +110,7 @@ export const filterRestaurantsWithCityFallback = (
 
 export const buildRestaurantPublicPath = (
   restaurant: Pick<ClientRestaurant, 'slug' | 'publicPath' | 'businessType'>
-) => restaurant.businessType === 'grocery'
-  ? `/r/${restaurant.slug}`
-  : restaurant.publicPath ?? `/${restaurant.slug}`;
+) => restaurant.publicPath ?? `/${restaurant.slug}`;
 
 export const buildYandexMapsUrl = (address: Pick<ClientAddress, 'addressLine' | 'lat' | 'lng'>) => {
   const coordinatesAreUsable = Number.isFinite(address.lat) && Number.isFinite(address.lng);

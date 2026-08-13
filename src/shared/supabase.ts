@@ -537,6 +537,12 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   quantity_step: value.quantity_step,
   stock_quantity: value.stock_quantity,
   allow_substitution: value.allow_substitution,
+  ...(value.sale_unit === 'weight' ? {
+    pricing_type: 'per_kg' as const,
+    unit: 'кг' as const,
+    minimum_weight: value.minimum_quantity / 1000,
+    weight_step: value.quantity_step / 1000
+  } : {}),
   ...(() => {
     if (!value.custom_fields || typeof value.custom_fields !== 'object' || Array.isArray(value.custom_fields)) return {};
     const source = value.custom_fields as Record<string, unknown>;

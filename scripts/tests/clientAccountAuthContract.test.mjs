@@ -26,7 +26,7 @@ test('client profile keeps registration and embeds the unified login panel', () 
   assert.match(appSource, /registerClientAccount/);
   assert.match(appSource, /type=\{isPasswordVisible \? 'text' : 'password'\}/);
   assert.match(appSource, /Зарегистрироваться/);
-  assert.match(appSource, /resolveUnifiedLogin\(identifier, clientPassword\)/);
+  assert.match(appSource, /resolveUnifiedLogin\(identifier, clientPassword, expectedLoginRole\)/);
   assert.match(appSource, /Вход в WayYaam/);
   assert.match(appSource, /Для клиентов, ресторанов и водителей/);
   assert.match(appSource, /Телефон или почта/);

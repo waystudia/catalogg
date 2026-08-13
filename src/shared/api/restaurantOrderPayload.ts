@@ -1,4 +1,5 @@
 import type { CartItem, Product } from '../../entities/models';
+import type { BusinessType } from '../businessTerminology';
 import { getSelectedModifierDetails } from '../../entities/productModifiers';
 import { normalizeSelectedWeight } from '../../entities/productPricing';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
@@ -13,6 +14,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 export type CreateRestaurantOrderFromCartInput = {
   slug: string;
+  businessType?: BusinessType;
   items: CartItem[];
   fulfillmentType: 'hall' | 'takeaway' | 'delivery';
   idempotencyKey?: string;
@@ -43,6 +45,9 @@ export const buildPublicRestaurantOrderItems = (items: CartItem[]) =>
   items.map((item) => ({
     product_id: item.product.id,
     quantity: Math.max(1, item.quantity),
+    ...(item.product.sale_unit !== 'weight' || item.selected_weight === undefined ? {} : {
+      requested_quantity: Math.round(normalizeSelectedWeight(item.product, item.selected_weight) * 1000)
+    }),
     options: [
       ...(item.selected_choice ? [{ name: item.selected_choice, product_id: item.product.id }] : []),
       ...getSelectedModifierDetails(item).map(({ group, option }) => ({
@@ -152,9 +157,11 @@ const formatSelectedChoices = (items: CartItem[]) => {
   return lines.length > 0 ? `Выбранные варианты:\n${lines.join('\n')}` : '';
 };
 
-export const resolvePublicOrderRpcName = (items: CartItem[]) =>
+export const resolvePublicOrderRpcName = (items: CartItem[], businessType?: BusinessType) =>
   items.every((item) => uuidPattern.test(item.product.id))
-    ? 'create_client_platform_restaurant_order'
+    ? businessType === 'grocery' || items.some((item) => item.product.sale_unit === 'weight')
+      ? 'create_client_platform_catalog_order'
+      : 'create_client_platform_restaurant_order'
     : 'create_client_platform_legacy_restaurant_order';
 
 export const normalizeRestaurantDeliverySettingsForSave = <T extends DeliverySettingsForSave>(settings: T) => ({
@@ -261,6 +268,7 @@ export async function createRestaurantOrderWithClient(
   catalogId: string,
   {
     items,
+    businessType,
     fulfillmentType,
     cabinLabel,
     deliveryCity = '',
@@ -294,7 +302,7 @@ export async function createRestaurantOrderWithClient(
     payment_method: /\[payment_method:bank_transfer\]/i.test(comment) ? 'bank_transfer' : 'cash',
     items: buildPublicRestaurantOrderItems(items)
   };
-  const rpcName = resolvePublicOrderRpcName(items);
+  const rpcName = resolvePublicOrderRpcName(items, businessType);
   let { data, error } = await client.rpc(rpcName, restaurantRpcArgs);
 
   if (error && restaurantRpcArgs.idempotency_key && rpcShouldRetryWithoutIdempotencyKey(error)) {
