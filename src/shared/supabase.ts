@@ -30,6 +30,7 @@ import {
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
 import { versionGroceryCatalogAssetUrl } from './groceryAssetUrl';
+import { getGroceryCatalogFallback } from './groceryCatalogFallback';
 
 type SupabaseConfig = {
   url?: string;
@@ -177,8 +178,9 @@ const normalizeCatalogSlug = (catalogSlug?: string) =>
 
 const isLegacyCatalog = (catalogSlug?: string) => normalizeCatalogSlug(catalogSlug) === legacyCatalogSlug;
 
-const getLocalTemplateCatalog = (catalogSlug: string) => catalogSlug === confectioneryTemplate.slug
-  ? {
+const getLocalTemplateCatalog = (catalogSlug: string) => getGroceryCatalogFallback(catalogSlug)
+  ?? (catalogSlug === confectioneryTemplate.slug
+    ? {
       restaurant: confectioneryTemplate.restaurant,
       categories: [...confectioneryTemplate.categories],
       products: [...confectioneryTemplate.products],
@@ -188,7 +190,7 @@ const getLocalTemplateCatalog = (catalogSlug: string) => catalogSlug === confect
       photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
       source: 'demo' as const
     }
-  : null;
+    : null);
 
 const normalizeRestaurant = (value?: Restaurant | null): Restaurant => ({
   ...restaurant,
