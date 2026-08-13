@@ -186,6 +186,15 @@ begin
   ) then
     raise exception 'pending substitution changed original order amount';
   end if;
+  if not exists (
+    select 1 from public.products product
+    where product.id = '00000000-0000-4000-8000-000000000302'
+      and product.stock_quantity = 0
+      and product.stock_count = 0
+      and product.status = 'sold_out'
+  ) then
+    raise exception 'unavailable original product was not removed from public stock';
+  end if;
 end;
 $$;
 
@@ -355,6 +364,10 @@ begin
   ) then
     raise exception 'accepted substitution did not recalculate order total';
   end if;
+  if (select product.stock_quantity from public.products product
+      where product.id = '00000000-0000-4000-8000-000000000301') <> 12000 then
+    raise exception 'accepted replacement did not reserve product stock';
+  end if;
 end;
 $$;
 
@@ -381,6 +394,13 @@ select
   140
 from public.products product
 where product.id = '00000000-0000-4000-8000-000000000301';
+
+-- The public checkout reserves the requested 350 g before picking. This
+-- fixture inserted the line directly, so mirror that reservation here.
+update public.products
+set stock_quantity = stock_quantity - 350,
+    stock_count = pg_catalog.ceil((stock_quantity - 350)::numeric / 1000)::integer
+where id = '00000000-0000-4000-8000-000000000301';
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000106', false);
 set role authenticated;
@@ -409,6 +429,10 @@ begin
       and item.line_total = 160
   ) then
     raise exception 'weighted picking state is inconsistent';
+  end if;
+  if (select product.stock_quantity from public.products product
+      where product.id = '00000000-0000-4000-8000-000000000301') <> 11600 then
+    raise exception 'actual weighted quantity was not reconciled against reserved stock';
   end if;
   if not exists (
     select 1 from public.orders order_record

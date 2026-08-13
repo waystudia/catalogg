@@ -13,6 +13,11 @@ import type {
 } from './types';
 import type { ClientRestaurantReview } from './types';
 import { formatDeliveryLocationNote } from '../../shared/deliveryLocation';
+import {
+  calculateCatalogLineAmount,
+  normalizeCatalogSaleConfiguration,
+  normalizeRequestedQuantity
+} from '../../entities/catalogSale';
 
 type RestaurantFilter = {
   cityId: string;
@@ -240,6 +245,51 @@ export const summarizeRestaurantReviews = (reviews: readonly ClientRestaurantRev
   reviewCount: reviews.length
 });
 
+export const getClientDishSaleConfiguration = (dish: ClientDish) =>
+  normalizeCatalogSaleConfiguration({
+    saleUnit: dish.saleUnit,
+    quantityUnit: dish.quantityUnit,
+    priceBasisQuantity: dish.priceBasisQuantity,
+    minimumQuantity: dish.minimumQuantity,
+    quantityStep: dish.quantityStep,
+    stockQuantity: dish.stockQuantity,
+    isUnlimited: dish.isUnlimited
+  });
+
+export const getClientDishInitialQuantity = (dish: ClientDish) =>
+  normalizeRequestedQuantity(getClientDishSaleConfiguration(dish), dish.minimumQuantity);
+
+export const getClientDishNextQuantity = (
+  dish: ClientDish,
+  currentQuantity: number,
+  direction: 1 | -1
+) => {
+  const configuration = getClientDishSaleConfiguration(dish);
+  if (direction === -1) {
+    const next = currentQuantity - configuration.quantityStep;
+    return next < configuration.minimumQuantity ? 0 : next;
+  }
+  return normalizeRequestedQuantity(configuration, currentQuantity + configuration.quantityStep);
+};
+
+export const calculateClientDishLineAmount = (dish: ClientDish, requestedQuantity: number) =>
+  calculateCatalogLineAmount({
+    unitPrice: dish.price,
+    requestedQuantity,
+    priceBasisQuantity: dish.priceBasisQuantity
+  });
+
+export const formatClientDishQuantity = (dish: ClientDish, requestedQuantity: number) => {
+  if (dish.saleUnit !== 'weight') return `${requestedQuantity} шт.`;
+  if (requestedQuantity >= 1000 && requestedQuantity % 1000 === 0) {
+    return `${requestedQuantity / 1000} кг`;
+  }
+  if (requestedQuantity >= 1000) {
+    return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(requestedQuantity / 1000)} кг`;
+  }
+  return `${requestedQuantity} г`;
+};
+
 export const calculateCartSummary = (
   lines: ClientCartLine[],
   dishes: ClientDish[],
@@ -252,10 +302,11 @@ export const calculateCartSummary = (
       const dish = dishById.get(line.dishId);
       if (!dish) return summary;
 
-      const lineSubtotal = dish.price * line.quantity;
+      const lineSubtotal = calculateClientDishLineAmount(dish, line.quantity);
+      const displayQuantity = dish.saleUnit === 'weight' ? 1 : line.quantity;
 
       return {
-        quantity: summary.quantity + line.quantity,
+        quantity: summary.quantity + displayQuantity,
         subtotal: summary.subtotal + lineSubtotal,
         deliveryFee,
         total: summary.total + lineSubtotal

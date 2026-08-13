@@ -55,6 +55,7 @@
 
 .catalog-team-page__form > div,
 .catalog-team-page__role-help,
+.catalog-team-page__mode,
 .catalog-team-page__form > button {
   grid-column: 1 / -1;
 }
@@ -83,6 +84,21 @@
   min-height: 46px;
   padding: 0 13px;
   width: 100%;
+}
+
+.catalog-team-page__mode {
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  display: flex !important;
+  flex-direction: row;
+  min-height: 44px;
+  padding: 0 13px;
+}
+
+.catalog-team-page__mode input {
+  min-height: auto;
+  width: auto;
 }
 
 .catalog-team-page__role-help {

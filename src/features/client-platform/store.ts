@@ -34,8 +34,14 @@ type ClientPlatformStore = {
   updateCheckoutDraft: (restaurantSlug: string, patch: Partial<ClientCheckoutDraft>) => void;
   setDraftOrderType: (restaurantSlug: string, orderType: ClientOrderType) => void;
   setDraftPaymentMethod: (restaurantSlug: string, paymentMethod: ClientPaymentMethod) => void;
-  addDish: (restaurantSlug: string, dishId: string) => void;
-  decrementDish: (restaurantSlug: string, dishId: string) => void;
+  addDish: (
+    restaurantSlug: string,
+    dishId: string,
+    quantityStep?: number,
+    initialQuantity?: number,
+    maximumQuantity?: number
+  ) => void;
+  decrementDish: (restaurantSlug: string, dishId: string, quantityStep?: number, minimumQuantity?: number) => void;
   removeDish: (restaurantSlug: string, dishId: string) => void;
   clearCart: (restaurantSlug: string) => void;
   submitOrder: (order: ClientOrder) => void;
@@ -199,25 +205,33 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
             [restaurantSlug]: { ...getDraft(state.checkoutDrafts, restaurantSlug), paymentMethod }
           }
         })),
-      addDish: (restaurantSlug, dishId) =>
+      addDish: (restaurantSlug, dishId, quantityStep = 1, initialQuantity = 1, maximumQuantity) =>
         set((state) => {
           const currentCart = state.carts[restaurantSlug] ?? [];
           const existing = currentCart.find((line) => line.dishId === dishId);
+          const step = Math.max(1, Math.floor(quantityStep));
+          const initial = Math.max(1, Math.floor(initialQuantity));
+          const maximum = maximumQuantity === undefined
+            ? Number.MAX_SAFE_INTEGER
+            : Math.max(0, Math.floor(maximumQuantity));
+          if (maximum < initial) return state;
           const nextCart = existing
             ? currentCart.map((line) =>
-                line.dishId === dishId ? { ...line, quantity: line.quantity + 1 } : line
+                line.dishId === dishId ? { ...line, quantity: Math.min(maximum, line.quantity + step) } : line
               )
-            : [...currentCart, { dishId, quantity: 1 }];
+            : [...currentCart, { dishId, quantity: initial }];
 
           return { carts: { ...state.carts, [restaurantSlug]: nextCart } };
         }),
-      decrementDish: (restaurantSlug, dishId) =>
+      decrementDish: (restaurantSlug, dishId, quantityStep = 1, minimumQuantity = 1) =>
         set((state) => ({
           carts: {
             ...state.carts,
             [restaurantSlug]: (state.carts[restaurantSlug] ?? [])
-              .map((line) => (line.dishId === dishId ? { ...line, quantity: line.quantity - 1 } : line))
-              .filter((line) => line.quantity > 0)
+              .map((line) => (line.dishId === dishId
+                ? { ...line, quantity: line.quantity - Math.max(1, Math.floor(quantityStep)) }
+                : line))
+              .filter((line) => line.quantity >= Math.max(1, Math.floor(minimumQuantity)))
           }
         })),
       removeDish: (restaurantSlug, dishId) =>

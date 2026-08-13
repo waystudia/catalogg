@@ -42,7 +42,8 @@ export const platformFallbackTemplates: PlatformTemplateOption[] = [
     version: 1,
     description: 'Чистый каталог продуктового магазина для настройки владельцем.',
     templateCatalogSlug: 'grocery',
-    isCatalogTemplate: true
+    isCatalogTemplate: true,
+    previewImage: '/assets/template-grocery/hero.webp'
   }
 ];
 
@@ -87,6 +88,8 @@ const mapTemplateCatalog = (row: TemplateCatalogRow): PlatformTemplateOption => 
   isCatalogTemplate: true,
   previewImage: row.slug === 'confectionery'
     ? '/assets/templates/confectionery/preview.webp'
+    : row.business_type === 'grocery'
+      ? '/assets/template-grocery/hero.webp'
     : row.business_type === 'coffee_shop'
       ? '/catalogg/assets/template-coffee-shop/hero.webp'
       : undefined

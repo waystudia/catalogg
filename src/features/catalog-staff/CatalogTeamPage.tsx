@@ -3,6 +3,7 @@ import { RefreshCw, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CatalogStaffRole } from '../../entities/catalogStaff';
 import {
+  createCatalogStaffAccount,
   getCatalogStaffMembers,
   linkCatalogStaffByEmail,
   removeCatalogStaffMember,
@@ -19,6 +20,9 @@ export function CatalogTeamPage({ catalogId }: { catalogId: string }) {
   const [members, setMembers] = useState<CatalogStaffMember[]>([]);
   const [email, setEmail] = useState('');
   const [roleCode, setRoleCode] = useState<Exclude<CatalogStaffRole, null>>('picker');
+  const [fullName, setFullName] = useState('');
+  const [password, setPassword] = useState('');
+  const [createAccount, setCreateAccount] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -42,9 +46,13 @@ export function CatalogTeamPage({ catalogId }: { catalogId: string }) {
     if (!email.trim() || saving) return;
     setSaving(true);
     try {
-      const member = await linkCatalogStaffByEmail({ catalogId, email, roleCode });
+      const member = createAccount
+        ? await createCatalogStaffAccount({ catalogId, fullName, email, password, roleCode })
+        : await linkCatalogStaffByEmail({ catalogId, email, roleCode });
       setMembers((current) => [member, ...current.filter((item) => item.userId !== member.userId)]);
       setEmail('');
+      setFullName('');
+      setPassword('');
       toast.success('Сотрудник добавлен');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось добавить сотрудника');
@@ -84,8 +92,26 @@ export function CatalogTeamPage({ catalogId }: { catalogId: string }) {
       <section className="ra-card catalog-team-page__form">
         <div>
           <h3><UserPlus /> Добавить сотрудника</h3>
-          <p>У сотрудника уже должен быть аккаунт WayYaam с этим e-mail.</p>
+          <p>Создайте новый вход сотруднику или привяжите его существующий аккаунт WayYaam.</p>
         </div>
+        <label className="catalog-team-page__mode">
+          <input
+            type="checkbox"
+            checked={createAccount}
+            onChange={(event) => setCreateAccount(event.target.checked)}
+          />
+          Создать сотруднику аккаунт WayYaam
+        </label>
+        {createAccount && (
+          <label>
+            Имя сотрудника
+            <input
+              value={fullName}
+              placeholder="Магомед"
+              onChange={(event) => setFullName(event.target.value)}
+            />
+          </label>
+        )}
         <label>
           E-mail сотрудника
           <input
@@ -95,6 +121,19 @@ export function CatalogTeamPage({ catalogId }: { catalogId: string }) {
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
+        {createAccount && (
+          <label>
+            Временный пароль
+            <input
+              type="password"
+              value={password}
+              minLength={10}
+              autoComplete="new-password"
+              placeholder="10+ символов: A, a, 1, !"
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+        )}
         <label>
           Роль
           <select
@@ -106,7 +145,11 @@ export function CatalogTeamPage({ catalogId }: { catalogId: string }) {
           </select>
         </label>
         <p className="catalog-team-page__role-help"><ShieldCheck />{roleHelp[roleCode]}</p>
-        <button type="button" onClick={() => void addMember()} disabled={!email.trim() || saving}>
+        <button
+          type="button"
+          onClick={() => void addMember()}
+          disabled={!email.trim() || saving || (createAccount && (!fullName.trim() || password.length < 10))}
+        >
           <UserPlus /> {saving ? 'Добавляем...' : 'Добавить'}
         </button>
       </section>

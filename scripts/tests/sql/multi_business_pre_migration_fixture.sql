@@ -150,6 +150,7 @@ create table public.products (
   price integer not null default 0 check (price >= 0),
   stock_count integer not null default 0 check (stock_count >= 0),
   is_unlimited boolean not null default false,
+  updated_at timestamptz not null default now(),
   unique (catalog_id, slug)
 );
 

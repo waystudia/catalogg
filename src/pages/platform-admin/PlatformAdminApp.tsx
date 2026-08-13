@@ -1080,6 +1080,7 @@ function CreateClientForm({
   useEffect(() => {
     setValue('templateType', businessType, { shouldValidate: true });
     if (businessType === 'restaurant') setValue('seedDemoMenu', false);
+    if (businessType === 'grocery') setValue('seedDemoMenu', true);
     const compatibleTemplate = templates.find((template) => template.businessType === businessType);
     if (compatibleTemplate && selectedTemplate?.businessType !== businessType) {
       setValue('templateVersionId', compatibleTemplate.templateVersionId, { shouldValidate: true });
@@ -1268,11 +1269,13 @@ function CreateClientForm({
               error={errors.businessType?.message}
             />
             <input type="hidden" {...register('templateType')} />
-            {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
+            {(businessType === 'coffee_shop' || businessType === 'confectionery' || businessType === 'grocery') && (
               <label className="client-form__disabled-option">
                 <input {...register('seedDemoMenu')} type="checkbox" />
-                <span>Заполнить демонстрационным меню</span>
-                <em>Добавим категории, позиции, описания, цены, модификаторы и локальные изображения выбранного шаблона.</em>
+                <span>{businessType === 'grocery' ? 'Заполнить стартовым ассортиментом' : 'Заполнить демонстрационным меню'}</span>
+                <em>{businessType === 'grocery'
+                  ? 'Добавим штучные и весовые товары, остатки, замены, цены и локальные изображения. Всё можно изменить после создания.'
+                  : 'Добавим категории, позиции, описания, цены, модификаторы и локальные изображения выбранного шаблона.'}</em>
               </label>
             )}
             <label>

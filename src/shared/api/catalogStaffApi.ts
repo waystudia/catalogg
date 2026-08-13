@@ -66,6 +66,21 @@ const mapAssignment = (row: AssignmentRow): CatalogOrderWorkAssignment => ({
   isMine: row.is_mine ?? false
 });
 
+const getFunctionErrorMessage = async (error: unknown) => {
+  if (error && typeof error === 'object' && 'context' in error) {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
+      try {
+        const body = (await context.clone().json()) as { error?: string };
+        if (body.error) return body.error;
+      } catch {
+        // Use the original function error below.
+      }
+    }
+  }
+  return error instanceof Error ? error.message : 'Не удалось создать аккаунт сотрудника';
+};
+
 export async function getCatalogStaffMembers(catalogId: string): Promise<CatalogStaffMember[]> {
   if (!supabase) return [];
   const { data, error } = await supabase.rpc('get_catalog_staff_for_catalog', {
@@ -108,6 +123,41 @@ export async function linkCatalogStaffByEmail({
   const row = (data as StaffRow[] | null)?.[0];
   if (!row) throw new Error('Не удалось добавить сотрудника');
   return mapStaffMember(row);
+}
+
+export async function createCatalogStaffAccount(input: {
+  catalogId: string;
+  fullName: string;
+  email: string;
+  password: string;
+  roleCode: Exclude<CatalogStaffRole, null>;
+  receivesNewOrders?: boolean;
+}): Promise<CatalogStaffMember> {
+  if (!supabase) {
+    return mapStaffMember({
+      user_id: `demo-${input.roleCode}`,
+      full_name: input.fullName,
+      email: input.email,
+      role_code: input.roleCode,
+      role_name: input.roleCode === 'picker' ? 'Сборщик' : 'Менеджер заказов',
+      is_active: true,
+      receives_new_orders: input.receivesNewOrders !== false,
+      updated_at: new Date().toISOString()
+    });
+  }
+  const { data, error } = await supabase.functions.invoke<StaffRow>('create-catalog-staff', {
+    body: {
+      catalogId: input.catalogId,
+      fullName: input.fullName.trim(),
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      roleCode: input.roleCode,
+      receivesNewOrders: input.receivesNewOrders !== false
+    }
+  });
+  if (error) throw new Error(await getFunctionErrorMessage(error));
+  if (!data) throw new Error('Не удалось создать аккаунт сотрудника');
+  return mapStaffMember(data);
 }
 
 export async function removeCatalogStaffMember(catalogId: string, userId: string): Promise<boolean> {

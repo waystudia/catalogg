@@ -1,5 +1,6 @@
 import type { PhotoQualitySettings } from '../../shared/photoQuality';
 import type { BusinessType } from '../../shared/businessTerminology';
+import type { CatalogQuantityUnit, CatalogSaleUnit } from '../../entities/catalogSale';
 
 export type ClientOrderType = 'dine_in' | 'pickup' | 'delivery';
 
@@ -104,7 +105,18 @@ export type ClientDish = {
   imageUrl: string;
   tags: string[];
   isPopular: boolean;
+  isAvailable?: boolean;
   stockCount: number;
+  stockQuantity: number;
+  isUnlimited: boolean;
+  saleUnit: CatalogSaleUnit;
+  quantityUnit: CatalogQuantityUnit;
+  priceBasisQuantity: number;
+  minimumQuantity: number;
+  quantityStep: number;
+  allowSubstitution: boolean;
+  sku: string;
+  barcode: string;
   weight?: string;
   photoQuality?: PhotoQualitySettings;
 };
@@ -172,6 +184,9 @@ export type ClientOrderItem = {
   name: string;
   price: number;
   quantity: number;
+  saleUnit?: CatalogSaleUnit;
+  quantityUnit?: CatalogQuantityUnit;
+  priceBasisQuantity?: number;
 };
 
 export type ClientOrder = {

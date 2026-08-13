@@ -237,6 +237,24 @@ Deno.serve(async (request) => {
       throw new Error('Onboarding transaction returned invalid client data.');
     }
 
+    if (payload.businessType === 'grocery' && payload.seedDemoMenu === true) {
+      const { error: hydrationError } = await adminClient.rpc('hydrate_grocery_business_from_template', {
+        target_catalog_id: result.catalogId,
+        source_template_id: payload.templateVersionId
+      });
+      if (hydrationError) {
+        const cleanupErrors: string[] = [];
+        const { error: clientCleanupError } = await adminClient.from('clients').delete().eq('id', result.clientId);
+        if (clientCleanupError) cleanupErrors.push(getErrorMessage(clientCleanupError));
+        const { error: catalogCleanupError } = await adminClient.from('catalogs').delete().eq('id', result.catalogId);
+        if (catalogCleanupError) cleanupErrors.push(getErrorMessage(catalogCleanupError));
+        const { error: authCleanupError } = await adminClient.auth.admin.deleteUser(ownerUserId);
+        if (authCleanupError) cleanupErrors.push(getErrorMessage(authCleanupError));
+        const suffix = cleanupErrors.length > 0 ? ` Cleanup failed: ${cleanupErrors.join('; ')}` : '';
+        throw new Error(`${getErrorMessage(hydrationError)}${suffix}`);
+      }
+    }
+
     return jsonResponse({
       clientId: result.clientId,
       catalogId: result.catalogId,
