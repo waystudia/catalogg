@@ -191,6 +191,7 @@ export type ClientOrderItem = {
 
 export type ClientOrder = {
   id: string;
+  catalogId?: string;
   restaurantSlug: string;
   restaurantName: string;
   orderType: ClientOrderType;

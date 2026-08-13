@@ -1,5 +1,5 @@
 import { Bell, Check, MessageCircle, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getSubstitutionAmountEffect, type SubstitutionDecision } from '../../entities/orderSubstitution';
 import {
@@ -33,6 +33,7 @@ export function OrderConversationPanel({
   orderId,
   catalogId,
   expectedViewer,
+  merchantLabel = 'Заведение',
   initialConversation,
   api = defaultApi,
   onChanged
@@ -40,6 +41,7 @@ export function OrderConversationPanel({
   orderId: string;
   catalogId: string;
   expectedViewer: 'client' | 'staff';
+  merchantLabel?: string;
   initialConversation?: OrderConversation;
   api?: ConversationApi;
   onChanged?: () => void;
@@ -52,6 +54,7 @@ export function OrderConversationPanel({
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -83,6 +86,12 @@ export function OrderConversationPanel({
     () => conversation.substitutions.filter((request) => request.state === 'pending'),
     [conversation.substitutions]
   );
+
+  useEffect(() => {
+    const element = messagesRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }, [conversation.messages.length]);
 
   const decide = async (requestId: string, version: number, decision: SubstitutionDecision) => {
     if (busyId) return;
@@ -126,7 +135,7 @@ export function OrderConversationPanel({
       <header>
         <div>
           <h3><MessageCircle /> Чат по заказу</h3>
-          <p>{expectedViewer === 'client' ? 'Здесь магазин предложит замену и уточнит сборку.' : 'Ответьте клиенту и зафиксируйте договорённость.'}</p>
+          <p>{expectedViewer === 'client' ? `Здесь ${merchantLabel.toLocaleLowerCase('ru-RU')} уточнит детали заказа.` : 'Ответьте клиенту и зафиксируйте договорённость.'}</p>
         </div>
         <button type="button" className="order-conversation__icon" aria-label="Обновить чат" onClick={() => void refresh()}>
           <RefreshCw />
@@ -165,12 +174,12 @@ export function OrderConversationPanel({
         );
       })}
 
-      <div className="order-conversation__messages" aria-live="polite">
+      <div className="order-conversation__messages" aria-live="polite" ref={messagesRef}>
         {conversation.messages.length === 0 && !loading ? (
           <p className="order-conversation__hint">Сообщений пока нет.</p>
         ) : conversation.messages.map((item) => (
           <article data-sender={item.senderKind} key={item.id}>
-            <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? 'Магазин' : 'Система'}</small>
+            <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? merchantLabel : 'Система'}</small>
             <p>{item.body}</p>
           </article>
         ))}
