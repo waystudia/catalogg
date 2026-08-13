@@ -1,8 +1,8 @@
 import type { Category, Product, Restaurant, ThemeSettings } from '../entities/models';
+import { versionGroceryCatalogAssetUrl } from '../shared/groceryAssetUrl';
 
 const publicAsset = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
-const groceryAssetVersion = 'grocery-catalog-20260813-v1';
-const asset = (path: string) => `${publicAsset(`assets/template-grocery/${path}`)}?v=${groceryAssetVersion}`;
+const asset = (path: string) => versionGroceryCatalogAssetUrl(publicAsset(`assets/template-grocery/${path}`));
 
 export const groceryRestaurant: Restaurant = {
   id: 'finik',
