@@ -305,13 +305,11 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub?:
 export function RestaurantAdminShell({
   access,
   onRefresh,
-  onSignOut,
-  consentModal
+  onSignOut
 }: {
   access: CatalogAdminAccess;
   onRefresh: () => void;
   onSignOut: () => void;
-  consentModal?: React.ReactNode;
 }) {
   const navigate = useNavigate();
   const workspaceAccess = getCatalogWorkspaceAccess({
@@ -764,7 +762,7 @@ export function RestaurantAdminShell({
   };
 
   return (
-    <main className="restaurant-admin-shell" data-consent-blocked={Boolean(consentModal)}>
+    <main className="restaurant-admin-shell">
       <aside className="restaurant-admin-sidebar">
         <div className="restaurant-admin-logo">
           <span>W</span>
@@ -1000,7 +998,6 @@ export function RestaurantAdminShell({
           />
         ))}
       </nav>
-      {consentModal}
     </main>
   );
 }

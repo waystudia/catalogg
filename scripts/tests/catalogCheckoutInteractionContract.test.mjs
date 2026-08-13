@@ -135,20 +135,22 @@ test('customer contacts are required once for hall, takeaway, and delivery befor
   assert.match(checkoutSource, /customerPhone:\s*clientPhone\.trim\(\)/);
 });
 
-test('order submission stays disabled until contacts and both legal consents are valid', () => {
+test('order submission explains every missing field and remains clickable for validation', () => {
   assert.match(
     checkoutSource,
-    /const isCheckoutContactValid = clientName\.trim\(\)\.length > 0 && isValidRussianClientPhone\(clientPhone\)/
+    /const checkoutBlockingReasons = \[/
   );
   assert.match(
     checkoutSource,
-    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !isCheckoutAccountValid \|\| !acceptedOrderData \|\| !acceptedOrderTransfer\}/
+    /disabled=\{isSubmittingOrder\}/
   );
+  assert.match(checkoutSource, /Чтобы отправить заказ:/);
+  assert.doesNotMatch(checkoutSource, /disabled=\{[^}]*!restaurant\.whatsapp/);
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
   assert.match(checkoutSource, /if \(!acceptedOrderData \|\| !acceptedOrderTransfer\)/);
 });
 
-test('successful checkout persists the profile and consent, then clears the cart before opening WhatsApp', () => {
+test('successful checkout persists the profile and consent, then opens status before optional WhatsApp', () => {
   assert.match(checkoutSource, /saveClientProfile\(\{ name: profileName, phone: profilePhone \}\)/);
   const saveProfileIndex = checkoutSource.indexOf('saveClientProfile({ name: profileName, phone: profilePhone });');
   const orderPayloadIndex = checkoutSource.indexOf('const orderPayload: CreateRestaurantOrderFromCartInput');
@@ -156,8 +158,8 @@ test('successful checkout persists the profile and consent, then clears the cart
 
   const consentIndex = checkoutSource.indexOf('recordOrderConsent();');
   const clearIndex = checkoutSource.indexOf('clearCart();');
-  const submitIndex = checkoutSource.indexOf('onSubmitOrder();');
-  const whatsappIndex = checkoutSource.indexOf('openCreatedOrderWhatsapp(buildWhatsappHref(orderId));');
+  const submitIndex = checkoutSource.indexOf('onSubmitOrder(orderId);');
+  const whatsappIndex = checkoutSource.indexOf('if (whatsappHref) openCreatedOrderWhatsapp(whatsappHref);');
 
   assert.ok(consentIndex > 0);
   assert.ok(clearIndex > consentIndex);

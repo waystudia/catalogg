@@ -48,7 +48,7 @@ import {
   CreditCard,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
@@ -66,7 +66,13 @@ import {
   getCartItemPrice,
   getProductChoiceOptions,
 } from '../entities/productVariants';
-import { formatRublePrice, normalizeSelectedWeight } from '../entities/productPricing';
+import {
+  formatRublePrice,
+  getProductMinimumWeight,
+  getProductWeightStep,
+  isWeightPricedProduct,
+  normalizeSelectedWeight
+} from '../entities/productPricing';
 import { CheckoutScreen } from '../features/checkout/CheckoutScreen';
 import { ProductImageCarousel, ProductTile } from '../features/catalog/ProductTile';
 import {
@@ -1418,11 +1424,13 @@ function DrinksScreen({
 function ProductScreen({
   product,
   products,
+  businessType,
   onOpenProduct,
   flowAction
 }: {
   product: Product;
   products: Product[];
+  businessType: Restaurant['business_type'];
   onOpenProduct: (product: Product) => void;
   flowAction?: FlowAction;
 }) {
@@ -1440,6 +1448,15 @@ function ProductScreen({
       .map((option) => ({ groupId: group.id, optionId: option.id })))
   );
   const [selectedWeight, setSelectedWeight] = useState(() => normalizeSelectedWeight(product, existingConfiguration?.selected_weight));
+  const weightMinimum = getProductMinimumWeight(product);
+  const weightStep = getProductWeightStep(product);
+  const weightMaximum = product.sale_unit === 'weight' && !product.is_unlimited && Number.isFinite(product.stock_quantity)
+    ? Math.max(weightMinimum, (product.stock_quantity ?? 0) / 1000)
+    : Number.POSITIVE_INFINITY;
+  const weightLabel = businessType === 'confectionery' ? 'Вес торта' : 'Вес товара';
+  const formattedSelectedWeight = selectedWeight < 1
+    ? `${Math.round(selectedWeight * 1000)} г`
+    : `${selectedWeight.toLocaleString('ru-RU', { maximumFractionDigits: 3 })} кг`;
   const [inscription, setInscription] = useState(existingConfiguration?.inscription ?? '');
   const [decorationComment, setDecorationComment] = useState(existingConfiguration?.decoration_comment ?? '');
   const [productionDate, setProductionDate] = useState(existingConfiguration?.production_date ?? '');
@@ -1450,7 +1467,7 @@ function ProductScreen({
     return new Date(date.getTime() - offset).toISOString().slice(0, 10);
   }, [product.advance_order_hours]);
   const configuration = {
-    selectedWeight: product.pricing_type === 'per_kg' ? selectedWeight : undefined,
+    selectedWeight: isWeightPricedProduct(product) ? selectedWeight : undefined,
     inscription: product.allow_inscription ? inscription : undefined,
     decorationComment: product.allow_decoration_comment ? decorationComment : undefined,
     productionDate: product.allow_production_schedule ? productionDate : undefined,
@@ -1477,7 +1494,7 @@ function ProductScreen({
     return Boolean(normalized) && !/^0(?:[.,]0+)?(?:\s*[а-яa-z.]+)?$/i.test(normalized);
   };
   const hasIngredients = hasFactValue(product.ingredients);
-  const hasWeight = hasFactValue(product.weight);
+  const hasWeight = hasFactValue(product.weight) && !['весовой', 'на вес'].includes(product.weight.trim().toLocaleLowerCase('ru'));
   const hasServing = hasFactValue(product.serving);
   const hasAllergens = (product.allergens ?? []).length > 0;
 
@@ -1536,22 +1553,31 @@ function ProductScreen({
         </div>}
       </dl>}
 
-      {product.pricing_type === 'per_kg' && (
+      {isWeightPricedProduct(product) && (
         <fieldset className="product-choice-group product-customization">
-          <legend>Вес торта *</legend>
-          <label>
-            <span>Выберите вес</span>
-            <select
-              aria-label="Вес торта"
-              value={selectedWeight}
-              onChange={(event) => setSelectedWeight(normalizeSelectedWeight(product, Number(event.target.value)))}
+          <legend>{weightLabel} *</legend>
+          <div className="product-weight-stepper" role="group" aria-label={weightLabel}>
+            <button
+              type="button"
+              aria-label={`Уменьшить ${weightLabel.toLocaleLowerCase('ru')}`}
+              disabled={selectedWeight <= weightMinimum}
+              onClick={() => setSelectedWeight(normalizeSelectedWeight(product, selectedWeight - weightStep))}
             >
-              {Array.from({ length: Math.max(1, Math.floor((4 - (product.minimum_weight ?? 1.5)) / (product.weight_step ?? 0.5)) + 1) }, (_, index) => {
-                const value = Number(((product.minimum_weight ?? 1.5) + index * (product.weight_step ?? 0.5)).toFixed(2));
-                return <option value={value} key={value}>{value.toLocaleString('ru-RU')} кг — {formatRublePrice(product.price * value)}</option>;
-              })}
-            </select>
-          </label>
+              <Minus />
+            </button>
+            <output aria-live="polite">
+              <strong>{formattedSelectedWeight}</strong>
+              <small>{formatRublePrice(product.price * selectedWeight)}</small>
+            </output>
+            <button
+              type="button"
+              aria-label={`Увеличить ${weightLabel.toLocaleLowerCase('ru')}`}
+              disabled={selectedWeight + weightStep > weightMaximum}
+              onClick={() => setSelectedWeight(normalizeSelectedWeight(product, selectedWeight + weightStep))}
+            >
+              <Plus />
+            </button>
+          </div>
         </fieldset>
       )}
 
@@ -1952,6 +1978,10 @@ function AppContent({
   const [, setStockTargets] = useState<StockTargets>(() => loadStockTargets());
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
+  const setCartCatalogScope = useCartStore((state) => state.setCatalogScope);
+  useLayoutEffect(() => {
+    setCartCatalogScope(catalogSlug);
+  }, [catalogSlug, setCartCatalogScope]);
   const cartCount = selectCartCount(items);
   const persist = <T,>(action: Promise<T>, onSuccess?: (value: T) => void) => {
     void action.then((value) => {
@@ -2923,6 +2953,7 @@ function AppContent({
               key={selectedProduct.id}
               product={selectedProduct}
               products={catalog.products}
+              businessType={catalog.restaurant.business_type}
               onOpenProduct={(product) => setSelectedProduct(product)}
               flowAction={makeFlowAction(activeFlowCategory)}
             />
@@ -2935,10 +2966,10 @@ function AppContent({
               deliverySettings={deliverySettings ?? defaultRestaurantDeliverySettings}
               paymentSettings={paymentSettings}
               onEditCart={() => setIsCartOpen(true)}
-              onSubmitOrder={() => {
+              onSubmitOrder={(orderId) => {
                 setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
-                setScreen('home');
+                navigate(`/${catalogSlug}/order/${orderId}`);
               }}
             />
           )}

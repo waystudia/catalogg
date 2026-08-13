@@ -115,7 +115,7 @@ export function CheckoutScreen({
   deliverySettings: RestaurantDeliverySettings;
   paymentSettings: RestaurantPaymentSettings;
   onEditCart: () => void;
-  onSubmitOrder: () => void;
+  onSubmitOrder: (orderId: string) => void;
 }) {
   const {
     mode,
@@ -208,7 +208,6 @@ export function CheckoutScreen({
   const [clientPassword, setClientPassword] = useState('');
   const [accountError, setAccountError] = useState('');
   const [isPasskeyCheckoutPromptOpen, setIsPasskeyCheckoutPromptOpen] = useState(false);
-  const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
   const isCheckoutAccountValid = hasClientSession || clientPassword.length >= 6;
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
@@ -259,7 +258,7 @@ export function CheckoutScreen({
         clientPhoneRef.current?.focus({ preventScroll: true });
       }
     }, 450);
-    toast.error('Введите имя и номер телефона');
+    toast.error(errors[0] ?? 'Проверьте контактные данные');
     return false;
   };
 
@@ -553,6 +552,18 @@ export function CheckoutScreen({
     window.open(restaurantMapUrl, '_blank', 'noopener,noreferrer');
   };
   const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
+  const checkoutBlockingReasons = [
+    ...(items.length === 0 ? ['Добавьте хотя бы один товар.'] : []),
+    ...(!clientName.trim() ? ['Введите имя.'] : []),
+    ...(!isValidRussianClientPhone(clientPhone) ? ['Введите полный номер телефона.'] : []),
+    ...(!isCheckoutAccountValid ? ['Введите пароль — минимум 6 символов.'] : []),
+    ...(!acceptedOrderData || !acceptedOrderTransfer ? ['Подтвердите оба обязательных согласия.'] : []),
+    ...(mode === 'delivery' && (deliveryLat === null || deliveryLng === null)
+      ? ['Определите местоположение или выберите точку на карте.']
+      : []),
+    ...(mode === 'delivery' && !effectiveDeliverySettlement ? ['Выберите село или город.'] : []),
+    ...(mode === 'delivery' && !deliveryAddress.trim() ? ['Введите улицу и номер дома.'] : [])
+  ];
 
   if (!isClientSessionReady) {
     return (
@@ -1026,16 +1037,25 @@ export function CheckoutScreen({
             </div>
           </section>
         )}
+        {checkoutBlockingReasons.length > 0 && (
+          <div className="checkout-validation-errors checkout-submit-requirements" role="status" aria-live="polite">
+            <strong>Чтобы отправить заказ:</strong>
+            <ul>
+              {checkoutBlockingReasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          </div>
+        )}
         <button
           className={
-            restaurant.whatsapp && isCheckoutContactValid && isCheckoutAccountValid
+            checkoutBlockingReasons.length === 0
               ? 'primary-wide checkout-summary__action'
-              : 'primary-wide checkout-summary__action is-disabled'
+              : 'primary-wide checkout-summary__action is-incomplete'
           }
           type="button"
-          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !isCheckoutAccountValid || !acceptedOrderData || !acceptedOrderTransfer}
+          disabled={isSubmittingOrder}
           onClick={async () => {
-            if (!restaurant.whatsapp) {
+            if (items.length === 0) {
+              toast.error('Добавьте товары в корзину');
               return;
             }
             if (submitLockRef.current) {
@@ -1164,10 +1184,12 @@ export function CheckoutScreen({
               submitLockRef.current = true;
               setIsSubmittingOrder(true);
               let whatsappWindow: Window | null = null;
-              try {
-                whatsappWindow = window.open('about:blank', '_blank');
-              } catch {
-                whatsappWindow = null;
+              if (restaurant.whatsapp) {
+                try {
+                  whatsappWindow = window.open('about:blank', '_blank');
+                } catch {
+                  whatsappWindow = null;
+                }
               }
               const openCreatedOrderWhatsapp = (href: string) => {
                 if (whatsappWindow && !whatsappWindow.closed) {
@@ -1256,9 +1278,10 @@ export function CheckoutScreen({
                     recordOrderConsent();
                     clearCart();
                     clearClientPlatformCart(catalogSlug);
-                    onSubmitOrder();
+                    const whatsappHref = restaurant.whatsapp ? buildWhatsappHref(orderId) : '';
+                    onSubmitOrder(orderId);
                     toast.success('Заказ создан в системе ресторана');
-                    openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
+                    if (whatsappHref) openCreatedOrderWhatsapp(whatsappHref);
                     return;
                   }
                   closeReservedWhatsappWindow();

@@ -17,7 +17,7 @@ export const formatCatalogProductPrice = (product: Product) => {
   const pricingType = product.pricing_type ?? 'fixed';
   const price = formatRublePrice(getProductStartingPrice(product));
   const prefix = pricingType === 'from' || pricingType === 'variant' || product.price_prefix === 'от' ? 'от ' : '';
-  const unit = pricingType === 'per_kg' ? `/${product.unit ?? 'кг'}` : '';
+  const unit = isWeightPricedProduct(product) ? `/${product.unit ?? 'кг'}` : '';
   return `${prefix}${price}${unit}`;
 };
 
@@ -42,16 +42,31 @@ const selectedModifierDelta = (item: CartItem) => {
   ), 0);
 };
 
+export const isWeightPricedProduct = (product: Product) =>
+  product.sale_unit === 'weight' || product.pricing_type === 'per_kg';
+
+export const getProductMinimumWeight = (product: Product) =>
+  Math.max(
+    0.001,
+    product.minimum_weight ?? (product.sale_unit === 'weight' ? (product.minimum_quantity ?? 1000) / 1000 : 1)
+  );
+
+export const getProductWeightStep = (product: Product) =>
+  Math.max(
+    0.001,
+    product.weight_step ?? (product.sale_unit === 'weight' ? (product.quantity_step ?? 100) / 1000 : 0.5)
+  );
+
 export const normalizeSelectedWeight = (product: Product, requested?: number) => {
-  const minimum = Math.max(0.1, product.minimum_weight ?? 1);
-  const step = Math.max(0.1, product.weight_step ?? 0.5);
+  const minimum = getProductMinimumWeight(product);
+  const step = getProductWeightStep(product);
   const value = Number.isFinite(requested) ? Math.max(minimum, requested as number) : minimum;
   const steps = Math.round((value - minimum) / step);
-  return Number((minimum + steps * step).toFixed(2));
+  return Number((minimum + steps * step).toFixed(3));
 };
 
 export const getCartItemPrice = (item: CartItem) => {
-  const base = item.product.pricing_type === 'per_kg'
+  const base = isWeightPricedProduct(item.product)
     ? Math.round(item.product.price * normalizeSelectedWeight(item.product, item.selected_weight))
     : selectedVariantPrice(item);
   return Math.round(base + selectedModifierDelta(item));

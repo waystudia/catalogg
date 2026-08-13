@@ -41,7 +41,11 @@ describe('client platform restaurant order contract', () => {
     const catalogSource = readFileSync(resolve(repoRoot, 'src/shared/supabase.ts'), 'utf8');
     const orderSource = readFileSync(resolve(repoRoot, 'src/shared/api/restaurantOrderPayload.ts'), 'utf8');
 
-    assert.match(catalogSource, /value\.sale_unit === 'weight'[\s\S]*pricing_type: 'per_kg'/);
+    assert.match(catalogSource, /value\.sale_unit === 'weight'[\s\S]*minimum_weight:/);
+    assert.doesNotMatch(
+      catalogSource.match(/const mapPlatformProduct[\s\S]*?const mapPlatformCabin/)?.[0] ?? '',
+      /value\.sale_unit === 'weight'[\s\S]*pricing_type: 'per_kg'/
+    );
     assert.match(orderSource, /requested_quantity:[\s\S]*normalizeSelectedWeight/);
     assert.match(orderSource, /businessType === 'grocery'[\s\S]*create_client_platform_catalog_order/);
   });

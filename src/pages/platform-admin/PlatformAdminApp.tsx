@@ -72,7 +72,6 @@ import {
   updateClient
 } from '../../shared/api/clientsApi';
 import { createDriver, getDrivers, updateDriverProfile, updateDriverServiceSettlements } from '../../shared/api/driversApi';
-import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import {
   getDeliveryPriceRequests,
@@ -1853,17 +1852,13 @@ export function LegacyDriversPage() {
   const [password, setPassword] = useState(generateSecurePassword());
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [driverConsentConfirmed, setDriverConsentConfirmed] = useState(false);
   const [success, setSuccess] = useState<CreateDriverSuccess | null>(null);
 
   const driverLoginUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/driver`;
+  const driverActivationUrl = `${window.location.origin}${import.meta.env.BASE_URL}#/driver/activation`;
 
   const createNewDriver = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!driverConsentConfirmed) {
-      toast.error('Нужно подтвердить получение отдельного согласия и акцепта оферты водителем');
-      return;
-    }
     setIsSubmitting(true);
     try {
       const serviceSettlements = parseSettlementsInput(serviceSettlementsText);
@@ -1888,7 +1883,6 @@ export function LegacyDriversPage() {
       setServiceSettlementsText('');
       setVehicleInfo('');
       setCarNumber('');
-      setDriverConsentConfirmed(false);
       setPassword(generateSecurePassword());
       toast.success('Водитель создан');
       void queryClient.invalidateQueries({ queryKey: ['platform-drivers'] });
@@ -1900,7 +1894,7 @@ export function LegacyDriversPage() {
   };
 
   const copyDriverAccess = (driver: CreateDriverSuccess) => {
-    const text = `Email: ${driver.email}\nВременный пароль: ${driver.password}\nКабинет водителя: ${driverLoginUrl}`;
+    const text = `Email: ${driver.email}\nВременный пароль: ${driver.password}\nАктивация водителя: ${driverActivationUrl}\nКабинет водителя: ${driverLoginUrl}`;
     void copyText(text).then(() => toast.success('Данные водителя скопированы'));
   };
 
@@ -2010,12 +2004,8 @@ export function LegacyDriversPage() {
             </span>
           </label>
         </section>
-        <label className="legal-checkbox">
-          <input type="checkbox" checked={driverConsentConfirmed} onChange={(event) => setDriverConsentConfirmed(event.target.checked)} required />
-          <span>Подтверждаю, что водитель сам принял <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">оферту редакции {legalDocumentReleases.driver_offer.version}</a> и дал отдельное <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных и геолокацию</a>. Подтверждение администратора не заменяет серверную фиксацию действия водителя.</span>
-        </label>
         <footer className="client-form-footer">
-          <button type="submit" disabled={isSubmitting || !driverConsentConfirmed}>
+          <button type="submit" disabled={isSubmitting}>
             <Plus />
             {isSubmitting ? 'Создаём...' : 'Создать водителя'}
           </button>

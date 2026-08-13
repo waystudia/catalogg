@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Headphones,
   Home,
+  ExternalLink,
   KeyRound,
   LogOut,
   MapPin,
@@ -88,8 +89,14 @@ import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
 import { getCurrentBillingDebtStatus, type BillingDebtStatus } from '../../shared/api/billingDebtApi';
+import {
+  activateCurrentDriver,
+  getCurrentDriverLegalActivation,
+  type DriverLegalActivation
+} from '../../shared/api/driverActivationApi';
 import { DebtControlBanner } from '../../features/restaurant-billing/DebtControlBanner';
 import { getDebtControlState } from '../../features/restaurant-billing/debtControl';
+import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -460,6 +467,7 @@ const emptySnapshot: DriverDashboardSnapshot = {
 
 export function DriverApp() {
   const location = useLocation();
+  const navigate = useNavigate();
   const selectedDriverId = useDriverStore((state) => state.selectedDriverId);
   const bindDriver = useDriverStore((state) => state.bindDriver);
   const localActiveDelivery = useDriverStore((state) => state.localActiveDelivery);
@@ -471,10 +479,30 @@ export function DriverApp() {
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(!supabase);
   const [hasDriverAccess, setHasDriverAccess] = useState(!supabase);
+  const [legalActivation, setLegalActivation] = useState<DriverLegalActivation | null>(() =>
+    supabase ? null : { driverId: demoDriverId, status: 'active', activatedAt: new Date().toISOString() }
+  );
+  const [legalActivationError, setLegalActivationError] = useState('');
+  const driverWorkActivated = legalActivation !== null && legalActivation.status !== 'awaiting_acceptance';
   const [recentDeliveryIds, setRecentDeliveryIds] = useState<Set<string>>(() => new Set());
   const knownDeliveryIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedDeliveriesRef = useRef(false);
   const dashboardLoadRef = useRef<Promise<boolean> | null>(null);
+
+  const loadLegalActivation = useCallback(async () => {
+    try {
+      const nextActivation = await getCurrentDriverLegalActivation();
+      setLegalActivation(nextActivation);
+      setLegalActivationError('');
+      return nextActivation;
+    } catch (activationError) {
+      setLegalActivation(null);
+      setLegalActivationError(
+        activationError instanceof Error ? activationError.message : 'Не удалось проверить активацию водителя.'
+      );
+      return null;
+    }
+  }, []);
 
   const loadDashboard = useCallback(() => {
     if (dashboardLoadRef.current) return dashboardLoadRef.current;
@@ -580,8 +608,28 @@ export function DriverApp() {
 
   useEffect(() => {
     if (!authChecked || !hasDriverAccess || selectedDriverId === demoDriverId) return;
+    void loadLegalActivation();
+  }, [authChecked, hasDriverAccess, loadLegalActivation, selectedDriverId]);
+
+  useEffect(() => {
+    if (!authChecked || !hasDriverAccess || selectedDriverId === demoDriverId || !legalActivation) return;
+    if (legalActivation.status === 'awaiting_acceptance' && location.pathname !== '/driver/activation') {
+      navigate('/driver/activation', { replace: true });
+    } else if (legalActivation.status !== 'awaiting_acceptance' && location.pathname === '/driver/activation') {
+      navigate('/driver', { replace: true });
+    }
+  }, [authChecked, hasDriverAccess, legalActivation, location.pathname, navigate, selectedDriverId]);
+
+  useEffect(() => {
+    if (
+      !authChecked ||
+      !hasDriverAccess ||
+      selectedDriverId === demoDriverId ||
+      !legalActivation ||
+      legalActivation.status === 'awaiting_acceptance'
+    ) return;
     void loadDashboard();
-  }, [authChecked, hasDriverAccess, loadDashboard, selectedDriverId]);
+  }, [authChecked, hasDriverAccess, legalActivation, loadDashboard, selectedDriverId]);
 
   const profile: DriverProfile = {
     ...preferFreshDriverLocation(snapshot.profile, liveDriverLocation ? {
@@ -651,7 +699,7 @@ export function DriverApp() {
   }, [effectiveDriverId]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess || !effectiveDriverId) return;
+    if (!authChecked || !hasDriverAccess || !driverWorkActivated || !effectiveDriverId) return;
     const restorePush = () => {
       if (document.visibilityState === 'visible' && navigator.onLine) {
         void restoreRestaurantOrderNotificationSubscription({
@@ -669,17 +717,18 @@ export function DriverApp() {
       window.removeEventListener('pageshow', restorePush);
       document.removeEventListener('visibilitychange', restorePush);
     };
-  }, [authChecked, effectiveDriverId, hasDriverAccess]);
+  }, [authChecked, driverWorkActivated, effectiveDriverId, hasDriverAccess]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess || !effectiveDriverId) return undefined;
+    if (!authChecked || !hasDriverAccess || !driverWorkActivated || !effectiveDriverId) return undefined;
     return subscribeToDriverRealtime(effectiveDriverId, loadDashboard);
-  }, [authChecked, effectiveDriverId, hasDriverAccess, loadDashboard]);
+  }, [authChecked, driverWorkActivated, effectiveDriverId, hasDriverAccess, loadDashboard]);
 
   useEffect(() => {
     if (
       !authChecked ||
       !hasDriverAccess ||
+      !driverWorkActivated ||
       (!snapshot.profile.isOnline && !hasTrackableDelivery) ||
       !effectiveDriverId ||
       !navigator.geolocation
@@ -725,10 +774,10 @@ export function DriverApp() {
       navigator.geolocation.clearWatch(watchId);
       if (pendingTimer !== null) window.clearTimeout(pendingTimer);
     };
-  }, [applyLiveDriverPosition, authChecked, effectiveDriverId, hasDriverAccess, hasTrackableDelivery, snapshot.profile.isOnline]);
+  }, [applyLiveDriverPosition, authChecked, driverWorkActivated, effectiveDriverId, hasDriverAccess, hasTrackableDelivery, snapshot.profile.isOnline]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess) return undefined;
+    if (!authChecked || !hasDriverAccess || !driverWorkActivated) return undefined;
 
     const refreshDriverDashboard = () => {
       void loadDashboard();
@@ -752,10 +801,10 @@ export function DriverApp() {
       window.removeEventListener('online', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
-  }, [authChecked, hasDriverAccess, loadDashboard]);
+  }, [authChecked, driverWorkActivated, hasDriverAccess, loadDashboard]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess) return undefined;
+    if (!authChecked || !hasDriverAccess || !driverWorkActivated) return undefined;
 
     const refreshAfterPickupConfirmation = (event: StorageEvent) => {
       if (event.key === 'waycatalog-driver-delivery-confirmed') {
@@ -765,15 +814,15 @@ export function DriverApp() {
 
     window.addEventListener('storage', refreshAfterPickupConfirmation);
     return () => window.removeEventListener('storage', refreshAfterPickupConfirmation);
-  }, [authChecked, hasDriverAccess, loadDashboard]);
+  }, [authChecked, driverWorkActivated, hasDriverAccess, loadDashboard]);
 
   useEffect(() => {
-    if (!authChecked || !hasDriverAccess || !['active', 'map'].includes(route)) return undefined;
+    if (!authChecked || !hasDriverAccess || !driverWorkActivated || !['active', 'map'].includes(route)) return undefined;
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === 'visible') void loadDashboard();
     }, 20_000);
     return () => window.clearInterval(intervalId);
-  }, [authChecked, hasDriverAccess, loadDashboard, route]);
+  }, [authChecked, driverWorkActivated, hasDriverAccess, loadDashboard, route]);
 
   const activeDelivery = useMemo(() => {
     if (snapshot.activeDelivery && localActiveDelivery?.deliveryId === snapshot.activeDelivery.deliveryId) {
@@ -829,6 +878,36 @@ export function DriverApp() {
           </Link>
         </section>
       </main>
+    );
+  }
+
+  if (!legalActivation) {
+    return (
+      <main className="driver-app">
+        <section className="driver-phone driver-auth-state">
+          <ShieldCheck />
+          <strong>Проверяем активацию водителя...</strong>
+          {legalActivationError && (
+            <>
+              <small>{legalActivationError}</small>
+              <button className="driver-primary" type="button" onClick={() => void loadLegalActivation()}>
+                Повторить
+              </button>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
+
+  if (legalActivation.status === 'awaiting_acceptance') {
+    return (
+      <DriverActivationScreen
+        onActivated={(activation) => {
+          setLegalActivation(activation);
+          navigate('/driver', { replace: true });
+        }}
+      />
     );
   }
 
@@ -891,6 +970,83 @@ export function DriverApp() {
           />
         )}
         {route !== 'map' && <DriverBottomNav active={route} />}
+      </section>
+    </main>
+  );
+}
+
+export function DriverActivationScreen({
+  onActivated
+}: {
+  onActivated: (activation: DriverLegalActivation) => void;
+}) {
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [personalDataAccepted, setPersonalDataAccepted] = useState(false);
+  const [locationAccepted, setLocationAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const allAccepted = offerAccepted && personalDataAccepted && locationAccepted;
+
+  const activate = async () => {
+    if (!allAccepted || submitting) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      onActivated(await activateCurrentDriver());
+    } catch (activationError) {
+      setError(activationError instanceof Error ? activationError.message : 'Не удалось завершить активацию.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <main className="driver-app driver-activation-page">
+      <section className="driver-phone driver-activation-screen">
+        <header className="driver-activation-screen__head">
+          <span><ShieldCheck /></span>
+          <div>
+            <small>Первый вход</small>
+            <h1>Активация водителя</h1>
+          </div>
+        </header>
+
+        <section className="driver-activation-card">
+          <h2>Проверьте условия работы</h2>
+          <p>Подтвердите документы один раз. После активации эти галочки больше не будут мешать работе в кабинете.</p>
+          <div className="driver-activation-documents">
+            <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">
+              Оферта для водителя · версия {legalDocumentReleases.driver_offer.version}<ExternalLink />
+            </a>
+            <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">
+              Согласие на обработку данных и геолокацию · версия {legalDocumentReleases.driver_consent.version}<ExternalLink />
+            </a>
+          </div>
+        </section>
+
+        <section className="driver-activation-card driver-activation-confirmations">
+          <h2>Подтверждение</h2>
+          <label>
+            <input type="checkbox" checked={offerAccepted} onChange={(event) => setOfferAccepted(event.target.checked)} />
+            <span>Я прочитал и принимаю оферту для водителя.</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={personalDataAccepted} onChange={(event) => setPersonalDataAccepted(event.target.checked)} />
+            <span>Даю согласие на обработку персональных данных для работы в WayYaam.</span>
+          </label>
+          <label>
+            <input type="checkbox" checked={locationAccepted} onChange={(event) => setLocationAccepted(event.target.checked)} />
+            <span>Разрешаю использовать геолокацию во время доставки.</span>
+          </label>
+        </section>
+
+        {error && <p className="driver-error" role="alert">{error}</p>}
+        <button className="driver-primary driver-activation-submit" type="button" disabled={!allAccepted || submitting} onClick={() => void activate()}>
+          <Check />{submitting ? 'Активируем...' : 'Активировать аккаунт'}
+        </button>
+        <button className="driver-activation-signout" type="button" onClick={() => void signOutDriver().then(redirectToClientHome)}>
+          <LogOut /> Выйти
+        </button>
       </section>
     </main>
   );

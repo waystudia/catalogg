@@ -310,7 +310,11 @@ const restoreRestaurantCartFromOrder = (snapshot: ClientPlatformSnapshot, order:
     };
   });
 
-  useCartStore.setState({ items, updatedAt: items.length > 0 ? Date.now() : null });
+  useCartStore.setState({
+    items,
+    updatedAt: items.length > 0 ? Date.now() : null,
+    catalogSlug: order.restaurantSlug
+  });
   useOrderStore.getState().setOrder({
     mode: order.orderType === 'delivery' ? 'delivery' : order.orderType === 'pickup' ? 'takeaway' : 'hall',
     clientName: order.clientName,

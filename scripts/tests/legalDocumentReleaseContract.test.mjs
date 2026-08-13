@@ -8,8 +8,8 @@ const sha256 = (path) => createHash('sha256').update(read(path)).digest('hex');
 
 const releasesSource = read('src/shared/legalDocuments.ts');
 const clientAccountSource = read('src/shared/api/clientAccountApi.ts');
-const catalogAdminSource = read('src/pages/catalog-admin/CatalogAdminApp.tsx');
-const driverAdminSource = read('src/features/platform-admin-drivers/PlatformDriversPage.tsx');
+const restaurantActivationSource = read('src/features/restaurant-activation/RestaurantActivationPage.tsx');
+const driverActivationSource = read('src/pages/driver/DriverApp.tsx');
 
 const releaseDocuments = [
   ['02-user-agreement', 'a6d0e28e0abb186ee879339a4a2b624eb6d99a5ca2fc8d3362b5ca12b9cca8b0'],
@@ -30,14 +30,17 @@ test('registration records each accepted document with its own version and SHA-2
   assert.match(releasesSource, /user_agreement:[\s\S]*version: '2\.0'[\s\S]*a6d0e28e/);
   assert.match(releasesSource, /restaurant_offer:[\s\S]*version: '2\.0'[\s\S]*2f130f15/);
   assert.match(releasesSource, /driver_offer:[\s\S]*version: '2\.0'[\s\S]*0c0f5c66/);
+  assert.match(releasesSource, /driver_consent:[\s\S]*version: '1\.0'[\s\S]*d69209f4/);
   assert.match(releasesSource, /client_consent:[\s\S]*version: '1\.0'[\s\S]*582d9449/);
   assert.match(clientAccountSource, /legalDocumentReleases\[code\]/);
   assert.match(clientAccountSource, /target_document_version:\s*release\.version/);
   assert.match(clientAccountSource, /target_document_sha256:\s*release\.sha256/);
 });
 
-test('restaurant and driver cabinet copy names the linked offer release 2.0', () => {
-  assert.doesNotMatch(catalogAdminSource, /редакции 1\.0 от 31 июля 2026 года/);
-  assert.match(catalogAdminSource, /legalDocumentReleases\.restaurant_offer\.version/);
-  assert.match(driverAdminSource, /legalDocumentReleases\.driver_offer\.version/);
+test('restaurant and driver activation screens name their linked document releases', () => {
+  assert.doesNotMatch(restaurantActivationSource, /редакции 1\.0 от 31 июля 2026 года/);
+  assert.match(restaurantActivationSource, /Версия \{document\.version\} · SHA-256 сохранён/);
+  assert.match(driverActivationSource, /legalDocumentReleases\.driver_offer\.version/);
+  assert.match(driverActivationSource, /legalDocumentReleases\.driver_consent\.version/);
+  assert.equal(sha256('public/legal/06-driver-consent.html'), 'd69209f4c9829694f512d4da6c0947d6a5bbaf0d5c15b84068d42360d9bdbb39');
 });
