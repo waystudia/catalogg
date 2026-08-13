@@ -23,6 +23,14 @@ test('production disables cached HTTP/3 alternatives on unreliable mobile routes
   assert.match(caddyfile, /@appShell path \/ \/index\.html \/sw\.js \/manifest\.webmanifest\s+header @appShell Cache-Control "no-store"/);
 });
 
+test('only existing hashed assets are immutable while asset 404 responses are never cached', () => {
+  assert.match(
+    caddyfile,
+    /handle \/assets\/\* \{\s+route \{\s+header Cache-Control "no-store"\s+@assetFile file\s+header @assetFile Cache-Control "public, max-age=31536000, immutable"\s+file_server/
+  );
+  assert.doesNotMatch(caddyfile, /@immutable path \/assets\/\*/);
+});
+
 test('external Unsplash images are fetched through the Russian production endpoint', () => {
   assert.match(caddyfile, /handle_path \/media\/unsplash\/\*/);
   assert.match(caddyfile, /reverse_proxy https:\/\/images\.unsplash\.com/);
