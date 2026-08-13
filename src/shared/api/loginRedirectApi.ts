@@ -18,6 +18,18 @@ const isRestaurantRedirect = (redirect: string) =>
   /^\/business\/[^/]+(?:\/|$)/.test(redirect) ||
   /^\/[^/]+\/dashboard(?:\/|$)/.test(redirect);
 
+export const getRequestedCatalogSlugForReturnTo = (returnTo: string) => {
+  const businessMatch = /^\/business\/([^/?#]+)(?:\/|$)/.exec(returnTo);
+  const legacyMatch = /^\/([^/?#]+)\/dashboard(?:\/|$)/.exec(returnTo);
+  const encodedSlug = businessMatch?.[1] ?? legacyMatch?.[1];
+  if (!encodedSlug) return null;
+  try {
+    return decodeURIComponent(encodedSlug).trim().toLowerCase() || null;
+  } catch {
+    return null;
+  }
+};
+
 export const getExpectedLoginRoleForReturnTo = (returnTo: string): StaffLoginRole | undefined => {
   if (/^\/driver(?:\/|$)/.test(returnTo)) return 'driver';
   if (isRestaurantRedirect(returnTo)) return 'restaurant';
@@ -30,7 +42,7 @@ export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLo
   if (expectedRole === 'driver') {
     if (redirect === '/driver') return;
     if (isRestaurantRedirect(redirect)) {
-      throw new Error('Это аккаунт ресторана. Выберите «Ресторан».');
+      throw new Error('Это бизнес-аккаунт. Откройте его бизнес-профиль.');
     }
     throw new Error('Этот аккаунт не является водителем.');
   }
@@ -39,7 +51,7 @@ export const assertExpectedLoginRole = (redirect: string, expectedRole?: StaffLo
   if (redirect === '/driver') {
     throw new Error('Это аккаунт водителя. Выберите «Водитель».');
   }
-  throw new Error('Этот аккаунт не привязан к ресторану.');
+  throw new Error('Этот аккаунт не привязан к бизнес-профилю.');
 };
 
 const settleProfileCheck = async <T>(request: PromiseLike<T>) => {
@@ -63,6 +75,17 @@ const isMissingRedirectRpc = (error: unknown) => {
   return (
     errorText.includes('pgrst202') ||
     (errorText.includes('resolve_current_login_redirect') &&
+      (errorText.includes('not found') || errorText.includes('could not find')))
+  );
+};
+
+const isMissingCatalogAccessRpc = (error: unknown) => {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { code?: unknown; message?: unknown };
+  const errorText = `${String(value.code ?? '')} ${String(value.message ?? '')}`.toLowerCase();
+  return (
+    errorText.includes('pgrst202') ||
+    (errorText.includes('has_catalog_admin_access') &&
       (errorText.includes('not found') || errorText.includes('could not find')))
   );
 };
@@ -97,6 +120,35 @@ const normalizeCatalogWorkspaceRedirect = async (redirect: string) => {
 
   if (error || !catalog) return redirect;
   return getCatalogWorkspaceRedirect(catalog) ?? redirect;
+};
+
+const resolveRequestedCatalogWorkspace = async (returnTo?: string) => {
+  if (!returnTo || !supabase) return null;
+  const requestedSlug = getRequestedCatalogSlugForReturnTo(returnTo);
+  if (!requestedSlug) return null;
+
+  const { data: hasAccess, error: accessError } = await settleProfileCheck(
+    supabase.rpc('has_catalog_admin_access', { target_slug: requestedSlug })
+  );
+  if (accessError) {
+    if (isMissingCatalogAccessRpc(accessError)) return null;
+    throw new Error(PROFILE_SERVICE_ERROR);
+  }
+  if (!hasAccess) {
+    throw new Error('Этот аккаунт не привязан к выбранному бизнес-профилю.');
+  }
+
+  const { data: catalog, error: catalogError } = await settleProfileCheck(
+    supabase
+      .from('catalogs')
+      .select('slug, business_type')
+      .eq('slug', requestedSlug)
+      .maybeSingle()
+  );
+  if (catalogError || !catalog) {
+    return returnTo;
+  }
+  return getCatalogWorkspaceRedirect(catalog) ?? returnTo;
 };
 
 const metadataRole = (metadata: unknown) => {
@@ -185,7 +237,8 @@ export async function resolveSessionRedirect(emailFallback = '', knownSession?: 
 export async function resolveLoginRedirect(
   identifier: string,
   password: string,
-  expectedRole?: StaffLoginRole
+  expectedRole?: StaffLoginRole,
+  requestedReturnTo?: string
 ) {
   if (!supabase) {
     const redirect =
@@ -216,10 +269,14 @@ export async function resolveLoginRedirect(
     throw new Error(error.message);
   }
 
-  const redirect = await resolveSessionRedirect(identifier.includes('@') ? identifier : '', data.session);
+  const requestedCatalogRedirect = expectedRole === 'restaurant'
+    ? await resolveRequestedCatalogWorkspace(requestedReturnTo)
+    : null;
+  const redirect = requestedCatalogRedirect
+    ?? await resolveSessionRedirect(identifier.includes('@') ? identifier : '', data.session);
   if (redirect) assertExpectedLoginRole(redirect, expectedRole);
   if (redirect) {
-    preserveSupabaseSessionForRedirect(redirect);
+    preserveSupabaseSessionForRedirect(redirect, data.session);
   }
   return redirect;
 }
@@ -230,13 +287,19 @@ const isCredentialError = (error: unknown) =>
 export async function resolveUnifiedLogin(
   identifier: string,
   password: string,
-  expectedRole?: StaffLoginRole
+  expectedRole?: StaffLoginRole,
+  requestedReturnTo?: string
 ) {
   const normalizedIdentifier = identifier.trim();
   const usesEmail = normalizedIdentifier.includes('@');
 
   try {
-    const redirect = await resolveLoginRedirect(normalizedIdentifier, password, expectedRole);
+    const redirect = await resolveLoginRedirect(
+      normalizedIdentifier,
+      password,
+      expectedRole,
+      requestedReturnTo
+    );
     if (redirect && redirect !== '/') {
       if (redirect === '/profile') await loginCurrentAuthClientAccount();
       return redirect;
@@ -246,7 +309,7 @@ export async function resolveUnifiedLogin(
   }
 
   if (expectedRole === 'driver') throw new Error('Этот аккаунт не является водителем.');
-  if (expectedRole === 'restaurant') throw new Error('Этот аккаунт не привязан к ресторану.');
+  if (expectedRole === 'restaurant') throw new Error('Этот аккаунт не привязан к выбранному бизнес-профилю.');
   if (usesEmail) {
     throw new Error('Аккаунт не привязан к WayYaam.');
   }

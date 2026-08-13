@@ -52,7 +52,7 @@ describe('client PWA to browser pairing contract', () => {
 
     assert.match(api, /redeem_client_browser_pairing_code/);
     assert.match(api, /saveClientSession\(token, session\)/);
-    assert.match(profile, /clientSession && \([\s\S]*<ClientPasskeyCard \/>/);
+    assert.match(profile, /clientSession && \([\s\S]*<ClientPasskeyCard accountId=\{clientSession\.accountId\} \/>/);
     assert.match(profile, /appIsRunningStandalone\(\) && \([\s\S]*<ClientPwaPairingCodeCard \/>/);
     assert.match(catalog, /<ClientBrowserPairingBanner \/>/);
     assert.match(checkout, /restoreClientAccountSession\(\)/);

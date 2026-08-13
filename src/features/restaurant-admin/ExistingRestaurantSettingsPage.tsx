@@ -26,6 +26,7 @@ import {
 } from '../restaurant-settings';
 import type { CatalogBackupPayload } from '../restaurant-settings/catalogAdminModel';
 import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
+import type { BusinessType } from '../../shared/businessTerminology';
 
 export type ExistingRestaurantSettingsView =
   | 'home'
@@ -66,7 +67,8 @@ export function ExistingRestaurantSettingsPage({
   onSignOut,
   onChangePassword,
   onActivate,
-  legalActivationStatus
+  legalActivationStatus,
+  businessType = 'restaurant'
 }: {
   initialView?: ExistingRestaurantSettingsView;
   catalogSlug: string;
@@ -92,6 +94,7 @@ export function ExistingRestaurantSettingsPage({
   onChangePassword?: () => void;
   onActivate?: () => void;
   legalActivationStatus?: RestaurantLegalStatus | null;
+  businessType?: BusinessType;
 }) {
   const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
   const [catalogTab, setCatalogTab] = useState<SettingsCatalogTab>('categories');
@@ -107,11 +110,11 @@ export function ExistingRestaurantSettingsPage({
           setCatalogTab('categories');
           setView('categories');
         }}
-        onSeating={() => {
+        onSeating={businessType === 'restaurant' || businessType === 'coffee_shop' ? () => {
           setCatalogTab('cabins');
           setCabinEditor({ mode: 'list' });
           setView('categories');
-        }}
+        } : undefined}
         onPayments={() => setView('payments')}
         onImport={() => setView('backup')}
         onDelivery={() => setView('delivery')}
@@ -119,6 +122,7 @@ export function ExistingRestaurantSettingsPage({
         onPassword={onChangePassword}
         onActivate={onActivate}
         activationStatus={legalActivationStatus}
+        businessType={businessType}
       />
     );
   }
@@ -148,7 +152,7 @@ export function ExistingRestaurantSettingsPage({
         Вернуться к настройкам
       </button>
 
-      {view === 'profile' && <ProfileSettings restaurant={restaurant} onSave={onSaveRestaurant} />}
+      {view === 'profile' && <ProfileSettings restaurant={restaurant} businessType={businessType} onSave={onSaveRestaurant} />}
       {view === 'design' && (
         <DesignSettingsHome
           onOpenTheme={() => setView('theme')}

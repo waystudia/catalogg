@@ -1,4 +1,5 @@
 import { signOutCatalogAdmin } from '../../shared/api/catalogAdminApi';
+import { normalizeBusinessType, type BusinessType } from '../../shared/businessTerminology';
 import { supabase } from '../../shared/supabase';
 import type {
   ActivationConfirmations,
@@ -21,6 +22,7 @@ export type RestaurantActivationView = {
   clientId: string;
   catalogId: string;
   catalogSlug: string;
+  businessType: BusinessType;
   legalStatus: RestaurantLegalStatus;
   canAcceptLegalDocuments: boolean;
   memberRole: RestaurantMemberRole;
@@ -129,11 +131,13 @@ const requireSupabase = () => {
 
 const mapActivationView = (
   row: ActivationRpcRow,
-  details: ActivationProfileDetailsRpcRow = {}
+  details: ActivationProfileDetailsRpcRow = {},
+  businessType: unknown = 'restaurant'
 ): RestaurantActivationView => ({
   clientId: row.client_id,
   catalogId: row.catalog_id,
   catalogSlug: row.catalog_slug,
+  businessType: normalizeBusinessType(businessType),
   legalStatus: row.legal_status,
   canAcceptLegalDocuments: row.can_accept_legal_documents,
   memberRole: row.member_role,
@@ -193,7 +197,17 @@ export const restaurantActivationApi: RestaurantActivationService = {
     rpcError(error);
     rpcError(detailsError);
     if (!data) throw new Error('Данные ресторана для активации не найдены.');
-    return mapActivationView(data as ActivationRpcRow, (details ?? {}) as ActivationProfileDetailsRpcRow);
+    const activation = data as ActivationRpcRow;
+    const { data: catalog } = await client
+      .from('catalogs')
+      .select('business_type')
+      .eq('id', activation.catalog_id)
+      .maybeSingle();
+    return mapActivationView(
+      activation,
+      (details ?? {}) as ActivationProfileDetailsRpcRow,
+      (catalog as { business_type?: unknown } | null)?.business_type
+    );
   },
 
   async markDocumentOpened(documentId) {

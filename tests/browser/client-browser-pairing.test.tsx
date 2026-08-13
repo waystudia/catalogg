@@ -42,10 +42,12 @@ test('keeps checkout available when the client skips biometric setup', async () 
   expect(continued).toBe(false);
 });
 
-test('enables Face ID from an authenticated client profile', async () => {
+test('keeps the Face ID offer until it is connected, then removes the prompt', async () => {
   let registrations = 0;
+  window.localStorage.removeItem('wayyaam:client-passkey-enabled:browser-test-account');
   const screen = await render(
     <ClientPasskeyCard
+      accountId="browser-test-account"
       supported
       registerPasskey={async () => { registrations += 1; }}
     />
@@ -53,8 +55,7 @@ test('enables Face ID from an authenticated client profile', async () => {
 
   await screen.getByRole('button', { name: 'Включить вход по Face ID' }).click();
   expect(registrations).toBe(1);
-  await expect.element(screen.getByText('Face ID подключён')).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Face ID включён' })).toBeDisabled();
+  await expect.element(screen.getByRole('region', { name: 'Вход по Face ID' })).not.toBeInTheDocument();
 });
 
 test('signs in to the client profile with Face ID without asking for a password', async () => {

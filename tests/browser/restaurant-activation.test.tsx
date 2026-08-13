@@ -10,6 +10,7 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
   clientId: 'client-1',
   catalogId: 'catalog-1',
   catalogSlug: 'mangal',
+  businessType: 'restaurant',
   legalStatus: 'awaiting_acceptance',
   canAcceptLegalDocuments: true,
   memberRole: 'owner',
@@ -121,6 +122,26 @@ test('employee without authority cannot request or submit a legal code', async (
 
   await expect.element(screen.getByText(/у вашей роли нет права принимать юридические документы/i)).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).not.toBeInTheDocument();
+});
+
+test('grocery activation keeps store terminology and returns to the grocery cabinet', async () => {
+  const service = activationService(activationView({
+    catalogSlug: 'finik',
+    businessType: 'grocery',
+    restaurant: {
+      ...activationView().restaurant,
+      name: 'Финик'
+    },
+    pendingRequestId: 'request-1'
+  }));
+  const screen = await render(<RestaurantActivationPage service={service} />);
+
+  await expect.element(screen.getByRole('heading', { name: 'Активация магазина в WayYaam' })).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: 'Вернуться в кабинет' })).toHaveAttribute('href', '#/business/finik');
+  await expect.element(screen.getByText(/сведений о магазине/i)).toBeVisible();
+  await expect.element(screen.getByText(/от имени магазина/i)).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Активировать магазин' })).toBeVisible();
+  await expect.element(screen.getByText(/вашего ресторана/i)).not.toBeInTheDocument();
 });
 
 test('restaurant remains blocked while the contract bundle has not been published', async () => {

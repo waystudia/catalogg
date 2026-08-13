@@ -151,10 +151,12 @@ export async function signInWithPasswordResilient(identifier: string, password: 
   };
 }
 
-export const preserveSupabaseSessionForRedirect = (redirect: string) => {
+export const preserveSupabaseSessionForRedirect = (redirect: string, knownSession?: Session | null) => {
   if (typeof window === 'undefined') return;
   try {
-    const serializedSession = window.localStorage.getItem(currentAuthStorageKey);
+    const serializedSession = knownSession
+      ? JSON.stringify(knownSession)
+      : window.localStorage.getItem(currentAuthStorageKey);
     if (!serializedSession) return;
     handoffSupabaseSessionToScope(getSupabaseAuthScope(redirect), serializedSession, currentAuthScope);
   } catch {
@@ -400,7 +402,8 @@ const productConfigKeys = [
   'allow_inscription',
   'allow_decoration_comment',
   'allow_production_schedule',
-  'placeholder_kind'
+  'placeholder_kind',
+  'minimum_stock'
 ] as const satisfies ReadonlyArray<keyof Product>;
 
 const applyProductConfig = (values: Product[], settings: unknown) => {

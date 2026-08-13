@@ -75,16 +75,17 @@ const mapCatalog = (row: CatalogRow): NonNullable<CatalogAdminAccess['catalog']>
 
 async function loadCatalogBySlug(slug: string) {
   if (!supabase) {
+    const isGroceryDemo = slug.toLocaleLowerCase('ru-RU') === 'finik';
     return {
       id: `catalog-${slug}`,
-      name: slug,
+      name: isGroceryDemo ? 'Финик' : slug,
       slug,
       status: 'published' as const,
       description: '',
       logoUrl: '',
-      templateName: 'Restaurant Modern',
+      templateName: isGroceryDemo ? 'Grocery Universal' : 'Restaurant Modern',
       templateVersion: 1,
-      businessType: normalizeBusinessType('restaurant')
+      businessType: normalizeBusinessType(isGroceryDemo ? 'grocery' : 'restaurant')
     };
   }
 
