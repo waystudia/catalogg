@@ -24,6 +24,18 @@ const blockedStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> =
   }
 });
 
+const staleReadableStorage = (
+  values: StorageValues
+): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> => ({
+  getItem: (key) => values.get(key) ?? null,
+  removeItem: () => {
+    throw new DOMException('Blocked', 'SecurityError');
+  },
+  setItem: () => {
+    throw new DOMException('Quota exceeded', 'QuotaExceededError');
+  }
+});
+
 const withWindowStorage = (
   localStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | undefined,
   sessionStorage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | undefined,
@@ -47,18 +59,22 @@ const withWindowStorage = (
 describe('role session browser storage', () => {
   it('uses durable localStorage first and removes an older tab-only fallback', () => {
     const localValues = new Map<string, string>([['role-key', 'durable-session']]);
+    const markerKey = 'waycatalog-auth-session-fallback:role-key';
     const tabValues = new Map<string, string>([['role-key', 'stale-tab-session']]);
 
     withWindowStorage(memoryStorage(localValues), memoryStorage(tabValues), () => {
       const storage = getSupabaseAuthStorage();
       expect(storage.getItem('role-key')).toBe('durable-session');
 
+      tabValues.set(markerKey, '1');
       storage.setItem('role-key', 'refreshed-session');
       expect(storage.getItem('role-key')).toBe('refreshed-session');
     });
 
     expect(localValues.get('role-key')).toBe('refreshed-session');
+    expect(localValues.has(markerKey)).toBe(false);
     expect(tabValues.has('role-key')).toBe(false);
+    expect(tabValues.has(markerKey)).toBe(false);
   });
 
   it('moves a completed Finik login through sessionStorage when Safari blocks localStorage', () => {
@@ -78,6 +94,56 @@ describe('role session browser storage', () => {
     expect(tabValues.get('waycatalog-auth-restaurant-admin')).toBe('fresh-finik-session');
     expect(tabValues.has('waycatalog-auth-client')).toBe(false);
     expect(tabValues.get('waycatalog-auth-driver')).toBe('independent-driver-session');
+  });
+
+  it('prefers fresh tab fallbacks when stale readable local sessions reject replacement writes', () => {
+    const localValues = new Map<string, string>([
+      ['waycatalog-auth-restaurant-admin', 'expired-business-session'],
+      ['waycatalog-auth-driver', 'expired-driver-session'],
+      ['waycatalog-auth-platform-admin', 'expired-platform-session']
+    ]);
+    const tabValues = new Map<string, string>();
+
+    withWindowStorage(staleReadableStorage(localValues), memoryStorage(tabValues), () => {
+      handoffSupabaseSessionToScope('restaurant-admin', 'fresh-business-session', 'client');
+      handoffSupabaseSessionToScope('driver', 'fresh-driver-session', 'client');
+      handoffSupabaseSessionToScope('platform-admin', 'fresh-platform-session', 'client');
+
+      const storage = getSupabaseAuthStorage();
+      expect(storage.getItem('waycatalog-auth-restaurant-admin')).toBe('fresh-business-session');
+      expect(storage.getItem('waycatalog-auth-driver')).toBe('fresh-driver-session');
+      expect(storage.getItem('waycatalog-auth-platform-admin')).toBe('fresh-platform-session');
+    });
+
+    expect(tabValues.get('waycatalog-auth-restaurant-admin')).toBe('fresh-business-session');
+    expect(tabValues.get('waycatalog-auth-driver')).toBe('fresh-driver-session');
+    expect(tabValues.get('waycatalog-auth-platform-admin')).toBe('fresh-platform-session');
+  });
+
+  it('keeps a same-document session ahead of stale readable browser values when no store accepts writes', () => {
+    const storageKey = 'waycatalog-auth-memory-over-stale';
+    const localValues = new Map<string, string>([[storageKey, 'expired-local-session']]);
+    const tabValues = new Map<string, string>([[storageKey, 'expired-tab-session']]);
+
+    withWindowStorage(staleReadableStorage(localValues), staleReadableStorage(tabValues), () => {
+      const storage = getSupabaseAuthStorage();
+      storage.setItem(storageKey, 'fresh-memory-session');
+      expect(storage.getItem(storageKey)).toBe('fresh-memory-session');
+      storage.removeItem(storageKey);
+    });
+  });
+
+  it('clears an orphaned tab fallback marker before reading the durable session', () => {
+    const storageKey = 'waycatalog-auth-orphaned-marker';
+    const markerKey = `waycatalog-auth-session-fallback:${storageKey}`;
+    const localValues = new Map<string, string>([[storageKey, 'durable-session']]);
+    const tabValues = new Map<string, string>([[markerKey, '1']]);
+
+    withWindowStorage(memoryStorage(localValues), memoryStorage(tabValues), () => {
+      expect(getSupabaseAuthStorage().getItem(storageKey)).toBe('durable-session');
+    });
+
+    expect(tabValues.has(markerKey)).toBe(false);
   });
 
   it('reads the tab fallback when localStorage is available but has no role session', () => {

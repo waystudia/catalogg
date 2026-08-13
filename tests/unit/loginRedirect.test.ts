@@ -6,7 +6,12 @@ import {
   getProductionAuthConfigurationError,
   getRequestedCatalogSlugForReturnTo
 } from '../../src/shared/api/loginRedirectApi';
-import { buildProfileLoginPath, resolveProfileLoginTarget } from '../../src/shared/appNavigation';
+import {
+  buildProfileLoginPath,
+  buildRoleAppUrl,
+  redirectToRoleApp,
+  resolveProfileLoginTarget
+} from '../../src/shared/appNavigation';
 
 describe('staff login role selection', () => {
   it('opens every role login inside the client profile and rejects unsafe return paths', () => {
@@ -33,6 +38,68 @@ describe('staff login role selection', () => {
     expect(resolveProfileLoginTarget('/profile', '/r/mangal/checkout')).toBe('/r/mangal/checkout');
     expect(resolveProfileLoginTarget('/profile', '/admin/clients')).toBe('/profile');
     expect(resolveProfileLoginTarget('/profile', '/business/finik')).toBe('/profile');
+  });
+
+  it('keeps the current document query while moving an authenticated user into every role cabinet', () => {
+    const refreshedClientSearch = '?auth-refresh=index-current123';
+
+    expect(buildRoleAppUrl('/business/finik', refreshedClientSearch)).toBe(
+      '/?auth-refresh=index-current123#/business/finik'
+    );
+    expect(buildRoleAppUrl('/mangal/dashboard', refreshedClientSearch)).toBe(
+      '/?auth-refresh=index-current123#/mangal/dashboard'
+    );
+    expect(buildRoleAppUrl('/driver', refreshedClientSearch)).toBe(
+      '/?auth-refresh=index-current123#/driver'
+    );
+    expect(buildRoleAppUrl('/admin/clients', refreshedClientSearch)).toBe(
+      '/?auth-refresh=index-current123#/admin/clients'
+    );
+    expect(buildRoleAppUrl('driver', 'auth-refresh=index-current123')).toBe(
+      '/?auth-refresh=index-current123#/driver'
+    );
+    expect(buildRoleAppUrl('admin/clients')).toBe('/#/admin/clients');
+  });
+
+  it('replaces only the hash after a stale production client refresh', () => {
+    const previousWindow = globalThis.window;
+    let replacedUrl = '';
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          search: '?auth-refresh=index-current123',
+          replace: (url: string) => {
+            replacedUrl = url;
+          }
+        }
+      }
+    });
+
+    try {
+      redirectToRoleApp('/admin/clients');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    expect(replacedUrl).toBe('/?auth-refresh=index-current123#/admin/clients');
+  });
+
+  it('leaves role navigation inert during server rendering', () => {
+    const previousWindow = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+
+    try {
+      expect(() => redirectToRoleApp('/driver')).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
   });
 
   it('routes groceries to the universal business workspace without changing restaurants', () => {
