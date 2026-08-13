@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthScope,
+  getSupabaseAuthStorage,
   getSupabaseAuthStorageKeyForRedirect,
   getSupabaseStartupAuthScope,
   handoffSupabaseSessionToScope
@@ -110,6 +111,48 @@ describe('Supabase auth scopes', () => {
 
     assert.equal(values.get('waycatalog-auth-restaurant-admin'), 'fresh-finik-session');
     assert.equal(values.has('waycatalog-auth-client'), false);
+  });
+
+  it('keeps the destination session in this Safari tab when localStorage rejects the handoff', () => {
+    const tabValues = new Map<string, string>([
+      ['waycatalog-auth-client', 'stale-client-session']
+    ]);
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: () => null,
+          removeItem: () => {
+            throw new DOMException('Blocked', 'SecurityError');
+          },
+          setItem: () => {
+            throw new DOMException('Blocked', 'SecurityError');
+          }
+        },
+        sessionStorage: {
+          getItem: (key: string) => tabValues.get(key) ?? null,
+          removeItem: (key: string) => tabValues.delete(key),
+          setItem: (key: string, value: string) => tabValues.set(key, value)
+        }
+      }
+    });
+
+    try {
+      handoffSupabaseSessionToScope('restaurant-admin', 'fresh-finik-session', 'client');
+      assert.equal(
+        getSupabaseAuthStorage().getItem('waycatalog-auth-restaurant-admin'),
+        'fresh-finik-session'
+      );
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    assert.equal(tabValues.get('waycatalog-auth-restaurant-admin'), 'fresh-finik-session');
+    assert.equal(tabValues.has('waycatalog-auth-client'), false);
   });
 
   it('does not disturb role sessions when there is no completed login session to hand off', () => {

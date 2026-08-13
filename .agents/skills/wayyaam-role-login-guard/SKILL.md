@@ -32,6 +32,11 @@ separate stages. Prove which stage failed before changing passwords or role rows
    `returnTo` URL. Hash-only navigation does not reload the document, so compare
    the active `assets/index-*.js` with the current no-store shell before blaming
    credentials or role rows.
+8. If the destination briefly shows `Проверяем доступ...` and then returns to
+   the embedded login, treat password authentication and role resolution as
+   successful. Reproduce the handoff with `localStorage` throwing: Safari may
+   reload the hash destination after Supabase has fallen back to memory, leaving
+   the destination scope without a persisted session.
 
 ## Required invariants
 
@@ -39,6 +44,11 @@ separate stages. Prove which stage failed before changing passwords or role rows
   and `platform-admin`.
 - After password login, hand the serialized session to the destination scope
   with `preserveSupabaseSessionForRedirect` / `handoffSupabaseSessionToScope`.
+- Route every Supabase session read, write, handoff, and role sign-out through
+  `getSupabaseAuthStorage`. Keep durable `localStorage` as the first choice,
+  same-tab `sessionStorage` as the Safari fallback, and memory only as the final
+  same-document fallback. Pass the same adapter to `createClient`; do not add a
+  direct auth-token write to `localStorage`.
 - Resolve access server-side using `auth.uid()` and established owner/member
   rows. Do not trust editable user metadata.
 - Preserve legacy restaurant routes and `/login` compatibility while rejecting
@@ -76,7 +86,8 @@ VITE_BASE_PATH=/ VITE_SUPABASE_URL=https://api.wayyaam.ru \
   VITE_SUPABASE_PUBLISHABLE_KEY="$production_publishable_key" npm run build
 node --test scripts/tests/pwaUpdateSafety.test.mjs \
   scripts/tests/caddyTlsCompatibility.test.mjs \
-  scripts/tests/staticReleaseDeploy.test.mjs
+  scripts/tests/staticReleaseDeploy.test.mjs \
+  scripts/tests/roleSessionSafetyContract.test.mjs
 git diff --check
 ```
 
