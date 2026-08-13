@@ -98,6 +98,8 @@ test('keeps back, search, cart, share and categories visible after the catalog s
     const sentinel = document.querySelector<HTMLElement>('.catalog-nav-sentinel')!;
     const sentinelObserver = ControlledIntersectionObserver.instances.find((instance) => instance.targets.has(sentinel));
 
+    expect(getComputedStyle(document.documentElement).overflowX).toBe('clip');
+    expect(getComputedStyle(document.body).overflowX).toBe('clip');
     expect(getComputedStyle(nav).position).toBe('sticky');
     expect(getComputedStyle(nav).top).toBe('0px');
     expect(sentinelObserver).toBeDefined();
