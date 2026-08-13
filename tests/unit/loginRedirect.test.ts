@@ -3,6 +3,7 @@ import {
   assertExpectedLoginRole,
   getExpectedLoginRoleForReturnTo,
   getCatalogWorkspaceRedirect,
+  getProductionAuthConfigurationError,
   getRequestedCatalogSlugForReturnTo
 } from '../../src/shared/api/loginRedirectApi';
 import { buildProfileLoginPath, resolveProfileLoginTarget } from '../../src/shared/appNavigation';
@@ -15,6 +16,15 @@ describe('staff login role selection', () => {
     expect(buildProfileLoginPath('//external.example')).toBe(
       '/profile?login=1&returnTo=%2Fprofile'
     );
+  });
+
+  it('reports a deployment configuration failure instead of claiming every production account is unlinked', () => {
+    expect(getProductionAuthConfigurationError('wayyaam.ru', false)).toBe(
+      'Сервис входа временно не настроен. Мы уже исправляем подключение.'
+    );
+    expect(getProductionAuthConfigurationError('www.wayyaam.ru', false)).toBeTruthy();
+    expect(getProductionAuthConfigurationError('127.0.0.1', false)).toBeNull();
+    expect(getProductionAuthConfigurationError('wayyaam.ru', true)).toBeNull();
   });
 
   it('routes each authenticated role without allowing a client session into a role cabinet', () => {

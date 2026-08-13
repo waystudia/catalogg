@@ -11,6 +11,13 @@ export type StaffLoginRole = 'restaurant' | 'driver';
 
 const PROFILE_CHECK_TIMEOUT_MS = 10_000;
 const PROFILE_SERVICE_ERROR = 'Сервис профилей временно не отвечает. Повторите вход через несколько секунд.';
+const PRODUCTION_AUTH_CONFIG_ERROR = 'Сервис входа временно не настроен. Мы уже исправляем подключение.';
+
+export const getProductionAuthConfigurationError = (hostname: string, configured: boolean) => {
+  const normalizedHostname = hostname.trim().toLowerCase().replace(/\.$/, '');
+  const productionHost = normalizedHostname === 'wayyaam.ru' || normalizedHostname === 'www.wayyaam.ru';
+  return productionHost && !configured ? PRODUCTION_AUTH_CONFIG_ERROR : null;
+};
 
 const isRestaurantRedirect = (redirect: string) =>
   /^\/admin(?:\/|$)/.test(redirect) ||
@@ -290,6 +297,12 @@ export async function resolveUnifiedLogin(
   expectedRole?: StaffLoginRole,
   requestedReturnTo?: string
 ) {
+  const configurationError = getProductionAuthConfigurationError(
+    typeof window === 'undefined' ? '' : window.location.hostname,
+    Boolean(supabase)
+  );
+  if (configurationError) throw new Error(configurationError);
+
   const normalizedIdentifier = identifier.trim();
   const usesEmail = normalizedIdentifier.includes('@');
 

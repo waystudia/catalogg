@@ -30,6 +30,7 @@ Read these before changing or deploying an affected surface:
 - `infra/caddy/Caddyfile`: production TLS, h1/h2-only edge, cache headers, real asset 404s, and media proxy.
 - `infra/systemd/configure-wayyaam-tls-mss.sh` and `infra/systemd/wayyaam-tls-mss.service`: boot-persistent TCP MSS 1200 workaround.
 - `scripts/deploy-wayyaam-static.sh`: immutable releases and shared historical assets.
+- `.agents/skills/wayyaam-role-login-guard/SKILL.md`: production auth configuration, role resolution, and scoped-session invariants.
 - `scripts/tests/pwaUpdateSafety.test.mjs`: executable PWA retirement contract, including clean first launch and failure retry.
 - `scripts/tests/caddyTlsCompatibility.test.mjs`: executable TLS/Caddy/MSS contract.
 - `scripts/tests/staticReleaseDeploy.test.mjs`: executable immutable-release and old-asset contract.
@@ -61,6 +62,7 @@ If the worktree is behind `origin/main`, inspect the truth sources from both the
 - Serve hashed assets with `public, max-age=31536000, immutable`.
 - Serve the app shell with `Cache-Control: no-store`.
 - Capture the previous main JS path before switching and prove it remains 200 afterwards.
+- Refuse a release whose main bundle does not contain `api.wayyaam.ru` and a browser-safe Supabase key; never print the key while checking it.
 
 ### Mobile network and TLS
 
@@ -118,6 +120,7 @@ Stop deployment or roll back `current` to the known-good release with explicit a
 - cleanup failure is marked complete;
 - the current push-only worker is removed, unregisters itself, or is never registered;
 - current `index.html` references a missing module;
+- current main JS has no production Supabase URL or browser-safe key;
 - the previous main asset is no longer 200;
 - an unknown `/assets/*.js` returns HTML or any status other than 404;
 - app-shell responses are cacheable or hashed assets are not immutable;

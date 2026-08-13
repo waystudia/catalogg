@@ -1,0 +1,4 @@
+interface:
+  display_name: "WayYaam Role Login Guard"
+  short_description: "Protect all WayYaam role logins before release"
+  default_prompt: "Use $wayyaam-role-login-guard to diagnose and verify WayYaam role login before a production release."
