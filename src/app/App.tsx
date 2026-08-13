@@ -172,6 +172,7 @@ import {
 } from '../shared/photoQuality';
 import { getBusinessTerms } from '../shared/businessTerminology';
 import { getRestaurantCatalogBackTarget } from '../shared/roleSessionSafety';
+import { getGroceryCatalogFallback } from '../shared/groceryCatalogFallback';
 import { summarizeRestaurantReviews } from '../features/client-platform/clientPlatformLogic';
 import type { ClientRestaurantReview } from '../features/client-platform/types';
 
@@ -1906,21 +1907,22 @@ function AppContent({
   }, []);
   const catalogQueryKey = useMemo(() => ['catalog', catalogSlug] as const, [catalogSlug]);
   const cachedCatalog = useMemo(() => readCatalogCache(catalogSlug), [catalogSlug]);
+  const placeholderCatalog = useMemo<CatalogSnapshot>(() => getGroceryCatalogFallback(catalogSlug) ?? ({
+    restaurant: makeLoadingRestaurant(catalogSlug),
+    categories: demoCategories,
+    products: demoProducts,
+    cabins: demoCabins,
+    tags: defaultTags,
+    theme: demoThemeSettings,
+    photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
+    source: 'demo' as const
+  }), [catalogSlug]);
   const { data, isLoading, isPlaceholderData } = useQuery({
     queryKey: catalogQueryKey,
     queryFn: () => loadCatalogWithTimeout(catalogSlug),
     initialData: cachedCatalog?.data,
     initialDataUpdatedAt: cachedCatalog?.savedAt,
-    placeholderData: () => ({
-      restaurant: makeLoadingRestaurant(catalogSlug),
-      categories: demoCategories,
-      products: demoProducts,
-      cabins: demoCabins,
-      tags: defaultTags,
-      theme: demoThemeSettings,
-      photoQuality: DEFAULT_PHOTO_QUALITY_SETTINGS,
-      source: 'demo' as const
-    } as CatalogSnapshot),
+    placeholderData: () => placeholderCatalog,
     staleTime: 2 * 60_000,
     retry: 1,
     refetchOnMount: true,
@@ -1953,11 +1955,11 @@ function AppContent({
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
   const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; categoryId?: string }>({ mode: 'list' });
   const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; cabinId?: string }>({ mode: 'list' });
-  const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
-  const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
-  const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
-  const [localTags, setLocalTags] = useState<CatalogTag[]>(defaultTags);
-  const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(() => makeLoadingRestaurant(catalogSlug));
+  const [localProducts, setLocalProducts] = useState<Product[]>(() => placeholderCatalog.products);
+  const [localCategories, setLocalCategories] = useState<Category[]>(() => placeholderCatalog.categories);
+  const [localCabins, setLocalCabins] = useState<Cabin[]>(() => placeholderCatalog.cabins);
+  const [localTags, setLocalTags] = useState<CatalogTag[]>(() => placeholderCatalog.tags);
+  const [localRestaurant, setLocalRestaurant] = useState<Restaurant>(() => placeholderCatalog.restaurant);
   const [photoQuality, setPhotoQuality] = useState<PhotoQualitySettings>(DEFAULT_PHOTO_QUALITY_SETTINGS);
   const [restaurantOrders, setRestaurantOrders] = useState<RestaurantOrder[]>([]);
   const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings | null>(

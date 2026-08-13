@@ -1,7 +1,7 @@
 import type { Category, Product, Restaurant, ThemeSettings } from '../entities/models';
 import { versionGroceryCatalogAssetUrl } from '../shared/groceryAssetUrl';
 
-const publicAsset = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
+const publicAsset = (path: string) => `${import.meta.env?.BASE_URL ?? '/'}${path.replace(/^\/+/, '')}`;
 const asset = (path: string) => versionGroceryCatalogAssetUrl(publicAsset(`assets/template-grocery/${path}`));
 
 export const groceryRestaurant: Restaurant = {
