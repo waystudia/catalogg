@@ -8,10 +8,13 @@ export const redirectToClientHome = () => {
   window.location.replace(buildClientHomeUrl());
 };
 
-export const buildRoleAppUrl = (path: string) => {
+export const buildRoleAppUrl = (path: string, pageSearch = '') => {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${base}#${normalizedPath}`;
+  const normalizedSearch = pageSearch
+    ? pageSearch.startsWith('?') ? pageSearch : `?${pageSearch}`
+    : '';
+  return `${base}${normalizedSearch}#${normalizedPath}`;
 };
 
 export const buildProfileLoginPath = (returnTo = '/profile') => {
@@ -35,5 +38,5 @@ export const resolveProfileLoginTarget = (redirect: string, requestedReturnTo: s
 
 export const redirectToRoleApp = (path: string) => {
   if (typeof window === 'undefined') return;
-  window.location.replace(buildRoleAppUrl(path));
+  window.location.replace(buildRoleAppUrl(path, window.location.search));
 };
