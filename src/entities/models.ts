@@ -148,6 +148,8 @@ export type Product = {
   placeholder_kind?: 'dessert';
   sku?: string;
   barcode?: string;
+  cost_price?: number;
+  minimum_stock?: number;
   master_product_id?: string;
   master_content_version?: number;
   content_source?: 'local' | 'master' | 'master_override';
