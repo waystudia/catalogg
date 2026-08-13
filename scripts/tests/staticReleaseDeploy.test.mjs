@@ -13,7 +13,10 @@ const createSource = (root, name, assetName) => {
   const source = resolve(root, name);
   mkdirSync(resolve(source, 'assets'), { recursive: true });
   writeFileSync(resolve(source, 'index.html'), `<script src="/assets/${assetName}"></script>`);
-  writeFileSync(resolve(source, 'assets', assetName), `console.log('${assetName}')`);
+  writeFileSync(
+    resolve(source, 'assets', assetName),
+    `const url='https://api.wayyaam.ru';const key='sb_publishable_test_only_12345678901234567890';console.log('${assetName}',url,key)`
+  );
   writeFileSync(resolve(source, 'sw.js'), `// ${name}`);
   return source;
 };
@@ -51,6 +54,23 @@ describe('WayYaam static release deployment', () => {
         /Command failed/
       );
       assert.match(readFileSync(resolve(webRoot, 'current', 'index.html'), 'utf8'), /index-main\.js/);
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to activate a bundle without the production Supabase URL or browser-safe key', () => {
+    const workspace = mkdtempSync(resolve(tmpdir(), 'wayyaam-static-release-'));
+    try {
+      const webRoot = resolve(workspace, 'web');
+      const source = createSource(workspace, 'invalid-source', 'index-invalid.js');
+      writeFileSync(resolve(source, 'assets', 'index-invalid.js'), 'console.log("missing production auth config")');
+
+      assert.throws(
+        () => execFileSync(deployScript, [source, 'release-invalid', webRoot], { stdio: 'pipe' }),
+        /Command failed/
+      );
+      assert.throws(() => readlinkSync(resolve(webRoot, 'current')));
     } finally {
       rmSync(workspace, { recursive: true, force: true });
     }
