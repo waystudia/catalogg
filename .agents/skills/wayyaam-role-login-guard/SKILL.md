@@ -37,6 +37,11 @@ separate stages. Prove which stage failed before changing passwords or role rows
    successful. Reproduce the handoff with `localStorage` throwing: Safari may
    reload the hash destination after Supabase has fallen back to memory, leaving
    the destination scope without a persisted session.
+9. Also reproduce a partially available store: `localStorage.getItem()` can
+   return an expired role session while `setItem()` throws `QuotaExceededError`.
+   A fresh `sessionStorage` fallback must carry a per-key marker so the expired
+   durable value cannot shadow the completed login for restaurant, grocery,
+   driver, or platform-admin scopes.
 
 ## Required invariants
 
@@ -59,6 +64,12 @@ separate stages. Prove which stage failed before changing passwords or role rows
   already-open tab runs an older hashed main asset, reload the document with the
   same hash/`returnTo` before accepting credentials. Never persist the password
   across this refresh.
+- After that refresh, remove the transient document query with
+  `history.replaceState` while preserving the current hash, then replace only
+  the hash with the authenticated role route. This avoids a second document
+  load between `setSession()` and the cabinet access check while keeping final
+  links short (`#/mangal/dashboard`, `#/business/finik`, `#/driver`, and
+  `#/admin/clients`).
 
 ## Release hook
 

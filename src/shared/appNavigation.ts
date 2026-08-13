@@ -35,5 +35,19 @@ export const resolveProfileLoginTarget = (redirect: string, requestedReturnTo: s
 
 export const redirectToRoleApp = (path: string) => {
   if (typeof window === 'undefined') return;
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.search) {
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${currentUrl.pathname}${currentUrl.hash}`
+      );
+    }
+  } catch {
+    // The scoped session fallback still protects a full-navigation handoff.
+  }
+
   window.location.replace(buildRoleAppUrl(path));
 };
