@@ -30,8 +30,21 @@ test('restaurant sign-out clears its scoped browser session before redirecting',
   const supabase = await read('src/shared/supabase.ts');
 
   assert.match(supabase, /getSupabaseAuthFallbackStorageKeys\('restaurant-admin'\)/);
-  assert.match(supabase, /localStorage\.removeItem/);
+  assert.match(supabase, /authStorage\.removeItem/);
   assert.match(supabase, /supabase\.auth\.signOut\(\{ scope: 'local' \}\)/);
+});
+
+test('role sessions use the Safari-compatible storage adapter for persistence and handoff', async () => {
+  const supabase = await read('src/shared/supabase.ts');
+  const authScope = await read('src/shared/supabaseAuthScope.ts');
+  const delivery = await read('src/shared/api/deliveryApi.ts');
+
+  assert.match(supabase, /storage: authStorage/);
+  assert.match(authScope, /\['localStorage', 'sessionStorage'\]/);
+  assert.match(authScope, /export const getSupabaseAuthStorage/);
+  assert.match(authScope, /storage\.setItem\(targetKey, session\)/);
+  assert.match(authScope, /storage\.removeItem\(key\)/);
+  assert.match(delivery, /getSupabaseAuthStorage\(\)\.removeItem\(getSupabaseAuthStorageKey\('driver'\)\)/);
 });
 
 test('sign-out controls are placed in settings rather than persistent navigation', async () => {

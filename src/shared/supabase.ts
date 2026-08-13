@@ -23,6 +23,7 @@ import {
   copySupabaseSessionToScope,
   getSupabaseAuthScope,
   getSupabaseAuthFallbackStorageKeys,
+  getSupabaseAuthStorage,
   getSupabaseAuthStorageKey,
   getSupabaseStartupAuthScope,
   handoffSupabaseSessionToScope
@@ -44,14 +45,15 @@ const currentAuthScope = typeof window === 'undefined'
   ? getSupabaseAuthScope('/')
   : getSupabaseStartupAuthScope(window.location.hash, readPwaResumePath());
 const currentAuthStorageKey = getSupabaseAuthStorageKey(currentAuthScope);
+const authStorage = getSupabaseAuthStorage();
 
 if (typeof window !== 'undefined') {
   try {
-    if (!window.localStorage.getItem(currentAuthStorageKey)) {
+    if (!authStorage.getItem(currentAuthStorageKey)) {
       const fallbackSession = getSupabaseAuthFallbackStorageKeys(currentAuthScope)
-        .map((key) => window.localStorage.getItem(key))
+        .map((key) => authStorage.getItem(key))
         .find(Boolean);
-      if (fallbackSession) window.localStorage.setItem(currentAuthStorageKey, fallbackSession);
+      if (fallbackSession) authStorage.setItem(currentAuthStorageKey, fallbackSession);
     }
   } catch {
     // Supabase falls back to an in-memory session when browser storage is unavailable.
@@ -65,6 +67,7 @@ export const supabase: SupabaseClient | null =
           autoRefreshToken: true,
           detectSessionInUrl: true,
           persistSession: true,
+          storage: authStorage,
           storageKey: currentAuthStorageKey,
           experimental: { passkey: true }
         }
@@ -156,7 +159,7 @@ export const preserveSupabaseSessionForRedirect = (redirect: string, knownSessio
   try {
     const serializedSession = knownSession
       ? JSON.stringify(knownSession)
-      : window.localStorage.getItem(currentAuthStorageKey);
+      : authStorage.getItem(currentAuthStorageKey);
     if (!serializedSession) return;
     handoffSupabaseSessionToScope(getSupabaseAuthScope(redirect), serializedSession, currentAuthScope);
   } catch {
@@ -660,7 +663,7 @@ export async function signOutAdmin() {
   if (typeof window !== 'undefined') {
     try {
       getSupabaseAuthFallbackStorageKeys('restaurant-admin').forEach((key) => {
-        window.localStorage.removeItem(key);
+        authStorage.removeItem(key);
       });
     } catch {
       // Leaving the restaurant area must still complete when storage is unavailable.

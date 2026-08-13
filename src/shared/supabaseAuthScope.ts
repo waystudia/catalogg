@@ -1,5 +1,69 @@
 export type SupabaseAuthScope = 'client' | 'driver' | 'restaurant-admin' | 'platform-admin' | 'login';
 
+type SupabaseAuthStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+const memoryAuthStorage = new Map<string, string>();
+
+const browserAuthStorageNames = ['localStorage', 'sessionStorage'] as const;
+
+const getBrowserAuthStorage = (name: (typeof browserAuthStorageNames)[number]): Storage | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window[name];
+  } catch {
+    return null;
+  }
+};
+
+const supabaseAuthStorage: SupabaseAuthStorage = {
+  getItem(key) {
+    for (const name of browserAuthStorageNames) {
+      const storage = getBrowserAuthStorage(name);
+      if (!storage) continue;
+      try {
+        const value = storage.getItem(key);
+        if (value !== null) return value;
+      } catch {
+        // Try the next browser storage when Safari blocks this one.
+      }
+    }
+    return memoryAuthStorage.get(key) ?? null;
+  },
+  setItem(key, value) {
+    for (const [index, name] of browserAuthStorageNames.entries()) {
+      const storage = getBrowserAuthStorage(name);
+      if (!storage) continue;
+      try {
+        storage.setItem(key, value);
+        browserAuthStorageNames.slice(index + 1).forEach((fallbackName) => {
+          try {
+            getBrowserAuthStorage(fallbackName)?.removeItem(key);
+          } catch {
+            // A stale fallback cannot override the successfully written primary value.
+          }
+        });
+        memoryAuthStorage.delete(key);
+        return;
+      } catch {
+        // Try the next browser storage when Safari blocks this one.
+      }
+    }
+    memoryAuthStorage.set(key, value);
+  },
+  removeItem(key) {
+    browserAuthStorageNames.forEach((name) => {
+      try {
+        getBrowserAuthStorage(name)?.removeItem(key);
+      } catch {
+        // Continue clearing the other stores even when one is unavailable.
+      }
+    });
+    memoryAuthStorage.delete(key);
+  }
+};
+
+export const getSupabaseAuthStorage = (): SupabaseAuthStorage => supabaseAuthStorage;
+
 const restaurantAdminSections = new Set([
   'dashboard',
   'dishes',
@@ -62,13 +126,14 @@ export const getSupabaseAuthFallbackStorageKeys = (scope: SupabaseAuthScope) => 
 export const copySupabaseSessionToScope = (scope: SupabaseAuthScope, serializedSession?: string | null) => {
   if (typeof window === 'undefined') return;
   try {
+    const storage = getSupabaseAuthStorage();
     const targetKey = getSupabaseAuthStorageKey(scope);
     const session =
       serializedSession ??
       getSupabaseAuthFallbackStorageKeys(scope)
-        .map((key) => window.localStorage.getItem(key))
+        .map((key) => storage.getItem(key))
         .find(Boolean);
-    if (session) window.localStorage.setItem(targetKey, session);
+    if (session) storage.setItem(targetKey, session);
   } catch {
     // Supabase will keep using the in-memory session if storage is unavailable.
   }
@@ -81,22 +146,23 @@ export const handoffSupabaseSessionToScope = (
 ) => {
   if (typeof window === 'undefined') return;
   try {
+    const storage = getSupabaseAuthStorage();
     const targetKey = getSupabaseAuthStorageKey(scope);
     const sourceKeys = getSupabaseAuthFallbackStorageKeys(scope);
     const session =
       serializedSession ??
       sourceKeys
-        .map((key) => window.localStorage.getItem(key))
+        .map((key) => storage.getItem(key))
         .find(Boolean);
     if (!session) return;
 
-    window.localStorage.setItem(targetKey, session);
+    storage.setItem(targetKey, session);
     [...new Set([
       ...sourceKeys,
       ...(sourceScope ? [getSupabaseAuthStorageKey(sourceScope)] : [])
     ])]
       .filter((key) => key !== targetKey)
-      .forEach((key) => window.localStorage.removeItem(key));
+      .forEach((key) => storage.removeItem(key));
   } catch {
     // The authenticated client keeps its in-memory session until navigation completes.
   }

@@ -12,7 +12,11 @@ import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
 import { supabase } from '../supabase';
-import { copySupabaseSessionToScope, getSupabaseAuthStorageKey } from '../supabaseAuthScope';
+import {
+  copySupabaseSessionToScope,
+  getSupabaseAuthStorage,
+  getSupabaseAuthStorageKey
+} from '../supabaseAuthScope';
 import { normalizeBusinessType, type BusinessType } from '../businessTerminology';
 
 export type DriverProfile = {
@@ -908,7 +912,7 @@ export async function updateDriverLocation(
 export async function signOutDriver() {
   clearPwaResumePath();
   try {
-    window.localStorage.removeItem(getSupabaseAuthStorageKey('driver'));
+    getSupabaseAuthStorage().removeItem(getSupabaseAuthStorageKey('driver'));
   } catch {
     // The navigation below should still complete if storage is unavailable.
   }
