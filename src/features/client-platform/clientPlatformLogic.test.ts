@@ -161,7 +161,17 @@ const dishes: ClientDish[] = [
     imageUrl: '',
     tags: ['Хит'],
     isPopular: true,
-    stockCount: 6
+    stockCount: 6,
+    stockQuantity: 6,
+    isUnlimited: false,
+    saleUnit: 'piece',
+    quantityUnit: 'piece',
+    priceBasisQuantity: 1,
+    minimumQuantity: 1,
+    quantityStep: 1,
+    allowSubstitution: false,
+    sku: '',
+    barcode: ''
   },
   {
     id: 'pizza',
@@ -173,7 +183,17 @@ const dishes: ClientDish[] = [
     imageUrl: '',
     tags: ['Острое'],
     isPopular: false,
-    stockCount: 4
+    stockCount: 4,
+    stockQuantity: 4,
+    isUnlimited: false,
+    saleUnit: 'piece',
+    quantityUnit: 'piece',
+    priceBasisQuantity: 1,
+    minimumQuantity: 1,
+    quantityStep: 1,
+    allowSubstitution: false,
+    sku: '',
+    barcode: ''
   }
 ];
 
@@ -426,6 +446,58 @@ describe('client platform cart summary', () => {
       deliveryFee: 120,
       total: 1610
     });
+  });
+
+  it('combines piece and weighted grocery lines without treating grams as item count', () => {
+    const groceryDishes: ClientDish[] = [
+      {
+        ...dishes[0],
+        id: 'milk',
+        name: 'Молоко',
+        price: 110,
+        saleUnit: 'piece',
+        quantityUnit: 'piece',
+        priceBasisQuantity: 1,
+        minimumQuantity: 1,
+        quantityStep: 1,
+        stockQuantity: 20,
+        stockCount: 20,
+        isUnlimited: false,
+        allowSubstitution: true,
+        sku: 'MILK-1L',
+        barcode: ''
+      },
+      {
+        ...dishes[0],
+        id: 'bananas',
+        name: 'Бананы',
+        price: 180,
+        saleUnit: 'weight',
+        quantityUnit: 'gram',
+        priceBasisQuantity: 1000,
+        minimumQuantity: 250,
+        quantityStep: 50,
+        stockQuantity: 8_000,
+        stockCount: 8,
+        isUnlimited: false,
+        allowSubstitution: true,
+        sku: 'FRUIT-BANANA',
+        barcode: ''
+      }
+    ];
+
+    assert.deepEqual(
+      calculateCartSummary([
+        { dishId: 'milk', quantity: 2 },
+        { dishId: 'bananas', quantity: 750 }
+      ], groceryDishes, 120),
+      {
+        quantity: 3,
+        subtotal: 355,
+        deliveryFee: 120,
+        total: 475
+      }
+    );
   });
 });
 

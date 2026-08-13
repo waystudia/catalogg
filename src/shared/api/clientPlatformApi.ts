@@ -29,6 +29,7 @@ import { isPublicMenuCategory } from '../../entities/publicCategoryVisibility';
 import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
+import { buildClientOrderItems, resolveClientOrderRpcName } from './clientPlatformOrderPayload';
 import { getStoredClientSessionToken } from './clientAccountApi';
 
 type CatalogRow = {
@@ -78,6 +79,16 @@ type ProductRow = {
   description: string;
   weight: string;
   stock_count: number;
+  stock_quantity: number;
+  is_unlimited: boolean;
+  sale_unit: 'piece' | 'weight';
+  quantity_unit: 'piece' | 'gram';
+  price_basis_quantity: number;
+  minimum_quantity: number;
+  quantity_step: number;
+  allow_substitution: boolean;
+  sku: string;
+  barcode: string;
   is_popular: boolean;
 };
 
@@ -254,7 +265,6 @@ const slugifyCity = (value: string) => {
 const unique = <T,>(values: T[]) => Array.from(new Set(values));
 
 const fallbackCityName = 'Грозный';
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 
 const getCityId = (value?: string | null) => slugifyCity(value?.trim() || fallbackCityName);
 
@@ -307,6 +317,16 @@ const mapLegacyProductToPlatformProduct = (catalogId: string, product: LegacyPro
     description: product.description,
     weight: product.weight,
     stock_count: stockCount,
+    stock_quantity: stockCount,
+    is_unlimited: product.is_unlimited ?? false,
+    sale_unit: 'piece',
+    quantity_unit: 'piece',
+    price_basis_quantity: 1,
+    minimum_quantity: 1,
+    quantity_step: 1,
+    allow_substitution: false,
+    sku: '',
+    barcode: '',
     is_popular: product.is_popular
   };
 };
@@ -385,7 +405,7 @@ export async function saveClientReview(input: {
 }
 
 type ClientPlatformOrderInput = {
-  restaurant: Pick<ClientRestaurant, 'slug' | 'description' | 'addressLine' | 'lat' | 'lng' | 'deliveryProvider'>;
+  restaurant: Pick<ClientRestaurant, 'slug' | 'description' | 'addressLine' | 'lat' | 'lng' | 'deliveryProvider' | 'businessType'>;
   profile: ClientProfile;
   draft: ClientCheckoutDraft;
   lines: ClientCartLine[];
@@ -395,24 +415,6 @@ type ClientPlatformOrderInput = {
   total: number;
   idempotencyKey?: string;
 };
-
-type PublicOrderItemPayload = {
-  readonly product_id: string;
-  readonly quantity: number;
-  readonly options: readonly [];
-};
-
-const buildClientOrderItems = (lines: ClientCartLine[]): PublicOrderItemPayload[] =>
-  lines.map((line) => ({
-    product_id: line.dishId,
-    quantity: Math.max(1, line.quantity),
-    options: []
-  }));
-
-const resolveClientOrderRpcName = (items: readonly PublicOrderItemPayload[]) =>
-  items.every((item) => uuidPattern.test(item.product_id))
-    ? 'create_client_platform_restaurant_order'
-    : 'create_client_platform_legacy_restaurant_order';
 
 const fulfillmentTypeByOrderType: Record<ClientOrderType, 'hall' | 'takeaway' | 'delivery'> = {
   dine_in: 'hall',
@@ -456,7 +458,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
   const catalogId = catalogResult.data?.id as string | undefined;
   if (!catalogId) return null;
 
-  const items = buildClientOrderItems(input.lines);
+  const items = buildClientOrderItems(input.lines, input.dishes);
   if (items.length === 0) return null;
 
   const clientName = (input.draft.clientName || input.profile.name).trim();
@@ -474,7 +476,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
     accuracyM: input.draft.deliveryAccuracyM
   });
 
-  const rpcName = resolveClientOrderRpcName(items);
+  const rpcName = resolveClientOrderRpcName(items, input.restaurant.businessType);
   const rpcArgs = {
     target_catalog_id: catalogId,
     customer_name: clientName,
@@ -673,7 +675,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .order('sort_order'),
       supabase
         .from('products')
-        .select('id, catalog_id, category_id, title, status, price, description, weight, stock_count, is_popular')
+        .select('id, catalog_id, category_id, title, status, price, description, weight, stock_count, stock_quantity, is_unlimited, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, allow_substitution, sku, barcode, is_popular')
         .in('catalog_id', catalogIds)
         .in('status', ['active', 'sold_out'])
         .order('sort_order'),
@@ -951,7 +953,18 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       imageUrl: firstImageByProductId.get(product.id) ?? '',
       tags: product.status === 'sold_out' ? ['Нет в наличии'] : product.is_popular ? ['Популярное'] : [],
       isPopular: product.is_popular,
+      isAvailable: product.status !== 'sold_out',
       stockCount: product.stock_count,
+      stockQuantity: product.stock_quantity,
+      isUnlimited: product.is_unlimited,
+      saleUnit: product.sale_unit,
+      quantityUnit: product.quantity_unit,
+      priceBasisQuantity: product.price_basis_quantity,
+      minimumQuantity: product.minimum_quantity,
+      quantityStep: product.quantity_step,
+      allowSubstitution: product.allow_substitution,
+      sku: product.sku,
+      barcode: product.barcode,
       weight: product.weight,
       photoQuality: photoQualityByCatalog.get(product.catalog_id)
     }];

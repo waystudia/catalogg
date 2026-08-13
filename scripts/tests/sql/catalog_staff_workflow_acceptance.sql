@@ -12,6 +12,7 @@ $$;
 do $$
 declare
   link_signature text := 'public.link_catalog_staff_by_email(uuid,text,text,boolean)';
+  create_link_signature text := 'public.link_catalog_staff_by_user_id(uuid,uuid,text,boolean,uuid)';
   accept_signature text := 'public.accept_catalog_order_assignment(uuid,integer)';
 begin
   if has_function_privilege('anon', link_signature, 'execute') then
@@ -22,6 +23,13 @@ begin
   end if;
   if has_function_privilege('anon', accept_signature, 'execute') then
     raise exception 'anonymous user can accept assignments';
+  end if;
+  if has_function_privilege('anon', create_link_signature, 'execute')
+    or has_function_privilege('authenticated', create_link_signature, 'execute') then
+    raise exception 'browser role can execute privileged staff account linking';
+  end if;
+  if not has_function_privilege('service_role', create_link_signature, 'execute') then
+    raise exception 'service role cannot link a securely created staff account';
   end if;
 end;
 $$;

@@ -39,13 +39,14 @@ import {
   Store,
   Truck,
   User,
-  UserRoundCheck
+  UserRoundCheck,
+  XCircle
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
+import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, filterRestaurantsWithCityFallback, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
@@ -98,6 +99,7 @@ import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
+import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
   ClientPasskeyCard,
@@ -154,6 +156,27 @@ const emptyClientPlatformSnapshot: ClientPlatformSnapshot = {
   supportHint: ''
 };
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const formatDishPrice = (dish: ClientDish) => dish.saleUnit === 'weight'
+  ? `${formatPrice(dish.price)} / ${formatClientDishQuantity(dish, dish.priceBasisQuantity)}`
+  : formatPrice(dish.price);
+
+const incrementClientDish = (
+  increment: ReturnType<typeof useClientPlatformStore.getState>['addDish'],
+  restaurantSlug: string,
+  dish: ClientDish
+) => increment(
+  restaurantSlug,
+  dish.id,
+  dish.quantityStep,
+  getClientDishInitialQuantity(dish),
+  dish.isUnlimited ? undefined : dish.stockQuantity
+);
+
+const decrementClientDish = (
+  decrement: ReturnType<typeof useClientPlatformStore.getState>['decrementDish'],
+  restaurantSlug: string,
+  dish: ClientDish
+) => decrement(restaurantSlug, dish.id, dish.quantityStep, dish.minimumQuantity);
 
 const formatReviewCount = (count: number) => {
   const lastTwoDigits = count % 100;
@@ -1500,8 +1523,12 @@ function RestaurantCatalogPage({
         <section className="restaurant-section">
           <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? terms.items}</h2>
           <div className="dish-grid">
-            {visibleDishes.map((dish) => (
-              <article className="dish-card" key={dish.id}>
+            {visibleDishes.map((dish) => {
+              const quantity = cartLines.find((line) => line.dishId === dish.id)?.quantity ?? 0;
+              const isAvailable = dish.isAvailable !== false
+                && (dish.isUnlimited || dish.stockQuantity >= dish.minimumQuantity);
+              return (
+              <article className="dish-card" data-sale-unit={dish.saleUnit} key={dish.id}>
                 <button
                   className={favoriteDishIds.includes(dish.id) ? 'dish-card__favorite is-active' : 'dish-card__favorite'}
                   type="button"
@@ -1513,14 +1540,21 @@ function RestaurantCatalogPage({
                 <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
                 <div>
                   <strong>{dish.name}</strong>
-                  <small>{dish.tags.join(' · ')}</small>
-                  <span>{formatPrice(dish.price)}</span>
+                  <small>{[...dish.tags, dish.saleUnit === 'weight' ? `от ${formatClientDishQuantity(dish, dish.minimumQuantity)}` : dish.weight].filter(Boolean).join(' · ')}</small>
+                  <span>{formatDishPrice(dish)}</span>
+                  {quantity > 0 && <em>В корзине: {formatClientDishQuantity(dish, quantity)}</em>}
                 </div>
-                <button className="dish-add" type="button" onClick={() => addDish(restaurant.slug, dish.id)} aria-label={`Добавить ${dish.name}`}>
+                <button
+                  className="dish-add"
+                  type="button"
+                  onClick={() => incrementClientDish(addDish, restaurant.slug, dish)}
+                  aria-label={`Добавить ${dish.name}`}
+                  disabled={!isAvailable || (!dish.isUnlimited && quantity >= dish.stockQuantity)}
+                >
                   <Plus />
                 </button>
               </article>
-            ))}
+            );})}
           </div>
         </section>
 
@@ -1534,7 +1568,7 @@ function RestaurantCatalogPage({
       {summary.quantity > 0 && (
         <Link className="restaurant-cart-bar" to={`/r/${restaurant.slug}/cart`}>
           <ShoppingCart />
-          <span>В корзине {summary.quantity} товара</span>
+          <span>В корзине {summary.quantity} поз.</span>
           <strong>{formatPrice(summary.total)}</strong>
           <ChevronRight />
         </Link>
@@ -1634,8 +1668,8 @@ function CartLineList({
   lines: ClientCartLine[];
   dishes: ClientDish[];
   restaurantSlug: string;
-  onIncrement: (restaurantSlug: string, dishId: string) => void;
-  onDecrement: (restaurantSlug: string, dishId: string) => void;
+  onIncrement: ReturnType<typeof useClientPlatformStore.getState>['addDish'];
+  onDecrement: ReturnType<typeof useClientPlatformStore.getState>['decrementDish'];
 }) {
   return (
     <div className="cart-lines">
@@ -1648,14 +1682,20 @@ function CartLineList({
             <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
             <span>
               <strong>{dish.name}</strong>
-              <small>{line.quantity} x {formatPrice(dish.price)}</small>
+              <small>{formatClientDishQuantity(dish, line.quantity)} · {formatDishPrice(dish)}</small>
+              <b>{formatPrice(calculateClientDishLineAmount(dish, line.quantity))}</b>
             </span>
             <div className="quantity-stepper">
-              <button type="button" onClick={() => onDecrement(restaurantSlug, dish.id)} aria-label="Уменьшить количество">
+              <button type="button" onClick={() => decrementClientDish(onDecrement, restaurantSlug, dish)} aria-label="Уменьшить количество">
                 <Minus />
               </button>
-              <b>{line.quantity}</b>
-              <button type="button" onClick={() => onIncrement(restaurantSlug, dish.id)} aria-label="Увеличить количество">
+              <b>{dish.saleUnit === 'weight' ? formatClientDishQuantity(dish, line.quantity) : line.quantity}</b>
+              <button
+                type="button"
+                onClick={() => incrementClientDish(onIncrement, restaurantSlug, dish)}
+                aria-label="Увеличить количество"
+                disabled={!dish.isUnlimited && line.quantity >= dish.stockQuantity}
+              >
                 <Plus />
               </button>
             </div>
@@ -2223,7 +2263,15 @@ function PaymentConfirmPage({
   const summary = { ...summaryWithoutDelivery, deliveryFee, total: summaryWithoutDelivery.subtotal + deliveryFee };
   const orderItems = lines.flatMap((line) => {
     const dish = dishes.find((item) => item.id === line.dishId);
-    return dish ? [{ dishId: dish.id, name: dish.name, price: dish.price, quantity: line.quantity }] : [];
+    return dish ? [{
+      dishId: dish.id,
+      name: dish.name,
+      price: dish.price,
+      quantity: line.quantity,
+      saleUnit: dish.saleUnit,
+      quantityUnit: dish.quantityUnit,
+      priceBasisQuantity: dish.priceBasisQuantity
+    }] : [];
   });
   const getOrderIdempotencyKey = () => {
     const fingerprint = JSON.stringify({
@@ -2353,6 +2401,8 @@ function OrderStatusPage({
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
   const order = selectClientOrderForStatus(orders, restaurant.slug, orderId);
   const restaurantImage = snapshot.restaurants.find((item) => item.slug === restaurant.slug)?.coverUrl;
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationError, setCancellationError] = useState('');
 
   useEffect(() => {
     if (!order?.id) return undefined;
@@ -2381,6 +2431,32 @@ function OrderStatusPage({
     );
   }
 
+  const canCancel = restaurant.businessType === 'grocery' && [
+    'new',
+    'waiting_payment_confirmation',
+    'payment_confirmed',
+    'accepted'
+  ].includes(order.status);
+
+  const cancelOrder = async () => {
+    if (isCancelling || !canCancel) return;
+    if (!window.confirm('Отменить заказ? До начала сборки товары вернутся в остаток.')) return;
+    setIsCancelling(true);
+    setCancellationError('');
+    try {
+      await cancelClientCatalogOrder({
+        orderId: order.id,
+        catalogId: restaurant.id,
+        reason: 'Отменено клиентом до начала сборки'
+      });
+      syncOrderPatch(order.id, { status: 'canceled' });
+    } catch (error) {
+      setCancellationError(error instanceof Error ? error.message : 'Не удалось отменить заказ');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <>
       <RestaurantTopbar restaurant={restaurant} title="Заказ в доставке" />
@@ -2398,7 +2474,9 @@ function OrderStatusPage({
           <small>Статус заказа</small>
           <h1>{statusLabels[order.status]}</h1>
           {order.status === 'waiting_payment_confirmation' && <p>{terms.paymentConfirmation}</p>}
-          <OrderProgress status={order.status} />
+          {order.status === 'canceled'
+            ? <p className="order-cancelled-note"><XCircle /> Заказ отменён. Если оплата уже подтверждена, магазин согласует возврат в чате.</p>
+            : <OrderProgress status={order.status} />}
         </section>
         <section className="delivery-info">
           <h2>Информация о доставке</h2>
@@ -2463,6 +2541,17 @@ function OrderStatusPage({
             expectedViewer="client"
           />
         )}
+        {canCancel && (
+          <button
+            className="secondary-flow-button order-cancel-button"
+            type="button"
+            onClick={() => void cancelOrder()}
+            disabled={isCancelling}
+          >
+            <XCircle /> {isCancelling ? 'Отменяем...' : 'Отменить заказ'}
+          </button>
+        )}
+        {cancellationError && <p className="form-error">{cancellationError}</p>}
         <a
           className="secondary-flow-button"
           href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)}

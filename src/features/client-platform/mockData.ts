@@ -1,10 +1,36 @@
 import type {
+  ClientDish,
   ClientPlatformSnapshot,
   PaymentSettings
 } from './types';
 
 const image = (id: string, query: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=900&q=80&${query}`;
+
+const pieceSaleDefaults = (stockQuantity: number): Pick<
+  ClientDish,
+  | 'stockQuantity'
+  | 'isUnlimited'
+  | 'saleUnit'
+  | 'quantityUnit'
+  | 'priceBasisQuantity'
+  | 'minimumQuantity'
+  | 'quantityStep'
+  | 'allowSubstitution'
+  | 'sku'
+  | 'barcode'
+> => ({
+  stockQuantity,
+  isUnlimited: false,
+  saleUnit: 'piece',
+  quantityUnit: 'piece',
+  priceBasisQuantity: 1,
+  minimumQuantity: 1,
+  quantityStep: 1,
+  allowSubstitution: false,
+  sku: '',
+  barcode: ''
+});
 
 export const clientPlatformSnapshot: ClientPlatformSnapshot = {
   reviews: [],
@@ -237,6 +263,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Хит'],
       isPopular: true,
       stockCount: 12,
+      ...pieceSaleDefaults(12),
       weight: '280 г'
     },
     {
@@ -250,6 +277,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Популярное'],
       isPopular: true,
       stockCount: 9,
+      ...pieceSaleDefaults(9),
       weight: '260 г'
     },
     {
@@ -263,6 +291,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Сытно'],
       isPopular: true,
       stockCount: 7,
+      ...pieceSaleDefaults(7),
       weight: '520 г'
     },
     {
@@ -276,6 +305,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Острое'],
       isPopular: false,
       stockCount: 10,
+      ...pieceSaleDefaults(10),
       weight: '330 г'
     },
     {
@@ -289,6 +319,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Холодное'],
       isPopular: false,
       stockCount: 20,
+      ...pieceSaleDefaults(20),
       weight: '400 мл'
     },
     {
@@ -302,6 +333,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Домашнее'],
       isPopular: true,
       stockCount: 8,
+      ...pieceSaleDefaults(8),
       weight: '420 г'
     },
     {
@@ -315,6 +347,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Хит'],
       isPopular: true,
       stockCount: 11,
+      ...pieceSaleDefaults(11),
       weight: '250 г'
     },
     {
@@ -328,6 +361,7 @@ export const clientPlatformSnapshot: ClientPlatformSnapshot = {
       tags: ['Новое'],
       isPopular: true,
       stockCount: 14,
+      ...pieceSaleDefaults(14),
       weight: '340 г'
     }
   ],

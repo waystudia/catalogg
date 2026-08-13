@@ -40,6 +40,18 @@ if [[ "${WAYYAAM_APPLY_MULTI_BUSINESS_MIGRATION:-0}" == "1" ]]; then
     psql --set ON_ERROR_STOP=1 \
       --file supabase/migrations/20260813004827_reserve_wayyaam_github_pages_hostname.sql
   fi
+  # The checkout, cancellation, template seed and hydration migrations depend on
+  # the complete production commerce schema. They are covered by source
+  # contracts and the full-schema transactional validation, not this deliberately
+  # minimal multi-business fixture (which must keep the grocery template empty).
+  if [[ -f supabase/migrations/20260813010400_reconcile_grocery_picking_stock.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260813010400_reconcile_grocery_picking_stock.sql
+  fi
+  if [[ -f supabase/migrations/20260813010500_add_catalog_staff_account_onboarding.sql ]]; then
+    psql --set ON_ERROR_STOP=1 \
+      --file supabase/migrations/20260813010500_add_catalog_staff_account_onboarding.sql
+  fi
 fi
 
 psql --set ON_ERROR_STOP=1 \

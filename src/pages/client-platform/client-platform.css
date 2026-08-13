@@ -1342,6 +1342,13 @@
   font-weight: 900;
 }
 
+.dish-card em {
+  color: var(--restaurant-accent);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .dish-card__favorite {
   position: absolute;
   top: 8px;
@@ -1358,6 +1365,11 @@
   height: 34px;
   background: var(--restaurant-button);
   color: var(--restaurant-button-text);
+}
+
+.dish-add:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
 }
 
 .restaurant-info-band {
@@ -1455,7 +1467,7 @@
 
 .quantity-stepper {
   display: grid;
-  grid-template-columns: 32px 26px 32px;
+  grid-template-columns: 32px minmax(42px, auto) 32px;
   align-items: center;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -1469,7 +1481,27 @@
 }
 
 .quantity-stepper b {
+  padding: 0 4px;
+  font-size: 12px;
   text-align: center;
+  white-space: nowrap;
+}
+
+.order-cancelled-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #b42318;
+  font-weight: 800;
+}
+
+.order-cancelled-note svg,
+.order-cancel-button svg {
+  width: 19px;
+}
+
+.order-cancel-button {
+  color: #b42318;
 }
 
 .cart-total,
