@@ -19,8 +19,10 @@ describe('client platform restaurant order contract', () => {
     assert.match(mainSource, /path="\/r\/:slug\/\*" element=\{<RestaurantRouteRedirect \/>}/);
     assert.match(mainSource, /path="\/business\/:slug\/\*" element=\{<BusinessAdminRoute \/>}/);
     assert.match(routeSource, /function RestaurantRouteRedirect\(\)[\s\S]*return <Navigate replace to=/);
-    assert.match(routeSource, /function BusinessAdminRoute\(\)[\s\S]*return <CatalogAdminApp slug=\{decodeURIComponent\(slug\)\} \/>/);
-    assert.doesNotMatch(routeSource, /Navigate replace to=\{`\/\$\{decodeURIComponent\(slug\)\}`\}/);
+    assert.match(
+      routeSource,
+      /function BusinessAdminRoute\(\)[\s\S]*return <Navigate replace to=\{`\/\$\{encodeURIComponent\(decodeURIComponent\(slug\)\)\}\/dashboard`\} \/>/
+    );
   });
 
   it('does not write catalog ids into the platform restaurant foreign key', () => {
