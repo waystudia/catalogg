@@ -98,6 +98,7 @@ import { submitSettlementRequest } from '../../shared/api/settlementsApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
+import { redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
@@ -2684,13 +2685,14 @@ function ProfilePage() {
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
   const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
   const clientAuthRequested = searchParams.get('clientAuth') === '1';
+  const loginRequested = searchParams.get('login') === '1';
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
     clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
   );
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
-  const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
+  const [accountOpen, setAccountOpen] = useState(clientAuthRequested || loginRequested);
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
@@ -2759,11 +2761,7 @@ function ProfilePage() {
           return;
         }
 
-        const targetPath = redirect === '/admin'
-          ? '/admin/clients'
-          : redirect === '/profile'
-            ? clientReturnTo
-            : redirect;
+        const targetPath = resolveProfileLoginTarget(redirect, clientReturnTo);
 
         if (redirect === '/profile') {
           const session = await restoreClientAccountSession();
@@ -2779,6 +2777,10 @@ function ProfilePage() {
         }
 
         rememberPwaResumePath(targetPath);
+        if (redirect !== '/profile') {
+          redirectToRoleApp(targetPath);
+          return;
+        }
         navigate(targetPath, { replace: true });
       } catch (error) {
         setClientError(error instanceof Error ? error.message : 'Не удалось войти.');

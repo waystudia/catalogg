@@ -1,6 +1,7 @@
 import { lazy } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { PwaHomeRouteBase } from './PwaHomeRoute';
+import { buildProfileLoginPath } from './shared/appNavigation';
 export { PwaResumeTracker } from './PwaHomeRoute';
 
 const App = lazy(() => import('./app/App').then((module) => ({ default: module.App })));
@@ -33,4 +34,9 @@ export function RestaurantPublicRoute() {
 
 export function PwaHomeRoute() {
   return <PwaHomeRouteBase homeElement={<ClientPlatformApp />} />;
+}
+
+export function LegacyLoginRedirect() {
+  const [searchParams] = useSearchParams();
+  return <Navigate replace to={buildProfileLoginPath(searchParams.get('returnTo') ?? '/profile')} />;
 }

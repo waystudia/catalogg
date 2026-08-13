@@ -105,6 +105,7 @@ import {
   ThemeSettingsScreen
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
+import { buildProfileLoginPath } from '../shared/appNavigation';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
 import { ClientBrowserPairingBanner } from '../features/client-pairing/ClientPairing';
 import {
@@ -2773,7 +2774,7 @@ function AppContent({
           onBack={() => navigate(`/${catalogSlug}`)}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
-          onAdmin={() => navigate('/login')}
+          onAdmin={() => navigate(buildProfileLoginPath(`/${catalogSlug}/dashboard`))}
           logoUrl={catalog.restaurant.logo_url}
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
@@ -2814,7 +2815,7 @@ function AppContent({
       <Toaster richColors position="top-center" />
       {(screen === 'admin-home' || screen.startsWith('settings')) && !isAdmin ? (
         adminSessionChecked ? (
-          <Navigate to="/login" replace />
+          <Navigate to={buildProfileLoginPath(`/${catalogSlug}/dashboard`)} replace />
         ) : (
           <main className="restaurant-session-check" role="status" aria-live="polite">
             <span />
@@ -2849,7 +2850,7 @@ function AppContent({
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
             onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
-            onAdmin={() => navigate('/login')}
+            onAdmin={() => navigate(buildProfileLoginPath(`/${catalogSlug}/dashboard`))}
             logoUrl={catalog.restaurant.logo_url}
             restaurantName={catalog.restaurant.name}
             restaurantSubtitle={catalog.restaurant.subtitle}

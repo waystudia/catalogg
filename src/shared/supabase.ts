@@ -156,7 +156,7 @@ export const preserveSupabaseSessionForRedirect = (redirect: string) => {
   try {
     const serializedSession = window.localStorage.getItem(currentAuthStorageKey);
     if (!serializedSession) return;
-    handoffSupabaseSessionToScope(getSupabaseAuthScope(redirect), serializedSession);
+    handoffSupabaseSessionToScope(getSupabaseAuthScope(redirect), serializedSession, currentAuthScope);
   } catch {
     // The active tab still keeps the authenticated session in memory.
   }

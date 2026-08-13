@@ -83,7 +83,7 @@ import {
   restoreRestaurantOrderNotificationSubscription,
   showRestaurantOrderNotification
 } from '../../shared/restaurantOrderNotifications';
-import { redirectToClientHome } from '../../shared/appNavigation';
+import { buildProfileLoginPath, redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
@@ -824,7 +824,7 @@ export function DriverApp() {
           <User />
           <strong>Войдите как водитель</strong>
           <small>Используйте телефон или email и пароль, которые выдал супер-админ.</small>
-          <Link className="driver-primary driver-link-button" to="/login">
+          <Link className="driver-primary driver-link-button" to={buildProfileLoginPath('/driver')}>
             Открыть вход
           </Link>
         </section>
