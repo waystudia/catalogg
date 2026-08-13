@@ -1,133 +1,49 @@
-import {
-  Bell,
-  Calculator,
-  ClipboardPlus,
-  Eye,
-  EyeOff,
-  Home,
-  KeyRound,
-  MapPin,
-  Menu,
-  MoreVertical,
-  Package,
-  Pencil,
-  Plus,
-  QrCode,
-  RefreshCw,
-  Search,
-  Settings,
-  ShoppingBag,
-  Store,
-  Tags,
-  Trash2,
-  Upload,
-  Users,
-  UtensilsCrossed,
-  WalletCards
-} from 'lucide-react';
+import { Bell, Calculator, ClipboardPlus, Eye, EyeOff, Home, KeyRound, MapPin, Menu, MoreVertical, Package, Pencil, Plus, QrCode, RefreshCw, Search, Settings, ShoppingBag, Store, Tags, Trash2, Upload, Users, UtensilsCrossed, WalletCards } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
 import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../data/groceryCatalog';
-import {
-  deleteRestaurantTestOrder,
-  getRestaurantDeliverySettings,
-  getRestaurantOrders,
-  createRestaurantOrderFromCart,
-  saveRestaurantDeliverySettings,
-  subscribeToRestaurantOrdersRealtime,
-  updateRestaurantOrderPaymentStatus,
-  updateRestaurantOrderStatus,
-  type RestaurantDeliverySettings,
-  type RestaurantOrder,
-  type RestaurantOrderStatus
-} from '../../shared/api/restaurantOrdersApi';
+import { deleteRestaurantTestOrder, getRestaurantDeliverySettings, getRestaurantOrders, createRestaurantOrderFromCart, saveRestaurantDeliverySettings, subscribeToRestaurantOrdersRealtime, updateRestaurantOrderPaymentStatus, updateRestaurantOrderStatus, type RestaurantDeliverySettings, type RestaurantOrder, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/order/orderLifecycle';
 import { getCatalogPublicUrl } from '../../shared/platformUrls';
-import {
-  loadCatalog,
-  replaceCatalogInSupabase,
-  saveProductToSupabase,
-  savePhotoQualityToSupabase
-} from '../../shared/supabase';
+import { loadCatalog, replaceCatalogInSupabase, saveProductToSupabase, savePhotoQualityToSupabase } from '../../shared/supabase';
 import { saveRestaurantPayments } from '../../shared/api/restaurantPaymentsApi';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
-import {
-  changeCatalogAdminPassword,
-  type CatalogAdminAccess
-} from '../../shared/api/catalogAdminApi';
-import {
-  getRestaurantOrderNotificationPermission,
-  requestRestaurantOrderNotificationPermission,
-  restoreRestaurantOrderNotificationSubscription,
-  showRestaurantOrderNotification
-} from '../../shared/restaurantOrderNotifications';
-import { playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
-import {
-  getRestaurantModuleEntitlementByCatalog
-} from '../../shared/api/restaurantModulesApi';
-import {
-  getRestaurantAdminModuleAccess,
-  type RestaurantAdminModuleAccess
-} from '../../features/platform-admin-modules/restaurantModuleAccess';
-import {
-  RestaurantPosPage,
-  type RestaurantPosOrderDraft
-} from '../../features/restaurant-pos/RestaurantPosPage';
+import { changeCatalogAdminPassword, type CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
+import { getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission, restoreRestaurantOrderNotificationSubscription, showRestaurantOrderNotification } from '../../shared/restaurantOrderNotifications';
+import { formatAdminOrderItemQuantity, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
+import { getRestaurantModuleEntitlementByCatalog } from '../../shared/api/restaurantModulesApi';
+import { getRestaurantAdminModuleAccess, type RestaurantAdminModuleAccess } from '../../features/platform-admin-modules/restaurantModuleAccess';
+import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../../features/restaurant-pos/RestaurantPosPage';
 import { RestaurantWarehousePage } from '../../features/restaurant-pos/RestaurantWarehousePage';
 import { RestaurantOrdersBoard } from '../../features/restaurant-admin/RestaurantOrdersBoard';
-import {
-  ExistingRestaurantSettingsPage,
-  type ExistingRestaurantSettingsView
-} from '../../features/restaurant-admin/ExistingRestaurantSettingsPage';
+import { ExistingRestaurantSettingsPage, type ExistingRestaurantSettingsView } from '../../features/restaurant-admin/ExistingRestaurantSettingsPage';
 import { defaultRestaurantDeliverySettings } from '../../features/restaurant-settings';
 import type { CatalogBackupPayload } from '../../features/restaurant-settings/catalogAdminModel';
 import { getBusinessTerms, type BusinessTerms } from '../../shared/businessTerminology';
 import { getCatalogWorkspaceAccess, getVisibleAssignedOrderIds, type CatalogOrderWorkAssignment } from '../../entities/catalogStaff';
-import {
-  acceptCatalogOrderAssignment,
-  escalateCatalogOrderAssignments,
-  getCatalogOrderAssignments,
-  updateCatalogAssignedOrderStatus
-} from '../../shared/api/catalogStaffApi';
+import { acceptCatalogOrderAssignment, escalateCatalogOrderAssignments, getCatalogOrderAssignments, updateCatalogAssignedOrderStatus } from '../../shared/api/catalogStaffApi';
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
 import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
-import {
-  loadGroceryInventory,
-  postGroceryReceiving,
-  saveGroceryInventoryItem,
-  type GroceryInventoryMovement,
-  type GroceryReceivingLineInput
-} from '../../shared/api/groceryInventoryApi';
+import { loadGroceryInventory, postGroceryReceiving, saveGroceryInventoryItem, type GroceryInventoryMovement, type GroceryReceivingLineInput } from '../../shared/api/groceryInventoryApi';
 import { GroceryProductsPage } from '../../features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../features/grocery-operations/GroceryReceivingPage';
 import { GroceryWarehousePage } from '../../features/grocery-operations/GroceryWarehousePage';
 import { GroceryPosPage, type GroceryPosLine } from '../../features/grocery-operations/GroceryPosPage';
+import type { GroceryPosPayment } from '../../features/grocery-operations/groceryPosModel';
 import { GroceryProductEditor } from '../../features/grocery-operations/GroceryProductEditor';
 import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
 import '../../features/grocery-operations/grocery-operations.css';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'receiving' | 'orders' | 'warehouse' | 'stocks' | 'team' | 'settings';
-type SettingsSection =
-  | 'hub'
-  | 'profile'
-  | 'taxonomy'
-  | 'design'
-  | 'catalog'
-  | 'delivery'
-  | 'hours'
-  | 'payments'
-  | 'password'
-  | 'import'
-  | 'backups'
-  | 'danger';
+type SettingsSection = 'hub' | 'profile' | 'taxonomy' | 'design' | 'catalog' | 'delivery' | 'hours' | 'payments' | 'password' | 'import' | 'backups' | 'danger';
 type PaymentStatus = 'not_required' | 'cash_on_delivery' | 'awaiting_transfer' | 'client_marked_paid' | 'confirmed' | 'declined';
 
 const existingSettingsViews: Partial<Record<SettingsSection, ExistingRestaurantSettingsView>> = {
@@ -168,7 +84,11 @@ type PaymentSettings = {
   clientHint: string;
 };
 
-const baseNavItems: Array<{ id: AdminSection; label: string; icon: typeof Home }> = [
+const baseNavItems: Array<{
+  id: AdminSection;
+  label: string;
+  icon: typeof Home;
+}> = [
   { id: 'home', label: 'Главная', icon: Home },
   { id: 'catalog', label: 'Каталог', icon: Store },
   { id: 'dishes', label: 'Блюда', icon: UtensilsCrossed },
@@ -176,26 +96,6 @@ const baseNavItems: Array<{ id: AdminSection; label: string; icon: typeof Home }
   { id: 'stocks', label: 'Остатки', icon: Package },
   { id: 'settings', label: 'Настройки', icon: Settings }
 ];
-
-const orderStatusLabels: Record<RestaurantOrderStatus, string> = {
-  new: 'Новый',
-  waiting_payment_confirmation: 'Ждёт оплату',
-  payment_confirmed: 'Оплата подтверждена',
-  accepted: 'Принят',
-  confirmed: 'Подтверждён',
-  preparing: 'Готовится',
-  cooking: 'Готовится',
-  ready: 'Готов',
-  waiting_driver: 'Ждёт курьера',
-  driver_assigned: 'Курьер назначен',
-  assigned_driver: 'Курьер назначен',
-  picked_up: 'Выдан курьеру',
-  on_the_way: 'В пути',
-  delivered: 'Доставлен',
-  completed: 'Завершён',
-  cancelled: 'Отменён',
-  canceled: 'Отменён'
-};
 
 const paymentStatusLabels: Record<PaymentStatus, string> = {
   not_required: 'Не требуется',
@@ -252,7 +152,7 @@ const defaultPaymentSettings: PaymentSettings = {
   enabled: true,
   requisiteType: 'phone',
   transferNumber: '+7 999 000-00-00',
-  bankName: 'Банк / перевод ресторану',
+  bankName: 'Банк получателя',
   lastName: 'Исаев',
   firstName: 'Магомед',
   middleName: '',
@@ -262,7 +162,7 @@ const defaultPaymentSettings: PaymentSettings = {
   allowCash: true,
   allowTransfer: true,
   requireConfirmation: true,
-  clientHint: 'Переведите сумму ресторану и после оплаты нажмите "Я оплатил".'
+  clientHint: 'Переведите сумму заведению и после оплаты нажмите "Я оплатил".'
 };
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -291,17 +191,7 @@ function todayOrders(orders: RestaurantOrder[]) {
   return orders.filter((order) => new Date(order.createdAt).toDateString() === today);
 }
 
-function SectionButton({
-  active,
-  icon: Icon,
-  label,
-  onClick
-}: {
-  active: boolean;
-  icon: typeof Home;
-  label: string;
-  onClick: () => void;
-}) {
+function SectionButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Home; label: string; onClick: () => void }) {
   return (
     <button className="restaurant-admin-nav__item" type="button" data-active={active} onClick={onClick}>
       <Icon />
@@ -320,24 +210,14 @@ function MetricCard({ label, value, sub }: { label: string; value: string; sub?:
   );
 }
 
-export function RestaurantAdminShell({
-  access,
-  onRefresh,
-  onSignOut
-}: {
-  access: CatalogAdminAccess;
-  onRefresh: () => void;
-  onSignOut: () => void;
-}) {
+export function RestaurantAdminShell({ access, onRefresh, onSignOut }: { access: CatalogAdminAccess; onRefresh: () => void; onSignOut: () => void }) {
   const navigate = useNavigate();
   const isGrocery = access.catalog?.businessType === 'grocery';
   const workspaceAccess = getCatalogWorkspaceAccess({
     catalogRole: access.role,
     staffRole: access.staffRole
   });
-  const [section, setSection] = useState<AdminSection>(() =>
-    workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : 'home'
-  );
+  const [section, setSection] = useState<AdminSection>(() => (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace ? 'orders' : 'home'));
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: isGrocery ? groceryRestaurant : demoRestaurant,
@@ -370,12 +250,8 @@ export function RestaurantAdminShell({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() =>
-    readJson(paymentStorageKey(access.catalog?.slug ?? 'demo'), defaultPaymentSettings)
-  );
-  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, PaymentStatus>>(() =>
-    readJson(paymentStatusStorageKey(access.catalog?.slug ?? 'demo'), {})
-  );
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() => readJson(paymentStorageKey(access.catalog?.slug ?? 'demo'), defaultPaymentSettings));
+  const [paymentStatuses, setPaymentStatuses] = useState<Record<string, PaymentStatus>>(() => readJson(paymentStatusStorageKey(access.catalog?.slug ?? 'demo'), {}));
   const [deliverySettings, setDeliverySettings] = useState<RestaurantDeliverySettings>(defaultRestaurantDeliverySettings);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -386,17 +262,24 @@ export function RestaurantAdminShell({
 
   const slug = access.catalog?.slug ?? 'demo';
   const terms = getBusinessTerms(access.catalog?.businessType);
-  const groceryAccessMode = access.role === 'viewer'
-    || !['active', 'trial'].includes(access.subscriptionStatus)
-    ? 'read_only'
-    : 'active';
+  const groceryAccessMode = access.role === 'viewer' || !['active', 'trial'].includes(access.subscriptionStatus) ? 'read_only' : 'active';
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
   const navItems = useMemo(() => {
     if (!workspaceAccess.canSeeFullWorkspace) {
-      return [{ id: 'orders' as const, label: access.staffRole === 'manager' ? 'Очередь заказов' : 'Мои заказы', icon: ShoppingBag }];
+      return [
+        {
+          id: 'orders' as const,
+          label: access.staffRole === 'manager' ? 'Очередь заказов' : 'Мои заказы',
+          icon: ShoppingBag
+        }
+      ];
     }
     if (isGrocery) {
-      const items: Array<{ id: AdminSection; label: string; icon: typeof Home }> = [
+      const items: Array<{
+        id: AdminSection;
+        label: string;
+        icon: typeof Home;
+      }> = [
         { id: 'home', label: 'Главная', icon: Home },
         { id: 'pos', label: 'Касса', icon: Calculator },
         { id: 'dishes', label: 'Товары', icon: Package },
@@ -411,17 +294,25 @@ export function RestaurantAdminShell({
       }
       return items;
     }
-    const items = baseNavItems.map((item) => item.id === 'dishes' ? { ...item, label: terms.items } : item);
+    const items = baseNavItems.map((item) => (item.id === 'dishes' ? { ...item, label: terms.items } : item));
     if (moduleAccess.pos !== 'disabled') {
       items.splice(1, 0, { id: 'pos', label: 'Касса', icon: Calculator });
     }
     if (moduleAccess.warehouse !== 'disabled') {
       const ordersIndex = items.findIndex((item) => item.id === 'orders');
-      items.splice(ordersIndex + 1, 0, { id: 'warehouse', label: 'Склад', icon: Package });
+      items.splice(ordersIndex + 1, 0, {
+        id: 'warehouse',
+        label: 'Склад',
+        icon: Package
+      });
     }
     if (workspaceAccess.canManageTeam) {
       const settingsIndex = items.findIndex((item) => item.id === 'settings');
-      items.splice(settingsIndex, 0, { id: 'team', label: 'Команда', icon: Users });
+      items.splice(settingsIndex, 0, {
+        id: 'team',
+        label: 'Команда',
+        icon: Users
+      });
     }
     return items;
   }, [access.staffRole, isGrocery, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
@@ -440,85 +331,79 @@ export function RestaurantAdminShell({
     }).then(setNotificationPermission);
   }, [access.catalog?.id, notificationPermission]);
 
-  const refreshData = useCallback(async (options: { silent?: boolean } = {}) => {
-    if (!options.silent) setIsLoadingData(true);
-    try {
-      const catalogId = access.catalog?.id;
-      const assignmentPromise = catalogId
-        ? (async () => {
-            if (workspaceAccess.canManageTeam || access.staffRole === 'manager') {
-              await escalateCatalogOrderAssignments(catalogId);
-            }
-            return getCatalogOrderAssignments(catalogId);
-          })()
-        : Promise.resolve([]);
-      const inventoryPromise = isGrocery && catalogId
-        ? loadGroceryInventory(catalogId)
-        : Promise.resolve({ items: [], movements: [] });
-      const [catalog, restaurantOrders, assignments, inventory] = await Promise.all([
-        loadCatalog(slug),
-        getRestaurantOrders(slug),
-        assignmentPromise,
-        inventoryPromise
-      ]);
-      const inventoryByProduct = new Map(inventory.items.map((item) => [item.productId, item]));
-      const isGroceryDemo = isGrocery && access.userId === 'demo-owner';
-      const loadedProducts = isGroceryDemo
-        ? groceryProducts
-        : catalog.products.length ? catalog.products : isGrocery ? [] : demoProducts;
-      setCatalogData({
-        restaurant: isGroceryDemo ? groceryRestaurant : catalog.restaurant,
-        categories: isGroceryDemo
-          ? groceryCategories
-          : catalog.categories.length ? catalog.categories : isGrocery ? [] : demoCategories,
-        cabins: catalog.cabins.length ? catalog.cabins : demoCabins,
-        products: loadedProducts.map((product) => {
-          const inventoryItem = inventoryByProduct.get(product.id);
-          return inventoryItem
-            ? { ...product, cost_price: inventoryItem.costPrice, minimum_stock: inventoryItem.minimumStock }
-            : product;
-        }),
-        tags: catalog.tags,
-        theme: isGroceryDemo ? groceryTheme : catalog.theme,
-        photoQuality: catalog.photoQuality ?? DEFAULT_PHOTO_QUALITY_SETTINGS
-      });
-      setInventoryMovements(inventory.movements);
-      const knownIds = knownOrderIdsRef.current;
-      const newOrders = hasLoadedOrdersRef.current
-        ? restaurantOrders.filter((order) => order.status === 'new' && !knownIds.has(order.id))
-        : [];
-      const newOrderIds = newOrders.map((order) => order.id);
-      if (newOrderIds.length > 0) {
-        setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
-        toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
-        playRestaurantAdminOrderSound();
-        newOrders.slice(0, 3).forEach((order) => {
-          void showRestaurantOrderNotification({
-            title: `Новый заказ #${order.orderNumber}`,
-            body: `${order.clientName || 'Клиент'} · ${formatPrice(order.total)}`,
-            tag: `restaurant-order-${order.id}`,
-            url: window.location.href
-          });
+  const refreshData = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      if (!options.silent) setIsLoadingData(true);
+      try {
+        const catalogId = access.catalog?.id;
+        const assignmentPromise = catalogId
+          ? (async () => {
+              if (workspaceAccess.canManageTeam || access.staffRole === 'manager') {
+                await escalateCatalogOrderAssignments(catalogId);
+              }
+              return getCatalogOrderAssignments(catalogId);
+            })()
+          : Promise.resolve([]);
+        const inventoryPromise = isGrocery && catalogId ? loadGroceryInventory(catalogId) : Promise.resolve({ items: [], movements: [] });
+        const [catalog, restaurantOrders, assignments, inventory] = await Promise.all([loadCatalog(slug), getRestaurantOrders(slug), assignmentPromise, inventoryPromise]);
+        const inventoryByProduct = new Map(inventory.items.map((item) => [item.productId, item]));
+        const isGroceryDemo = isGrocery && access.userId === 'demo-owner';
+        const loadedProducts = isGroceryDemo ? groceryProducts : catalog.products.length ? catalog.products : isGrocery ? [] : demoProducts;
+        setCatalogData({
+          restaurant: isGroceryDemo ? groceryRestaurant : catalog.restaurant,
+          categories: isGroceryDemo ? groceryCategories : catalog.categories.length ? catalog.categories : isGrocery ? [] : demoCategories,
+          cabins: catalog.cabins.length ? catalog.cabins : demoCabins,
+          products: loadedProducts.map((product) => {
+            const inventoryItem = inventoryByProduct.get(product.id);
+            return inventoryItem
+              ? {
+                  ...product,
+                  cost_price: inventoryItem.costPrice,
+                  minimum_stock: inventoryItem.minimumStock
+                }
+              : product;
+          }),
+          tags: catalog.tags,
+          theme: isGroceryDemo ? groceryTheme : catalog.theme,
+          photoQuality: catalog.photoQuality ?? DEFAULT_PHOTO_QUALITY_SETTINGS
         });
-        window.setTimeout(() => {
-          setRecentOrderIds((current) => {
-            const next = new Set(current);
-            newOrderIds.forEach((id) => next.delete(id));
-            return next;
+        setInventoryMovements(inventory.movements);
+        const knownIds = knownOrderIdsRef.current;
+        const newOrders = hasLoadedOrdersRef.current ? restaurantOrders.filter((order) => order.status === 'new' && !knownIds.has(order.id)) : [];
+        const newOrderIds = newOrders.map((order) => order.id);
+        if (newOrderIds.length > 0) {
+          setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
+          toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
+          playRestaurantAdminOrderSound();
+          newOrders.slice(0, 3).forEach((order) => {
+            void showRestaurantOrderNotification({
+              title: `Новый заказ #${order.orderNumber}`,
+              body: `${order.clientName || 'Клиент'} · ${formatPrice(order.total)}`,
+              tag: `restaurant-order-${order.id}`,
+              url: window.location.href
+            });
           });
-        }, 9000);
+          window.setTimeout(() => {
+            setRecentOrderIds((current) => {
+              const next = new Set(current);
+              newOrderIds.forEach((id) => next.delete(id));
+              return next;
+            });
+          }, 9000);
+        }
+        knownOrderIdsRef.current = new Set(restaurantOrders.map((order) => order.id));
+        hasLoadedOrdersRef.current = true;
+        setOrders(restaurantOrders);
+        setOrderAssignments(assignments);
+        setSelectedOrderId((current) => current ?? restaurantOrders[0]?.id ?? null);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`);
+      } finally {
+        setIsLoadingData(false);
       }
-      knownOrderIdsRef.current = new Set(restaurantOrders.map((order) => order.id));
-      hasLoadedOrdersRef.current = true;
-      setOrders(restaurantOrders);
-      setOrderAssignments(assignments);
-      setSelectedOrderId((current) => current ?? restaurantOrders[0]?.id ?? null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, [access.catalog?.id, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]);
+    },
+    [access.catalog?.id, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]
+  );
 
   useEffect(() => {
     void refreshData();
@@ -548,11 +433,13 @@ export function RestaurantAdminShell({
     void getRestaurantModuleEntitlementByCatalog(access.catalog.id)
       .then((modules) => {
         if (!active) return;
-        setModuleAccess(getRestaurantAdminModuleAccess({
-          modules,
-          status: access.subscriptionStatus,
-          endsAt: access.subscriptionEndsAt
-        }));
+        setModuleAccess(
+          getRestaurantAdminModuleAccess({
+            modules,
+            status: access.subscriptionStatus,
+            endsAt: access.subscriptionEndsAt
+          })
+        );
       })
       .catch((error) => {
         if (!active) return;
@@ -564,10 +451,7 @@ export function RestaurantAdminShell({
     };
   }, [access.catalog?.id, access.subscriptionEndsAt, access.subscriptionStatus, groceryAccessMode, isGrocery]);
 
-  useEffect(
-    () => subscribeToRestaurantOrdersRealtime(access.catalog?.id, () => void refreshData()),
-    [access.catalog?.id, refreshData]
-  );
+  useEffect(() => subscribeToRestaurantOrdersRealtime(access.catalog?.id, () => void refreshData()), [access.catalog?.id, refreshData]);
 
   useEffect(() => {
     const refreshSilently = () => {
@@ -612,17 +496,13 @@ export function RestaurantAdminShell({
     return matchesQuery && matchesCategory;
   });
   const workerOrderIds = getVisibleAssignedOrderIds(orderAssignments);
-  const roleVisibleOrders = access.staffRole === 'picker'
-    ? orders.filter((order) => workerOrderIds.has(order.id))
-    : orders;
+  const roleVisibleOrders = access.staffRole === 'picker' ? orders.filter((order) => workerOrderIds.has(order.id)) : orders;
   const filteredOrders = roleVisibleOrders.filter((order) => {
     const text = `${order.orderNumber} ${order.clientName} ${order.clientPhone}`.toLowerCase();
     return text.includes(orderQuery.trim().toLowerCase());
   });
   const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? roleVisibleOrders[0] ?? null;
-  const selectedOrderAssignment = selectedOrder
-    ? orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null
-    : null;
+  const selectedOrderAssignment = selectedOrder ? (orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null) : null;
 
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);
@@ -646,24 +526,13 @@ export function RestaurantAdminShell({
       deliveryAddress: draft.deliveryAddress,
       customerName: draft.customerName,
       customerPhone: draft.customerPhone,
-      comment: [
-        `POS: ${paymentLabel}`,
-        draft.paymentMethod === 'cash' && draft.cashReceived > 0
-          ? `Получено: ${draft.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${draft.cashChange.toLocaleString('ru-RU')} ₽`
-          : '',
-        draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '',
-        draft.comment
-      ].filter(Boolean).join(' · ')
+      comment: [`POS: ${paymentLabel}`, draft.paymentMethod === 'cash' && draft.cashReceived > 0 ? `Получено: ${draft.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${draft.cashChange.toLocaleString('ru-RU')} ₽` : '', draft.cabinPrice > 0 ? `Цена кабинки: ${draft.cabinPrice.toLocaleString('ru-RU')} ₽` : '', draft.comment].filter(Boolean).join(' · ')
     });
     await refreshData({ silent: true });
     toast.success('POS-заказ добавлен в общий список заказов');
   };
 
-  const openGroceryProductEditor = (
-    intent: 'products' | 'receiving' | 'pos',
-    product: Product | null = null,
-    barcode = ''
-  ) => {
+  const openGroceryProductEditor = (intent: 'products' | 'receiving' | 'pos', product: Product | null = null, barcode = '') => {
     setProductEditor({ intent, product, barcode });
   };
 
@@ -679,41 +548,45 @@ export function RestaurantAdminShell({
     }
     setCatalogData((current) => ({
       ...current,
-      products: current.products.some((item) => item.id === product.id)
-        ? current.products.map((item) => item.id === product.id ? product : item)
-        : [...current.products, product]
+      products: current.products.some((item) => item.id === product.id) ? current.products.map((item) => (item.id === product.id ? product : item)) : [...current.products, product]
     }));
     if (productEditor?.intent === 'receiving') setReceivingAutoProduct(product);
     if (productEditor?.intent === 'pos') setPosAutoProduct(product);
     toast.success(productEditor?.product ? 'Карточка товара обновлена' : 'Товар добавлен');
   };
 
-  const postReceiving = async (
-    supplierName: string,
-    note: string,
-    lines: GroceryReceivingLineInput[]
-  ) => {
+  const postReceiving = async (supplierName: string, note: string, lines: GroceryReceivingLineInput[]) => {
     if (!access.catalog?.id) throw new Error('Каталог магазина не найден');
-    await postGroceryReceiving({ catalogId: access.catalog.id, supplierName, note, lines });
-    setCatalogData((current) => ({ ...current, products: applyReceivingLines(current.products, lines) }));
+    await postGroceryReceiving({
+      catalogId: access.catalog.id,
+      supplierName,
+      note,
+      lines
+    });
+    setCatalogData((current) => ({
+      ...current,
+      products: applyReceivingLines(current.products, lines)
+    }));
     await refreshData({ silent: true });
     toast.success('Поступление проведено');
   };
 
-  const submitGroceryPosOrder = async (
-    lines: GroceryPosLine[],
-    customerName: string,
-    paymentMethod: 'cash' | 'transfer'
-  ) => {
+  const submitGroceryPosOrder = async (lines: GroceryPosLine[], customerName: string, payment: GroceryPosPayment) => {
     await createRestaurantOrderFromCart({
       slug,
       businessType: 'grocery',
-      items: lines.map((line) => line.product.sale_unit === 'weight'
-        ? { product: line.product, quantity: 1, selected_weight: line.quantity / 1000 }
-        : { product: line.product, quantity: line.quantity }),
+      items: lines.map((line) =>
+        line.product.sale_unit === 'weight'
+          ? {
+              product: line.product,
+              quantity: 1,
+              selected_weight: line.quantity / 1000
+            }
+          : { product: line.product, quantity: line.quantity }
+      ),
       fulfillmentType: 'takeaway',
       customerName: customerName || 'Покупатель на кассе',
-      comment: `Касса магазина · ${paymentMethod === 'cash' ? 'Наличные' : 'Перевод'}`
+      comment: [`Касса магазина · ${payment.method === 'cash' ? 'Наличные' : 'Перевод'}`, payment.method === 'cash' && payment.cashReceived > 0 ? `Получено: ${payment.cashReceived.toLocaleString('ru-RU')} ₽ · Сдача: ${payment.cashChange.toLocaleString('ru-RU')} ₽` : ''].filter(Boolean).join(' · ')
     });
     await refreshData({ silent: true });
     toast.success('Заказ с кассы добавлен в общую очередь');
@@ -754,9 +627,7 @@ export function RestaurantAdminShell({
       if (!deleted) throw new Error('Заказ уже удалён или не найден');
       setOrders((current) => current.filter((item) => item.id !== order.id));
       setSelectedOrderId((current) => (current === order.id ? null : current));
-      setPaymentStatuses((current) => Object.fromEntries(
-        Object.entries(current).filter(([orderId]) => orderId !== order.id)
-      ));
+      setPaymentStatuses((current) => Object.fromEntries(Object.entries(current).filter(([orderId]) => orderId !== order.id)));
       knownOrderIdsRef.current.delete(order.id);
       toast.success(`Заказ #${order.orderNumber} удалён`);
     } catch (error) {
@@ -783,10 +654,7 @@ export function RestaurantAdminShell({
             ? {
                 ...item,
                 paymentStatus: restaurantPaymentStatus,
-                status:
-                  restaurantPaymentStatus === 'confirmed' && item.status === 'waiting_payment_confirmation'
-                    ? 'payment_confirmed'
-                    : item.status
+                status: restaurantPaymentStatus === 'confirmed' && item.status === 'waiting_payment_confirmation' ? 'payment_confirmed' : item.status
               }
             : item
         )
@@ -865,14 +733,17 @@ export function RestaurantAdminShell({
       theme: payload.theme ?? current.theme,
       photoQuality: current.photoQuality
     }));
-    persistCatalogChange({
-      restaurant: payload.restaurant,
-      categories: payload.categories,
-      cabins: payload.cabins,
-      products: payload.products,
-      tags: payload.tags,
-      theme: payload.theme
-    }, 'Каталог импортирован');
+    persistCatalogChange(
+      {
+        restaurant: payload.restaurant,
+        categories: payload.categories,
+        cabins: payload.cabins,
+        products: payload.products,
+        tags: payload.tags,
+        theme: payload.theme
+      },
+      'Каталог импортирован'
+    );
   };
 
   const existingPaymentSettings: RestaurantPaymentSettings = {
@@ -899,13 +770,7 @@ export function RestaurantAdminShell({
         </div>
         <nav>
           {navItems.map((item) => (
-            <SectionButton
-              key={item.id}
-              active={section === item.id}
-              icon={item.icon}
-              label={item.label}
-              onClick={() => goTo(item.id)}
-            />
+            <SectionButton key={item.id} active={section === item.id} icon={item.icon} label={item.label} onClick={() => goTo(item.id)} />
           ))}
         </nav>
         <div className="restaurant-admin-sidebar__restaurant">
@@ -929,20 +794,10 @@ export function RestaurantAdminShell({
             <select aria-label={terms.place} value={slug} onChange={() => toast.info('Переключение бизнесов будет подключено к доступам пользователя')}>
               <option value={slug}>{catalogData.restaurant.name}</option>
             </select>
-            <button
-              className="ra-icon-button"
-              type="button"
-              onClick={() => void refreshData({ silent: true })}
-              aria-label="Обновить данные"
-            >
+            <button className="ra-icon-button" type="button" onClick={() => void refreshData({ silent: true })} aria-label="Обновить данные">
               <RefreshCw />
             </button>
-            <button
-              className="ra-icon-button"
-              type="button"
-              onClick={enableOrderNotifications}
-              aria-label={notificationPermission === 'granted' ? 'Уведомления включены' : 'Включить уведомления'}
-            >
+            <button className="ra-icon-button" type="button" onClick={enableOrderNotifications} aria-label={notificationPermission === 'granted' ? 'Уведомления включены' : 'Включить уведомления'}>
               <Bell />
               {orders.some((order) => order.status === 'new') && <span />}
             </button>
@@ -953,92 +808,27 @@ export function RestaurantAdminShell({
         </header>
 
         <section className="restaurant-admin-content" aria-busy={isLoadingData}>
-          {section === 'home' && (
-            <DashboardPage
-              restaurant={catalogData.restaurant}
-              products={catalogData.products}
-              categories={catalogData.categories}
-              orders={orders}
-              revenue={revenue}
-              popularProducts={popularProducts}
-              terms={terms}
-              isGrocery={isGrocery}
-              onAddProduct={() => openGroceryProductEditor('products')}
-              onNavigate={goTo}
-            />
-          )}
-          {section === 'pos' && moduleAccess.pos !== 'disabled' && (
-            isGrocery ? (
-              <GroceryPosPage
-                storeName={catalogData.restaurant.name}
-                categories={catalogData.categories}
-                products={catalogData.products}
-                readOnly={groceryAccessMode === 'read_only'}
-                autoAddProduct={posAutoProduct}
-                onConsumeAutoAdd={() => setPosAutoProduct(null)}
-                onCreateProduct={(barcode) => openGroceryProductEditor('pos', null, barcode)}
-                onSubmit={submitGroceryPosOrder}
-              />
+          {section === 'home' && <DashboardPage restaurant={catalogData.restaurant} products={catalogData.products} categories={catalogData.categories} orders={orders} revenue={revenue} popularProducts={popularProducts} terms={terms} isGrocery={isGrocery} onAddProduct={() => openGroceryProductEditor('products')} onNavigate={goTo} />}
+          {section === 'pos' &&
+            moduleAccess.pos !== 'disabled' &&
+            (isGrocery ? (
+              <GroceryPosPage storeName={catalogData.restaurant.name} categories={catalogData.categories} products={catalogData.products} paymentSettings={existingPaymentSettings} readOnly={groceryAccessMode === 'read_only'} autoAddProduct={posAutoProduct} onConsumeAutoAdd={() => setPosAutoProduct(null)} onCreateProduct={(barcode) => openGroceryProductEditor('pos', null, barcode)} onSubmit={submitGroceryPosOrder} />
             ) : (
-              <RestaurantPosPage
-                restaurantName={catalogData.restaurant.name}
-                categories={catalogData.categories}
-                cabins={catalogData.cabins}
-                products={catalogData.products}
-                accessMode={moduleAccess.pos}
-                onSubmitOrder={submitPosOrder}
-              />
-            )
-          )}
-          {section === 'catalog' && (
-            <CatalogPreviewPage
-              restaurant={catalogData.restaurant}
-              categories={catalogData.categories}
-              products={visibleProducts}
-              theme={catalogData.theme}
-              publicUrl={publicUrl}
-            />
-          )}
-          {section === 'dishes' && (
-            isGrocery ? (
-              <GroceryProductsPage
-                products={catalogData.products}
-                categories={catalogData.categories}
-                readOnly={groceryAccessMode === 'read_only'}
-                publicUrl={publicUrl}
-                onEdit={(product) => openGroceryProductEditor('products', product)}
-                onCreate={(barcode) => openGroceryProductEditor('products', null, barcode)}
-                onReceiving={() => goTo('receiving')}
-              />
+              <RestaurantPosPage restaurantName={catalogData.restaurant.name} categories={catalogData.categories} cabins={catalogData.cabins} products={catalogData.products} accessMode={moduleAccess.pos} onSubmitOrder={submitPosOrder} />
+            ))}
+          {section === 'catalog' && <CatalogPreviewPage restaurant={catalogData.restaurant} categories={catalogData.categories} products={visibleProducts} theme={catalogData.theme} publicUrl={publicUrl} />}
+          {section === 'dishes' &&
+            (isGrocery ? (
+              <GroceryProductsPage products={catalogData.products} categories={catalogData.categories} readOnly={groceryAccessMode === 'read_only'} publicUrl={publicUrl} onEdit={(product) => openGroceryProductEditor('products', product)} onCreate={(barcode) => openGroceryProductEditor('products', null, barcode)} onReceiving={() => goTo('receiving')} />
             ) : (
-              <DishesPage
-                products={filteredProducts}
-                allProducts={catalogData.products}
-                categories={catalogData.categories}
-                query={dishQuery}
-                categoryFilter={categoryFilter}
-                terms={terms}
-                onQueryChange={setDishQuery}
-                onCategoryFilterChange={setCategoryFilter}
-                onStocks={() => goTo('stocks')}
-              />
-            )
-          )}
-          {section === 'receiving' && isGrocery && (
-            <GroceryReceivingPage
-              products={catalogData.products}
-              readOnly={groceryAccessMode === 'read_only'}
-              autoAddProduct={receivingAutoProduct}
-              onConsumeAutoAdd={() => setReceivingAutoProduct(null)}
-              onCreateProduct={(barcode) => openGroceryProductEditor('receiving', null, barcode)}
-              onPost={postReceiving}
-            />
-          )}
+              <DishesPage products={filteredProducts} allProducts={catalogData.products} categories={catalogData.categories} query={dishQuery} categoryFilter={categoryFilter} terms={terms} onQueryChange={setDishQuery} onCategoryFilterChange={setCategoryFilter} onStocks={() => goTo('stocks')} />
+            ))}
+          {section === 'receiving' && isGrocery && <GroceryReceivingPage products={catalogData.products} readOnly={groceryAccessMode === 'read_only'} autoAddProduct={receivingAutoProduct} onConsumeAutoAdd={() => setReceivingAutoProduct(null)} onCreateProduct={(barcode) => openGroceryProductEditor('receiving', null, barcode)} onPost={postReceiving} />}
           {section === 'orders' && (
             <OrdersPage
               orders={filteredOrders}
               products={catalogData.products}
-              businessType={access.catalog?.businessType}
+              businessType={isGrocery ? 'grocery' : access.catalog?.businessType}
               selectedOrder={selectedOrder}
               selectedAssignment={selectedOrderAssignment}
               query={orderQuery}
@@ -1056,34 +846,11 @@ export function RestaurantAdminShell({
               onPickingChanged={() => void refreshData({ silent: true })}
             />
           )}
-          {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (
-            isGrocery ? (
-              <GroceryWarehousePage
-                products={catalogData.products}
-                movements={inventoryMovements}
-                readOnly={groceryAccessMode === 'read_only'}
-                onReceiving={() => goTo('receiving')}
-                onEditProduct={(product) => openGroceryProductEditor('products', product)}
-              />
-            ) : (
-              <RestaurantWarehousePage
-                restaurantName={catalogData.restaurant.name}
-                accessMode={moduleAccess.warehouse}
-              />
-            )
-          )}
-          {section === 'stocks' && (
-            <StocksPage
-              products={catalogData.products}
-              stockDrafts={stockDrafts}
-              onStockDraftsChange={setStockDrafts}
-            />
-          )}
-          {section === 'team' && workspaceAccess.canManageTeam && access.catalog?.id && (
-            <CatalogTeamPage catalogId={access.catalog.id} />
-          )}
-          {section === 'settings' && (
-            settingsSection === 'password' ? (
+          {section === 'warehouse' && moduleAccess.warehouse !== 'disabled' && (isGrocery ? <GroceryWarehousePage products={catalogData.products} movements={inventoryMovements} readOnly={groceryAccessMode === 'read_only'} onReceiving={() => goTo('receiving')} onEditProduct={(product) => openGroceryProductEditor('products', product)} /> : <RestaurantWarehousePage restaurantName={catalogData.restaurant.name} accessMode={moduleAccess.warehouse} />)}
+          {section === 'stocks' && <StocksPage products={catalogData.products} stockDrafts={stockDrafts} onStockDraftsChange={setStockDrafts} />}
+          {section === 'team' && workspaceAccess.canManageTeam && access.catalog?.id && <CatalogTeamPage catalogId={access.catalog.id} />}
+          {section === 'settings' &&
+            (settingsSection === 'password' ? (
               <section className="ra-card catalog-admin-password">
                 <KeyRound />
                 <div>
@@ -1092,26 +859,16 @@ export function RestaurantAdminShell({
                 </div>
                 <label>
                   Новый пароль
-                  <input
-                    type="password"
-                    value={newPassword}
-                    minLength={10}
-                    autoComplete="new-password"
-                    onChange={(event) => setNewPassword(event.target.value)}
-                  />
+                  <input type="password" value={newPassword} minLength={10} autoComplete="new-password" onChange={(event) => setNewPassword(event.target.value)} />
                 </label>
                 <label>
                   Повторите пароль
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    minLength={10}
-                    autoComplete="new-password"
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                  />
+                  <input type="password" value={confirmPassword} minLength={10} autoComplete="new-password" onChange={(event) => setConfirmPassword(event.target.value)} />
                 </label>
                 <div className="catalog-admin-password__actions">
-                  <button type="button" onClick={() => setSettingsSection('hub')}>Назад</button>
+                  <button type="button" onClick={() => setSettingsSection('hub')}>
+                    Назад
+                  </button>
                   <button
                     type="button"
                     disabled={isSavingPassword || newPassword.length < 10 || newPassword !== confirmPassword}
@@ -1132,68 +889,52 @@ export function RestaurantAdminShell({
                   </button>
                 </div>
               </section>
-            ) : <ExistingRestaurantSettingsPage
-              key={settingsSection}
-              initialView={existingSettingsViews[settingsSection] ?? 'home'}
-              catalogSlug={slug}
-              restaurant={catalogData.restaurant}
-              categories={catalogData.categories}
-              cabins={catalogData.cabins}
-              tags={catalogData.tags}
-              products={catalogData.products}
-              theme={catalogData.theme}
-              photoQuality={catalogData.photoQuality}
-              paymentSettings={existingPaymentSettings}
-              deliverySettings={deliverySettings}
-              onSaveRestaurant={saveExistingRestaurant}
-              onSaveCategories={saveExistingCategories}
-              onSaveCabins={saveExistingCabins}
-              onSaveTags={saveExistingTags}
-              onSaveTheme={saveExistingTheme}
-              onSavePhotoQuality={saveExistingPhotoQuality}
-              onSavePayments={saveExistingPayments}
-              onSaveDelivery={saveExistingDelivery}
-              onImport={importExistingSettings}
-              onSignOut={onSignOut}
-              onChangePassword={() => setSettingsSection('password')}
-              onActivate={() => navigate('/restaurant/activation')}
-              legalActivationStatus={access.legalActivationStatus}
-              businessType={access.catalog?.businessType}
-            />
-          )}
+            ) : (
+              <ExistingRestaurantSettingsPage
+                key={settingsSection}
+                initialView={existingSettingsViews[settingsSection] ?? 'home'}
+                catalogSlug={slug}
+                restaurant={catalogData.restaurant}
+                categories={catalogData.categories}
+                cabins={catalogData.cabins}
+                tags={catalogData.tags}
+                products={catalogData.products}
+                theme={catalogData.theme}
+                photoQuality={catalogData.photoQuality}
+                paymentSettings={existingPaymentSettings}
+                deliverySettings={deliverySettings}
+                onSaveRestaurant={saveExistingRestaurant}
+                onSaveCategories={saveExistingCategories}
+                onSaveCabins={saveExistingCabins}
+                onSaveTags={saveExistingTags}
+                onSaveTheme={saveExistingTheme}
+                onSavePhotoQuality={saveExistingPhotoQuality}
+                onSavePayments={saveExistingPayments}
+                onSaveDelivery={saveExistingDelivery}
+                onImport={importExistingSettings}
+                onSignOut={onSignOut}
+                onChangePassword={() => setSettingsSection('password')}
+                onActivate={() => navigate('/restaurant/activation')}
+                legalActivationStatus={access.legalActivationStatus}
+                businessType={access.catalog?.businessType}
+              />
+            ))}
         </section>
       </div>
 
       <nav className="restaurant-admin-bottom-nav">
         {navItems.map((item) => (
-          <SectionButton
-            key={item.id}
-            active={section === item.id}
-            icon={item.icon}
-            label={item.label}
-            onClick={() => goTo(item.id)}
-          />
+          <SectionButton key={item.id} active={section === item.id} icon={item.icon} label={item.label} onClick={() => goTo(item.id)} />
         ))}
       </nav>
 
-      {isGrocery && productEditor && (
-        <GroceryProductEditor
-          open
-          product={productEditor.product}
-          initialBarcode={productEditor.barcode}
-          categories={catalogData.categories}
-          barcodeExists={(barcode, exceptProductId) => catalogData.products.some((product) => product.id !== exceptProductId && product.barcode === barcode)}
-          onRequestScan={() => setEditorScannerOpen(true)}
-          onClose={() => setProductEditor(null)}
-          onSave={saveGroceryProduct}
-        />
-      )}
+      {isGrocery && productEditor && <GroceryProductEditor open product={productEditor.product} initialBarcode={productEditor.barcode} categories={catalogData.categories} barcodeExists={(barcode, exceptProductId) => catalogData.products.some((product) => product.id !== exceptProductId && product.barcode === barcode)} onRequestScan={() => setEditorScannerOpen(true)} onClose={() => setProductEditor(null)} onSave={saveGroceryProduct} />}
       <BarcodeCaptureDialog
         open={isGrocery && editorScannerOpen}
         title="Штрих‑код карточки товара"
         onClose={() => setEditorScannerOpen(false)}
         onScan={(barcode) => {
-          setProductEditor((current) => current ? { ...current, barcode } : current);
+          setProductEditor((current) => (current ? { ...current, barcode } : current));
           setEditorScannerOpen(false);
         }}
       />
@@ -1201,29 +942,7 @@ export function RestaurantAdminShell({
   );
 }
 
-function DashboardPage({
-  restaurant,
-  products,
-  categories,
-  orders,
-  revenue,
-  popularProducts,
-  terms,
-  isGrocery,
-  onAddProduct,
-  onNavigate
-}: {
-  restaurant: Restaurant;
-  products: Product[];
-  categories: Category[];
-  orders: RestaurantOrder[];
-  revenue: number;
-  popularProducts: Product[];
-  terms: BusinessTerms;
-  isGrocery: boolean;
-  onAddProduct: () => void;
-  onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void;
-}) {
+function DashboardPage({ restaurant, products, categories, orders, revenue, popularProducts, terms, isGrocery, onAddProduct, onNavigate }: { restaurant: Restaurant; products: Product[]; categories: Category[]; orders: RestaurantOrder[]; revenue: number; popularProducts: Product[]; terms: BusinessTerms; isGrocery: boolean; onAddProduct: () => void; onNavigate: (section: AdminSection, settingsSection?: SettingsSection) => void }) {
   const counts = {
     new: orders.filter((order) => order.status === 'new').length,
     preparing: orders.filter((order) => order.status === 'preparing').length,
@@ -1238,7 +957,9 @@ function DashboardPage({
           <span>Добро пожаловать, {restaurant.name}!</span>
           <h2>Управляйте {terms.placeInstrumental} и отслеживайте заказы</h2>
         </div>
-        <button type="button" onClick={() => onNavigate('orders')}>Сегодня</button>
+        <button type="button" onClick={() => onNavigate('orders')}>
+          Сегодня
+        </button>
       </section>
       <section className="ra-metrics-grid">
         <MetricCard label={terms.items} value={String(products.length)} />
@@ -1250,16 +971,29 @@ function DashboardPage({
       <section className="ra-dashboard-grid">
         <article className="ra-card ra-status-list">
           <h3>Заказы</h3>
-          <button type="button" onClick={() => onNavigate('orders')}><span data-dot="red" />Новые<strong>{counts.new}</strong></button>
-          <button type="button" onClick={() => onNavigate('orders')}><span data-dot="amber" />Готовятся<strong>{counts.preparing}</strong></button>
-          <button type="button" onClick={() => onNavigate('orders')}><span data-dot="green" />В пути<strong>{counts.onWay}</strong></button>
-          <button type="button" onClick={() => onNavigate('orders')}><span data-dot="violet" />Завершённые<strong>{counts.completed}</strong></button>
+          <button type="button" onClick={() => onNavigate('orders')}>
+            <span data-dot="red" />
+            Новые<strong>{counts.new}</strong>
+          </button>
+          <button type="button" onClick={() => onNavigate('orders')}>
+            <span data-dot="amber" />
+            Готовятся<strong>{counts.preparing}</strong>
+          </button>
+          <button type="button" onClick={() => onNavigate('orders')}>
+            <span data-dot="green" />В пути<strong>{counts.onWay}</strong>
+          </button>
+          <button type="button" onClick={() => onNavigate('orders')}>
+            <span data-dot="violet" />
+            Завершённые<strong>{counts.completed}</strong>
+          </button>
         </article>
         <article className="ra-card ra-revenue">
           <h3>Выручка</h3>
           <strong>{formatPrice(revenue)}</strong>
           <div aria-hidden="true">
-            {[24, 36, 30, 52, 46, 70, 58, 76].map((height, index) => <span key={index} style={{ height }} />)}
+            {[24, 36, 30, 52, 46, 70, 58, 76].map((height, index) => (
+              <span key={index} style={{ height }} />
+            ))}
           </div>
         </article>
         <article className="ra-card ra-popular">
@@ -1267,39 +1001,45 @@ function DashboardPage({
           {popularProducts.map((product) => (
             <button key={product.id} type="button" onClick={() => onNavigate('dishes')}>
               <img src={product.image_url} alt="" />
-              <span>{product.title}<small>{getProductStock(product)} осталось</small></span>
+              <span>
+                {product.title}
+                <small>{getProductStock(product)} осталось</small>
+              </span>
             </button>
           ))}
         </article>
       </section>
       <section className="ra-quick-actions">
-        <button type="button" onClick={() => isGrocery ? onAddProduct() : toast.info(`${terms.addItem}: форма откроется в существующем модуле`)}><Plus />{terms.addItem}</button>
-        <button type="button" onClick={() => onNavigate(isGrocery ? 'receiving' : 'stocks')}>{isGrocery ? <ClipboardPlus /> : <Package />}{isGrocery ? 'Новое поступление' : 'Обновить остатки'}</button>
-        {isGrocery && <button type="button" onClick={() => onNavigate('warehouse')}><Package />Открыть склад</button>}
-        <button type="button" onClick={() => onNavigate('settings', 'profile')}><Settings />Настройки {terms.placeGenitive}</button>
-        <button type="button" onClick={() => onNavigate('settings', 'import')}><Upload />Импорт / Экспорт</button>
+        <button type="button" onClick={() => (isGrocery ? onAddProduct() : toast.info(`${terms.addItem}: форма откроется в существующем модуле`))}>
+          <Plus />
+          {terms.addItem}
+        </button>
+        <button type="button" onClick={() => onNavigate(isGrocery ? 'receiving' : 'stocks')}>
+          {isGrocery ? <ClipboardPlus /> : <Package />}
+          {isGrocery ? 'Новое поступление' : 'Обновить остатки'}
+        </button>
+        {isGrocery && (
+          <button type="button" onClick={() => onNavigate('warehouse')}>
+            <Package />
+            Открыть склад
+          </button>
+        )}
+        <button type="button" onClick={() => onNavigate('settings', 'profile')}>
+          <Settings />
+          Настройки {terms.placeGenitive}
+        </button>
+        <button type="button" onClick={() => onNavigate('settings', 'import')}>
+          <Upload />
+          Импорт / Экспорт
+        </button>
       </section>
     </div>
   );
 }
 
-function CatalogPreviewPage({
-  restaurant,
-  categories,
-  products,
-  theme,
-  publicUrl
-}: {
-  restaurant: Restaurant;
-  categories: Category[];
-  products: Product[];
-  theme: ThemeSettings;
-  publicUrl: string;
-}) {
+function CatalogPreviewPage({ restaurant, categories, products, theme, publicUrl }: { restaurant: Restaurant; categories: Category[]; products: Product[]; theme: ThemeSettings; publicUrl: string }) {
   const previewStyle = {
-    '--catalog-bg': theme.background_type === 'gradient'
-      ? `linear-gradient(145deg, ${theme.background_gradient_from}, ${theme.background_gradient_to})`
-      : theme.background_color,
+    '--catalog-bg': theme.background_type === 'gradient' ? `linear-gradient(145deg, ${theme.background_gradient_from}, ${theme.background_gradient_to})` : theme.background_color,
     '--catalog-card': theme.product_card_color ?? theme.card_color,
     '--catalog-text': theme.product_card_text_color ?? theme.text_primary,
     '--catalog-muted': theme.text_secondary,
@@ -1314,21 +1054,33 @@ function CatalogPreviewPage({
           <h2>Каталог</h2>
           <p>Просмотр как клиент, с быстрыми админскими действиями поверх карточек.</p>
         </div>
-        <a href={publicUrl} target="_blank" rel="noreferrer"><Eye />Открыть публично</a>
+        <a href={publicUrl} target="_blank" rel="noreferrer">
+          <Eye />
+          Открыть публично
+        </a>
       </section>
       <section className="ra-client-preview" style={previewStyle}>
         <header>
-          <button type="button" aria-label="Меню"><Menu /></button>
+          <button type="button" aria-label="Меню">
+            <Menu />
+          </button>
           <div>
             <h2>{restaurant.name}</h2>
             <p>{restaurant.subtitle}</p>
           </div>
-          <button type="button" aria-label="Поиск"><Search /></button>
+          <button type="button" aria-label="Поиск">
+            <Search />
+          </button>
         </header>
         <nav>
-          {categories.filter((category) => category.kind !== 'space').slice(0, 8).map((category) => (
-            <button type="button" key={category.id}>{category.name}</button>
-          ))}
+          {categories
+            .filter((category) => category.kind !== 'space')
+            .slice(0, 8)
+            .map((category) => (
+              <button type="button" key={category.id}>
+                {category.name}
+              </button>
+            ))}
         </nav>
         <div className="ra-client-preview__heading">
           <h3>Популярное</h3>
@@ -1339,14 +1091,22 @@ function CatalogPreviewPage({
             <article key={product.id}>
               <img src={product.image_url} alt="" />
               <div className="ra-client-preview__admin-actions">
-                <button type="button" aria-label="Редактировать"><Pencil /></button>
-                <button type="button" aria-label="Скрыть"><EyeOff /></button>
-                <button type="button" aria-label="Удалить"><Trash2 /></button>
+                <button type="button" aria-label="Редактировать">
+                  <Pencil />
+                </button>
+                <button type="button" aria-label="Скрыть">
+                  <EyeOff />
+                </button>
+                <button type="button" aria-label="Удалить">
+                  <Trash2 />
+                </button>
               </div>
               <h4>{product.title}</h4>
               <strong>{formatPrice(product.price)}</strong>
               <small>Остаток: {getProductStock(product)}</small>
-              <button type="button" aria-label="Добавить"><Plus /></button>
+              <button type="button" aria-label="Добавить">
+                <Plus />
+              </button>
             </article>
           ))}
         </div>
@@ -1355,58 +1115,71 @@ function CatalogPreviewPage({
   );
 }
 
-function DishesPage({
-  products,
-  allProducts,
-  categories,
-  query,
-  categoryFilter,
-  terms,
-  onQueryChange,
-  onCategoryFilterChange,
-  onStocks
-}: {
-  products: Product[];
-  allProducts: Product[];
-  categories: Category[];
-  query: string;
-  categoryFilter: string;
-  terms: BusinessTerms;
-  onQueryChange: (query: string) => void;
-  onCategoryFilterChange: (categoryId: string) => void;
-  onStocks: () => void;
-}) {
+function DishesPage({ products, allProducts, categories, query, categoryFilter, terms, onQueryChange, onCategoryFilterChange, onStocks }: { products: Product[]; allProducts: Product[]; categories: Category[]; query: string; categoryFilter: string; terms: BusinessTerms; onQueryChange: (query: string) => void; onCategoryFilterChange: (categoryId: string) => void; onStocks: () => void }) {
   return (
     <div className="ra-page-stack">
       <section className="ra-list-toolbar">
-        <label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={`Поиск: ${terms.items.toLowerCase()}`} /></label>
+        <label>
+          <Search />
+          <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={`Поиск: ${terms.items.toLowerCase()}`} />
+        </label>
         <select value={categoryFilter} onChange={(event) => onCategoryFilterChange(event.target.value)}>
           <option value="all">Все категории</option>
-          {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
         </select>
-        <button type="button"><Tags />Все метки</button>
-        <button type="button" onClick={() => toast.info(`${terms.addItem}: открываем существующую форму каталога`)}><Plus />{terms.addItem}</button>
+        <button type="button">
+          <Tags />
+          Все метки
+        </button>
+        <button type="button" onClick={() => toast.info(`${terms.addItem}: открываем существующую форму каталога`)}>
+          <Plus />
+          {terms.addItem}
+        </button>
       </section>
       <section className="ra-table ra-dishes-table">
         <div className="ra-table__head">
-          <span>{terms.item}</span><span>Категория</span><span>Цена</span><span>Остаток</span><span>Метки</span><span>Действия</span>
+          <span>{terms.item}</span>
+          <span>Категория</span>
+          <span>Цена</span>
+          <span>Остаток</span>
+          <span>Метки</span>
+          <span>Действия</span>
         </div>
         {products.map((product) => (
           <article key={product.id}>
-            <span><img src={product.image_url} alt="" /><strong>{product.title}</strong></span>
+            <span>
+              <img src={product.image_url} alt="" />
+              <strong>{product.title}</strong>
+            </span>
             <span>{getCategoryName(categories, product)}</span>
             <span>{formatPrice(product.price)}</span>
             <span>{getProductStock(product)}</span>
-            <span className="ra-tags">{product.is_hit && <em>Хит</em>}{product.is_new && <em>Новинка</em>}{product.is_popular && <em>Популярное</em>}</span>
+            <span className="ra-tags">
+              {product.is_hit && <em>Хит</em>}
+              {product.is_new && <em>Новинка</em>}
+              {product.is_popular && <em>Популярное</em>}
+            </span>
             <span>
-              <button type="button" aria-label="Редактировать"><Pencil /></button>
-              <button type="button" aria-label="Остаток" onClick={onStocks}><Package /></button>
-              <button type="button" aria-label="Ещё"><MoreVertical /></button>
+              <button type="button" aria-label="Редактировать">
+                <Pencil />
+              </button>
+              <button type="button" aria-label="Остаток" onClick={onStocks}>
+                <Package />
+              </button>
+              <button type="button" aria-label="Ещё">
+                <MoreVertical />
+              </button>
             </span>
           </article>
         ))}
       </section>
-      <small className="ra-footnote">Показано {products.length} из {allProducts.length}</small>
+      <small className="ra-footnote">
+        Показано {products.length} из {allProducts.length}
+      </small>
     </div>
   );
 }
@@ -1454,31 +1227,15 @@ function OrdersPage({
     <div className="ra-orders-layout">
       <section className="ra-page-stack">
         <div className="ra-list-toolbar">
-          <label><Search /><input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск заказа по номеру, имени или телефону" /></label>
+          <label>
+            <Search />
+            <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Поиск заказа по номеру, имени или телефону" />
+          </label>
         </div>
-        <RestaurantOrdersBoard
-          orders={orders}
-          selectedOrderId={selectedOrder?.id ?? null}
-          recentOrderIds={recentOrderIds}
-          onSelectOrder={onSelectOrder}
-        />
+        <RestaurantOrdersBoard orders={orders} selectedOrderId={selectedOrder?.id ?? null} recentOrderIds={recentOrderIds} businessType={businessType} onSelectOrder={onSelectOrder} />
       </section>
       {selectedOrder && (
-        <OrderDetails
-          order={selectedOrder}
-          products={products}
-          businessType={businessType}
-          assignment={selectedAssignment}
-          paymentSettings={paymentSettings}
-          paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)}
-          onStatusChange={onStatusChange}
-          onPaymentStatusChange={onPaymentStatusChange}
-          onDelete={onDelete}
-          canDeleteOrders={canDeleteOrders}
-          workerMode={workerMode}
-          onAcceptAssignment={onAcceptAssignment}
-          onPickingChanged={onPickingChanged}
-        />
+        <OrderDetails order={selectedOrder} products={products} businessType={businessType} assignment={selectedAssignment} paymentSettings={paymentSettings} paymentStatus={paymentStatuses[selectedOrder.id] ?? toLocalPaymentStatus(selectedOrder.paymentStatus)} onStatusChange={onStatusChange} onPaymentStatusChange={onPaymentStatusChange} onDelete={onDelete} canDeleteOrders={canDeleteOrders} workerMode={workerMode} onAcceptAssignment={onAcceptAssignment} onPickingChanged={onPickingChanged} />
       )}
     </div>
   );
@@ -1514,6 +1271,9 @@ function OrderDetails({
   onPickingChanged: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const isGroceryBusiness = businessType === 'grocery';
+  const groceryCashOrder = isGroceryBusiness && order.comment.includes('Наличные');
+  const paymentStatusLabel = orderPaymentStatusLabels[order.paymentStatus].replace('рестораном', isGroceryBusiness ? 'магазином' : 'рестораном');
   const deleteOrder = async () => {
     if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
@@ -1531,11 +1291,14 @@ function OrderDetails({
           <small>Заказ</small>
           <h2>#{order.orderNumber}</h2>
         </div>
-        <em data-tone={orderStatusTones[order.status]}>{orderStatusLabels[order.status]}</em>
+        <em data-tone={orderStatusTones[order.status]}>{getAdminOrderStatusLabel(order.status, businessType)}</em>
       </header>
       {assignment && (
         <section className="ra-payment-box">
-          <h3><Users />Ответственный</h3>
+          <h3>
+            <Users />
+            Ответственный
+          </h3>
           <p>{assignment.isMine ? 'Назначено вам' : assignment.assigneeName}</p>
           {assignment.state === 'offered' && assignment.isMine && (
             <button type="button" onClick={() => void onAcceptAssignment(assignment)}>
@@ -1546,35 +1309,78 @@ function OrderDetails({
         </section>
       )}
       <dl>
-        <div><dt>Клиент</dt><dd>{order.clientName}</dd></div>
-        <div><dt>Телефон</dt><dd>{order.clientPhone || 'Не указан'}</dd></div>
-        <div><dt>Тип</dt><dd>{order.fulfillmentType === 'delivery' ? 'Доставка' : order.fulfillmentType === 'takeaway' ? 'На вынос' : 'В зале'}</dd></div>
-        <div><dt>Адрес / кабинка</dt><dd>{order.deliveryAddress || order.cabinLabel || 'Не указано'}</dd></div>
+        <div>
+          <dt>{isGroceryBusiness ? 'Покупатель' : 'Клиент'}</dt>
+          <dd>{order.clientName}</dd>
+        </div>
+        <div>
+          <dt>Телефон</dt>
+          <dd>{order.clientPhone || 'Не указан'}</dd>
+        </div>
+        <div>
+          <dt>{isGroceryBusiness ? 'Получение' : 'Тип'}</dt>
+          <dd>{getAdminOrderFulfillmentLabel(order, businessType)}</dd>
+        </div>
+        {!isGroceryBusiness && (
+          <div>
+            <dt>Адрес / кабинка</dt>
+            <dd>{order.deliveryAddress || order.cabinLabel || 'Не указано'}</dd>
+          </div>
+        )}
+        {isGroceryBusiness && order.fulfillmentType === 'delivery' && (
+          <div>
+            <dt>Адрес доставки</dt>
+            <dd>{order.deliveryAddress || 'Не указан'}</dd>
+          </div>
+        )}
         {order.fulfillmentType === 'delivery' && (
           <div>
             <dt>Координаты клиента</dt>
-            <dd>
-              {order.deliveryLat !== null && order.deliveryLng !== null
-                ? `${order.deliveryLat.toFixed(7)}, ${order.deliveryLng.toFixed(7)}`
-                : 'Не указаны'}
-            </dd>
+            <dd>{order.deliveryLat !== null && order.deliveryLng !== null ? `${order.deliveryLat.toFixed(7)}, ${order.deliveryLng.toFixed(7)}` : 'Не указаны'}</dd>
           </div>
         )}
         {order.fulfillmentType === 'delivery' && order.deliveryLat !== null && order.deliveryLng !== null && order.restaurantLat !== null && order.restaurantLng !== null && (
           <section className="ra-payment-box">
-            <h3><MapPin />Карта доставки</h3>
+            <h3>
+              <MapPin />
+              Карта доставки
+            </h3>
             <DeliveryTrackingMap
-              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
-              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: order.deliveryAddress }}
-              driver={order.driverLat !== null && order.driverLng !== null
-                ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
-                : null}
+              restaurant={{
+                lat: order.restaurantLat,
+                lng: order.restaurantLng,
+                label: isGroceryBusiness ? 'Магазин' : 'Ресторан',
+                address: order.restaurantAddress
+              }}
+              client={{
+                lat: order.deliveryLat,
+                lng: order.deliveryLng,
+                label: order.clientName || 'Клиент',
+                address: order.deliveryAddress
+              }}
+              driver={
+                order.driverLat !== null && order.driverLng !== null
+                  ? {
+                      lat: order.driverLat,
+                      lng: order.driverLng,
+                      label: order.driverName || 'Водитель'
+                    }
+                  : null
+              }
             />
             <a
               className="ra-order-map-link"
               href={buildYandexMapsRouteUrl({
-                from: { lat: order.restaurantLat, lng: order.restaurantLng, address: order.restaurantAddress },
-                to: { lat: order.deliveryLat, lng: order.deliveryLng, address: order.deliveryAddress }
+                from: {
+                  lat: order.restaurantLat,
+                  lng: order.restaurantLng,
+                  address: order.restaurantAddress
+                },
+                to: {
+                  lat: order.deliveryLat,
+                  lng: order.deliveryLng,
+                  address: order.deliveryAddress
+                }
               })}
               target="_blank"
               rel="noreferrer"
@@ -1584,112 +1390,165 @@ function OrderDetails({
           </section>
         )}
         {order.fulfillmentType === 'delivery' && order.restaurantAddress && (
-          <div><dt>Точка ресторана</dt><dd>{order.restaurantAddress}</dd></div>
+          <div>
+            <dt>{isGroceryBusiness ? 'Точка магазина' : 'Точка ресторана'}</dt>
+            <dd>{order.restaurantAddress}</dd>
+          </div>
         )}
-        <div><dt>Комментарий</dt><dd>{order.comment || 'Нет комментария'}</dd></div>
-        <div><dt>Оплата</dt><dd>{orderPaymentStatusLabels[order.paymentStatus]}</dd></div>
-        {order.fulfillmentType === 'delivery' && <div><dt>Доставка</dt><dd>{order.deliveryStatus}</dd></div>}
-        {order.driverName && <div><dt>Водитель</dt><dd>{order.driverName} · {order.driverPhone || 'телефон не указан'}</dd></div>}
+        <div>
+          <dt>{isGroceryBusiness ? 'Информация' : 'Комментарий'}</dt>
+          <dd>{order.comment || (isGroceryBusiness ? 'Нет дополнительной информации' : 'Нет комментария')}</dd>
+        </div>
+        <div>
+          <dt>Оплата</dt>
+          <dd>{paymentStatusLabel}</dd>
+        </div>
+        {order.fulfillmentType === 'delivery' && (
+          <div>
+            <dt>Доставка</dt>
+            <dd>{order.deliveryStatus}</dd>
+          </div>
+        )}
+        {order.driverName && (
+          <div>
+            <dt>Водитель</dt>
+            <dd>
+              {order.driverName} · {order.driverPhone || 'телефон не указан'}
+            </dd>
+          </div>
+        )}
       </dl>
       <div className="ra-order-items">
         {order.items.map((item) => (
-          <span key={item.id}>{item.title}<strong>{item.quantity} x {formatPrice(item.unitPrice)}</strong></span>
+          <span key={item.id}>
+            {item.title}
+            <strong>{formatAdminOrderItemQuantity(item, businessType)}</strong>
+          </span>
         ))}
       </div>
       {businessType === 'grocery' && (
         <>
-          <GroceryPickingPanel
-            items={order.items}
-            products={products}
-            canPick={!workerMode || assignment?.state === 'accepted'}
-            onChanged={onPickingChanged}
-          />
-          <OrderConversationPanel
-            orderId={order.id}
-            catalogId={order.catalogId}
-            expectedViewer="staff"
-            onChanged={onPickingChanged}
-          />
+          <GroceryPickingPanel items={order.items} products={products} canPick={!workerMode || assignment?.state === 'accepted'} onChanged={onPickingChanged} />
+          <OrderConversationPanel orderId={order.id} catalogId={order.catalogId} expectedViewer="staff" onChanged={onPickingChanged} />
         </>
       )}
-      <div className="ra-order-total"><span>Итого</span><strong>{formatPrice(order.total)}</strong></div>
-      {!workerMode && <section className="ra-payment-box">
-        <h3><WalletCards />Оплата</h3>
-        <p>{paymentStatusLabels[paymentStatus]} · {orderPaymentStatusLabels[order.paymentStatus]}</p>
-        <dl>
-          <div><dt>Способ</dt><dd>Перевод ресторану</dd></div>
-          <div><dt>Получатель</dt><dd>{paymentSettings.displayName}</dd></div>
-          <div><dt>Номер</dt><dd>{paymentSettings.transferNumber}</dd></div>
-        </dl>
-        <div>
-          <button type="button" onClick={() => onPaymentStatusChange(order.id, 'confirmed')}>Подтвердить оплату</button>
-          <button type="button" onClick={() => onPaymentStatusChange(order.id, 'declined')}>Отклонить</button>
-        </div>
-      </section>}
+      <div className="ra-order-total">
+        <span>Итого</span>
+        <strong>{formatPrice(order.total)}</strong>
+      </div>
+      {!workerMode && (
+        <section className="ra-payment-box">
+          <h3>
+            <WalletCards />
+            Оплата
+          </h3>
+        <p>
+          {groceryCashOrder ? 'Наличными на кассе' : paymentStatusLabels[paymentStatus]} · {paymentStatusLabel}
+        </p>
+          <dl>
+            <div>
+              <dt>Способ</dt>
+              <dd>{groceryCashOrder ? 'Наличные' : `Перевод ${isGroceryBusiness ? 'магазину' : 'ресторану'}`}</dd>
+            </div>
+            {!groceryCashOrder && (
+              <div>
+                <dt>Получатель</dt>
+                <dd>{paymentSettings.displayName}</dd>
+              </div>
+            )}
+            {!groceryCashOrder && (
+              <div>
+                <dt>Номер</dt>
+                <dd>{paymentSettings.transferNumber}</dd>
+              </div>
+            )}
+          </dl>
+          {!groceryCashOrder && (
+            <div>
+              <button type="button" onClick={() => onPaymentStatusChange(order.id, 'confirmed')}>
+                Подтвердить оплату
+              </button>
+              <button type="button" onClick={() => onPaymentStatusChange(order.id, 'declined')}>
+                Отклонить
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       {order.fulfillmentType === 'delivery' && (
         <section className="ra-payment-box">
-          <h3><QrCode />Выдача водителю</h3>
+          <h3>
+            <QrCode />
+            Выдача водителю
+          </h3>
           <p>{order.driverName ? `${order.driverName} назначен на заказ` : 'Водитель ещё не назначен'}</p>
           <dl>
-            <div><dt>QR</dt><dd>{order.qrToken ? 'Будет проверен сканером' : 'Создаётся при назначении доставки'}</dd></div>
-            <div><dt>Статус</dt><dd>{order.deliveryStatus}</dd></div>
+            <div>
+              <dt>QR</dt>
+              <dd>{order.qrToken ? 'Будет проверен сканером' : 'Создаётся при назначении доставки'}</dd>
+            </div>
+            <div>
+              <dt>Статус</dt>
+              <dd>{order.deliveryStatus}</dd>
+            </div>
           </dl>
         </section>
       )}
-      {(!workerMode || assignment?.state === 'accepted') && <div className="ra-order-actions">
-        {order.status === 'new' && (
-          <button type="button" onClick={() => onStatusChange(order, 'accepted')}>Принять</button>
-        )}
-        {['accepted', 'confirmed'].includes(order.status) && (
-          <button type="button" onClick={() => onStatusChange(order, 'preparing')}>Готовится</button>
-        )}
-        {order.status === 'preparing' && (
-          <button type="button" onClick={() => onStatusChange(order, 'ready')}>Готово</button>
-        )}
-        {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
-          <button
-            type="button"
-            disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
-            onClick={() => onStatusChange(order, 'waiting_driver')}
-          >
-            Вызвать доставку
-          </button>
-        )}
-        {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
-          <button type="button" onClick={() => onStatusChange(order, 'completed')}>Завершить</button>
-        )}
-        {!workerMode && order.status === 'waiting_driver' && (
-          <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>Передано водителю</button>
-        )}
-        {!workerMode && order.status === 'on_the_way' && (
-          <button type="button" onClick={() => onStatusChange(order, 'delivered')}>Доставлен</button>
-        )}
-        {order.status === 'new' && <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>Отклонить</button>}
-        {!workerMode && (order.isTestOrder || canDeleteOrders) && (
-          <button
-            className="ra-order-actions__danger"
-            type="button"
-            disabled={isDeleting}
-            onClick={() => void deleteOrder()}
-          >
-            <Trash2 />
-            {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
-          </button>
-        )}
-      </div>}
+      {(!workerMode || assignment?.state === 'accepted') && (
+        <div className="ra-order-actions">
+          {order.status === 'new' && (
+            <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
+              Принять
+            </button>
+          )}
+          {['accepted', 'confirmed'].includes(order.status) && (
+            <button type="button" onClick={() => onStatusChange(order, 'preparing')}>
+              {isGroceryBusiness ? 'Начать сборку' : 'Готовится'}
+            </button>
+          )}
+          {order.status === 'preparing' && (
+            <button type="button" onClick={() => onStatusChange(order, 'ready')}>
+              {isGroceryBusiness ? 'Заказ собран' : 'Готово'}
+            </button>
+          )}
+          {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+            <button type="button" disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)} onClick={() => onStatusChange(order, 'waiting_driver')}>
+              Вызвать доставку
+            </button>
+          )}
+          {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
+            <button type="button" onClick={() => onStatusChange(order, 'completed')}>
+              Завершить
+            </button>
+          )}
+          {!workerMode && order.status === 'waiting_driver' && (
+            <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
+              Передано водителю
+            </button>
+          )}
+          {!workerMode && order.status === 'on_the_way' && (
+            <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
+              Доставлен
+            </button>
+          )}
+          {order.status === 'new' && (
+            <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>
+              Отклонить
+            </button>
+          )}
+          {!workerMode && (order.isTestOrder || canDeleteOrders) && (
+            <button className="ra-order-actions__danger" type="button" disabled={isDeleting} onClick={() => void deleteOrder()}>
+              <Trash2 />
+              {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+            </button>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
 
-function StocksPage({
-  products,
-  stockDrafts,
-  onStockDraftsChange
-}: {
-  products: Product[];
-  stockDrafts: Record<string, number>;
-  onStockDraftsChange: (drafts: Record<string, number>) => void;
-}) {
+function StocksPage({ products, stockDrafts, onStockDraftsChange }: { products: Product[]; stockDrafts: Record<string, number>; onStockDraftsChange: (drafts: Record<string, number>) => void }) {
   const setDraft = (product: Product, value: number) => {
     onStockDraftsChange({ ...stockDrafts, [product.id]: Math.max(0, value) });
   };
@@ -1698,7 +1557,9 @@ function StocksPage({
     <div className="ra-page-stack">
       <section className="ra-stock-note">
         <p>Задайте остаток на день. Кнопка -1 меняет текущий остаток, а здесь хранится дневная норма.</p>
-        <button type="button" onClick={() => toast.success('Остатки обновлены полностью')}>Обновить полностью</button>
+        <button type="button" onClick={() => toast.success('Остатки обновлены полностью')}>
+          Обновить полностью
+        </button>
       </section>
       <section className="ra-stock-list">
         {products.map((product) => {
@@ -1706,10 +1567,20 @@ function StocksPage({
           return (
             <article key={product.id}>
               <img src={product.image_url} alt="" />
-              <div><strong>{product.title}</strong><small>Сейчас осталось: {getProductStock(product)}</small></div>
-              <label>Норма на день<input type="number" value={current} onChange={(event) => setDraft(product, Number(event.target.value))} /></label>
-              <button type="button" onClick={() => setDraft(product, current - 1)}>-1</button>
-              <button type="button" onClick={() => toast.success(`${product.title}: остаток обновлён`)}>Обновить</button>
+              <div>
+                <strong>{product.title}</strong>
+                <small>Сейчас осталось: {getProductStock(product)}</small>
+              </div>
+              <label>
+                Норма на день
+                <input type="number" value={current} onChange={(event) => setDraft(product, Number(event.target.value))} />
+              </label>
+              <button type="button" onClick={() => setDraft(product, current - 1)}>
+                -1
+              </button>
+              <button type="button" onClick={() => toast.success(`${product.title}: остаток обновлён`)}>
+                Обновить
+              </button>
             </article>
           );
         })}

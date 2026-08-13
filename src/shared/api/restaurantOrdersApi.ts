@@ -1,45 +1,19 @@
 import { supabase } from '../supabase';
 import { normalizeDriverCapacity } from '../driverCapacity';
-import {
-  buildDeliveryDestinationAddress,
-  buildYandexMapsRouteUrl,
-  canSendOrderToDelivery,
-  type DeliveryStatus,
-  type PaymentStatus
-} from '../../features/order/orderLifecycle';
-import {
-  createRestaurantOrderWithClient,
-  normalizeRestaurantDeliverySettingsForSave,
-  type CreateRestaurantOrderFromCartInput
-} from './restaurantOrderPayload';
+import { buildDeliveryDestinationAddress, buildYandexMapsRouteUrl, canSendOrderToDelivery, type DeliveryStatus, type PaymentStatus } from '../../features/order/orderLifecycle';
+import { createRestaurantOrderWithClient, normalizeRestaurantDeliverySettingsForSave, type CreateRestaurantOrderFromCartInput } from './restaurantOrderPayload';
 import { getConfiguredDeliveryPrice } from './deliveryPricingApi';
 import { resolveStoredDeliveryLocation } from '../deliveryLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
 import type { RestaurantCourierType } from '../../features/restaurant-billing/restaurantBillingRules';
+import { getCartItemTotal, normalizeSelectedWeight } from '../../entities/productPricing';
+import { shouldIncludeRestaurantDemoOrders } from './restaurantOrderFallback';
 
 type MaybeArray<T> = T | T[];
 
-const firstRelation = <T,>(value: MaybeArray<T> | null | undefined): T | null =>
-  Array.isArray(value) ? value[0] ?? null : value ?? null;
+const firstRelation = <T>(value: MaybeArray<T> | null | undefined): T | null => (Array.isArray(value) ? (value[0] ?? null) : (value ?? null));
 
-export type RestaurantOrderStatus =
-  | 'new'
-  | 'waiting_payment_confirmation'
-  | 'payment_confirmed'
-  | 'accepted'
-  | 'confirmed'
-  | 'preparing'
-  | 'cooking'
-  | 'ready'
-  | 'waiting_driver'
-  | 'driver_assigned'
-  | 'assigned_driver'
-  | 'picked_up'
-  | 'on_the_way'
-  | 'delivered'
-  | 'completed'
-  | 'cancelled'
-  | 'canceled';
+export type RestaurantOrderStatus = 'new' | 'waiting_payment_confirmation' | 'payment_confirmed' | 'accepted' | 'confirmed' | 'preparing' | 'cooking' | 'ready' | 'waiting_driver' | 'driver_assigned' | 'assigned_driver' | 'picked_up' | 'on_the_way' | 'delivered' | 'completed' | 'cancelled' | 'canceled';
 
 export type RestaurantOrderFulfillment = 'hall' | 'takeaway' | 'delivery';
 
@@ -354,11 +328,11 @@ type PublicRestaurantOrderStatusItemRow = {
   fulfillment_state?: unknown;
 };
 
-const demoOrders: RestaurantOrder[] = [
+const restaurantDemoOrders: RestaurantOrder[] = [
   {
     id: 'demo-order-1',
     orderNumber: '1024',
-    catalogId: 'demo',
+    catalogId: 'mangal',
     isTestOrder: true,
     clientName: 'Гость',
     clientPhone: '+7 999 000-00-00',
@@ -403,11 +377,140 @@ const demoOrders: RestaurantOrder[] = [
     qrExpiresAt: null,
     verificationCode: '4821',
     items: [
-      { id: 'demo-item-1', productId: null, title: 'Шашлык из баранины', quantity: 1, unitPrice: 690, lineTotal: 690, saleUnit: 'piece', quantityUnit: 'piece', requestedQuantity: 1, fulfilledQuantity: 0, fulfillmentState: 'pending' },
-      { id: 'demo-item-2', productId: null, title: 'Чеченский чай', quantity: 2, unitPrice: 245, lineTotal: 490, saleUnit: 'piece', quantityUnit: 'piece', requestedQuantity: 2, fulfilledQuantity: 0, fulfillmentState: 'pending' }
+      {
+        id: 'demo-item-1',
+        productId: null,
+        title: 'Шашлык из баранины',
+        quantity: 1,
+        unitPrice: 690,
+        lineTotal: 690,
+        saleUnit: 'piece',
+        quantityUnit: 'piece',
+        requestedQuantity: 1,
+        fulfilledQuantity: 0,
+        fulfillmentState: 'pending'
+      },
+      {
+        id: 'demo-item-2',
+        productId: null,
+        title: 'Чеченский чай',
+        quantity: 2,
+        unitPrice: 245,
+        lineTotal: 490,
+        saleUnit: 'piece',
+        quantityUnit: 'piece',
+        requestedQuantity: 2,
+        fulfilledQuantity: 0,
+        fulfillmentState: 'pending'
+      }
     ]
   }
 ];
+
+const localOrdersStorageKey = (slug: string) => `waycatalog:${slug.trim().toLowerCase()}:local-orders`;
+
+function readLocalOrders(slug: string): RestaurantOrder[] {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(localOrdersStorageKey(slug));
+    return stored ? (JSON.parse(stored) as RestaurantOrder[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOrders(slug: string, orders: RestaurantOrder[]) {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(localOrdersStorageKey(slug), JSON.stringify(orders));
+}
+
+export function getFallbackRestaurantOrders(slug: string) {
+  const normalizedSlug = slug.trim().toLowerCase();
+  const localOrders = readLocalOrders(normalizedSlug);
+  return shouldIncludeRestaurantDemoOrders(normalizedSlug) ? [...localOrders, ...restaurantDemoOrders] : localOrders;
+}
+
+function updateFallbackRestaurantOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'>, patch: Partial<RestaurantOrder>) {
+  const current = readLocalOrders(order.catalogId);
+  writeLocalOrders(
+    order.catalogId,
+    current.map((item) => (item.id === order.id ? { ...item, ...patch } : item))
+  );
+}
+
+function createFallbackRestaurantOrder(input: CreateRestaurantOrderFromCartInput) {
+  const createdAt = new Date().toISOString();
+  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? `local-${crypto.randomUUID()}` : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const items: RestaurantOrderItem[] = input.items.map((item, index) => {
+    const lineTotal = getCartItemTotal(item);
+    const requestedQuantity = item.product.sale_unit === 'weight' ? Math.round(normalizeSelectedWeight(item.product, item.selected_weight) * 1000) : Math.max(1, item.quantity);
+    return {
+      id: `${id}-item-${index + 1}`,
+      productId: item.product.id,
+      title: item.product.title,
+      quantity: item.product.sale_unit === 'weight' ? 1 : Math.max(1, item.quantity),
+      unitPrice: item.product.price,
+      lineTotal,
+      saleUnit: item.product.sale_unit ?? 'piece',
+      quantityUnit: item.product.quantity_unit ?? 'piece',
+      requestedQuantity,
+      fulfilledQuantity: 0,
+      fulfillmentState: 'pending'
+    };
+  });
+  const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+  const order: RestaurantOrder = {
+    id,
+    orderNumber: String(Date.now()).slice(-6),
+    catalogId: input.slug.trim().toLowerCase(),
+    isTestOrder: true,
+    clientName: input.customerName?.trim() || 'Гость',
+    clientPhone: input.customerPhone?.trim() || '',
+    fulfillmentType: input.fulfillmentType,
+    cabinLabel: input.cabinLabel?.trim() || '',
+    deliveryAddress: input.deliveryAddress?.trim() || '',
+    deliveryLat: input.deliveryLat ?? null,
+    deliveryLng: input.deliveryLng ?? null,
+    clientAccuracyM: input.deliveryAccuracyM ?? null,
+    deliveryCity: input.deliveryCity?.trim() || '',
+    deliverySettlement: input.deliverySettlement?.trim() || '',
+    restaurantAddress: '',
+    restaurantCity: '',
+    restaurantLat: null,
+    restaurantLng: null,
+    comment: input.comment?.trim() || '',
+    status: 'new',
+    paymentStatus: 'unpaid',
+    deliveryStatus: input.fulfillmentType === 'delivery' ? 'waiting_courier' : 'not_required',
+    deliveryId: null,
+    deliveryUpdatedAt: null,
+    driverName: null,
+    driverPhone: null,
+    driverVehicleInfo: null,
+    driverCarNumber: null,
+    driverPhotoUrl: null,
+    driverLat: null,
+    driverLng: null,
+    driverLocationAt: null,
+    restaurantPaymentConfirmedAt: null,
+    pickupQrConfirmedAt: null,
+    subtotal,
+    deliveryFee: 0,
+    courierPayout: 0,
+    total: subtotal,
+    createdAt,
+    acceptedAt: null,
+    readyAt: null,
+    completedAt: null,
+    cancellationReason: '',
+    qrToken: null,
+    qrExpiresAt: null,
+    verificationCode: null,
+    items
+  };
+  writeLocalOrders(input.slug, [order, ...readLocalOrders(input.slug)]);
+  return order.id;
+}
 
 const orderSelect = `
   id,
@@ -450,16 +553,18 @@ const orderSelect = `
 
 const selectRelevantDelivery = (deliveries: OrderRow['deliveries']) => {
   if (!Array.isArray(deliveries) || deliveries.length === 0) return null;
-  return [...deliveries].sort((first, second) => {
-    const firstAssigned = Number(Boolean(first.driver_id));
-    const secondAssigned = Number(Boolean(second.driver_id));
-    if (firstAssigned !== secondAssigned) return secondAssigned - firstAssigned;
-    const activeStatuses = ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client'];
-    const firstActive = Number(activeStatuses.includes(first.status));
-    const secondActive = Number(activeStatuses.includes(second.status));
-    if (firstActive !== secondActive) return secondActive - firstActive;
-    return new Date(second.updated_at ?? 0).getTime() - new Date(first.updated_at ?? 0).getTime();
-  })[0] ?? null;
+  return (
+    [...deliveries].sort((first, second) => {
+      const firstAssigned = Number(Boolean(first.driver_id));
+      const secondAssigned = Number(Boolean(second.driver_id));
+      if (firstAssigned !== secondAssigned) return secondAssigned - firstAssigned;
+      const activeStatuses = ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client'];
+      const firstActive = Number(activeStatuses.includes(first.status));
+      const secondActive = Number(activeStatuses.includes(second.status));
+      if (firstActive !== secondActive) return secondActive - firstActive;
+      return new Date(second.updated_at ?? 0).getTime() - new Date(first.updated_at ?? 0).getTime();
+    })[0] ?? null
+  );
 };
 
 const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => {
@@ -506,10 +611,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     comment: row.comment,
     status: row.status,
     paymentStatus: row.payment_status ?? 'unpaid',
-    deliveryStatus:
-      delivery?.status === 'waiting_driver'
-        ? 'waiting_courier'
-        : delivery?.status ?? (row.fulfillment_type === 'delivery' ? 'waiting_courier' : 'not_required'),
+    deliveryStatus: delivery?.status === 'waiting_driver' ? 'waiting_courier' : (delivery?.status ?? (row.fulfillment_type === 'delivery' ? 'waiting_courier' : 'not_required')),
     deliveryId: delivery?.id ?? null,
     deliveryUpdatedAt: delivery?.updated_at ?? null,
     driverName: driver?.name ?? null,
@@ -527,8 +629,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     driverRestaurantDeliveryPayoutReceivedAt: null,
     driverRestaurantDeliveryPayoutReceivedAmount: 0,
     restaurantFundsDelivery: row.delivery_fee <= 0 && Number(delivery?.offered_fee ?? 0) > 0,
-    restaurantDeliveryPayoutAmount:
-      row.delivery_fee <= 0 ? Number(delivery?.offered_fee ?? 0) : 0,
+    restaurantDeliveryPayoutAmount: row.delivery_fee <= 0 ? Number(delivery?.offered_fee ?? 0) : 0,
     subtotal: row.subtotal,
     deliveryFee: row.delivery_fee,
     courierPayout: Number(delivery?.offered_fee ?? 0),
@@ -569,32 +670,16 @@ const hydrateRestaurantOrderDriver = (order: RestaurantOrder, driver: DriverLook
   return {
     ...order,
     deliveryId: driver.delivery_id ?? order.deliveryId,
-    deliveryStatus:
-      driver.delivery_status === 'waiting_driver'
-        ? 'waiting_courier'
-        : driver.delivery_status ?? order.deliveryStatus,
+    deliveryStatus: driver.delivery_status === 'waiting_driver' ? 'waiting_courier' : (driver.delivery_status ?? order.deliveryStatus),
     deliveryUpdatedAt: driver.delivery_updated_at ?? order.deliveryUpdatedAt,
     pickupQrConfirmedAt: driver.pickup_qr_confirmed_at ?? order.pickupQrConfirmedAt,
-    restaurantPaymentConfirmedAt:
-      driver.restaurant_payment_confirmed_at ?? order.restaurantPaymentConfirmedAt,
-    driverRestaurantOrderPaymentConfirmedAt:
-      driver.driver_restaurant_order_payment_confirmed_at
-      ?? order.driverRestaurantOrderPaymentConfirmedAt,
-    driverRestaurantOrderPaymentAmount:
-      Number(driver.driver_restaurant_order_payment_amount ?? order.driverRestaurantOrderPaymentAmount ?? 0),
-    driverRestaurantDeliveryPayoutReceivedAt:
-      driver.driver_restaurant_delivery_payout_received_at
-      ?? order.driverRestaurantDeliveryPayoutReceivedAt,
-    driverRestaurantDeliveryPayoutReceivedAmount:
-      Number(
-        driver.driver_restaurant_delivery_payout_received_amount
-        ?? order.driverRestaurantDeliveryPayoutReceivedAmount
-        ?? 0
-      ),
-    restaurantFundsDelivery:
-      driver.restaurant_funds_delivery ?? order.restaurantFundsDelivery,
-    restaurantDeliveryPayoutAmount:
-      Number(driver.restaurant_delivery_payout_amount ?? order.restaurantDeliveryPayoutAmount ?? 0),
+    restaurantPaymentConfirmedAt: driver.restaurant_payment_confirmed_at ?? order.restaurantPaymentConfirmedAt,
+    driverRestaurantOrderPaymentConfirmedAt: driver.driver_restaurant_order_payment_confirmed_at ?? order.driverRestaurantOrderPaymentConfirmedAt,
+    driverRestaurantOrderPaymentAmount: Number(driver.driver_restaurant_order_payment_amount ?? order.driverRestaurantOrderPaymentAmount ?? 0),
+    driverRestaurantDeliveryPayoutReceivedAt: driver.driver_restaurant_delivery_payout_received_at ?? order.driverRestaurantDeliveryPayoutReceivedAt,
+    driverRestaurantDeliveryPayoutReceivedAmount: Number(driver.driver_restaurant_delivery_payout_received_amount ?? order.driverRestaurantDeliveryPayoutReceivedAmount ?? 0),
+    restaurantFundsDelivery: driver.restaurant_funds_delivery ?? order.restaurantFundsDelivery,
+    restaurantDeliveryPayoutAmount: Number(driver.restaurant_delivery_payout_amount ?? order.restaurantDeliveryPayoutAmount ?? 0),
     driverName: driver.name ?? order.driverName,
     driverPhone: driver.phone ?? order.driverPhone,
     driverVehicleInfo: driver.vehicle_info ?? order.driverVehicleInfo,
@@ -636,24 +721,20 @@ const errorText = (error: unknown) => {
   if (typeof error === 'string') return error;
   if (error instanceof Error) return error.message;
   if (typeof error === 'object') {
-    const value = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
-    return [value.code, value.message, value.details, value.hint]
-      .filter((part): part is string => typeof part === 'string')
-      .join(' ');
+    const value = error as {
+      code?: unknown;
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+    };
+    return [value.code, value.message, value.details, value.hint].filter((part): part is string => typeof part === 'string').join(' ');
   }
   return '';
 };
 
 const relationMissing = (error: unknown) => {
   const text = errorText(error).toLowerCase();
-  return (
-    text.includes('42p01') ||
-    text.includes('pgrst200') ||
-    text.includes('pgrst201') ||
-    text.includes('could not find') ||
-    text.includes('does not exist') ||
-    text.includes('schema cache')
-  );
+  return text.includes('42p01') || text.includes('pgrst200') || text.includes('pgrst201') || text.includes('could not find') || text.includes('does not exist') || text.includes('schema cache');
 };
 
 const normalizeDispatchPlace = (value: string) =>
@@ -668,31 +749,20 @@ const normalizeDispatchPlace = (value: string) =>
 const placeMatches = (servedPlace: string, city: string, settlement: string) => {
   if (!servedPlace) return false;
   const target = [city, settlement].filter(Boolean).join(' ');
-  return (
-    (target && target.includes(servedPlace)) ||
-    (city && servedPlace.includes(city)) ||
-    (settlement && servedPlace.includes(settlement))
-  );
+  return (target && target.includes(servedPlace)) || (city && servedPlace.includes(city)) || (settlement && servedPlace.includes(settlement));
 };
 
 const driverServesOrder = (driver: DispatchDriverRow, order: Pick<RestaurantOrder, 'deliveryCity' | 'deliverySettlement'>) => {
   const city = normalizeDispatchPlace(order.deliveryCity);
   const settlement = normalizeDispatchPlace(order.deliverySettlement);
   const driverCity = normalizeDispatchPlace(driver.city_name ?? '');
-  const serviceSettlements = Array.isArray(driver.service_settlements)
-    ? driver.service_settlements.map((item) => normalizeDispatchPlace(item)).filter(Boolean)
-    : [];
+  const serviceSettlements = Array.isArray(driver.service_settlements) ? driver.service_settlements.map((item) => normalizeDispatchPlace(item)).filter(Boolean) : [];
 
   if (!driverCity && serviceSettlements.length === 0) return true;
   return placeMatches(driverCity, city, settlement) || serviceSettlements.some((place) => placeMatches(place, city, settlement));
 };
 
-const mapDispatchDriver = (
-  row: DispatchDriverRow,
-  order: Pick<RestaurantOrder, 'deliveryCity' | 'deliverySettlement'>,
-  scope: RestaurantDispatchDriver['scope'],
-  assignment?: Pick<RestaurantCourierRow, 'is_primary' | 'priority'>
-): RestaurantDispatchDriver => ({
+const mapDispatchDriver = (row: DispatchDriverRow, order: Pick<RestaurantOrder, 'deliveryCity' | 'deliverySettlement'>, scope: RestaurantDispatchDriver['scope'], assignment?: Pick<RestaurantCourierRow, 'is_primary' | 'priority'>): RestaurantDispatchDriver => ({
   id: row.id,
   name: row.name ?? 'Водитель',
   phone: row.phone ?? '',
@@ -780,14 +850,7 @@ export async function getCatalogIdBySlug(slug: string) {
   return catalogId;
 }
 
-const mapRestaurantOwnCourier = (row: {
-  driver_id: string;
-  driver_name: string | null;
-  driver_email: string | null;
-  is_primary: boolean | null;
-  priority: number | string | null;
-  courier_type: RestaurantCourierType | null;
-}): RestaurantOwnCourier => ({
+const mapRestaurantOwnCourier = (row: { driver_id: string; driver_name: string | null; driver_email: string | null; is_primary: boolean | null; priority: number | string | null; courier_type: RestaurantCourierType | null }): RestaurantOwnCourier => ({
   driverId: row.driver_id,
   name: row.driver_name?.trim() || 'Водитель',
   email: row.driver_email?.trim() || '',
@@ -807,13 +870,16 @@ export async function getRestaurantOwnCouriers(catalogSlug: string): Promise<Res
   return ((data ?? []) as Array<Parameters<typeof mapRestaurantOwnCourier>[0]>).map(mapRestaurantOwnCourier);
 }
 
-export async function linkRestaurantCourierByEmail(
-  catalogSlug: string,
-  email: string,
-  courierType: RestaurantCourierType
-): Promise<RestaurantOwnCourier> {
+export async function linkRestaurantCourierByEmail(catalogSlug: string, email: string, courierType: RestaurantCourierType): Promise<RestaurantOwnCourier> {
   if (!supabase) {
-    return { driverId: 'driver-demo', name: 'Демо-водитель', email: email.trim(), courierType, isPrimary: false, priority: 10 };
+    return {
+      driverId: 'driver-demo',
+      name: 'Демо-водитель',
+      email: email.trim(),
+      courierType,
+      isPrimary: false,
+      priority: 10
+    };
   }
   const catalogId = await getCatalogIdBySlug(catalogSlug);
   if (!catalogId) throw new Error('Каталог ресторана не найден');
@@ -828,11 +894,7 @@ export async function linkRestaurantCourierByEmail(
   return mapRestaurantOwnCourier(row);
 }
 
-export async function updateRestaurantCourierType(
-  catalogSlug: string,
-  driverId: string,
-  courierType: RestaurantCourierType
-): Promise<void> {
+export async function updateRestaurantCourierType(catalogSlug: string, driverId: string, courierType: RestaurantCourierType): Promise<void> {
   if (!supabase) return;
   const catalogId = await getCatalogIdBySlug(catalogSlug);
   if (!catalogId) throw new Error('Каталог ресторана не найден');
@@ -856,25 +918,16 @@ export async function removeRestaurantCourier(catalogSlug: string, driverId: str
 }
 
 export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder[]> {
-  if (!supabase) return demoOrders;
+  if (!supabase) return getFallbackRestaurantOrders(slug);
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return [];
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select(orderSelect)
-    .eq('catalog_id', catalogId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.from('orders').select(orderSelect).eq('catalog_id', catalogId).order('created_at', { ascending: false });
 
   if (error) throw error;
-  const rows = ((data ?? []) as unknown as OrderRow[]);
+  const rows = (data ?? []) as unknown as OrderRow[];
   const mappedOrders = rows.map((row) => mapOrder(row, slug));
-  const ordersMissingDriver = mappedOrders.filter(
-    (order) =>
-      order.fulfillmentType === 'delivery' &&
-      !order.driverName &&
-      ['driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'].includes(order.status)
-  );
+  const ordersMissingDriver = mappedOrders.filter((order) => order.fulfillmentType === 'delivery' && !order.driverName && ['driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'].includes(order.status));
   if (ordersMissingDriver.length === 0) return mappedOrders;
 
   const missingDriverIds = Array.from(
@@ -896,24 +949,13 @@ export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder
   if (driverRpcResult.error) {
     console.warn('Assigned restaurant drivers RPC failed; using the legacy table fallback.', driverRpcResult.error);
   }
-  const driversResult = driverRpcResult.error && missingDriverIds.length > 0
-    ? await supabase
-        .from('drivers')
-        .select('id, name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at')
-        .in('id', missingDriverIds)
-    : driverRpcResult;
+  const driversResult = driverRpcResult.error && missingDriverIds.length > 0 ? await supabase.from('drivers').select('id, name, phone, vehicle_info, car_number, photo_url, last_lat, last_lng, last_location_at').in('id', missingDriverIds) : driverRpcResult;
 
   if (driversResult.error) return mappedOrders;
 
   const driverRows = (driversResult.data ?? []) as DriverLookupRow[];
-  const driversByOrderId = new Map(
-    driverRows
-      .filter((driver) => driver.order_id)
-      .map((driver) => [String(driver.order_id), driver])
-  );
-  const driversById = new Map(
-    driverRows.map((driver) => [driver.id, driver])
-  );
+  const driversByOrderId = new Map(driverRows.filter((driver) => driver.order_id).map((driver) => [String(driver.order_id), driver]));
+  const driversById = new Map(driverRows.map((driver) => [driver.id, driver]));
 
   return mappedOrders.map((order, index) => {
     const driverByOrder = driversByOrderId.get(order.id);
@@ -928,7 +970,13 @@ export async function getRestaurantOrders(slug: string): Promise<RestaurantOrder
 }
 
 export async function deleteRestaurantPreactivationOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'>) {
-  if (!supabase) return true;
+  if (!supabase) {
+    writeLocalOrders(
+      order.catalogId,
+      readLocalOrders(order.catalogId).filter((item) => item.id !== order.id)
+    );
+    return true;
+  }
   const { data, error } = await supabase.rpc('delete_restaurant_preactivation_order', {
     target_order_id: order.id,
     target_catalog_id: order.catalogId
@@ -937,11 +985,9 @@ export async function deleteRestaurantPreactivationOrder(order: Pick<RestaurantO
   return Boolean(data);
 }
 
-export async function deleteRestaurantTestOrder(
-  order: Pick<RestaurantOrder, 'id' | 'catalogId'> & Partial<Pick<RestaurantOrder, 'isTestOrder'>>
-) {
+export async function deleteRestaurantTestOrder(order: Pick<RestaurantOrder, 'id' | 'catalogId'> & Partial<Pick<RestaurantOrder, 'isTestOrder'>>) {
   if (order.isTestOrder !== true) return deleteRestaurantPreactivationOrder(order);
-  if (!supabase) return true;
+  if (!supabase) return deleteRestaurantPreactivationOrder(order);
   const { data, error } = await supabase.rpc('delete_restaurant_test_order', {
     target_order_id: order.id,
     target_catalog_id: order.catalogId
@@ -973,21 +1019,14 @@ export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Prom
   }
 
   const driverSelect = 'id, name, phone, vehicle_info, car_number, city_name, service_settlements, rating, is_online, status, max_active_deliveries';
-  const restaurantResult = await supabase
-    .from('restaurants')
-    .select('id')
-    .eq('catalog_id', order.catalogId);
+  const restaurantResult = await supabase.from('restaurants').select('id').eq('catalog_id', order.catalogId);
 
   if (restaurantResult.error) throw restaurantResult.error;
   const restaurantIds = ((restaurantResult.data ?? []) as Array<{ id: string }>).map((row) => row.id);
   let restaurantDrivers: RestaurantDispatchDriver[] = [];
 
   if (restaurantIds.length > 0) {
-    const ownResult = await supabase
-      .from('restaurant_couriers')
-      .select(`is_primary, priority, drivers(${driverSelect})`)
-      .in('restaurant_id', restaurantIds)
-      .eq('is_active', true);
+    const ownResult = await supabase.from('restaurant_couriers').select(`is_primary, priority, drivers(${driverSelect})`).in('restaurant_id', restaurantIds).eq('is_active', true);
 
     if (ownResult.error && !relationMissing(ownResult.error)) throw ownResult.error;
 
@@ -998,32 +1037,23 @@ export async function getRestaurantDispatchDrivers(order: RestaurantOrder): Prom
       .sort((first, second) => Number(second.isPrimary) - Number(first.isPrimary) || first.priority - second.priority);
   }
 
-  const platformResult = await supabase
-    .from('drivers')
-    .select(driverSelect)
-    .eq('is_active', true)
-    .eq('is_online', true)
-    .order('rating', { ascending: false });
+  const platformResult = await supabase.from('drivers').select(driverSelect).eq('is_active', true).eq('is_online', true).order('rating', { ascending: false });
 
   if (platformResult.error) throw platformResult.error;
 
-  const platformDrivers = ((platformResult.data ?? []) as unknown as DispatchDriverRow[])
-    .map((driver) => mapDispatchDriver(driver, order, 'platform'))
-    .filter((driver) => driver.servesOrder);
+  const platformDrivers = ((platformResult.data ?? []) as unknown as DispatchDriverRow[]).map((driver) => mapDispatchDriver(driver, order, 'platform')).filter((driver) => driver.servesOrder);
 
   const drivers = uniqueDispatchDrivers([...restaurantDrivers, ...platformDrivers]);
   const driverIds = drivers.map((driver) => driver.id);
   if (driverIds.length === 0) return drivers;
 
-  const activeResult = await supabase
-    .from('deliveries')
-    .select('driver_id')
-    .in('driver_id', driverIds)
-    .in('status', ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client']);
+  const activeResult = await supabase.from('deliveries').select('driver_id').in('driver_id', driverIds).in('status', ['assigned', 'arrived_to_restaurant', 'handed_over', 'on_the_way', 'arrived_to_client']);
   if (activeResult.error) throw activeResult.error;
 
   const activeCounts = new Map<string, number>();
-  for (const row of (activeResult.data ?? []) as Array<{ driver_id: string | null }>) {
+  for (const row of (activeResult.data ?? []) as Array<{
+    driver_id: string | null;
+  }>) {
     if (!row.driver_id) continue;
     activeCounts.set(row.driver_id, (activeCounts.get(row.driver_id) ?? 0) + 1);
   }
@@ -1039,10 +1069,28 @@ export function subscribeToRestaurantOrdersRealtime(catalogId: string | null | u
 
   const channel = supabase
     .channel(`restaurant-orders-${catalogId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `catalog_id=eq.${catalogId}` }, onChange)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `catalog_id=eq.${catalogId}`
+      },
+      onChange
+    )
     .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_status_history', filter: `catalog_id=eq.${catalogId}` }, onChange)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'order_status_history',
+        filter: `catalog_id=eq.${catalogId}`
+      },
+      onChange
+    )
     .subscribe();
 
   return () => {
@@ -1076,7 +1124,9 @@ export type PublicOrderTracking = {
 
 export async function getPublicOrderTracking(orderId: string): Promise<PublicOrderTracking | null> {
   if (!supabase || !orderId.trim()) return null;
-  const { data, error } = await supabase.rpc('get_public_order_tracking', { target_order_id: orderId.trim() });
+  const { data, error } = await supabase.rpc('get_public_order_tracking', {
+    target_order_id: orderId.trim()
+  });
   if (error || !data || typeof data !== 'object') return null;
   const row = data as Record<string, unknown>;
   return {
@@ -1089,12 +1139,16 @@ export async function getPublicOrderTracking(orderId: string): Promise<PublicOrd
   };
 }
 
-export async function updateRestaurantOrderStatus(
-  order: RestaurantOrder,
-  status: RestaurantOrderStatus,
-  reason = ''
-) {
-  if (!supabase) return;
+export async function updateRestaurantOrderStatus(order: RestaurantOrder, status: RestaurantOrderStatus, reason = '') {
+  if (!supabase) {
+    updateFallbackRestaurantOrder(order, {
+      status,
+      acceptedAt: status === 'accepted' ? new Date().toISOString() : order.acceptedAt,
+      readyAt: status === 'ready' ? new Date().toISOString() : order.readyAt,
+      completedAt: ['completed', 'delivered'].includes(status) ? new Date().toISOString() : order.completedAt
+    });
+    return;
+  }
   const persistedStatus = status === 'cancelled' ? 'canceled' : status;
   if (
     status === 'waiting_driver' &&
@@ -1108,11 +1162,7 @@ export async function updateRestaurantOrderStatus(
   }
 
   if (status === 'waiting_driver' && order.fulfillmentType === 'delivery') {
-    const settingsResult = await supabase
-      .from('restaurant_delivery_settings')
-      .select('primary_city')
-      .eq('catalog_id', order.catalogId)
-      .maybeSingle();
+    const settingsResult = await supabase.from('restaurant_delivery_settings').select('primary_city').eq('catalog_id', order.catalogId).maybeSingle();
     if (settingsResult.error) throw settingsResult.error;
 
     const restaurantSettlement = settingsResult.data?.primary_city || order.restaurantCity;
@@ -1122,10 +1172,18 @@ export async function updateRestaurantOrderStatus(
       delivery_provider: 'platform',
       status: 'waiting_courier',
       route_to_restaurant_url: buildYandexMapsRouteUrl({
-        to: { lat: order.restaurantLat, lng: order.restaurantLng, address: order.restaurantAddress }
+        to: {
+          lat: order.restaurantLat,
+          lng: order.restaurantLng,
+          address: order.restaurantAddress
+        }
       }),
       route_to_client_url: buildYandexMapsRouteUrl({
-        from: { lat: order.restaurantLat, lng: order.restaurantLng, address: order.restaurantAddress },
+        from: {
+          lat: order.restaurantLat,
+          lng: order.restaurantLng,
+          address: order.restaurantAddress
+        },
         to: {
           lat: order.deliveryLat,
           lng: order.deliveryLng,
@@ -1152,17 +1210,11 @@ export async function updateRestaurantOrderStatus(
     if (!dispatchResult.error) return;
 
     const rpcErrorText = `${dispatchResult.error.code ?? ''} ${dispatchResult.error.message ?? ''}`.toLowerCase();
-    const isMissingDispatchRpc =
-      rpcErrorText.includes('pgrst202') ||
-      rpcErrorText.includes('could not find the function') ||
-      rpcErrorText.includes('function not found');
+    const isMissingDispatchRpc = rpcErrorText.includes('pgrst202') || rpcErrorText.includes('could not find the function') || rpcErrorText.includes('function not found');
     if (!isMissingDispatchRpc) throw dispatchResult.error;
 
     // Compatibility path for deployments where the atomic RPC has not reached PostgREST yet.
-    const deliveryResult = await supabase.from('deliveries').upsert(
-      { ...deliveryPayload, estimated_time_min: 20, estimated_time_max: 40 },
-      { onConflict: 'order_id' }
-    );
+    const deliveryResult = await supabase.from('deliveries').upsert({ ...deliveryPayload, estimated_time_min: 20, estimated_time_max: 40 }, { onConflict: 'order_id' });
     if (deliveryResult.error) throw deliveryResult.error;
 
     const deliveryTaskResult = await supabase.from('delivery_tasks').upsert(
@@ -1233,20 +1285,20 @@ export async function sendRestaurantOrderToDriverPool(order: RestaurantOrder) {
 
   if (deliveryResult.error) throw deliveryResult.error;
 
-  const orderResult = await supabase
-    .from('orders')
-    .update({ status: 'waiting_driver' })
-    .eq('id', order.id)
-    .eq('catalog_id', order.catalogId);
+  const orderResult = await supabase.from('orders').update({ status: 'waiting_driver' }).eq('id', order.id).eq('catalog_id', order.catalogId);
 
   if (orderResult.error) throw orderResult.error;
 }
 
-export async function updateRestaurantOrderPaymentStatus(
-  order: RestaurantOrder,
-  paymentStatus: PaymentStatus
-) {
-  if (!supabase) return;
+export async function updateRestaurantOrderPaymentStatus(order: RestaurantOrder, paymentStatus: PaymentStatus) {
+  if (!supabase) {
+    updateFallbackRestaurantOrder(order, {
+      paymentStatus,
+      restaurantPaymentConfirmedAt: paymentStatus === 'confirmed' ? new Date().toISOString() : order.restaurantPaymentConfirmedAt,
+      status: paymentStatus === 'confirmed' && order.status === 'waiting_payment_confirmation' ? 'payment_confirmed' : order.status
+    });
+    return;
+  }
 
   const patch: Record<string, unknown> = { payment_status: paymentStatus };
   if (paymentStatus === 'confirmed') {
@@ -1256,11 +1308,7 @@ export async function updateRestaurantOrderPaymentStatus(
     }
   }
 
-  const { error } = await supabase
-    .from('orders')
-    .update(patch)
-    .eq('id', order.id)
-    .eq('catalog_id', order.catalogId);
+  const { error } = await supabase.from('orders').update(patch).eq('id', order.id).eq('catalog_id', order.catalogId);
 
   if (error) throw error;
 }
@@ -1270,14 +1318,13 @@ export async function getRestaurantDeliverySettings(slug: string): Promise<Resta
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return defaultDeliverySettings;
 
-  const { data, error } = await supabase
-    .from('restaurant_delivery_settings')
-    .select('*')
-    .eq('catalog_id', catalogId)
-    .maybeSingle();
+  const { data, error } = await supabase.from('restaurant_delivery_settings').select('*').eq('catalog_id', catalogId).maybeSingle();
 
   if (error) throw error;
-  const nextData = { ...defaultDeliverySettings, ...(data ?? {}) } as RestaurantDeliverySettings;
+  const nextData = {
+    ...defaultDeliverySettings,
+    ...(data ?? {})
+  } as RestaurantDeliverySettings;
   return {
     ...nextData,
     service_settlements: Array.isArray(nextData.service_settlements) ? nextData.service_settlements.filter(Boolean) : [],
@@ -1291,15 +1338,19 @@ export async function saveRestaurantDeliverySettings(slug: string, settings: Res
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return;
 
-  const { error } = await supabase
-    .from('restaurant_delivery_settings')
-    .upsert({ catalog_id: catalogId, ...normalizeRestaurantDeliverySettingsForSave(settings) }, { onConflict: 'catalog_id' });
+  const { error } = await supabase.from('restaurant_delivery_settings').upsert(
+    {
+      catalog_id: catalogId,
+      ...normalizeRestaurantDeliverySettingsForSave(settings)
+    },
+    { onConflict: 'catalog_id' }
+  );
 
   if (error) throw error;
 }
 
 export async function createRestaurantOrderFromCart(input: CreateRestaurantOrderFromCartInput) {
-  if (!supabase) return null;
+  if (!supabase) return createFallbackRestaurantOrder(input);
   const { slug } = input;
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return null;

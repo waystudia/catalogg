@@ -1,21 +1,18 @@
 import type { RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 
-export type RestaurantOrderBoardColumnId =
-  | 'new'
-  | 'preparing'
-  | 'ready'
-  | 'delivery'
-  | 'completed'
-  | 'cancelled';
+export type RestaurantOrderBoardColumnId = 'new' | 'preparing' | 'ready' | 'delivery' | 'completed' | 'cancelled';
 
-export function getRestaurantOrderBoardColumns(): ReadonlyArray<{
+export function getRestaurantOrderBoardColumns(businessType?: string): ReadonlyArray<{
   id: RestaurantOrderBoardColumnId;
   label: string;
 }> {
   return [
     { id: 'new', label: 'Новые' },
-    { id: 'preparing', label: 'Готовятся' },
-    { id: 'ready', label: 'Готовы' },
+    {
+      id: 'preparing',
+      label: businessType === 'grocery' ? 'Собираются' : 'Готовятся'
+    },
+    { id: 'ready', label: businessType === 'grocery' ? 'Собраны' : 'Готовы' },
     { id: 'delivery', label: 'Доставка' },
     { id: 'completed', label: 'Завершённые' },
     { id: 'cancelled', label: 'Отменённые' }

@@ -1,17 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CartItem, Product } from '../../entities/models';
-import {
-  createRestaurantOrderWithClient,
-  buildOrderStatusShareUrl,
-  buildPublicRestaurantOrderItems,
-  findRestaurantOrderStockIssues,
-  getRestaurantOrderCreationErrorMessage,
-  normalizeRestaurantDeliverySettingsForSave,
-  resolvePublicOrderRpcName,
-  type CreateRestaurantOrderFromCartInput,
-  type PublicRestaurantOrderClient
-} from './restaurantOrderPayload';
+import { createRestaurantOrderWithClient, buildOrderStatusShareUrl, buildPublicRestaurantOrderItems, findRestaurantOrderStockIssues, getRestaurantOrderCreationErrorMessage, normalizeRestaurantDeliverySettingsForSave, resolvePublicOrderRpcName, type CreateRestaurantOrderFromCartInput, type PublicRestaurantOrderClient } from './restaurantOrderPayload';
 
 const product = (overrides: Partial<Product> = {}): Product => ({
   id: 'product-1',
@@ -35,52 +25,66 @@ const product = (overrides: Partial<Product> = {}): Product => ({
 
 describe('public restaurant order payload', () => {
   it('finds sold-out products in a persisted cart using the current catalog stock', () => {
-    const staleCart: CartItem[] = [{
-      product: product({ id: 'lamb-skewer', title: 'Шашлык из баранины', stock_count: 5 }),
-      quantity: 2
-    }];
+    const staleCart: CartItem[] = [
+      {
+        product: product({
+          id: 'lamb-skewer',
+          title: 'Шашлык из баранины',
+          stock_count: 5
+        }),
+        quantity: 2
+      }
+    ];
 
     assert.deepEqual(
       findRestaurantOrderStockIssues(staleCart, [
-        product({ id: 'lamb-skewer', title: 'Шашлык из баранины', stock_count: 0, current_stock: 0, is_unlimited: false })
+        product({
+          id: 'lamb-skewer',
+          title: 'Шашлык из баранины',
+          stock_count: 0,
+          current_stock: 0,
+          is_unlimited: false
+        })
       ]),
-      [{
-        productId: 'lamb-skewer',
-        title: 'Шашлык из баранины',
-        requested: 2,
-        available: 0
-      }]
+      [
+        {
+          productId: 'lamb-skewer',
+          title: 'Шашлык из баранины',
+          requested: 2,
+          available: 0
+        }
+      ]
     );
   });
 
   it('allows unlimited products regardless of their numeric stock field', () => {
     const cart: CartItem[] = [{ product: product({ id: 'tea' }), quantity: 3 }];
-    assert.deepEqual(
-      findRestaurantOrderStockIssues(cart, [product({ id: 'tea', stock_count: 0, is_unlimited: true })]),
-      []
-    );
+    assert.deepEqual(findRestaurantOrderStockIssues(cart, [product({ id: 'tea', stock_count: 0, is_unlimited: true })]), []);
   });
 
   it('checks the combined stock of differently configured cart lines', () => {
-    const configuredProduct = product({ id: 'coffee', is_unlimited: false, stock_count: 3 });
+    const configuredProduct = product({
+      id: 'coffee',
+      is_unlimited: false,
+      stock_count: 3
+    });
     const cart: CartItem[] = [
       { product: configuredProduct, quantity: 2, selected_choice: '300 мл' },
       { product: configuredProduct, quantity: 2, selected_choice: '400 мл' }
     ];
 
-    assert.deepEqual(findRestaurantOrderStockIssues(cart, [configuredProduct]), [{
-      productId: 'coffee',
-      title: 'Жижиг-галнаш',
-      requested: 4,
-      available: 3
-    }]);
+    assert.deepEqual(findRestaurantOrderStockIssues(cart, [configuredProduct]), [
+      {
+        productId: 'coffee',
+        title: 'Жижиг-галнаш',
+        requested: 4,
+        available: 3
+      }
+    ]);
   });
 
   it('translates a database stock race into a useful customer message', () => {
-    assert.equal(
-      getRestaurantOrderCreationErrorMessage(new Error('Legacy product stock is not enough')),
-      'Один из товаров уже закончился. Обновите корзину и попробуйте снова.'
-    );
+    assert.equal(getRestaurantOrderCreationErrorMessage(new Error('Legacy product stock is not enough')), 'Один из товаров уже закончился. Обновите корзину и попробуйте снова.');
   });
 
   it('serializes legacy cart lines with an explicit empty options array', () => {
@@ -96,22 +100,26 @@ describe('public restaurant order payload', () => {
   });
 
   it('sends the selected variant identity so Supabase can resolve its authoritative price', () => {
-    const items: CartItem[] = [{
-      product: product({
-        choice_options: [
-          { name: 'Средняя', price: 520 },
-          { name: 'Большая', price: 740 }
-        ]
-      }),
-      quantity: 2,
-      selected_choice: 'Большая'
-    }];
+    const items: CartItem[] = [
+      {
+        product: product({
+          choice_options: [
+            { name: 'Средняя', price: 520 },
+            { name: 'Большая', price: 740 }
+          ]
+        }),
+        quantity: 2,
+        selected_choice: 'Большая'
+      }
+    ];
 
-    assert.deepEqual(buildPublicRestaurantOrderItems(items), [{
-      product_id: 'product-1',
-      quantity: 2,
-      options: [{ name: 'Большая', product_id: 'product-1' }]
-    }]);
+    assert.deepEqual(buildPublicRestaurantOrderItems(items), [
+      {
+        product_id: 'product-1',
+        quantity: 2,
+        options: [{ name: 'Большая', product_id: 'product-1' }]
+      }
+    ]);
   });
 
   it('uses the legacy public order RPC when cart products have old text ids', () => {
@@ -122,37 +130,46 @@ describe('public restaurant order payload', () => {
 
   it('uses the platform public order RPC when cart products have uuid ids', () => {
     const items: CartItem[] = [
-      { product: product({ id: '11111111-1111-4111-8111-111111111111' }), quantity: 1 }
+      {
+        product: product({ id: '11111111-1111-4111-8111-111111111111' }),
+        quantity: 1
+      }
     ];
 
     assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_restaurant_order');
   });
 
   it('uses the grocery RPC and sends exact grams for a weighted catalog product', () => {
-    const items: CartItem[] = [{
-      product: product({
-        id: '11111111-1111-4111-8111-111111111111',
-        sale_unit: 'weight',
-        pricing_type: 'per_kg',
-        minimum_weight: 0.25,
-        weight_step: 0.05
-      }),
-      quantity: 1,
-      selected_weight: 0.35
-    }];
+    const items: CartItem[] = [
+      {
+        product: product({
+          id: '11111111-1111-4111-8111-111111111111',
+          sale_unit: 'weight',
+          pricing_type: 'per_kg',
+          minimum_weight: 0.25,
+          weight_step: 0.05
+        }),
+        quantity: 1,
+        selected_weight: 0.35
+      }
+    ];
 
     assert.equal(resolvePublicOrderRpcName(items, 'grocery'), 'create_client_platform_catalog_order');
-    assert.deepEqual(buildPublicRestaurantOrderItems(items), [{
-      product_id: '11111111-1111-4111-8111-111111111111',
-      quantity: 1,
-      requested_quantity: 350,
-      options: [{
-        key: 'weight',
-        name: 'Вес: 0.35 кг',
-        value: '0.35',
-        product_id: '11111111-1111-4111-8111-111111111111'
-      }]
-    }]);
+    assert.deepEqual(buildPublicRestaurantOrderItems(items), [
+      {
+        product_id: '11111111-1111-4111-8111-111111111111',
+        quantity: 1,
+        requested_quantity: 350,
+        options: [
+          {
+            key: 'weight',
+            name: 'Вес: 0.35 кг',
+            value: '0.35',
+            product_id: '11111111-1111-4111-8111-111111111111'
+          }
+        ]
+      }
+    ]);
   });
 
   it('clamps persisted invalid quantities before sending the order to Supabase', () => {
@@ -187,11 +204,7 @@ describe('public restaurant order payload', () => {
       }
     };
 
-    await createRestaurantOrderWithClient(
-      client,
-      'catalog-1',
-      orderInput({ idempotencyKey: 'checkout-attempt-1' })
-    );
+    await createRestaurantOrderWithClient(client, 'catalog-1', orderInput({ idempotencyKey: 'checkout-attempt-1' }));
 
     assert.equal(rpcArgs.idempotency_key, 'checkout-attempt-1');
   });
@@ -253,11 +266,7 @@ describe('public restaurant order payload', () => {
       }
     };
 
-    const orderId = await createRestaurantOrderWithClient(
-      client,
-      'catalog-1',
-      orderInput({ idempotencyKey: 'checkout-attempt-1' })
-    );
+    const orderId = await createRestaurantOrderWithClient(client, 'catalog-1', orderInput({ idempotencyKey: 'checkout-attempt-1' }));
 
     assert.equal(orderId, 'order-retried');
     assert.equal(calls.length, 2);
@@ -290,10 +299,7 @@ describe('public restaurant order payload', () => {
       }
     };
 
-    await assert.rejects(
-      () => createRestaurantOrderWithClient(client, 'catalog-1', orderInput()),
-      /RPC failed/
-    );
+    await assert.rejects(() => createRestaurantOrderWithClient(client, 'catalog-1', orderInput()), /RPC failed/);
   });
 
   it('includes client coordinates in the order comment before the best-effort update', async () => {
@@ -318,10 +324,7 @@ describe('public restaurant order payload', () => {
 
     await createRestaurantOrderWithClient(client, 'catalog-1', orderInput({ comment: 'Позвонить заранее' }));
 
-    assert.equal(
-      rpcArgs.comment,
-      'Позвонить заранее\nКоординаты клиента: 43.3181235, 45.6987654 (точность 18 м)'
-    );
+    assert.equal(rpcArgs.comment, 'Позвонить заранее\nКоординаты клиента: 43.3181235, 45.6987654 (точность 18 м)');
   });
 
   it('falls back to the legacy public order RPC when the restaurant RPC is missing in Supabase', async () => {
@@ -330,7 +333,10 @@ describe('public restaurant order payload', () => {
       async rpc(name, args) {
         calls.push({ name, args });
         if (name === 'create_client_platform_restaurant_order') {
-          return { data: null, error: { code: 'PGRST202', message: 'Could not find the function' } };
+          return {
+            data: null,
+            error: { code: 'PGRST202', message: 'Could not find the function' }
+          };
         }
         return { data: 'order-fallback', error: null };
       },
@@ -371,11 +377,14 @@ describe('public restaurant order payload', () => {
   });
 });
 
-const orderInput = (
-  overrides: Partial<CreateRestaurantOrderFromCartInput> = {}
-): CreateRestaurantOrderFromCartInput => ({
+const orderInput = (overrides: Partial<CreateRestaurantOrderFromCartInput> = {}): CreateRestaurantOrderFromCartInput => ({
   slug: 'mangal',
-  items: [{ product: product({ id: '11111111-1111-4111-8111-111111111111' }), quantity: 2 }],
+  items: [
+    {
+      product: product({ id: '11111111-1111-4111-8111-111111111111' }),
+      quantity: 2
+    }
+  ],
   fulfillmentType: 'delivery',
   cabinLabel: '',
   deliveryCity: 'Грозный',

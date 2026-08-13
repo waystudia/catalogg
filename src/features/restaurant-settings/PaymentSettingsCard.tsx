@@ -4,15 +4,7 @@ import { toast } from 'sonner';
 import { imageFileToDataUrl } from '../../shared/images';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 
-export function PaymentSettingsCard({
-  slug,
-  settings,
-  onSave
-}: {
-  slug: string;
-  settings: RestaurantPaymentSettings;
-  onSave: (settings: RestaurantPaymentSettings) => void;
-}) {
+export function PaymentSettingsCard({ slug, settings, businessType = 'restaurant', onSave }: { slug: string; settings: RestaurantPaymentSettings; businessType?: string; onSave: (settings: RestaurantPaymentSettings) => void }) {
   const [draft, setDraft] = useState(settings);
 
   useEffect(() => {
@@ -48,22 +40,43 @@ export function PaymentSettingsCard({
             <option value="account">Счет</option>
           </select>
         </label>
-        <label>Номер для перевода<input value={draft.transferNumber} onChange={(event) => setField('transferNumber', event.target.value)} /></label>
-        <label>Банк<input value={draft.bankName} onChange={(event) => setField('bankName', event.target.value)} placeholder="Сбер, Тинькофф..." /></label>
+        <label>
+          Номер для перевода
+          <input value={draft.transferNumber} onChange={(event) => setField('transferNumber', event.target.value)} />
+        </label>
+        <label>
+          Банк
+          <input value={draft.bankName} onChange={(event) => setField('bankName', event.target.value)} placeholder="Сбер, Тинькофф..." />
+        </label>
         <div className="settings-form-grid">
-          <label>Фамилия<input value={draft.lastName} onChange={(event) => setField('lastName', event.target.value)} /></label>
-          <label>Имя<input value={draft.firstName} onChange={(event) => setField('firstName', event.target.value)} /></label>
-          <label>Отчество<input value={draft.middleName} onChange={(event) => setField('middleName', event.target.value)} /></label>
+          <label>
+            Фамилия
+            <input value={draft.lastName} onChange={(event) => setField('lastName', event.target.value)} />
+          </label>
+          <label>
+            Имя
+            <input value={draft.firstName} onChange={(event) => setField('firstName', event.target.value)} />
+          </label>
+          <label>
+            Отчество
+            <input value={draft.middleName} onChange={(event) => setField('middleName', event.target.value)} />
+          </label>
         </div>
-        <label>Отображаемое имя<input value={draft.displayName} onChange={(event) => setField('displayName', event.target.value)} placeholder="ФИО, которое увидит клиент" /></label>
-        <label>Комментарий к оплате<textarea value={draft.comment} onChange={(event) => setField('comment', event.target.value)} /></label>
+        <label>
+          Отображаемое имя
+          <input value={draft.displayName} onChange={(event) => setField('displayName', event.target.value)} placeholder="ФИО, которое увидит клиент" />
+        </label>
+        <label>
+          Комментарий к оплате
+          <textarea value={draft.comment} onChange={(event) => setField('comment', event.target.value)} />
+        </label>
         <label className="settings-toggle-row">
           <input type="checkbox" checked={draft.allowCash} onChange={(event) => setField('allowCash', event.target.checked)} />
           Разрешить наличные
         </label>
         <label className="settings-toggle-row">
           <input type="checkbox" checked={draft.requireConfirmation} onChange={(event) => setField('requireConfirmation', event.target.checked)} />
-          Требовать подтверждение рестораном
+          Требовать подтверждение {businessType === 'grocery' ? 'магазином' : 'рестораном'}
         </label>
         <label className="payment-qr-upload">
           <QrCode />
@@ -73,7 +86,9 @@ export function PaymentSettingsCard({
         <div className="payment-client-preview">
           <h3>Как увидит клиент</h3>
           <strong>{draft.displayName || [draft.lastName, draft.firstName, draft.middleName].filter(Boolean).join(' ') || 'Получатель не указан'}</strong>
-          <span>{draft.bankName || 'Банк не указан'} · {draft.transferNumber || 'Номер не указан'}</span>
+          <span>
+            {draft.bankName || 'Банк не указан'} · {draft.transferNumber || 'Номер не указан'}
+          </span>
           {draft.qrUrl ? <img src={draft.qrUrl} alt="QR-код для перевода" /> : <QrCode />}
           <small>{draft.comment}</small>
         </div>
