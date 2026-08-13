@@ -48,7 +48,8 @@ separate stages. Prove which stage failed before changing passwords or role rows
 the active main asset before creating or switching a release and reject bundles
 without the production API URL or browser-safe key. Keep
 `scripts/tests/staticReleaseDeploy.test.mjs` covering both acceptance and
-rejection. Mirror the checked-in script to `/usr/local/sbin/deploy-wayyaam-static`
+rejection. Keep `scripts/tests/productionAuthBundleGuard.test.mjs` protecting
+both the release hook and public smoke check. Mirror the checked-in script to `/usr/local/sbin/deploy-wayyaam-static`
 before relying on the server guard.
 
 Never deploy with a plain `VITE_BASE_PATH=/ npm run build`. Supply the production

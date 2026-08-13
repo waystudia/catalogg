@@ -35,6 +35,16 @@ expect_status 200 "https://www.wayyaam.ru/"
 expect_status 200 "${site_base}/sw.js"
 expect_status 200 "${site_base}${main_asset}"
 
+main_bundle=$(curl "${curl_args[@]}" --fail "${site_base}${main_asset}")
+if ! grep -Fq 'api.wayyaam.ru' <<<"${main_bundle}"; then
+  echo "Main bundle is missing the production Supabase URL" >&2
+  exit 1
+fi
+if ! grep -Eq 'sb_publishable_[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}' <<<"${main_bundle}"; then
+  echo "Main bundle is missing a browser-safe Supabase key" >&2
+  exit 1
+fi
+
 if [[ -n ${previous_asset} ]]; then
   if [[ ! ${previous_asset} =~ ^/assets/[A-Za-z0-9._-]+\.js$ ]]; then
     echo "Invalid previous asset path: ${previous_asset}" >&2
@@ -81,6 +91,7 @@ for request_number in 1 2 3 4 5 6 7 8 9 10; do
 done
 
 echo "main_asset=${main_asset}"
+echo "supabase_config=present"
 [[ -z ${previous_asset} ]] || echo "previous_asset=${previous_asset}"
 echo "unknown_asset=${unknown_result}"
 echo "public_production_guard=passed"
