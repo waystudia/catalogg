@@ -140,6 +140,26 @@ type ProfileSignupRow = {
   created_at: string;
 };
 
+export type PartnerDocument = {
+  id: string;
+  documentType: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+  signedUrl: string;
+};
+
+type PartnerDocumentRow = {
+  id: string;
+  document_type: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  created_at: string;
+};
+
 type PlatformBannerRow = {
   id: string;
   name?: string | null;
@@ -967,4 +987,34 @@ export async function updateClient(payload: UpdateClientPayload): Promise<Update
   if (error) throw new Error(await getFunctionErrorMessage(error));
   if (!data) throw new Error('Edge Function did not return updated client data.');
   return data;
+}
+
+export async function getSellerApplicationDocuments(clientId: string): Promise<PartnerDocument[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('partner_documents')
+    .select('id, document_type, storage_path, file_name, mime_type, file_size, created_at')
+    .eq('subject_type', 'seller')
+    .eq('subject_id', clientId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+
+  const rows = (data ?? []) as PartnerDocumentRow[];
+  if (rows.length === 0) return [];
+  const signed = await supabase.storage.from('partner-documents').createSignedUrls(
+    rows.map((row) => row.storage_path),
+    10 * 60
+  );
+  if (signed.error) throw signed.error;
+
+  return rows.map((row, index) => ({
+    id: row.id,
+    documentType: row.document_type,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: row.file_size,
+    createdAt: row.created_at,
+    signedUrl: signed.data?.[index]?.signedUrl ?? ''
+  }));
 }

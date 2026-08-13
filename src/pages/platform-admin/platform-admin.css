@@ -5582,3 +5582,6 @@
   }
 }
 .self-service-badge{color:#5b3fff!important;font-weight:800}
+.self-service-documents{display:flex!important;flex-wrap:wrap;gap:6px;margin-top:5px;color:#6f7280!important}
+.self-service-documents a{color:#4a46e8;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.self-service-documents.is-error{color:#c2414d!important}
