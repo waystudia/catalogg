@@ -311,6 +311,9 @@ type PlatformCategoryRow = {
 type PlatformProductRow = {
   id: string;
   category_id: string | null;
+  master_product_id: string | null;
+  master_content_version: number | null;
+  content_source: Product['content_source'];
   title: string;
   status: string;
   price: number;
@@ -530,6 +533,9 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   stock_count: value.stock_count,
   category_id: value.category_id ?? '',
   category_ids: value.category_id ? [value.category_id] : [],
+  master_product_id: value.master_product_id ?? undefined,
+  master_content_version: value.master_content_version ?? undefined,
+  content_source: value.content_source ?? 'local',
   pair_ids: [],
   sku: value.sku,
   barcode: value.barcode,
@@ -812,7 +818,7 @@ export async function loadCatalog(catalogSlug?: string) {
       supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
       supabase
         .from('products')
-        .select('id, category_id, title, status, price, sku, barcode, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, stock_quantity, allow_substitution, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
+        .select('id, category_id, master_product_id, master_content_version, content_source, title, status, price, sku, barcode, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, stock_quantity, allow_substitution, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
         .eq('catalog_id', catalog.id)
         .order('sort_order'),
       supabase
@@ -998,6 +1004,9 @@ const createSlug = (value: string) =>
 const productToPlatformRow = (product: Product) => ({
   catalog_id: activePlatformCatalogId,
   category_id: product.category_id && uuidPattern.test(product.category_id) ? product.category_id : null,
+  master_product_id: product.master_product_id && uuidPattern.test(product.master_product_id) ? product.master_product_id : null,
+  master_content_version: product.master_product_id ? product.master_content_version ?? 1 : null,
+  content_source: product.master_product_id ? product.content_source ?? 'master_override' : 'local',
   title: product.title,
   slug: product.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || crypto.randomUUID(),
   status: product.is_hidden ? 'hidden' : product.stock_count <= 0 && !product.is_unlimited ? 'sold_out' : 'active',
@@ -1135,6 +1144,9 @@ const categoryMeta = (value: Category) =>
 const productPatchToPlatformRow = (patch: Partial<Product>) => {
   const row: Record<string, unknown> = {};
   if (patch.category_id !== undefined) row.category_id = patch.category_id && uuidPattern.test(patch.category_id) ? patch.category_id : null;
+  if (patch.master_product_id !== undefined) row.master_product_id = patch.master_product_id && uuidPattern.test(patch.master_product_id) ? patch.master_product_id : null;
+  if (patch.master_content_version !== undefined) row.master_content_version = patch.master_content_version;
+  if (patch.content_source !== undefined) row.content_source = patch.content_source;
   if (patch.title !== undefined) row.title = patch.title;
   if (patch.price !== undefined) row.price = patch.price;
   if (patch.description !== undefined) row.description = patch.description;

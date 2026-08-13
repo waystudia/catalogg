@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDownToLine, ClipboardList, PackageCheck, ScanBarcode, Search, Truck } from 'lucide-react';
+import { AlertTriangle, ArrowDownToLine, ClipboardList, Database, PackageCheck, ScanBarcode, Search, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { Product } from '../../entities/models';
 import type { GroceryInventoryMovement } from '../../shared/api/groceryInventoryApi';
@@ -18,13 +18,15 @@ export function GroceryWarehousePage({
   movements,
   readOnly,
   onReceiving,
-  onEditProduct
+  onEditProduct,
+  onOpenSharedProducts
 }: {
   products: Product[];
   movements: GroceryInventoryMovement[];
   readOnly: boolean;
   onReceiving: () => void;
   onEditProduct: (product: Product) => void;
+  onOpenSharedProducts?: () => void;
 }) {
   const [tab, setTab] = useState<'balances' | 'movements'>('balances');
   const [query, setQuery] = useState('');
@@ -54,6 +56,7 @@ export function GroceryWarehousePage({
           <p>Остатки считаются в штуках или граммах и меняются документами.</p>
         </div>
         <div className="grocery-page-actions">
+          {onOpenSharedProducts && <button className="grocery-button grocery-button--secondary" type="button" onClick={onOpenSharedProducts}><Database />База товаров</button>}
           <button className="grocery-button grocery-button--secondary" type="button" onClick={() => setScannerOpen(true)}><ScanBarcode />Найти сканером</button>
           <button className="grocery-button grocery-button--primary" type="button" disabled={readOnly} onClick={onReceiving}><Truck />Новое поступление</button>
         </div>

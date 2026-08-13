@@ -1,3 +1,4 @@
+import { CheckCircle2, LoaderCircle, Search, TriangleAlert } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { CategorySelector } from './CategorySelector';
 import { PhotoUploader } from './PhotoUploader';
@@ -6,6 +7,8 @@ import { TagsSelector } from './TagsSelector';
 import type { Category, Product, ProductModifierGroup } from '../../entities/models';
 import type { Dish } from './types';
 import type { BusinessType } from '../../shared/businessTerminology';
+import { isValidGlobalBarcode } from '../../entities/sharedProducts';
+import { lookupSharedProductByBarcode } from '../../shared/api/sharedProductCatalogApi';
 
 const serveOptions = ['с луком', 'с соусом', 'с гарниром', 'без добавок'];
 
@@ -98,9 +101,62 @@ export function DishForm({
   onSubmit: () => void;
   businessType?: BusinessType;
 }) {
+  const [sharedLookupState, setSharedLookupState] = useState<'idle' | 'loading' | 'found' | 'missing' | 'error'>('idle');
+  const [sharedLookupMessage, setSharedLookupMessage] = useState('');
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
+  };
+
+  const lookupBarcode = async () => {
+    if (!isValidGlobalBarcode(dish.barcode)) {
+      setSharedLookupState('error');
+      setSharedLookupMessage('Проверьте цифры штрих‑кода. Контрольная сумма не совпадает.');
+      return;
+    }
+
+    setSharedLookupState('loading');
+    setSharedLookupMessage('');
+    try {
+      const sharedProduct = await lookupSharedProductByBarcode(dish.barcode);
+      if (!sharedProduct) {
+        setSharedLookupState('missing');
+        setSharedLookupMessage('Товара пока нет в общей базе. После заполнения его можно будет предложить для всех магазинов.');
+        return;
+      }
+
+      const localCategory = categories.find(
+        (category) => category.name.trim().toLocaleLowerCase('ru') === sharedProduct.categoryName?.trim().toLocaleLowerCase('ru')
+      );
+      const weightInGrams = sharedProduct.netContentValue && sharedProduct.netContentUnit
+        ? sharedProduct.netContentUnit === 'kg'
+          ? Math.round(sharedProduct.netContentValue * 1000)
+          : sharedProduct.netContentUnit === 'g'
+            ? Math.round(sharedProduct.netContentValue)
+            : dish.weight
+        : dish.weight;
+
+      onChange({
+        name: sharedProduct.title,
+        description: sharedProduct.description ?? '',
+        ingredients: sharedProduct.ingredients ?? '',
+        allergens: sharedProduct.allergens.join(', '),
+        weight: weightInGrams,
+        images: sharedProduct.imageUrl ? [sharedProduct.imageUrl] : dish.images,
+        categories: localCategory ? [localCategory.id] : dish.categories,
+        masterProductId: sharedProduct.id,
+        masterContentVersion: sharedProduct.version,
+        contentSource: 'master'
+      });
+      setSharedLookupState('found');
+      setSharedLookupMessage(
+        `${sharedProduct.categoryName ?? 'Общая категория'} · ${sharedProduct.status === 'verified' ? 'карточка проверена' : 'ожидает модерации'}`
+      );
+    } catch {
+      setSharedLookupState('error');
+      setSharedLookupMessage('Общая база пока недоступна. Товар можно заполнить вручную.');
+    }
   };
 
   return (
@@ -185,15 +241,40 @@ export function DishForm({
             </label>
             <label>
               Штрихкод
-              <input
-                inputMode="numeric"
-                maxLength={32}
-                value={dish.barcode}
-                onChange={(event) => onChange({ barcode: event.target.value.replace(/\s/g, '').slice(0, 32) })}
-                placeholder="4601234567890"
-              />
+              <span className="dish-barcode-field">
+                <input
+                  inputMode="numeric"
+                  maxLength={32}
+                  value={dish.barcode}
+                  onChange={(event) => {
+                    onChange({
+                      barcode: event.target.value.replace(/\s/g, '').slice(0, 32),
+                      masterProductId: undefined,
+                      masterContentVersion: undefined,
+                      contentSource: undefined
+                    });
+                    setSharedLookupState('idle');
+                    setSharedLookupMessage('');
+                  }}
+                  placeholder="4601234567890"
+                />
+                <button
+                  type="button"
+                  disabled={!dish.barcode.trim() || sharedLookupState === 'loading'}
+                  onClick={() => void lookupBarcode()}
+                >
+                  {sharedLookupState === 'loading' ? <LoaderCircle className="is-spinning" /> : <Search />}
+                  Найти в общей базе
+                </button>
+              </span>
             </label>
           </div>
+          {sharedLookupMessage && (
+            <p className={`dish-shared-lookup dish-shared-lookup--${sharedLookupState}`}>
+              {sharedLookupState === 'found' ? <CheckCircle2 /> : <TriangleAlert />}
+              <span>{sharedLookupMessage}</span>
+            </p>
+          )}
           <label>
             Тип продажи
             <select
