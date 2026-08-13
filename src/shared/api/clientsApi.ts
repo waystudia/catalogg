@@ -104,6 +104,10 @@ type ClientRow = {
   is_test?: boolean | null;
   debt_amount?: number | string | null;
   test_debt_amount?: number | string | null;
+  onboarding_source?: PlatformClient['onboardingSource'];
+  review_state?: PlatformClient['reviewState'];
+  demo_expires_at?: string | null;
+  documents_submitted_at?: string | null;
   catalogs?: {
     id?: string;
     name?: string;
@@ -218,6 +222,10 @@ const mapClient = (row: ClientRow): PlatformClient => ({
   businessType: normalizeBusinessType(row.business_type),
   logoUrl: row.catalogs?.logo_url ?? '',
   debtAmount: Number(row.debt_amount ?? 0),
+  onboardingSource: row.onboarding_source ?? 'platform_admin',
+  reviewState: row.review_state ?? 'approved',
+  demoExpiresAt: row.demo_expires_at ?? null,
+  documentsSubmittedAt: row.documents_submitted_at ?? null,
   testDebtAmount: Number(row.test_debt_amount ?? 0),
   createdAt: row.created_at,
   isTest: row.is_test === true
@@ -306,7 +314,7 @@ export async function getClients(params: ClientListParams): Promise<{ data: Plat
   let query = supabase
     .from('clients')
     .select(
-      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, is_test, debt_amount, test_debt_amount, created_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
+      'id, company_name, owner_name, email, phone, primary_city, service_settlements, status, plan_code, subscription_status, subscription_ends_at, business_type, is_test, debt_amount, test_debt_amount, created_at, onboarding_source, review_state, demo_expires_at, documents_submitted_at, catalogs(id, name, slug, status, logo_url, template_versions(version, templates(key, name, business_type)))',
       { count: 'exact' }
     )
     .order('created_at', { ascending: false })

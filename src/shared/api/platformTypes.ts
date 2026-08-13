@@ -46,6 +46,10 @@ export type PlatformClient = {
   testDebtAmount?: number;
   createdAt: string;
   isTest?: boolean;
+  onboardingSource?: 'platform_admin' | 'self_service';
+  reviewState?: 'draft' | 'pending' | 'changes_requested' | 'approved' | 'rejected';
+  demoExpiresAt?: string | null;
+  documentsSubmittedAt?: string | null;
 };
 
 export type ClientSignup = {

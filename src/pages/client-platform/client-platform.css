@@ -2306,6 +2306,8 @@
   opacity: .6;
 }
 
+.profile-partner-registration{width:100%;min-height:50px;display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid #5b3fff;border-radius:14px;background:#fff;color:#5b3fff;font-weight:800}.profile-partner-registration svg{width:19px}
+
 .profile-cabinet-button > svg:last-child {
   transition: transform 160ms ease;
 }

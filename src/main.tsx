@@ -43,6 +43,16 @@ const RestaurantActivationPage = lazy(() =>
     default: module.RestaurantActivationPage
   }))
 );
+const PartnerRegistrationPage = lazy(() =>
+  import('./features/partner-registration/PartnerRegistrationPage').then((module) => ({
+    default: module.PartnerRegistrationPage
+  }))
+);
+const SellerApplicationPage = lazy(() =>
+  import('./features/partner-registration/SellerApplicationPage').then((module) => ({
+    default: module.SellerApplicationPage
+  }))
+);
 const ClientPasskeyPreview = import.meta.env.DEV
   ? lazy(() =>
       import('./features/client-pairing/ClientPasskeyPreview').then((module) => ({
@@ -88,6 +98,8 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/cart" element={<ClientPlatformApp />} />
               <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
               <Route path="/profile/*" element={<ClientPlatformApp />} />
+              <Route path="/partner-registration" element={<PartnerRegistrationPage />} />
+              <Route path="/partner-registration/documents" element={<SellerApplicationPage />} />
               <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
               <Route path="/login" element={<LegacyLoginRedirect />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
