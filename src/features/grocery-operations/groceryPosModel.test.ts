@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Product } from '../../entities/models';
-import { calculateCashSettlement, formatGroceryPosOrderComment, getCashQuickAmounts, getWeightSaleMinimum } from './groceryPosModel';
+import { calculateCashSettlement, formatGroceryPosOrderComment, getCashQuickAmounts, getGroceryTransferBankLabel, getWeightSaleMinimum } from './groceryPosModel';
 
 const weightedProduct = (patch: Partial<Product> = {}) =>
   ({
@@ -58,5 +58,10 @@ describe('grocery POS model', () => {
       formatGroceryPosOrderComment({ method: 'transfer', cashReceived: 0, cashChange: 0 }),
       '[payment_method:bank_transfer]\nКасса магазина · Перевод'
     );
+  });
+
+  it('normalizes a legacy restaurant payment label only for the grocery checkout', () => {
+    assert.equal(getGroceryTransferBankLabel('Банк / перевод ресторану'), 'Банк / перевод магазину');
+    assert.equal(getGroceryTransferBankLabel('Сбер'), 'Сбер');
   });
 });
