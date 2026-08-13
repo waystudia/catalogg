@@ -28,6 +28,7 @@ import {
   handoffSupabaseSessionToScope
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
+import { versionGroceryCatalogAssetUrl } from './groceryAssetUrl';
 
 type SupabaseConfig = {
   url?: string;
@@ -517,8 +518,8 @@ const mapPlatformProduct = (value: PlatformProductRow, imageUrls: readonly strin
   title: value.title,
   price: value.price,
   description: value.description,
-  image_url: imageUrls[0] ?? '',
-  image_urls: [...imageUrls],
+  image_url: versionGroceryCatalogAssetUrl(imageUrls[0] ?? ''),
+  image_urls: imageUrls.map(versionGroceryCatalogAssetUrl),
   ingredients: value.ingredients,
   weight: value.weight,
   spicy_level: 0,
