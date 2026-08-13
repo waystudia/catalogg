@@ -101,6 +101,7 @@ import {
   getExpectedLoginRoleForReturnTo,
   resolveUnifiedLogin
 } from '../../shared/api/loginRedirectApi';
+import { refreshStaleAuthClient } from '../../shared/authClientVersion';
 import { redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
@@ -2728,6 +2729,11 @@ function ProfilePage() {
   }, [clientReturnTo, expectedLoginRole]);
 
   useEffect(() => {
+    if (!accountOpen || clientAuthMode !== 'login') return;
+    void refreshStaleAuthClient();
+  }, [accountOpen, clientAuthMode]);
+
+  useEffect(() => {
     let isMounted = true;
     let retryId: number | null = null;
 
@@ -2773,6 +2779,7 @@ function ProfilePage() {
 
       setIsSavingClient(true);
       try {
+        if (await refreshStaleAuthClient()) return;
         const redirect = await resolveUnifiedLogin(
           identifier,
           clientPassword,
