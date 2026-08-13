@@ -1,6 +1,7 @@
 import {
   CloudUpload,
   CreditCard,
+  KeyRound,
   LogOut,
   Paintbrush,
   Armchair,
@@ -20,6 +21,7 @@ export function SettingsHub({
   onImport,
   onDelivery,
   onLogout,
+  onPassword,
   onActivate,
   activationStatus
 }: {
@@ -31,6 +33,7 @@ export function SettingsHub({
   onImport: () => void;
   onDelivery: () => void;
   onLogout: () => void;
+  onPassword?: () => void;
   onActivate?: () => void;
   activationStatus?: RestaurantLegalStatus | null;
 }) {
@@ -55,6 +58,7 @@ export function SettingsHub({
         <button type="button" onClick={onPayments}><CreditCard /><span>Платежи</span></button>
         <button type="button" onClick={onImport}><CloudUpload /><span>Импорт</span></button>
         <button type="button" onClick={onDelivery}><Truck /><span>Доставка и заказы</span></button>
+        {onPassword && <button type="button" onClick={onPassword}><KeyRound /><span>Сменить пароль</span></button>}
         <button className="is-danger" type="button" onClick={onLogout}><LogOut /><span>Выход</span></button>
       </div>
     </section>

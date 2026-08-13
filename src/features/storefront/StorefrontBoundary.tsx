@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { shouldResolveCustomStorefront } from '../../entities/storefront';
+import {
+  getExclusiveStorefrontHomePath,
+  shouldResolveCustomStorefront
+} from '../../entities/storefront';
 import { getPublicStorefrontByHostname } from '../../shared/api/storefrontApi';
 import { applyStorefrontRuntimeBrand } from '../../shared/storefrontRuntime';
 import { CatalogLoadingScreen } from '../../shared/CatalogLoadingScreen';
@@ -50,7 +53,7 @@ export function StorefrontBoundary({ children }: { children: ReactNode }) {
     storefront?.storefrontMode === 'exclusive'
     && !canOpenOnExclusiveStorefront(location.pathname, storefront.catalogSlug)
   ) {
-    return <Navigate replace to={`/${storefront.catalogSlug}`} />;
+    return <Navigate replace to={getExclusiveStorefrontHomePath(storefront)} />;
   }
 
   return (

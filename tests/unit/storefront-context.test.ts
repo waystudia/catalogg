@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientPlatformSnapshot } from '../../src/features/client-platform/types';
 import {
+  getExclusiveStorefrontHomePath,
   normalizeStorefrontHostname,
   scopeSnapshotToStorefront,
   shouldResolveCustomStorefront,
@@ -61,6 +62,11 @@ describe('white-label storefront context', () => {
     expect(shouldResolveCustomStorefront('waystudia.github.io')).toBe(false);
     expect(shouldResolveCustomStorefront('localhost:5173')).toBe(false);
     expect(shouldResolveCustomStorefront('finiki.example')).toBe(true);
+  });
+
+  it('opens exclusive grocery domains in the weighted catalog without changing restaurant domains', () => {
+    expect(getExclusiveStorefrontHomePath(storefront)).toBe('/r/finiki');
+    expect(getExclusiveStorefrontHomePath({ ...storefront, businessType: 'restaurant' })).toBe('/finiki');
   });
 
   it('removes every other merchant while retaining shared WayYaam campaigns and support', () => {

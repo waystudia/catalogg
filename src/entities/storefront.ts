@@ -41,6 +41,12 @@ export const shouldResolveCustomStorefront = (value: string) => {
   return true;
 };
 
+export const getExclusiveStorefrontHomePath = (
+  storefront: Pick<StorefrontContext, 'catalogSlug' | 'businessType'>
+) => storefront.businessType === 'grocery'
+  ? `/r/${storefront.catalogSlug}`
+  : `/${storefront.catalogSlug}`;
+
 export const scopeSnapshotToStorefront = (
   snapshot: ClientPlatformSnapshot,
   storefront: StorefrontContext

@@ -6,7 +6,10 @@ export function getCatalogPublicUrl(slug: string): string {
 }
 
 export function getCatalogAdminUrl(slug: string): string {
-  return getCatalogPublicUrl(slug);
+  const cleanSlug = slug.replace(/^\/+|\/+$/g, '');
+  const base = new URL(import.meta.env.BASE_URL, window.location.origin);
+  base.hash = `/business/${cleanSlug}`;
+  return base.toString();
 }
 
 export async function copyText(value: string) {

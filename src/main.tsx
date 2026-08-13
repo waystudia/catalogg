@@ -7,6 +7,7 @@ import { LegalSurface } from './shared/LegalSurface';
 import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker';
 import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
+  BusinessAdminRoute,
   CatalogAdminRoute,
   PwaHomeRoute,
   PwaResumeTracker,
@@ -92,6 +93,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
+              <Route path="/business/:slug/*" element={<BusinessAdminRoute />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/scanner" element={<ScannerPage />} />
               <Route path="/:slug/scanner" element={<ScannerPage />} />

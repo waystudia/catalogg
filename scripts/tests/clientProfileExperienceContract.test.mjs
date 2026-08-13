@@ -38,12 +38,12 @@ test('WayYaam branding and phone-specific install guide are published', () => {
 
 test('favorites, repeat checkout and reviews expose complete client actions', () => {
   assert.match(appSource, /aria-pressed=\{isFavorite\}/);
-  assert.match(appSource, /navigate\(`\/\$\{order\.restaurantSlug\}\/checkout`\)/);
+  assert.match(appSource, /navigate\(`\$\{orderPathPrefix\}\/checkout`\)/);
   assert.match(appSource, /useCartStore\.setState/);
   assert.match(appSource, /useOrderStore\.getState\(\)\.setOrder/);
-  assert.match(appSource, /to=\{`\/\$\{order\.restaurantSlug\}\/order\/\$\{order\.id\}`\}/);
+  assert.match(appSource, /to=\{`\$\{orderPathPrefix\}\/order\/\$\{order\.id\}`\}/);
   assert.match(appSource, />\s*Подробнее о заказе\s*</);
-  assert.match(appSource, /to=\{`\/\$\{restaurant\.slug\}\/reviews`\}/);
+  assert.match(appSource, /restaurant\.businessType === 'grocery'[\s\S]*`\/r\/\$\{restaurant\.slug\}\/reviews`/);
   assert.match(appSource, /function RestaurantReviewsPage/);
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);
 });
