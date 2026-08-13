@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Product } from '../../entities/models';
-import { calculateCashSettlement, getCashQuickAmounts, getWeightSaleMinimum } from './groceryPosModel';
+import { calculateCashSettlement, formatGroceryPosOrderComment, getCashQuickAmounts, getWeightSaleMinimum } from './groceryPosModel';
 
 const weightedProduct = (patch: Partial<Product> = {}) =>
   ({
@@ -47,5 +47,16 @@ describe('grocery POS model', () => {
   it('uses the configured minimum for a weighted product', () => {
     assert.equal(getWeightSaleMinimum(weightedProduct()), 250);
     assert.equal(getWeightSaleMinimum(weightedProduct({ minimum_quantity: undefined, minimum_weight: 0.35 })), 350);
+  });
+
+  it('stores the actual checkout payment method and cash settlement as hidden metadata plus readable store text', () => {
+    assert.equal(
+      formatGroceryPosOrderComment({ method: 'cash', cashReceived: 500, cashChange: 320 }),
+      '[payment_method:cash]\nКасса магазина · Наличные\nПолучено: 500 ₽ · Сдача: 320 ₽'
+    );
+    assert.equal(
+      formatGroceryPosOrderComment({ method: 'transfer', cashReceived: 0, cashChange: 0 }),
+      '[payment_method:bank_transfer]\nКасса магазина · Перевод'
+    );
   });
 });
