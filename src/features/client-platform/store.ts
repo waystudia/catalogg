@@ -400,8 +400,10 @@ export const selectCheckoutDraft = (
   restaurantSlug: string
 ) => getDraft(drafts, restaurantSlug);
 
+const emptyClientCart: ClientCartLine[] = [];
+
 export const selectRestaurantCart = (carts: Record<string, ClientCartLine[]>, restaurantSlug: string) =>
-  carts[restaurantSlug] ?? [];
+  carts[restaurantSlug] ?? emptyClientCart;
 
 export const selectAllCartCount = (carts: Record<string, ClientCartLine[]>) =>
   Object.values(carts).reduce(

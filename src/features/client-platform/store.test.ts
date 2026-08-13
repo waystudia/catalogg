@@ -16,7 +16,7 @@ const installMemoryStorage = () => {
 };
 
 installMemoryStorage();
-const { isLegacyDemoClientOrder, useClientPlatformStore } = await import('./store');
+const { isLegacyDemoClientOrder, selectRestaurantCart, useClientPlatformStore } = await import('./store');
 
 const demoOrder: ClientOrder = {
   id: 'WC-12345',
@@ -120,5 +120,14 @@ describe('repeat order checkout restoration', () => {
       deliveryLng: 45.997684,
       paymentMethod: 'qr'
     });
+  });
+});
+
+
+describe('client platform cart selector', () => {
+  it('keeps the empty cart snapshot referentially stable for Zustand subscriptions', () => {
+    const carts = {};
+
+    assert.equal(selectRestaurantCart(carts, 'finik'), selectRestaurantCart(carts, 'finik'));
   });
 });
