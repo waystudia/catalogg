@@ -5,6 +5,9 @@ type SupabaseAuthStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const memoryAuthStorage = new Map<string, string>();
 
 const browserAuthStorageNames = ['localStorage', 'sessionStorage'] as const;
+const sessionFallbackMarkerPrefix = 'waycatalog-auth-session-fallback:';
+
+const getSessionFallbackMarkerKey = (key: string) => `${sessionFallbackMarkerPrefix}${key}`;
 
 const getBrowserAuthStorage = (name: (typeof browserAuthStorageNames)[number]): Storage | null => {
   if (typeof window === 'undefined') return null;
@@ -17,6 +20,23 @@ const getBrowserAuthStorage = (name: (typeof browserAuthStorageNames)[number]): 
 
 const supabaseAuthStorage: SupabaseAuthStorage = {
   getItem(key) {
+    const memoryValue = memoryAuthStorage.get(key);
+    if (memoryValue !== undefined) return memoryValue;
+
+    const sessionStorage = getBrowserAuthStorage('sessionStorage');
+    if (sessionStorage) {
+      try {
+        const markerKey = getSessionFallbackMarkerKey(key);
+        if (sessionStorage.getItem(markerKey) === '1') {
+          const fallbackValue = sessionStorage.getItem(key);
+          if (fallbackValue !== null) return fallbackValue;
+          sessionStorage.removeItem(markerKey);
+        }
+      } catch {
+        // Continue with the durable store when the tab fallback is unavailable.
+      }
+    }
+
     for (const name of browserAuthStorageNames) {
       const storage = getBrowserAuthStorage(name);
       if (!storage) continue;
@@ -35,9 +55,14 @@ const supabaseAuthStorage: SupabaseAuthStorage = {
       if (!storage) continue;
       try {
         storage.setItem(key, value);
+        if (name === 'sessionStorage') {
+          storage.setItem(getSessionFallbackMarkerKey(key), '1');
+        }
         browserAuthStorageNames.slice(index + 1).forEach((fallbackName) => {
           try {
-            getBrowserAuthStorage(fallbackName)?.removeItem(key);
+            const fallbackStorage = getBrowserAuthStorage(fallbackName);
+            fallbackStorage?.removeItem(key);
+            fallbackStorage?.removeItem(getSessionFallbackMarkerKey(key));
           } catch {
             // A stale fallback cannot override the successfully written primary value.
           }
@@ -53,7 +78,9 @@ const supabaseAuthStorage: SupabaseAuthStorage = {
   removeItem(key) {
     browserAuthStorageNames.forEach((name) => {
       try {
-        getBrowserAuthStorage(name)?.removeItem(key);
+        const storage = getBrowserAuthStorage(name);
+        storage?.removeItem(key);
+        storage?.removeItem(getSessionFallbackMarkerKey(key));
       } catch {
         // Continue clearing the other stores even when one is unavailable.
       }

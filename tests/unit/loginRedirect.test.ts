@@ -6,7 +6,12 @@ import {
   getProductionAuthConfigurationError,
   getRequestedCatalogSlugForReturnTo
 } from '../../src/shared/api/loginRedirectApi';
-import { buildProfileLoginPath, resolveProfileLoginTarget } from '../../src/shared/appNavigation';
+import {
+  buildProfileLoginPath,
+  buildRoleAppUrl,
+  redirectToRoleApp,
+  resolveProfileLoginTarget
+} from '../../src/shared/appNavigation';
 
 describe('staff login role selection', () => {
   it('opens every role login inside the client profile and rejects unsafe return paths', () => {
@@ -33,6 +38,106 @@ describe('staff login role selection', () => {
     expect(resolveProfileLoginTarget('/profile', '/r/mangal/checkout')).toBe('/r/mangal/checkout');
     expect(resolveProfileLoginTarget('/profile', '/admin/clients')).toBe('/profile');
     expect(resolveProfileLoginTarget('/profile', '/business/finik')).toBe('/profile');
+  });
+
+  it('builds short shareable links for every role cabinet', () => {
+    expect(buildRoleAppUrl('/business/finik')).toBe('/#/business/finik');
+    expect(buildRoleAppUrl('/mangal/dashboard')).toBe('/#/mangal/dashboard');
+    expect(buildRoleAppUrl('/driver')).toBe('/#/driver');
+    expect(buildRoleAppUrl('/admin/clients')).toBe('/#/admin/clients');
+    expect(buildRoleAppUrl('driver')).toBe('/#/driver');
+    expect(buildRoleAppUrl('admin/clients')).toBe('/#/admin/clients');
+  });
+
+  it('removes a stale-client query in place before replacing only the role hash', () => {
+    const previousWindow = globalThis.window;
+    let cleanedState: unknown;
+    let cleanedTitle = 'not-called';
+    let cleanedUrl = '';
+    let replacedUrl = '';
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          href: 'https://wayyaam.ru/?auth-refresh=index-current123#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          search: '?auth-refresh=index-current123',
+          replace: (url: string) => {
+            replacedUrl = url;
+          }
+        },
+        history: {
+          state: { preserved: true },
+          replaceState: (state: unknown, title: string, url: string) => {
+            cleanedState = state;
+            cleanedTitle = title;
+            cleanedUrl = url;
+          }
+        }
+      }
+    });
+
+    try {
+      redirectToRoleApp('/admin/clients');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    expect(cleanedState).toEqual({ preserved: true });
+    expect(cleanedTitle).toBe('');
+    expect(cleanedUrl).toBe('/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik');
+    expect(replacedUrl).toBe('/#/admin/clients');
+  });
+
+  it('does not rewrite browser history when the address is already short', () => {
+    const previousWindow = globalThis.window;
+    let historyCalls = 0;
+    let replacedUrl = '';
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        location: {
+          href: 'https://wayyaam.ru/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          replace: (url: string) => {
+            replacedUrl = url;
+          }
+        },
+        history: {
+          state: null,
+          replaceState: () => {
+            historyCalls += 1;
+          }
+        }
+      }
+    });
+
+    try {
+      redirectToRoleApp('/business/finik');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    expect(historyCalls).toBe(0);
+    expect(replacedUrl).toBe('/#/business/finik');
+  });
+
+  it('leaves role navigation inert during server rendering', () => {
+    const previousWindow = globalThis.window;
+    Reflect.deleteProperty(globalThis, 'window');
+
+    try {
+      expect(() => redirectToRoleApp('/driver')).not.toThrow();
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
   });
 
   it('routes groceries to the universal business workspace without changing restaurants', () => {

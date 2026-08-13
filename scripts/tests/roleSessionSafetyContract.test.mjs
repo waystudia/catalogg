@@ -37,13 +37,20 @@ test('restaurant sign-out clears its scoped browser session before redirecting',
 test('role sessions use the Safari-compatible storage adapter for persistence and handoff', async () => {
   const supabase = await read('src/shared/supabase.ts');
   const authScope = await read('src/shared/supabaseAuthScope.ts');
+  const navigation = await read('src/shared/appNavigation.ts');
   const delivery = await read('src/shared/api/deliveryApi.ts');
 
   assert.match(supabase, /storage: authStorage/);
   assert.match(authScope, /\['localStorage', 'sessionStorage'\]/);
+  assert.match(authScope, /waycatalog-auth-session-fallback:/);
+  assert.match(authScope, /sessionStorage\.getItem\(markerKey\) === '1'/);
   assert.match(authScope, /export const getSupabaseAuthStorage/);
   assert.match(authScope, /storage\.setItem\(targetKey, session\)/);
   assert.match(authScope, /storage\.removeItem\(key\)/);
+  assert.match(navigation, /if \(currentUrl\.search\)/);
+  assert.match(navigation, /window\.history\.replaceState/);
+  assert.match(navigation, /window\.location\.replace\(buildRoleAppUrl\(path\)\)/);
+  assert.doesNotMatch(navigation, /buildRoleAppUrl\(path, window\.location\.search\)/);
   assert.match(delivery, /getSupabaseAuthStorage\(\)\.removeItem\(getSupabaseAuthStorageKey\('driver'\)\)/);
 });
 
