@@ -128,6 +128,7 @@ import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformU
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
 import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
+import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
@@ -169,6 +170,7 @@ type PlatformRoute =
   | 'drivers'
   | 'reviews'
   | 'catalogs'
+  | 'shared-products'
   | 'templates'
   | 'import-export'
   | 'contests'
@@ -211,6 +213,7 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
   { route: 'drivers', label: 'Водители', detail: 'Доступы и статусы', Icon: Truck },
   { route: 'reviews', label: 'Отзывы', detail: 'Рестораны и водители', Icon: MessageCircle },
   { route: 'catalogs', label: 'Каталоги', detail: 'Управление каталогами', Icon: Store },
+  { route: 'shared-products', label: 'База товаров', detail: 'Общие товары и группы', Icon: Boxes },
   { route: 'templates', label: 'Шаблоны', detail: 'Управление шаблонами', Icon: LayoutTemplate },
   { route: 'import-export', label: 'Импорт / Экспорт', detail: 'Данные и каталоги', Icon: Database },
   { route: 'contests', label: 'Акции', detail: 'Конкурсы и билеты', Icon: Trophy },
@@ -285,6 +288,7 @@ const readRouteFromLocation = (): PlatformRoute => {
   const path = getCurrentPlatformPath();
   if (path.includes('/admin/activations')) return 'activations';
   if (path.includes('/admin/catalogs')) return 'catalogs';
+  if (path.includes('/admin/shared-products')) return 'shared-products';
   if (path.includes('/admin/client-signups')) return 'client-signups';
   if (path.includes('/admin/analytics')) return 'analytics';
   if (path.includes('/admin/settlements')) return 'settlements';
@@ -3616,6 +3620,9 @@ function PlatformAdminContent() {
     }
     if (route === 'templates') {
       return <PlatformTemplatesPage templates={templatesQuery.data ?? []} />;
+    }
+    if (route === 'shared-products') {
+      return <SharedProductCatalogPage mode="platform" />;
     }
     if (route === 'client-signups') {
       return <PlatformUsersPage />;

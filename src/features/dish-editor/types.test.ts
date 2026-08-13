@@ -107,4 +107,25 @@ describe('dish photo conversion', () => {
     assert.equal(next.barcode, '4601234567890');
     assert.equal(next.allow_substitution, true);
   });
+
+  it('keeps a shared master link while the merchant edits local price and stock', () => {
+    const sharedProduct: Product = {
+      ...product,
+      master_product_id: '751ab4fb-9f19-4db7-8ca7-d10c6b776a08',
+      master_content_version: 3,
+      content_source: 'master',
+      barcode: '5449000054227'
+    };
+
+    const dish = productToDish(sharedProduct, 'food');
+    assert.equal(dish.masterProductId, sharedProduct.master_product_id);
+    assert.equal(dish.masterContentVersion, 3);
+
+    const next = dishToProduct({ ...dish, price: 129, dailyQuantity: 20 }, sharedProduct);
+    assert.equal(next.master_product_id, sharedProduct.master_product_id);
+    assert.equal(next.master_content_version, 3);
+    assert.equal(next.content_source, 'master');
+    assert.equal(next.price, 129);
+    assert.equal(next.stock_quantity, 20);
+  });
 });

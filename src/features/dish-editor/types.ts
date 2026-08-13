@@ -29,6 +29,9 @@ export type Dish = {
   allowProductionSchedule: boolean;
   sku: string;
   barcode: string;
+  masterProductId?: string;
+  masterContentVersion?: number;
+  contentSource?: Product['content_source'];
   saleUnit: CatalogSaleUnit;
   allowSubstitution: boolean;
 };
@@ -74,6 +77,9 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     allowProductionSchedule: product?.allow_production_schedule ?? false,
     sku: product?.sku ?? '',
     barcode: product?.barcode ?? '',
+    masterProductId: product?.master_product_id,
+    masterContentVersion: product?.master_content_version,
+    contentSource: product?.content_source,
     saleUnit: product?.sale_unit ?? (product?.pricing_type === 'per_kg' ? 'weight' : 'piece'),
     allowSubstitution: product?.allow_substitution ?? false
   };
@@ -123,6 +129,9 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     placeholder_kind: dish.images.length === 0 && dish.pricingType ? 'dessert' : current?.placeholder_kind,
     sku: dish.sku.trim(),
     barcode: dish.barcode.trim(),
+    master_product_id: dish.masterProductId,
+    master_content_version: dish.masterContentVersion,
+    content_source: dish.contentSource,
     sale_unit: dish.saleUnit,
     quantity_unit: isWeighted ? 'gram' : 'piece',
     price_basis_quantity: isWeighted ? 1000 : 1,
