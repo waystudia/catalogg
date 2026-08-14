@@ -1,5 +1,9 @@
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { expect, test } from 'vitest';
+import {
+  createBrowserBarcodeReader,
+  decodeBarcodeCanvasAcrossOrientations
+} from '../../src/features/grocery-operations/browserBarcodeDecoder';
 
 const leftPatterns = {
   L: ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'],
@@ -29,9 +33,33 @@ function drawEan13(barcode: string) {
   return canvas;
 }
 
+function rotateCanvas(source: HTMLCanvasElement, quarterTurns: number) {
+  const normalizedTurns = ((quarterTurns % 4) + 4) % 4;
+  if (normalizedTurns === 0) return source;
+
+  const canvas = document.createElement('canvas');
+  const swapsSides = normalizedTurns % 2 === 1;
+  canvas.width = swapsSides ? source.height : source.width;
+  canvas.height = swapsSides ? source.width : source.height;
+  const context = canvas.getContext('2d')!;
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate(normalizedTurns * Math.PI / 2);
+  context.drawImage(source, -source.width / 2, -source.height / 2);
+  return canvas;
+}
+
 test('the Safari fallback decoder reads a real EAN-13 product barcode image', () => {
   const reader = new BrowserMultiFormatReader();
   const result = reader.decodeFromCanvas(drawEan13('4600494600012'));
 
   expect(result.getText()).toBe('4600494600012');
+});
+
+test('the production Safari reader decodes the full frame in every phone orientation', async () => {
+  const reader = await createBrowserBarcodeReader();
+  const barcode = drawEan13('4600494600012');
+
+  for (const quarterTurns of [0, 1, 2, 3]) {
+    expect(decodeBarcodeCanvasAcrossOrientations(reader, rotateCanvas(barcode, quarterTurns))).toBe('4600494600012');
+  }
 });

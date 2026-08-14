@@ -1,7 +1,12 @@
 import { Camera, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isValidGlobalBarcode } from '../../entities/sharedProducts';
-import { startBrowserBarcodeDecoder, type BrowserBarcodeDecoderControls } from '../grocery-operations/browserBarcodeDecoder';
+import {
+  BARCODE_CAMERA_CONSTRAINTS,
+  optimizeBarcodeCameraStream,
+  startBrowserBarcodeDecoder,
+  type BrowserBarcodeDecoderControls
+} from '../grocery-operations/browserBarcodeDecoder';
 
 type DetectedBarcode = { rawValue: string };
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]> };
@@ -33,7 +38,7 @@ export function SharedBarcodeScanner({
       const Detector = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: BARCODE_CAMERA_CONSTRAINTS,
           audio: false
         });
         if (disposed) {
@@ -41,11 +46,12 @@ export function SharedBarcodeScanner({
           return;
         }
         streamRef.current = stream;
+        void optimizeBarcodeCameraStream(stream);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setMessage('Наведите камеру на штрих‑код упаковки');
+        setMessage('Сканируем весь кадр — поворачивать телефон не нужно');
 
         if (!Detector && videoRef.current) {
           fallbackControls = await startBrowserBarcodeDecoder(videoRef.current, (rawBarcode) => {
@@ -75,7 +81,7 @@ export function SharedBarcodeScanner({
           } catch {
             // A transient frame decode error is expected while the camera focuses.
           }
-          timer = window.setTimeout(tick, 180);
+          timer = window.setTimeout(tick, 60);
         };
         void tick();
       } catch {
@@ -98,7 +104,7 @@ export function SharedBarcodeScanner({
         <button type="button" className="shared-catalog-scanner__close" onClick={onClose} aria-label="Закрыть"><X /></button>
         <div className="shared-catalog-scanner__camera">
           <video ref={videoRef} playsInline muted />
-          <span><Camera />Штрих‑код</span>
+          <span><Camera />Весь кадр</span>
         </div>
         <strong>{message}</strong>
         <small>Поддерживаются EAN‑8, EAN‑13, UPC и QR с записанным внутри GTIN.</small>
