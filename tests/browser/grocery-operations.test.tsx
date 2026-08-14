@@ -54,6 +54,49 @@ test('grocery product cards remain inside a phone viewport while preserving ever
   }
 });
 
+test('POS product details stay readable over a photo that fills the whole card', async () => {
+  await page.viewport(390, 844);
+  try {
+    const screen = await render(
+      <GroceryPosPage
+        storeName="Финик"
+        products={groceryProducts}
+        categories={groceryCategories}
+        paymentSettings={defaultPaymentSettings}
+        readOnly={false}
+        autoAddProduct={null}
+        onConsumeAutoAdd={() => undefined}
+        onCreateProduct={() => undefined}
+        onSubmit={async () => undefined}
+      />
+    );
+
+    const card = screen.getByRole('button', { name: /^Финики Тунис/ }).element();
+    const photo = card.querySelector<HTMLImageElement>('img')!;
+    const title = screen.getByText('Финики Тунис', { exact: true }).element();
+    const inventory = screen.getByText('24 кг на складе', { exact: true }).element();
+    const price = screen.getByText('470 ₽ / кг', { exact: true }).element();
+    const cardRect = card.getBoundingClientRect();
+    const photoRect = photo.getBoundingClientRect();
+
+    expect(Math.abs(photoRect.left - cardRect.left)).toBeLessThanOrEqual(2);
+    expect(Math.abs(photoRect.top - cardRect.top)).toBeLessThanOrEqual(2);
+    expect(Math.abs(photoRect.right - cardRect.right)).toBeLessThanOrEqual(2);
+    expect(Math.abs(photoRect.bottom - cardRect.bottom)).toBeLessThanOrEqual(2);
+    for (const detail of [title, inventory, price]) {
+      const detailRect = detail.getBoundingClientRect();
+      expect(detailRect.left).toBeGreaterThanOrEqual(photoRect.left);
+      expect(detailRect.right).toBeLessThanOrEqual(photoRect.right);
+      expect(detailRect.top).toBeGreaterThanOrEqual(photoRect.top);
+      expect(detailRect.bottom).toBeLessThanOrEqual(photoRect.bottom);
+    }
+    expect(getComputedStyle(title).color).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(price).color).toBe('rgb(255, 255, 255)');
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
 test('new product drawer keeps typed data when a scanner fills the barcode on a phone', async () => {
   await page.viewport(390, 844);
   try {
