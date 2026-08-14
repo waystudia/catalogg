@@ -39,6 +39,7 @@ export type DriverProfile = {
 
 export type DeliveryOffer = DriverDeliveryView & {
   readonly businessType: BusinessType;
+  readonly catalogId: string;
   readonly deliveryId: string;
   readonly orderNumber: string;
   readonly createdAt: string;
@@ -290,6 +291,7 @@ const demoOffers: readonly DeliveryOffer[] = [
   {
     ...buildDriverDeliveryView({ order: demoOrder(), assignment: null, viewerDriverId: demoDriverId }),
     businessType: 'restaurant',
+    catalogId: '',
     deliveryId: 'delivery-demo-1',
     orderNumber: 'R2347',
     createdAt: new Date().toISOString(),
@@ -323,6 +325,7 @@ const demoOffers: readonly DeliveryOffer[] = [
       viewerDriverId: demoDriverId
     }),
     businessType: 'restaurant',
+    catalogId: '',
     deliveryId: 'delivery-demo-2',
     orderNumber: 'M2346',
     createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
@@ -543,6 +546,7 @@ const rowToOffer = (
   return {
     ...buildDriverDeliveryView({ order: lifecycleOrder, assignment, viewerDriverId }),
     businessType,
+    catalogId: order.catalog_id ?? '',
     deliveryId: row.id,
     orderNumber: formatPublicOrderNumber(row.order_id, restaurant?.name),
     createdAt: order.created_at,
@@ -833,6 +837,7 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
           offer.restaurantLng;
         return {
           ...offer,
+          catalogId: order.catalog_id ?? offer.catalogId,
           clientName: resolveOrderContactName(order) || offer.clientName,
           clientPhone: resolveOrderContactPhone(order) || offer.clientPhone,
           deliveryComment: resolveOrderDeliveryComment(order) || offer.deliveryComment,

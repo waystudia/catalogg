@@ -12,11 +12,13 @@ type WebhookEvent = {
 
 type Subscription = {
   id: string;
+  user_id?: string | null;
   driver_id?: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
   app_base_url?: string | null;
+  target_url?: string;
 };
 
 const corsHeaders = {
@@ -59,6 +61,12 @@ const orderUrl = (slug: string, orderId: string) =>
 
 const clientOrderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
+
+const driverOrderUrl = (deliveryId: string) =>
+  `${appBaseUrl()}#/driver/orders/${encodeURIComponent(deliveryId)}`;
+
+const withTargetUrl = (items: unknown[] | null, targetUrl: string): Subscription[] =>
+  (items ?? []).map((item) => ({ ...(item as Subscription), target_url: targetUrl }));
 
 const subscriptionUrl = (fallbackUrl: string, subscription: Subscription) => {
   const base = asString(subscription.app_base_url).replace(/\/$/, '');
@@ -221,37 +229,76 @@ Deno.serve(async (request) => {
       const orderId = asId(record.order_id);
       const catalogId = asId(record.catalog_id);
       const senderKind = asString(record.sender_kind);
-      const { data: catalog } = await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle();
+      const messageType = asString(record.message_type);
+      const senderAuthUserId = asId(record.sender_auth_user_id);
+      const [{ data: catalog }, { data: activeDelivery }] = await Promise.all([
+        admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle(),
+        admin
+          .from('deliveries')
+          .select('id, driver_id')
+          .eq('order_id', orderId)
+          .not('driver_id', 'is', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      ]);
       const slug = asString(catalog?.slug);
-      title = 'Новое сообщение по заказу';
+      const deliveryId = asId(activeDelivery?.id);
+      const driverId = asId(activeDelivery?.driver_id);
+      const restaurantTargetUrl = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+      const clientTargetUrl = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
+      const driverTargetUrl = deliveryId ? driverOrderUrl(deliveryId) : `${appBaseUrl()}#/driver/active`;
+      title = senderKind === 'system' ? 'Статус заказа обновлён' : 'Новое сообщение по заказу';
       body = asString(record.body) || 'Откройте заказ, чтобы прочитать сообщение';
       tag = `order-message-${orderId}`;
 
-      if (senderKind === 'client') {
-        url = slug ? orderUrl(slug, orderId) : `${appBaseUrl()}#/`;
-        const { data: activeAssignment } = await admin
-          .from('order_work_assignments')
-          .select('assignee_user_id')
-          .eq('order_id', orderId)
-          .eq('state', 'accepted')
-          .maybeSingle();
-        const assigneeUserId = asId(activeAssignment?.assignee_user_id);
-        let query = admin
-          .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth, app_base_url')
-          .eq('role', 'restaurant')
-          .eq('catalog_id', catalogId);
-        if (assigneeUserId) query = query.eq('user_id', assigneeUserId);
-        const { data } = await query;
-        subscriptions = (data ?? []) as Subscription[];
-      } else if (senderKind === 'staff') {
-        url = slug ? clientOrderUrl(slug, orderId) : `${appBaseUrl()}#/`;
-        const { data } = await admin
-          .from('web_push_subscriptions')
-          .select('id, endpoint, p256dh, auth, app_base_url')
-          .eq('role', 'client')
-          .eq('order_id', orderId);
-        subscriptions = (data ?? []) as Subscription[];
+      if (senderKind !== 'system' || messageType === 'status_event') {
+        const [{ data: clientSubscriptions }, { data: restaurantSubscriptions }, { data: driverSubscriptions }] = await Promise.all([
+          admin
+            .from('web_push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth, app_base_url')
+            .eq('role', 'client')
+            .eq('order_id', orderId),
+          admin
+            .from('web_push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth, app_base_url')
+            .eq('role', 'restaurant')
+            .eq('catalog_id', catalogId),
+          driverId
+            ? admin
+              .from('web_push_subscriptions')
+              .select('id, user_id, driver_id, endpoint, p256dh, auth, app_base_url')
+              .eq('role', 'driver')
+              .eq('driver_id', driverId)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        if (senderKind === 'client') {
+          subscriptions = [
+            ...withTargetUrl(restaurantSubscriptions, restaurantTargetUrl),
+            ...withTargetUrl(driverSubscriptions, driverTargetUrl)
+          ];
+        } else if (senderKind === 'staff') {
+          subscriptions = [
+            ...withTargetUrl(clientSubscriptions, clientTargetUrl),
+            ...withTargetUrl(driverSubscriptions, driverTargetUrl)
+          ];
+        } else if (senderKind === 'driver') {
+          subscriptions = [
+            ...withTargetUrl(clientSubscriptions, clientTargetUrl),
+            ...withTargetUrl(restaurantSubscriptions, restaurantTargetUrl)
+          ];
+        } else if (messageType === 'status_event') {
+          subscriptions = [
+            ...withTargetUrl(clientSubscriptions, clientTargetUrl),
+            ...withTargetUrl(restaurantSubscriptions, restaurantTargetUrl),
+            ...withTargetUrl(driverSubscriptions, driverTargetUrl)
+          ];
+        }
+
+        if (senderAuthUserId) {
+          subscriptions = subscriptions.filter((subscription) => subscription.user_id !== senderAuthUserId);
+        }
       }
     }
 
@@ -358,7 +405,7 @@ Deno.serve(async (request) => {
         const payload = JSON.stringify({
           title,
           body,
-          url: subscriptionUrl(url, subscription),
+          url: subscriptionUrl(subscription.target_url ?? url, subscription),
           tag
         });
         await webpush.sendNotification(

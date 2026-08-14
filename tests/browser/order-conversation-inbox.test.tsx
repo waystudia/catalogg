@@ -38,5 +38,5 @@ test('keeps separate order threads and switches the selected tenant conversation
   await screen.getByRole('button', { name: /Мангал/ }).click();
 
   await expect.element(screen.getByText('Заказ №2048 · Готовится')).toBeVisible();
-  await expect.element(screen.getByText('Здесь ресторан уточнит детали заказа.')).toBeVisible();
+  await expect.element(screen.getByText('Здесь ресторан и курьер уточнят детали заказа.')).toBeVisible();
 });

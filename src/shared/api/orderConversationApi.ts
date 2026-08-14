@@ -4,6 +4,8 @@ import { getStoredClientSessionToken } from './clientAccountApi';
 
 export type OrderSubstitutionState = SubstitutionDecision | 'pending' | 'cancelled';
 
+export type OrderConversationViewer = 'client' | 'staff' | 'driver';
+
 export type OrderSubstitutionRequest = {
   id: string;
   originalOrderItemId: string;
@@ -23,8 +25,8 @@ export type OrderSubstitutionRequest = {
 
 export type OrderMessage = {
   id: string;
-  senderKind: 'client' | 'staff' | 'system';
-  messageType: 'text' | 'substitution_offer' | 'substitution_decision' | 'picking_event';
+  senderKind: OrderConversationViewer | 'system';
+  messageType: 'text' | 'substitution_offer' | 'substitution_decision' | 'picking_event' | 'status_event';
   body: string;
   substitutionRequestId: string | null;
   createdAt: string;
@@ -39,7 +41,7 @@ export type OrderPaymentAdjustment = {
 };
 
 export type OrderConversation = {
-  viewerKind: 'client' | 'staff';
+  viewerKind: OrderConversationViewer;
   substitutions: OrderSubstitutionRequest[];
   messages: OrderMessage[];
   adjustments: OrderPaymentAdjustment[];
@@ -60,7 +62,7 @@ const rows = (value: unknown): JsonRow[] => Array.isArray(value)
 const text = (value: unknown, fallback = '') => typeof value === 'string' ? value : fallback;
 const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
 
-export const emptyOrderConversation = (viewerKind: 'client' | 'staff'): OrderConversation => ({
+export const emptyOrderConversation = (viewerKind: OrderConversationViewer): OrderConversation => ({
   viewerKind,
   substitutions: [],
   messages: [],
@@ -70,7 +72,7 @@ export const emptyOrderConversation = (viewerKind: 'client' | 'staff'): OrderCon
 export const mapOrderConversation = (value: unknown): OrderConversation => {
   const payload = (value && typeof value === 'object' ? value : {}) as ConversationPayload;
   return {
-    viewerKind: payload.viewerKind === 'client' ? 'client' : 'staff',
+    viewerKind: payload.viewerKind === 'client' || payload.viewerKind === 'driver' ? payload.viewerKind : 'staff',
     substitutions: rows(payload.substitutions).map((row) => ({
       id: text(row.id),
       originalOrderItemId: text(row.original_order_item_id),
@@ -105,13 +107,22 @@ export const mapOrderConversation = (value: unknown): OrderConversation => {
   };
 };
 
-export async function getOrderConversation(orderId: string, catalogId: string, asClient = false) {
-  if (!supabase) return emptyOrderConversation('staff');
-  const { data, error } = await supabase.rpc('get_order_conversation', {
-    target_order_id: orderId,
-    target_catalog_id: catalogId,
-    client_session_token: asClient ? getStoredClientSessionToken() : null
-  });
+export async function getOrderConversation(
+  orderId: string,
+  catalogId: string,
+  viewer: OrderConversationViewer = 'staff'
+) {
+  if (!supabase) return emptyOrderConversation(viewer);
+  const { data, error } = viewer === 'driver'
+    ? await supabase.rpc('get_driver_order_conversation', {
+        target_order_id: orderId,
+        target_catalog_id: catalogId
+      })
+    : await supabase.rpc('get_order_conversation', {
+        target_order_id: orderId,
+        target_catalog_id: catalogId,
+        client_session_token: viewer === 'client' ? getStoredClientSessionToken() : null
+      });
   if (error) throw new Error(error.message);
   return mapOrderConversation(data);
 }
@@ -165,14 +176,25 @@ export async function resolveOrderSubstitution(input: {
   return result;
 }
 
-export async function sendOrderMessage(orderId: string, catalogId: string, body: string, asClient = false) {
+export async function sendOrderMessage(
+  orderId: string,
+  catalogId: string,
+  body: string,
+  viewer: OrderConversationViewer = 'staff'
+) {
   if (!supabase) return crypto.randomUUID();
-  const { data, error } = await supabase.rpc('send_order_message', {
-    target_order_id: orderId,
-    target_catalog_id: catalogId,
-    target_body: body.trim(),
-    client_session_token: asClient ? getStoredClientSessionToken() : null
-  });
+  const { data, error } = viewer === 'driver'
+    ? await supabase.rpc('send_driver_order_message', {
+        target_order_id: orderId,
+        target_catalog_id: catalogId,
+        target_body: body.trim()
+      })
+    : await supabase.rpc('send_order_message', {
+        target_order_id: orderId,
+        target_catalog_id: catalogId,
+        target_body: body.trim(),
+        client_session_token: viewer === 'client' ? getStoredClientSessionToken() : null
+      });
   if (error) throw new Error(error.message);
   return text(data);
 }

@@ -402,6 +402,33 @@
   font-weight: 800;
 }
 
+.order-conversation__quick-replies {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 1px 1px 4px;
+  scrollbar-width: thin;
+}
+
+.order-conversation__quick-replies button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--brand, #5b3df4) 28%, #d9dee8);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: color-mix(in srgb, var(--brand, #5b3df4) 7%, #fff);
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.order-conversation__quick-replies button:hover,
+.order-conversation__quick-replies button:focus-visible {
+  border-color: var(--brand, #5b3df4);
+  color: var(--brand, #5b3df4);
+}
+
 .order-conversation textarea {
   min-height: 78px;
   resize: vertical;
