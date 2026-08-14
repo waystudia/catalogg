@@ -109,6 +109,11 @@ import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurant
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
 import {
+  getMarketplacePage,
+  selectMarketplaceFeed,
+  type MarketplaceBusinessFilter
+} from '../../features/client-platform/marketplaceFeed';
+import {
   ClientPasskeyCard,
   ClientPasskeySignInButton,
   ClientPwaPairingCodeCard
@@ -126,12 +131,18 @@ import {
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
 import { appIsRunningStandalone, clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import { getBusinessTypeDefinition } from '../../shared/businessRegistry';
 import {
   installGuideDismissedUntilKey,
   resolveInstallGuideDevice,
   shouldShowInstallGuide,
   type InstallDevice
 } from '../../shared/pwaInstall';
+import {
+  MarketplaceBottomNavigation,
+  MarketplaceFeedSkeleton,
+  MarketplaceProductGrid
+} from './ClientMarketplaceHome';
 import './client-platform.css';
 
 const clientPlatformQueryClient = new QueryClient({
@@ -533,7 +544,7 @@ function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
 }
 
 function ClientPlatformContent() {
-  const { data } = usePlatformData();
+  const { data, isLoading, isError, refetch } = usePlatformData();
   const { storefront } = useStorefrontContext();
   const unscopedSnapshot = data ?? emptyClientPlatformSnapshot;
   const snapshot = storefront
@@ -609,7 +620,7 @@ function ClientPlatformContent() {
 
   if (location.pathname === '/categories') {
     return (
-      <PlatformLayout active="search">
+      <PlatformLayout active="categories">
         <CategoriesPage snapshot={snapshot} />
       </PlatformLayout>
     );
@@ -617,7 +628,7 @@ function ClientPlatformContent() {
 
   if (location.pathname === '/restaurants') {
     return (
-      <PlatformLayout active="search">
+      <PlatformLayout active="categories">
         <RestaurantsPage snapshot={snapshot} />
       </PlatformLayout>
     );
@@ -633,7 +644,12 @@ function ClientPlatformContent() {
 
   return (
     <PlatformLayout active="home">
-      <HomePage snapshot={snapshot} />
+      <HomePage
+        snapshot={snapshot}
+        isLoading={isLoading && !data}
+        isError={isError && !data}
+        onRetry={() => void refetch()}
+      />
     </PlatformLayout>
   );
 }
@@ -642,7 +658,7 @@ function PlatformLayout({
   active,
   children
 }: {
-  active: 'home' | 'search' | 'cart' | 'orders' | 'profile';
+  active: 'home' | 'categories' | 'cart' | 'orders' | 'profile';
   children: ReactNode;
 }) {
   const platformCartCount = useClientPlatformStore((state) =>
@@ -660,7 +676,7 @@ function PlatformLayout({
     <div className="client-platform platform-theme">
       <div className="platform-page">{children}</div>
       {active === 'home' && <PlatformRestaurantCartDock />}
-      <BottomNav active={active} cartCount={cartCount} />
+      <MarketplaceBottomNavigation active={active} cartCount={cartCount} />
     </div>
   );
 }
@@ -710,44 +726,45 @@ function PageHeader({
   );
 }
 
-function BottomNav({
-  active,
-  cartCount
+function HomePage({
+  snapshot,
+  isLoading,
+  isError,
+  onRetry
 }: {
-  active: 'home' | 'search' | 'cart' | 'orders' | 'profile';
-  cartCount: number;
+  snapshot: ClientPlatformSnapshot;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
-  const items = [
-    { id: 'home', label: 'Главная', to: '/', Icon: Home },
-    { id: 'search', label: 'Поиск', to: '/restaurants', Icon: Search },
-    { id: 'cart', label: 'Корзина', to: '/cart', Icon: ShoppingCart },
-    { id: 'orders', label: 'Заказы', to: '/profile/orders', Icon: ReceiptText },
-    { id: 'profile', label: 'Профиль', to: '/profile', Icon: User }
-  ] as const;
-
-  return (
-    <nav className="bottom-nav" aria-label="Основная навигация">
-      {items.map(({ id, label, to, Icon }) => (
-        <Link className={active === id ? 'is-active' : ''} to={to} key={id}>
-          <span className="bottom-nav__icon">
-            <Icon />
-            {id === 'cart' && cartCount > 0 && <b>{cartCount}</b>}
-          </span>
-          <span>{label}</span>
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
+  const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
+  const toggleFavoriteDish = useClientPlatformStore((state) => state.toggleFavoriteDish);
+  const [businessFilter, setBusinessFilter] = useState<MarketplaceBusinessFilter>('all');
+  const [visibleCount, setVisibleCount] = useState(20);
   const city = snapshot.cities.find((item) => item.id === selectedCityId) ?? snapshot.cities[0];
   const effectiveCityId = city?.id ?? selectedCityId;
-  const restaurants = filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId: effectiveCityId })
-    .slice()
-    .sort((left, right) => right.rating - left.rating);
+  const allMarketplaceItems = useMemo(() => selectMarketplaceFeed(snapshot, {
+    cityId: effectiveCityId,
+    businessType: 'all'
+  }), [effectiveCityId, snapshot]);
+  const marketplaceItems = useMemo(() => businessFilter === 'all'
+    ? allMarketplaceItems
+    : selectMarketplaceFeed(snapshot, { cityId: effectiveCityId, businessType: businessFilter }), [
+      allMarketplaceItems,
+      businessFilter,
+      effectiveCityId,
+      snapshot
+    ]);
+  const availableBusinessTypes = useMemo(() => Array.from(new Set(
+    allMarketplaceItems.map((item) => item.businessType)
+  )), [allMarketplaceItems]);
+  const marketplacePage = getMarketplacePage(marketplaceItems, visibleCount);
   const banners = snapshot.banners.filter((item) => item.isActive);
+
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [businessFilter, effectiveCityId]);
 
   return (
     <>
@@ -764,35 +781,73 @@ function HomePage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
       <Link className="platform-search platform-search--home" to="/restaurants">
         <Search />
-        <span>Позиция или заведение</span>
+        <span>Что хотите заказать?</span>
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
 
-      <SectionHeader title="Популярное" to={getCityRestaurantsPath(city?.id)} />
-      {restaurants.length > 0 ? (
-        <div className="restaurant-carousel">
-          {restaurants.slice(0, 8).map((restaurant) => (
-            <RestaurantCard restaurant={restaurant} categories={snapshot.categories} key={restaurant.id} />
-          ))}
+      {availableBusinessTypes.length > 1 && (
+        <div className="marketplace-filter-row" aria-label="Фильтр ленты">
+          <button
+            className={businessFilter === 'all' ? 'is-active' : ''}
+            type="button"
+            onClick={() => setBusinessFilter('all')}
+          >
+            Всё
+          </button>
+          {availableBusinessTypes.map((businessType) => {
+            const definition = getBusinessTypeDefinition(businessType);
+            return (
+              <button
+                className={businessFilter === businessType ? 'is-active' : ''}
+                type="button"
+                onClick={() => setBusinessFilter(businessType)}
+                key={businessType}
+              >
+                {definition.emoji} {definition.label}
+              </button>
+            );
+          })}
         </div>
+      )}
+
+      <div className="marketplace-section-heading">
+        <h2>Рядом с вами</h2>
+        {!isLoading && !isError && <p>{marketplaceItems.length} позиций</p>}
+      </div>
+
+      {isLoading ? (
+        <MarketplaceFeedSkeleton />
+      ) : isError ? (
+        <section className="empty-state empty-state--compact">
+          <Store />
+          <strong>Не удалось загрузить товары</strong>
+          <button className="marketplace-load-more" type="button" onClick={onRetry}>Повторить</button>
+        </section>
+      ) : marketplaceItems.length > 0 ? (
+        <>
+          <MarketplaceProductGrid
+            items={marketplacePage.items}
+            favoriteIds={favoriteDishIds}
+            onToggleFavorite={toggleFavoriteDish}
+          />
+          {marketplacePage.hasMore && (
+            <button
+              className="marketplace-load-more"
+              type="button"
+              onClick={() => setVisibleCount((current) => current + 20)}
+            >
+              Показать ещё
+            </button>
+          )}
+        </>
       ) : (
         <section className="empty-state empty-state--compact">
           <Store />
-          <strong>Заведения пока не подключены</strong>
+          <strong>Товаров рядом пока нет</strong>
           <Link to="/city">Выбрать другое место</Link>
         </section>
       )}
-
-      <SectionHeader title="Категории" to="/categories" />
-      <div className="category-quick-row">
-        {snapshot.categories.slice(0, 6).map((category) => (
-          <Link className="category-quick-card" to={`/restaurants?category=${category.slug}`} key={category.id}>
-            <img src={category.imageUrl} alt="" />
-            <span>{category.name}</span>
-          </Link>
-        ))}
-      </div>
     </>
   );
 }
