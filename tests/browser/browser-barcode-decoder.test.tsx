@@ -1,8 +1,9 @@
-import { BrowserMultiFormatReader } from '@zxing/browser';
 import { expect, test } from 'vitest';
 import {
-  createBrowserBarcodeReader,
-  decodeBarcodeCanvasAcrossOrientations
+  FAST_BARCODE_READER_OPTIONS,
+  decodeBarcodeImageData,
+  planBarcodeScanFrame,
+  preloadBrowserBarcodeDecoder
 } from '../../src/features/grocery-operations/browserBarcodeDecoder';
 
 const leftPatterns = {
@@ -48,18 +49,46 @@ function rotateCanvas(source: HTMLCanvasElement, quarterTurns: number) {
   return canvas;
 }
 
-test('the Safari fallback decoder reads a real EAN-13 product barcode image', () => {
-  const reader = new BrowserMultiFormatReader();
-  const result = reader.decodeFromCanvas(drawEan13('4600494600012'));
+test('the iPhone fallback preloads its decoder and reads a real EAN-13 product barcode', async () => {
+  await preloadBrowserBarcodeDecoder();
+  const canvas = drawEan13('4600494600012');
+  const image = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
 
-  expect(result.getText()).toBe('4600494600012');
+  await expect(decodeBarcodeImageData(image)).resolves.toBe('4600494600012');
 });
 
-test('the production Safari reader decodes the full frame in every phone orientation', async () => {
-  const reader = await createBrowserBarcodeReader();
+test('the fast iPhone reader decodes one frame in every phone orientation', async () => {
   const barcode = drawEan13('4600494600012');
 
   for (const quarterTurns of [0, 1, 2, 3]) {
-    expect(decodeBarcodeCanvasAcrossOrientations(reader, rotateCanvas(barcode, quarterTurns))).toBe('4600494600012');
+    const canvas = rotateCanvas(barcode, quarterTurns);
+    const image = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+    await expect(decodeBarcodeImageData(image)).resolves.toBe('4600494600012');
   }
+
+  expect(FAST_BARCODE_READER_OPTIONS).toMatchObject({
+    tryHarder: false,
+    tryRotate: true,
+    tryInvert: false,
+    maxNumberOfSymbols: 1
+  });
+});
+
+test('the first iPhone pass prioritizes a small center frame before a full-frame fallback', () => {
+  expect(planBarcodeScanFrame(1920, 1080, 0)).toEqual({
+    sourceX: 420,
+    sourceY: 0,
+    sourceWidth: 1080,
+    sourceHeight: 1080,
+    targetWidth: 720,
+    targetHeight: 720
+  });
+  expect(planBarcodeScanFrame(1920, 1080, 1)).toEqual({
+    sourceX: 0,
+    sourceY: 0,
+    sourceWidth: 1920,
+    sourceHeight: 1080,
+    targetWidth: 960,
+    targetHeight: 540
+  });
 });

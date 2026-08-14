@@ -4,6 +4,7 @@ import type { Category, Product } from '../../entities/models';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { BarcodeCaptureDialog } from './BarcodeCaptureDialog';
 import { findProductByBarcode, normalizeBarcode, playBarcodeBeep, useHardwareBarcodeScanner } from './barcodeScanner';
+import { preloadBrowserBarcodeDecoder } from './browserBarcodeDecoder';
 import { formatInventoryQuantity, getProductScanIncrement } from './inventoryModel';
 import { calculateCashSettlement, getCashQuickAmounts, getGroceryTransferBankLabel, getWeightSaleMinimum, type GroceryPosPayment } from './groceryPosModel';
 
@@ -75,6 +76,11 @@ export function GroceryPosPage({ storeName, products, categories, paymentSetting
     enabled: !scannerOpen && !pendingWeightProduct && !readOnly,
     onScan: handleBarcode
   });
+
+  useEffect(() => {
+    if ('BarcodeDetector' in window) return;
+    void preloadBrowserBarcodeDecoder().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (!autoAddProduct) return;

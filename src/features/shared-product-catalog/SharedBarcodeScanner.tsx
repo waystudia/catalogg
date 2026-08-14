@@ -4,6 +4,7 @@ import { isValidGlobalBarcode } from '../../entities/sharedProducts';
 import {
   BARCODE_CAMERA_CONSTRAINTS,
   optimizeBarcodeCameraStream,
+  preloadBrowserBarcodeDecoder,
   startBrowserBarcodeDecoder,
   type BrowserBarcodeDecoderControls
 } from '../grocery-operations/browserBarcodeDecoder';
@@ -36,6 +37,7 @@ export function SharedBarcodeScanner({
 
     const start = async () => {
       const Detector = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+      const fallbackReady = Detector ? null : preloadBrowserBarcodeDecoder();
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: BARCODE_CAMERA_CONSTRAINTS,
@@ -51,9 +53,10 @@ export function SharedBarcodeScanner({
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setMessage('Сканируем весь кадр — поворачивать телефон не нужно');
+        setMessage('Быстрое сканирование — поворачивать телефон не нужно');
 
         if (!Detector && videoRef.current) {
+          await fallbackReady;
           fallbackControls = await startBrowserBarcodeDecoder(videoRef.current, (rawBarcode) => {
             const barcode = rawBarcode.trim();
             if (!isValidGlobalBarcode(barcode)) return false;

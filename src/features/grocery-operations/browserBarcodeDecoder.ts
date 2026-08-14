@@ -1,13 +1,27 @@
+import type { ReaderOptions } from 'zxing-wasm/reader';
+import readerWasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
+
 export type BrowserBarcodeDecoderControls = {
   stop: () => void;
 };
 
 export const BARCODE_CAMERA_CONSTRAINTS = {
   facingMode: { ideal: 'environment' },
-  width: { ideal: 1920 },
-  height: { ideal: 1080 },
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
   frameRate: { ideal: 30, max: 30 }
 } satisfies MediaTrackConstraints;
+
+export const FAST_BARCODE_READER_OPTIONS: ReaderOptions = {
+  formats: ['EAN13', 'EAN8', 'UPCA', 'UPCE', 'ITF', 'Code128', 'QRCode', 'DataMatrix'],
+  tryHarder: false,
+  tryRotate: true,
+  tryInvert: false,
+  tryDownscale: false,
+  maxNumberOfSymbols: 1,
+  minLineCount: 1,
+  textMode: 'Plain'
+};
 
 type BarcodeCameraCapabilities = MediaTrackCapabilities & {
   focusMode?: string[];
@@ -28,116 +42,118 @@ export async function optimizeBarcodeCameraStream(stream: MediaStream) {
   }
 }
 
-export async function createBrowserBarcodeReader() {
-  const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
-    import('@zxing/browser'),
-    import('@zxing/library')
-  ]);
-  const hints = new Map<import('@zxing/library').DecodeHintType, unknown>();
-  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-    BarcodeFormat.EAN_13,
-    BarcodeFormat.EAN_8,
-    BarcodeFormat.UPC_A,
-    BarcodeFormat.UPC_E,
-    BarcodeFormat.ITF,
-    BarcodeFormat.CODE_128,
-    BarcodeFormat.QR_CODE,
-    BarcodeFormat.DATA_MATRIX
-  ]);
-  return new BrowserMultiFormatReader(hints, {
-    delayBetweenScanAttempts: 45,
-    delayBetweenScanSuccess: 120
+type FastBarcodeDecoderModule = typeof import('zxing-wasm/reader');
+let decoderPromise: Promise<FastBarcodeDecoderModule> | null = null;
+
+const locateReaderWasm = (path: string, prefix: string) =>
+  path.endsWith('.wasm') ? readerWasmUrl : `${prefix}${path}`;
+
+export function preloadBrowserBarcodeDecoder() {
+  decoderPromise ??= import('zxing-wasm/reader').then(async (decoder) => {
+    await decoder.prepareZXingModule({
+      overrides: { locateFile: locateReaderWasm },
+      fireImmediately: true
+    });
+    return decoder;
   });
+  return decoderPromise;
 }
 
-type CanvasBarcodeReader = Awaited<ReturnType<typeof createBrowserBarcodeReader>>;
-
-function drawQuarterTurn(source: HTMLCanvasElement, target: HTMLCanvasElement) {
-  if (target.width !== source.height) target.width = source.height;
-  if (target.height !== source.width) target.height = source.width;
-  const context = target.getContext('2d', { alpha: false });
-  if (!context) return false;
-  context.setTransform(1, 0, 0, 1, 0, 0);
-  context.clearRect(0, 0, target.width, target.height);
-  context.translate(target.width / 2, target.height / 2);
-  context.rotate(Math.PI / 2);
-  context.drawImage(source, -source.width / 2, -source.height / 2);
-  return true;
+export async function decodeBarcodeImageData(image: ImageData) {
+  const decoder = await preloadBrowserBarcodeDecoder();
+  const results = await decoder.readBarcodes(image, FAST_BARCODE_READER_OPTIONS);
+  return results.find((result) => !result.error && result.text.trim())?.text.trim() ?? '';
 }
 
-export function decodeBarcodeCanvasAcrossOrientations(
-  reader: CanvasBarcodeReader,
-  source: HTMLCanvasElement,
-  quarterTurnCanvas = document.createElement('canvas')
-) {
-  try {
-    return reader.decodeFromCanvas(source).getText().trim();
-  } catch {
-    // An explicit 90° pass avoids ZXing's slower TRY_HARDER search and also covers
-    // 270°; ZXing scans every 1D row in both directions.
+export type BarcodeScanFrame = {
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  targetWidth: number;
+  targetHeight: number;
+};
+
+export function planBarcodeScanFrame(sourceWidth: number, sourceHeight: number, attempt: number): BarcodeScanFrame {
+  if (attempt % 2 === 0) {
+    const sourceSize = Math.min(sourceWidth, sourceHeight);
+    return {
+      sourceX: Math.round((sourceWidth - sourceSize) / 2),
+      sourceY: Math.round((sourceHeight - sourceSize) / 2),
+      sourceWidth: sourceSize,
+      sourceHeight: sourceSize,
+      targetWidth: 720,
+      targetHeight: 720
+    };
   }
 
-  if (!drawQuarterTurn(source, quarterTurnCanvas)) return '';
-  try {
-    return reader.decodeFromCanvas(quarterTurnCanvas).getText().trim();
-  } catch {
-    return '';
-  }
+  const scale = Math.min(1, 960 / Math.max(sourceWidth, sourceHeight));
+  return {
+    sourceX: 0,
+    sourceY: 0,
+    sourceWidth,
+    sourceHeight,
+    targetWidth: Math.max(1, Math.round(sourceWidth * scale)),
+    targetHeight: Math.max(1, Math.round(sourceHeight * scale))
+  };
 }
 
 export async function startBrowserBarcodeDecoder(
   video: HTMLVideoElement,
   onDetected: (barcode: string) => boolean
 ): Promise<BrowserBarcodeDecoderControls> {
-  const reader = await createBrowserBarcodeReader();
-
-  // Test doubles and older compatible readers retain their native continuous loop.
-  if (typeof reader.decodeFromCanvas !== 'function') {
-    return reader.decodeFromVideoElement(video, (result, _error, controls) => {
-      const barcode = result?.getText().trim();
-      if (barcode && onDetected(barcode)) controls.stop();
-    });
-  }
-
   let stopped = false;
-  let timer = 0;
-  const frameCanvas = document.createElement('canvas');
-  const quarterTurnCanvas = document.createElement('canvas');
+  let frameRequest = 0;
+  let attempt = 0;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
   const controls: BrowserBarcodeDecoderControls = {
     stop: () => {
       stopped = true;
-      window.clearTimeout(timer);
+      window.cancelAnimationFrame(frameRequest);
     }
   };
 
-  const scan = () => {
+  const scheduleNextFrame = () => {
+    if (!stopped) frameRequest = window.requestAnimationFrame(() => void scan());
+  };
+
+  const scan = async () => {
     if (stopped) return;
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    if (!context || sourceWidth <= 0 || sourceHeight <= 0 || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      scheduleNextFrame();
+      return;
+    }
+
     try {
-      const sourceWidth = video.videoWidth;
-      const sourceHeight = video.videoHeight;
-      if (sourceWidth > 0 && sourceHeight > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
-        const frameWidth = Math.max(1, Math.round(sourceWidth * scale));
-        const frameHeight = Math.max(1, Math.round(sourceHeight * scale));
-        if (frameCanvas.width !== frameWidth) frameCanvas.width = frameWidth;
-        if (frameCanvas.height !== frameHeight) frameCanvas.height = frameHeight;
-        const context = frameCanvas.getContext('2d', { alpha: false });
-        if (context) {
-          context.drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
-          const barcode = decodeBarcodeCanvasAcrossOrientations(reader, frameCanvas, quarterTurnCanvas);
-          if (barcode && onDetected(barcode)) {
-            controls.stop();
-            return;
-          }
-        }
+      const frame = planBarcodeScanFrame(sourceWidth, sourceHeight, attempt++);
+      if (canvas.width !== frame.targetWidth) canvas.width = frame.targetWidth;
+      if (canvas.height !== frame.targetHeight) canvas.height = frame.targetHeight;
+      context.drawImage(
+        video,
+        frame.sourceX,
+        frame.sourceY,
+        frame.sourceWidth,
+        frame.sourceHeight,
+        0,
+        0,
+        frame.targetWidth,
+        frame.targetHeight
+      );
+      const image = context.getImageData(0, 0, frame.targetWidth, frame.targetHeight);
+      const barcode = await decodeBarcodeImageData(image);
+      if (barcode && onDetected(barcode)) {
+        controls.stop();
+        return;
       }
     } catch {
-      // Camera frames can be transiently unavailable while Safari changes focus.
+      // A frame can be unavailable while Safari switches lenses or adjusts focus.
     }
-    timer = window.setTimeout(scan, 45);
+    scheduleNextFrame();
   };
 
-  // The complete video frame is drawn; the square in the UI is only a guide.
-  scan();
+  void preloadBrowserBarcodeDecoder().then(scheduleNextFrame, scheduleNextFrame);
   return controls;
 }

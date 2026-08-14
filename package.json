@@ -28,8 +28,6 @@
     "@huggingface/transformers": "3.8.1",
     "@supabase/supabase-js": "^2.105.0",
     "@tanstack/react-query": "^5.59.0",
-    "@zxing/browser": "^0.1.5",
-    "@zxing/library": "^0.21.3",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -44,7 +42,8 @@
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.23.8",
-    "zustand": "^5.0.0"
+    "zustand": "^5.0.0",
+    "zxing-wasm": "^3.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

@@ -4,6 +4,7 @@ import { normalizeBarcode, useHardwareBarcodeScanner } from './barcodeScanner';
 import {
   BARCODE_CAMERA_CONSTRAINTS,
   optimizeBarcodeCameraStream,
+  preloadBrowserBarcodeDecoder,
   startBrowserBarcodeDecoder,
   type BrowserBarcodeDecoderControls
 } from './browserBarcodeDecoder';
@@ -65,6 +66,8 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
     const requestId = cameraRequestRef.current + 1;
     cameraRequestRef.current = requestId;
     setCameraStarting(true);
+    const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+    const fallbackReady = Detector ? null : preloadBrowserBarcodeDecoder();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: BARCODE_CAMERA_CONSTRAINTS,
@@ -82,8 +85,8 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
       video.srcObject = stream;
       await video.play();
       setCameraStarting(false);
-      const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
       if (!Detector) {
+        await fallbackReady;
         const controls = await startBrowserBarcodeDecoder(video, complete);
         if (cameraRequestRef.current !== requestId) controls.stop();
         else decoderControlsRef.current = controls;
@@ -165,7 +168,7 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
           {cameraActive && (
             <>
               <i className="grocery-barcode-dialog__guide" aria-hidden="true" />
-              <span>Сканируем весь кадр · любой поворот</span>
+              <span>Быстрое сканирование · любой поворот</span>
             </>
           )}
         </div>
