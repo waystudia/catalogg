@@ -1,7 +1,12 @@
 import { Camera, Keyboard, ScanBarcode, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { normalizeBarcode, useHardwareBarcodeScanner } from './barcodeScanner';
-import { startBrowserBarcodeDecoder, type BrowserBarcodeDecoderControls } from './browserBarcodeDecoder';
+import {
+  BARCODE_CAMERA_CONSTRAINTS,
+  optimizeBarcodeCameraStream,
+  startBrowserBarcodeDecoder,
+  type BrowserBarcodeDecoderControls
+} from './browserBarcodeDecoder';
 
 type DetectedBarcode = { rawValue?: string };
 type BarcodeDetectorLike = {
@@ -62,7 +67,7 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
     setCameraStarting(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+        video: BARCODE_CAMERA_CONSTRAINTS,
         audio: false
       });
       if (cameraRequestRef.current !== requestId) {
@@ -70,6 +75,7 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
         return;
       }
       streamRef.current = stream;
+      void optimizeBarcodeCameraStream(stream);
       setCameraActive(true);
       const video = videoRef.current;
       if (!video) throw new Error('Видео недоступно');
@@ -156,7 +162,12 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
           <video ref={videoRef} muted playsInline />
           {!cameraActive && !cameraStarting && <ScanBarcode aria-hidden="true" />}
           {cameraStarting && <span>Разрешите доступ к камере</span>}
-          {cameraActive && <span>Поместите штрих-код в рамку</span>}
+          {cameraActive && (
+            <>
+              <i className="grocery-barcode-dialog__guide" aria-hidden="true" />
+              <span>Сканируем весь кадр · любой поворот</span>
+            </>
+          )}
         </div>
 
         {cameraError && <p className="grocery-form-error">{cameraError}</p>}

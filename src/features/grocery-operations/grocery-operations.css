@@ -1171,6 +1171,11 @@
   background: #f8f7ff;
   color: var(--grocery-violet);
 }
+.grocery-barcode-dialog__camera[data-active='true'] {
+  border-style: solid;
+  border-color: #262238;
+  background: #17131f;
+}
 .grocery-barcode-dialog__camera video {
   width: 100%;
   height: 100%;
@@ -1180,14 +1185,28 @@
   width: 62px;
   height: 62px;
 }
+.grocery-barcode-dialog__guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(68%, 170px);
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 18px;
+  box-shadow: 0 0 0 999px rgba(15, 12, 25, 0.08);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
 .grocery-barcode-dialog__camera span {
   position: absolute;
   bottom: 12px;
+  max-width: calc(100% - 20px);
   border-radius: 999px;
   padding: 6px 10px;
   background: rgba(17, 24, 39, 0.74);
   color: #fff;
   font-size: 10px;
+  text-align: center;
 }
 .grocery-barcode-dialog form {
   display: grid;
