@@ -15,6 +15,18 @@ export const splitDriverHomeOffers = <T>(offers: readonly T[]) => ({
   hiddenOffersCount: Math.max(0, offers.length - 3)
 });
 
+export const getDriverDashboardDeliveries = <T extends {
+  readonly isAssignedToViewer: boolean;
+  readonly status: DeliveryStatus;
+}>(deliveries: readonly T[], isOnline: boolean) => ({
+  activeDeliveries: deliveries.filter((delivery) => delivery.isAssignedToViewer),
+  availableDeliveries: isOnline
+    ? deliveries.filter(
+        (delivery) => !delivery.isAssignedToViewer && delivery.status === 'waiting_courier'
+      )
+    : []
+});
+
 export type DriverLocationSnapshot = {
   readonly lastLat: number | null;
   readonly lastLng: number | null;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getDriverDashboardDeliveries,
   getDriverDeliveryProgress,
   getDriverGrossEarning,
   getDriverNextAction,
@@ -8,6 +9,28 @@ import {
 } from '../../src/features/driver/dashboardPresentation';
 
 describe('driver dashboard presentation', () => {
+  it('does not replace an earlier active delivery with the newly accepted one', () => {
+    const firstActive = { deliveryId: 'first', isAssignedToViewer: true, status: 'handed_over' as const };
+    const newlyAccepted = { deliveryId: 'second', isAssignedToViewer: true, status: 'assigned' as const };
+    const waiting = { deliveryId: 'waiting', isAssignedToViewer: false, status: 'waiting_courier' as const };
+    const completed = { deliveryId: 'completed', isAssignedToViewer: false, status: 'delivered' as const };
+
+    expect(getDriverDashboardDeliveries([firstActive, newlyAccepted, waiting, completed], true)).toEqual({
+      activeDeliveries: [firstActive, newlyAccepted],
+      availableDeliveries: [waiting]
+    });
+  });
+
+  it('does not hide assigned deliveries or expose new offers while offline', () => {
+    const active = { deliveryId: 'active', isAssignedToViewer: true, status: 'on_the_way' as const };
+    const waiting = { deliveryId: 'waiting', isAssignedToViewer: false, status: 'waiting_courier' as const };
+
+    expect(getDriverDashboardDeliveries([active, waiting], false)).toEqual({
+      activeDeliveries: [active],
+      availableDeliveries: []
+    });
+  });
+
   it('shows the full driver earning while commission remains a separate debt', () => {
     expect(getDriverGrossEarning({ amount: 200, netAmount: 190 })).toBe(200);
     expect(getDriverGrossEarning({ amount: 0, netAmount: 0 })).toBe(0);

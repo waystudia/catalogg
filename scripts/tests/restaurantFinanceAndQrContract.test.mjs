@@ -37,6 +37,6 @@ test('successful restaurant QR scan opens the matching order and closes the driv
   assert.match(scannerSource, /getRestaurantOrderIdForDelivery\(parsed\.deliveryId\)/);
   assert.match(scannerSource, /navigate\(`\/\$\{slug \|\| 'mangal'\}\/order\/\$\{encodeURIComponent\(orderId\)\}`/);
   assert.match(workspaceSource, /onConfirmed=\{\(orderId\) =>/);
-  assert.match(driverSource, /if \(delivery\?\.pickupQrConfirmed\) \{[\s\S]*navigate\('\/driver\/active', \{ replace: true \}\)/);
+  assert.match(driverSource, /if \(delivery\?\.pickupQrConfirmed\) \{[\s\S]*navigate\(`\/driver\/active\/\$\{delivery\.deliveryId\}`, \{ replace: true \}\)/);
   assert.match(migrationSql, /get_restaurant_order_id_for_delivery/);
 });

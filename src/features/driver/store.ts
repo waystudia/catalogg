@@ -11,8 +11,8 @@ type DriverStore = {
   bindDriver: (driverId: string) => void;
   acceptLocalOffer: (offer: DeliveryOffer, driverId?: string) => void;
   dismissDeliveryOffer: (deliveryId: string) => void;
-  updateLocalDeliveryStatus: (status: DeliveryStatus) => void;
-  completeLocalDelivery: () => void;
+  updateLocalDeliveryStatus: (deliveryId: string, status: DeliveryStatus) => void;
+  completeLocalDelivery: (deliveryId: string) => void;
   clearLocalActiveDelivery: () => void;
 };
 
@@ -37,22 +37,27 @@ export const useDriverStore = create<DriverStore>()(
         set((state) => ({
           dismissedDeliveryIds: [deliveryId, ...state.dismissedDeliveryIds.filter((id) => id !== deliveryId)]
         })),
-      updateLocalDeliveryStatus: (status) =>
+      updateLocalDeliveryStatus: (deliveryId, status) =>
         set((state) => ({
-          localActiveDelivery: state.localActiveDelivery
+          localActiveDelivery: state.localActiveDelivery?.deliveryId === deliveryId
             ? {
                 ...state.localActiveDelivery,
                 status
               }
-            : null
+            : state.localActiveDelivery
         })),
-      completeLocalDelivery: () => {
+      completeLocalDelivery: (deliveryId) => {
         const activeDelivery = get().localActiveDelivery;
-        if (!activeDelivery) return;
+        if (activeDelivery?.deliveryId !== deliveryId) {
+          set((state) => ({
+            completedDeliveryIds: [deliveryId, ...state.completedDeliveryIds.filter((id) => id !== deliveryId)]
+          }));
+          return;
+        }
 
         set((state) => ({
           localActiveDelivery: null,
-          completedDeliveryIds: [activeDelivery.deliveryId, ...state.completedDeliveryIds]
+          completedDeliveryIds: [deliveryId, ...state.completedDeliveryIds.filter((id) => id !== deliveryId)]
         }));
       },
       clearLocalActiveDelivery: () => set({ localActiveDelivery: null })
