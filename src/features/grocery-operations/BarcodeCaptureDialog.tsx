@@ -1,6 +1,7 @@
 import { Camera, Keyboard, ScanBarcode, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { normalizeBarcode, useHardwareBarcodeScanner } from './barcodeScanner';
+import { startBrowserBarcodeDecoder, type BrowserBarcodeDecoderControls } from './browserBarcodeDecoder';
 
 type DetectedBarcode = { rawValue?: string };
 type BarcodeDetectorLike = {
@@ -15,6 +16,7 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
   const [cameraError, setCameraError] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const decoderControlsRef = useRef<BrowserBarcodeDecoderControls | null>(null);
   const animationRef = useRef<number | null>(null);
   const autoStartedRef = useRef(false);
   const cameraRequestRef = useRef(0);
@@ -23,6 +25,8 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
     cameraRequestRef.current += 1;
     if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
     animationRef.current = null;
+    decoderControlsRef.current?.stop();
+    decoderControlsRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     setCameraActive(false);
@@ -32,10 +36,11 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
   const complete = useCallback(
     (rawBarcode: string) => {
       const barcode = normalizeBarcode(rawBarcode);
-      if (!barcode) return;
+      if (!barcode) return false;
       stopCamera();
       setValue('');
       onScan(barcode);
+      return true;
     },
     [onScan, stopCamera]
   );
@@ -73,7 +78,9 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = '�
       setCameraStarting(false);
       const Detector = (window as typeof window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
       if (!Detector) {
-        setCameraError('Камера включена, но автораспознавание недоступно. Используйте USB/Bluetooth‑сканер или введите код вручную.');
+        const controls = await startBrowserBarcodeDecoder(video, complete);
+        if (cameraRequestRef.current !== requestId) controls.stop();
+        else decoderControlsRef.current = controls;
         return;
       }
       const detector = new Detector({

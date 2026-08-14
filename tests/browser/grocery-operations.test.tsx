@@ -8,8 +8,30 @@ import { BarcodeCaptureDialog } from '../../src/features/grocery-operations/Barc
 import { GroceryProductEditor } from '../../src/features/grocery-operations/GroceryProductEditor';
 import { GroceryProductsPage } from '../../src/features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../src/features/grocery-operations/GroceryReceivingPage';
+import { SharedBarcodeScanner } from '../../src/features/shared-product-catalog/SharedBarcodeScanner';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
 import '../../src/features/grocery-operations/grocery-operations.css';
+import '../../src/pages/catalog-admin/catalog-admin.css';
+
+const zxingFallback = vi.hoisted(() => ({
+  detectedValue: '',
+  stop: vi.fn()
+}));
+
+vi.mock('@zxing/browser', () => ({
+  BrowserMultiFormatReader: class {
+    decodeFromVideoElement(
+      _video: HTMLVideoElement,
+      onResult: (result: { getText: () => string } | undefined, error: undefined, controls: { stop: () => void }) => void
+    ) {
+      const controls = { stop: zxingFallback.stop };
+      if (zxingFallback.detectedValue) {
+        onResult({ getText: () => zxingFallback.detectedValue }, undefined, controls);
+      }
+      return Promise.resolve(controls);
+    }
+  }
+}));
 
 function ProductEditorHarness() {
   const [barcode, setBarcode] = useState('');
@@ -49,6 +71,38 @@ test('grocery product cards remain inside a phone viewport while preserving ever
     expect(firstProduct.getBoundingClientRect().left).toBeGreaterThanOrEqual(pageRoot.getBoundingClientRect().left);
     expect(firstProduct.getBoundingClientRect().right).toBeLessThanOrEqual(pageRoot.getBoundingClientRect().right + 1);
     expect(pageRoot.scrollWidth).toBeLessThanOrEqual(pageRoot.clientWidth + 1);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('grocery products table scrolls horizontally inside the reported compact desktop workspace', async () => {
+  await page.viewport(1040, 576);
+  try {
+    const screen = await render(
+      <main className="restaurant-admin-shell business-workspace-shell">
+        <aside className="restaurant-admin-sidebar business-workspace-sidebar" />
+        <div className="restaurant-admin-main business-workspace-main">
+          <section className="restaurant-admin-content business-workspace-content">
+            <GroceryProductsPage
+              products={groceryProducts}
+              categories={groceryCategories}
+              readOnly={false}
+              publicUrl="/#/finik"
+              onEdit={() => undefined}
+              onCreate={() => undefined}
+              onReceiving={() => undefined}
+            />
+          </section>
+        </div>
+      </main>
+    );
+
+    const table = screen.getByRole('region', { name: 'Таблица товаров' }).element();
+    expect(table.scrollWidth).toBeGreaterThan(table.clientWidth);
+    expect(getComputedStyle(table).overflowX).toBe('auto');
+    table.scrollLeft = table.scrollWidth;
+    expect(table.scrollLeft).toBeGreaterThan(0);
   } finally {
     await page.viewport(414, 896);
   }
@@ -228,6 +282,65 @@ test('POS scanner requests camera access immediately when the dialog opens', asy
   } finally {
     if (originalDescriptor) Object.defineProperty(navigator, 'mediaDevices', originalDescriptor);
     else Reflect.deleteProperty(navigator, 'mediaDevices');
+  }
+});
+
+test('product scanner recognizes a barcode through the camera when iPhone has no native BarcodeDetector', async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const getUserMedia = vi.fn().mockResolvedValue(new MediaStream());
+  const onScan = vi.fn();
+  zxingFallback.detectedValue = '4600494600012';
+  zxingFallback.stop.mockClear();
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  Reflect.deleteProperty(window, 'BarcodeDetector');
+
+  try {
+    const screen = await render(
+      <BarcodeCaptureDialog open autoStartCamera onClose={() => undefined} onScan={onScan} />
+    );
+
+    await expect.poll(() => onScan.mock.calls.length).toBe(1);
+    expect(onScan).toHaveBeenCalledWith('4600494600012');
+    expect(zxingFallback.stop.mock.calls.length).toBeGreaterThan(0);
+    await expect.element(screen.getByText(/автораспознавание недоступно/i)).not.toBeInTheDocument();
+  } finally {
+    zxingFallback.detectedValue = '';
+    play.mockRestore();
+    if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
+  }
+});
+
+test('shared product scanner also recognizes a barcode on iPhone instead of showing an unsupported-browser error', async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const getUserMedia = vi.fn().mockResolvedValue(new MediaStream());
+  const onDetected = vi.fn();
+  zxingFallback.detectedValue = '4600494600012';
+  zxingFallback.stop.mockClear();
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  Reflect.deleteProperty(window, 'BarcodeDetector');
+
+  try {
+    const screen = await render(<SharedBarcodeScanner onDetected={onDetected} onClose={() => undefined} />);
+
+    await expect.poll(() => onDetected.mock.calls.length).toBe(1);
+    expect(onDetected).toHaveBeenCalledWith('4600494600012');
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(zxingFallback.stop.mock.calls.length).toBeGreaterThan(0);
+    await expect.element(screen.getByText(/браузер не поддерживает сканирование/i)).not.toBeInTheDocument();
+  } finally {
+    zxingFallback.detectedValue = '';
+    play.mockRestore();
+    if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
   }
 });
 

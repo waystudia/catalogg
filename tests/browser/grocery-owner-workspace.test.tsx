@@ -125,6 +125,32 @@ test('keeps the grocery POS workspace vertically scrollable at the reported desk
   expect(content.scrollTop).toBeGreaterThan(0);
 });
 
+test('keeps every business navigation item reachable at the reported short desktop viewport', async () => {
+  await page.viewport(1040, 576);
+  try {
+    const screen = await render(
+      <main className="restaurant-admin-shell business-workspace-shell">
+        <aside className="restaurant-admin-sidebar business-workspace-sidebar">
+          <div>WayYaam</div>
+          <nav aria-label="Навигация бизнеса">
+            {['Главная', 'Касса', 'Товары', 'База товаров', 'Поступление', 'Заказы', 'Команда', 'Чаты', 'Склад', 'Витрина', 'Настройки']
+              .map((label) => <button className="restaurant-admin-nav__item" key={label} type="button"><span>{label}</span></button>)}
+          </nav>
+        </aside>
+        <section>Заказы</section>
+      </main>
+    );
+
+    const navigation = screen.getByRole('navigation', { name: 'Навигация бизнеса' }).element();
+    expect(navigation.scrollHeight).toBeGreaterThan(navigation.clientHeight);
+    expect(getComputedStyle(navigation).overflowY).toBe('auto');
+    navigation.scrollTop = navigation.scrollHeight;
+    expect(navigation.scrollTop).toBeGreaterThan(0);
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
 test('lets the grocery owner open tenant-scoped team management', async () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(

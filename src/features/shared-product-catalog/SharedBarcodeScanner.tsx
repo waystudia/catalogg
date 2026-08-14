@@ -1,6 +1,7 @@
 import { Camera, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isValidGlobalBarcode } from '../../entities/sharedProducts';
+import { startBrowserBarcodeDecoder, type BrowserBarcodeDecoderControls } from '../grocery-operations/browserBarcodeDecoder';
 
 type DetectedBarcode = { rawValue: string };
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]> };
@@ -26,14 +27,10 @@ export function SharedBarcodeScanner({
   useEffect(() => {
     let disposed = false;
     let timer = 0;
+    let fallbackControls: BrowserBarcodeDecoderControls | null = null;
 
     const start = async () => {
       const Detector = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
-      if (!Detector) {
-        setMessage('Этот браузер не поддерживает сканирование. Введите цифры вручную.');
-        return;
-      }
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' } },
@@ -50,7 +47,19 @@ export function SharedBarcodeScanner({
         }
         setMessage('Наведите камеру на штрих‑код упаковки');
 
-        const detector = new Detector({
+        if (!Detector && videoRef.current) {
+          fallbackControls = await startBrowserBarcodeDecoder(videoRef.current, (rawBarcode) => {
+            const barcode = rawBarcode.trim();
+            if (!isValidGlobalBarcode(barcode)) return false;
+            stopCamera();
+            onDetected(barcode);
+            return true;
+          });
+          if (disposed) fallbackControls.stop();
+          return;
+        }
+
+        const detector = new Detector!({
           formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'itf', 'code_128', 'qr_code']
         });
         const tick = async () => {
@@ -78,6 +87,7 @@ export function SharedBarcodeScanner({
     return () => {
       disposed = true;
       window.clearTimeout(timer);
+      fallbackControls?.stop();
       stopCamera();
     };
   }, [onDetected, restartKey, stopCamera]);
