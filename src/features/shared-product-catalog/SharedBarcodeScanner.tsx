@@ -8,6 +8,7 @@ import {
   startBrowserBarcodeDecoder,
   type BrowserBarcodeDecoderControls
 } from '../grocery-operations/browserBarcodeDecoder';
+import { playBarcodeScanSound } from '../grocery-operations/barcodeScanFeedback';
 
 type DetectedBarcode = { rawValue: string };
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]> };
@@ -60,6 +61,7 @@ export function SharedBarcodeScanner({
           fallbackControls = await startBrowserBarcodeDecoder(videoRef.current, (rawBarcode) => {
             const barcode = rawBarcode.trim();
             if (!isValidGlobalBarcode(barcode)) return false;
+            playBarcodeScanSound();
             stopCamera();
             onDetected(barcode);
             return true;
@@ -77,6 +79,7 @@ export function SharedBarcodeScanner({
             const codes = await detector.detect(videoRef.current);
             const value = codes.map((code) => code.rawValue.trim()).find(isValidGlobalBarcode);
             if (value) {
+              playBarcodeScanSound();
               stopCamera();
               onDetected(value);
               return;

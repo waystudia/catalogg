@@ -6,6 +6,7 @@ import { groceryCategories, groceryProducts } from '../../src/data/groceryCatalo
 import { GroceryPosPage } from '../../src/features/grocery-operations/GroceryPosPage';
 import { BarcodeCaptureDialog } from '../../src/features/grocery-operations/BarcodeCaptureDialog';
 import { GroceryProductEditor } from '../../src/features/grocery-operations/GroceryProductEditor';
+import { playBarcodeScanSound } from '../../src/features/grocery-operations/barcodeScanFeedback';
 import { GroceryProductsPage } from '../../src/features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../src/features/grocery-operations/GroceryReceivingPage';
 import { SharedBarcodeScanner } from '../../src/features/shared-product-catalog/SharedBarcodeScanner';
@@ -36,7 +37,7 @@ vi.mock('../../src/features/grocery-operations/browserBarcodeDecoder', async (im
   };
 });
 
-function ProductEditorHarness() {
+function ProductEditorHarness({ photoProcessor }: { photoProcessor?: (file: File, onProgress: (progress: number) => void) => Promise<File> } = {}) {
   const [barcode, setBarcode] = useState('');
   return (
     <GroceryProductEditor
@@ -48,9 +49,15 @@ function ProductEditorHarness() {
       onRequestScan={() => setBarcode('4609999999991')}
       onClose={() => undefined}
       onSave={() => undefined}
+      photoProcessor={photoProcessor}
     />
   );
 }
+
+const choosePhoto = (input: HTMLInputElement, file: File) => {
+  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+};
 
 test('grocery product cards remain inside a phone viewport while preserving every operation', async () => {
   await page.viewport(390, 844);
@@ -169,6 +176,50 @@ test('new product drawer keeps typed data when a scanner fills the barcode on a 
       .toBeLessThanOrEqual(document.querySelector<HTMLElement>('.grocery-product-drawer')!.clientWidth + 1);
   } finally {
     await page.viewport(414, 896);
+  }
+});
+
+test('new grocery product prepares a white-background photo before the name fields', async () => {
+  const photoProcessor = vi.fn(async (_file: File, onProgress: (progress: number) => void) => {
+    onProgress(70);
+    return new File(['white'], 'product-white.jpg', { type: 'image/jpeg' });
+  });
+  const screen = await render(<ProductEditorHarness photoProcessor={photoProcessor} />);
+  const photoInput = screen.getByLabelText('Сфотографировать товар').element() as HTMLInputElement;
+  const original = new File(['original'], 'product.jpg', { type: 'image/jpeg' });
+
+  choosePhoto(photoInput, original);
+
+  await expect.element(screen.getByRole('img', { name: 'Товар на белом фоне' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Белый фон/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
+  const photoSection = screen.getByRole('heading', { name: 'Сначала фотография товара' }).element().closest('section')!;
+  const titleField = screen.getByLabelText('Название товара').element();
+  expect(photoSection.compareDocumentPosition(titleField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test('successful barcode feedback plays the scanner sound without delaying completion', async () => {
+  const originalAudioContext = Object.getOwnPropertyDescriptor(window, 'AudioContext');
+  const start = vi.fn();
+  const stop = vi.fn();
+  const frequency = { setValueAtTime: vi.fn() };
+  const gainValue = { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() };
+  class FakeAudioContext {
+    currentTime = 1;
+    destination = {};
+    resume = vi.fn().mockResolvedValue(undefined);
+    createGain = () => ({ gain: gainValue, connect: vi.fn() });
+    createOscillator = () => ({ type: 'square', frequency, connect: vi.fn(), start, stop });
+  }
+  Object.defineProperty(window, 'AudioContext', { configurable: true, value: FakeAudioContext });
+  try {
+    playBarcodeScanSound();
+    await expect.poll(() => start.mock.calls.length).toBe(1);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(frequency.setValueAtTime).toHaveBeenCalledTimes(2);
+  } finally {
+    if (originalAudioContext) Object.defineProperty(window, 'AudioContext', originalAudioContext);
+    else Reflect.deleteProperty(window, 'AudioContext');
   }
 });
 

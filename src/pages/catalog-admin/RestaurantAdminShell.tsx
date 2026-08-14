@@ -70,10 +70,12 @@ import { GroceryWarehousePage } from '../../features/grocery-operations/GroceryW
 import { GroceryPosPage, type GroceryPosLine } from '../../features/grocery-operations/GroceryPosPage';
 import { formatGroceryPosOrderComment, type GroceryPosPayment } from '../../features/grocery-operations/groceryPosModel';
 import { GroceryProductEditor } from '../../features/grocery-operations/GroceryProductEditor';
-import { BarcodeCaptureDialog } from '../../features/grocery-operations/BarcodeCaptureDialog';
 import { applyReceivingLines } from '../../features/grocery-operations/inventoryModel';
 import '../../features/grocery-operations/grocery-operations.css';
 import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
+import { SharedBarcodeScanner } from '../../features/shared-product-catalog/SharedBarcodeScanner';
+import { preloadProductPhotoBackgroundRemoval } from '../../features/shared-product-catalog/productPhotoBackground';
+import { prepareBarcodeScanSound } from '../../features/grocery-operations/barcodeScanFeedback';
 import { BrandLogo } from '../../shared/BrandLogo';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
@@ -661,6 +663,10 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
 
   const openGroceryProductEditor = (intent: 'products' | 'receiving' | 'pos', product: Product | null = null, barcode = '') => {
     setProductEditor({ intent, product, barcode });
+    if (!product && !barcode) {
+      prepareBarcodeScanSound();
+      setEditorScannerOpen(true);
+    }
   };
 
   const saveGroceryProduct = async (product: Product) => {
@@ -1115,16 +1121,18 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         ))}
       </nav>
 
-      {isGrocery && productEditor && <GroceryProductEditor open product={productEditor.product} initialBarcode={productEditor.barcode} categories={catalogData.categories} barcodeExists={(barcode, exceptProductId) => catalogData.products.some((product) => product.id !== exceptProductId && product.barcode === barcode)} onRequestScan={() => setEditorScannerOpen(true)} onClose={() => setProductEditor(null)} onSave={saveGroceryProduct} />}
-      <BarcodeCaptureDialog
-        open={isGrocery && editorScannerOpen}
-        title="Штрих‑код карточки товара"
+      {isGrocery && productEditor && <GroceryProductEditor open product={productEditor.product} initialBarcode={productEditor.barcode} categories={catalogData.categories} barcodeExists={(barcode, exceptProductId) => catalogData.products.some((product) => product.id !== exceptProductId && product.barcode === barcode)} onRequestScan={() => {
+        prepareBarcodeScanSound();
+        setEditorScannerOpen(true);
+      }} onClose={() => setProductEditor(null)} onSave={saveGroceryProduct} />}
+      {isGrocery && editorScannerOpen && <SharedBarcodeScanner
         onClose={() => setEditorScannerOpen(false)}
-        onScan={(barcode) => {
+        onDetected={(barcode) => {
+          void preloadProductPhotoBackgroundRemoval();
           setProductEditor((current) => (current ? { ...current, barcode } : current));
           setEditorScannerOpen(false);
         }}
-      />
+      />}
     </main>
   );
 }

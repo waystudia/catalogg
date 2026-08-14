@@ -24,7 +24,9 @@ test('a product photo is processed automatically and the merchant chooses which 
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
+  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
 
   const original = new File(['original'], 'product.jpg', { type: 'image/jpeg' });
   choosePhoto(
@@ -63,6 +65,7 @@ test('failed background removal keeps the original photo available for saving', 
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
   const original = new File(['original'], 'product.png', { type: 'image/png' });
   choosePhoto(
     screen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,

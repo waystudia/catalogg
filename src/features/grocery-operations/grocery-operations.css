@@ -1436,6 +1436,73 @@
   width: 28px;
   height: 28px;
 }
+
+.grocery-photo-processing,
+.grocery-photo-choices {
+  margin-top: 12px;
+  border: 1px solid #dbe2ea;
+  border-radius: 16px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.grocery-photo-processing {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.grocery-photo-processing span,
+.grocery-photo-processing small {
+  display: block;
+}
+
+.grocery-photo-processing progress {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.grocery-photo-processing .is-spinning {
+  animation: grocery-photo-spin .8s linear infinite;
+}
+
+@keyframes grocery-photo-spin {
+  to { transform: rotate(360deg); }
+}
+
+.grocery-photo-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.grocery-photo-choices button {
+  min-width: 0;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 8px;
+  background: #fff;
+  color: #172033;
+  font-weight: 800;
+}
+
+.grocery-photo-choices button.is-selected {
+  border-color: #5b38f2;
+}
+
+.grocery-photo-choices img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+.grocery-photo-choices button:last-child {
+  grid-column: 1 / -1;
+}
 .grocery-product-drawer .dish-photo--add {
   display: grid;
   place-items: center;
