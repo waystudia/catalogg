@@ -94,6 +94,19 @@
   background: #f6fef9;
 }
 
+.ra-order-board-card[data-channel='delivery'] {
+  border-left: 4px solid #5b3df4;
+}
+
+.ra-order-board-card[data-channel='takeaway'] {
+  border-left: 4px solid #f79009;
+}
+
+.ra-order-board-card[data-channel='store'] {
+  border-left: 4px solid #667085;
+  background: #f8fafc;
+}
+
 .ra-order-board-card__head,
 .ra-order-board-card__foot {
   display: flex;
@@ -116,6 +129,32 @@
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ra-order-board-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ra-order-board-card__meta b {
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: #f2f4f7;
+  color: #344054;
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+.ra-order-board-card[data-channel='delivery'] .ra-order-board-card__meta b {
+  background: #f4f3ff;
+  color: #5925dc;
+}
+
+.ra-order-board-card[data-channel='takeaway'] .ra-order-board-card__meta b {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .ra-order-board-card__address {

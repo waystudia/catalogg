@@ -135,8 +135,12 @@ Deno.serve(async (request) => {
     if (event.table === 'orders') {
       const orderId = asId(record.id);
       const catalogId = asId(record.catalog_id);
-      const { data: catalog } = await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle();
+      const { data: catalog } = await admin.from('catalogs').select('slug, business_type').eq('id', catalogId).maybeSingle();
       const slug = asString(catalog?.slug);
+      const isStorePosSale = asString(catalog?.business_type) === 'grocery'
+        && asString(record.fulfillment_type) !== 'delivery'
+        && /(?:^|\n)\s*Касса магазина(?:\s|·|$)/iu.test(asString(record.comment));
+      if (isStorePosSale) return jsonResponse({ ok: true, sent: 0, skipped: 'store_pos_sale' });
       const status = asString(record.status) || 'new';
       const isNew = event.type === 'INSERT' || status === 'new';
       title = isNew ? `Новый заказ #${orderId.slice(0, 8).toUpperCase()}` : `Статус заказа #${orderId.slice(0, 8).toUpperCase()}`;

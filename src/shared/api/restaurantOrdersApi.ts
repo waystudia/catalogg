@@ -1357,3 +1357,40 @@ export async function createRestaurantOrderFromCart(input: CreateRestaurantOrder
 
   return createRestaurantOrderWithClient(supabase, catalogId, input);
 }
+
+export async function completeGroceryPosOrder(orderId: string, slug: string) {
+  if (!supabase) {
+    updateFallbackRestaurantOrder({ id: orderId, catalogId: slug.trim().toLowerCase() }, {
+      status: 'completed',
+      paymentStatus: 'confirmed',
+      restaurantPaymentConfirmedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
+    });
+    return;
+  }
+  const catalogId = await getCatalogIdBySlug(slug);
+  if (!catalogId) throw new Error('Магазин для кассовой продажи не найден');
+
+  const completion = await supabase.rpc('complete_grocery_pos_order', {
+    target_order_id: orderId,
+    target_catalog_id: catalogId
+  });
+  if (!completion.error) return;
+
+  const completionError = `${completion.error.code ?? ''} ${completion.error.message ?? ''}`.toLowerCase();
+  const missingCompletionRpc = completionError.includes('pgrst202') || completionError.includes('could not find the function') || completionError.includes('function not found');
+  if (!missingCompletionRpc) throw completion.error;
+
+  const statusResult = await supabase.rpc('update_restaurant_order_status', {
+    target_order_id: orderId,
+    target_catalog_id: catalogId,
+    next_status: 'completed',
+    status_reason: 'store_pos_sale'
+  });
+  if (statusResult.error) throw statusResult.error;
+  const paymentResult = await supabase.from('orders').update({
+    payment_status: 'confirmed',
+    restaurant_payment_confirmed_at: new Date().toISOString()
+  }).eq('id', orderId).eq('catalog_id', catalogId);
+  if (paymentResult.error) throw paymentResult.error;
+}
