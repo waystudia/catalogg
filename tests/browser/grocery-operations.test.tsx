@@ -59,8 +59,8 @@ const choosePhoto = (input: HTMLInputElement, file: File) => {
   input.dispatchEvent(new Event('change', { bubbles: true }));
 };
 
-test('grocery product cards remain inside a phone viewport while preserving every operation', async () => {
-  await page.viewport(390, 844);
+test('grocery product cards become a readable two-column inventory layout on a short phone', async () => {
+  await page.viewport(372, 576);
   try {
     const screen = await render(
       <GroceryProductsPage
@@ -78,9 +78,23 @@ test('grocery product cards remain inside a phone viewport while preserving ever
     await expect.element(screen.getByRole('button', { name: 'Новый товар' })).toBeVisible();
     const pageRoot = document.querySelector<HTMLElement>('.grocery-operations-page')!;
     const firstProduct = document.querySelector<HTMLElement>('.grocery-products-table article')!;
+    const productCell = firstProduct.querySelector<HTMLElement>('.grocery-product-cell')!;
+    const codeCell = firstProduct.querySelector<HTMLElement>('.grocery-code-cell')!;
+    const metrics = [...firstProduct.querySelectorAll<HTMLElement>('.grocery-product-metric')];
+    const status = firstProduct.querySelector<HTMLElement>('.grocery-product-status')!;
+    const edit = firstProduct.querySelector<HTMLButtonElement>('.grocery-row-actions button')!;
     expect(firstProduct.getBoundingClientRect().left).toBeGreaterThanOrEqual(pageRoot.getBoundingClientRect().left);
     expect(firstProduct.getBoundingClientRect().right).toBeLessThanOrEqual(pageRoot.getBoundingClientRect().right + 1);
     expect(pageRoot.scrollWidth).toBeLessThanOrEqual(pageRoot.clientWidth + 1);
+    expect(productCell.getBoundingClientRect().width).toBeGreaterThan(firstProduct.getBoundingClientRect().width * 0.8);
+    expect(codeCell.getBoundingClientRect().width).toBeGreaterThan(firstProduct.getBoundingClientRect().width * 0.8);
+    expect(metrics).toHaveLength(4);
+    expect(Math.abs(metrics[0].getBoundingClientRect().top - metrics[1].getBoundingClientRect().top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(metrics[2].getBoundingClientRect().top - metrics[3].getBoundingClientRect().top)).toBeLessThanOrEqual(1);
+    expect(metrics[0].getBoundingClientRect().right).toBeLessThanOrEqual(metrics[1].getBoundingClientRect().left);
+    expect(status.getBoundingClientRect().width).toBeGreaterThan(firstProduct.getBoundingClientRect().width * 0.8);
+    expect(edit.getBoundingClientRect().right).toBeLessThanOrEqual(firstProduct.getBoundingClientRect().right - 8);
+    expect(getComputedStyle(document.querySelector<HTMLElement>('.grocery-products-table')!).overflowX).toBe('visible');
   } finally {
     await page.viewport(414, 896);
   }
