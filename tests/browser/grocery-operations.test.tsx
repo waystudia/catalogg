@@ -2,7 +2,6 @@ import { expect, test, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { useState } from 'react';
-import { DecodeHintType } from '@zxing/library';
 import { groceryCategories, groceryProducts } from '../../src/data/groceryCatalog';
 import { GroceryPosPage } from '../../src/features/grocery-operations/GroceryPosPage';
 import { BarcodeCaptureDialog } from '../../src/features/grocery-operations/BarcodeCaptureDialog';
@@ -18,29 +17,24 @@ import '../../src/pages/catalog-admin/catalog-admin.css';
 const zxingFallback = vi.hoisted(() => ({
   detectedValue: '',
   stop: vi.fn(),
-  hints: undefined as Map<number, unknown> | undefined,
-  options: undefined as { delayBetweenScanAttempts?: number; delayBetweenScanSuccess?: number } | undefined
+  preload: vi.fn().mockResolvedValue(undefined),
+  start: vi.fn()
 }));
 
-vi.mock('@zxing/browser', () => ({
-  BrowserMultiFormatReader: class {
-    constructor(hints?: Map<number, unknown>, options?: { delayBetweenScanAttempts?: number; delayBetweenScanSuccess?: number }) {
-      zxingFallback.hints = hints;
-      zxingFallback.options = options;
-    }
-
-    decodeFromVideoElement(
-      _video: HTMLVideoElement,
-      onResult: (result: { getText: () => string } | undefined, error: undefined, controls: { stop: () => void }) => void
-    ) {
-      const controls = { stop: zxingFallback.stop };
-      if (zxingFallback.detectedValue) {
-        onResult({ getText: () => zxingFallback.detectedValue }, undefined, controls);
+vi.mock('../../src/features/grocery-operations/browserBarcodeDecoder', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/features/grocery-operations/browserBarcodeDecoder')>();
+  return {
+    ...actual,
+    preloadBrowserBarcodeDecoder: zxingFallback.preload,
+    startBrowserBarcodeDecoder: zxingFallback.start.mockImplementation(
+      async (_video: HTMLVideoElement, onDetected: (barcode: string) => boolean) => {
+        const controls = { stop: zxingFallback.stop };
+        if (zxingFallback.detectedValue && onDetected(zxingFallback.detectedValue)) controls.stop();
+        return controls;
       }
-      return Promise.resolve(controls);
-    }
-  }
-}));
+    )
+  };
+});
 
 function ProductEditorHarness() {
   const [barcode, setBarcode] = useState('');
@@ -294,6 +288,32 @@ test('POS scanner requests camera access immediately when the dialog opens', asy
   }
 });
 
+test('POS preloads the fast iPhone decoder before the cashier opens the camera', async () => {
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  Reflect.deleteProperty(window, 'BarcodeDetector');
+  zxingFallback.preload.mockClear();
+  try {
+    await render(
+      <GroceryPosPage
+        storeName="Финик"
+        products={groceryProducts}
+        categories={groceryCategories}
+        paymentSettings={{ ...defaultPaymentSettings, allowCash: true }}
+        readOnly={false}
+        autoAddProduct={null}
+        onConsumeAutoAdd={() => undefined}
+        onCreateProduct={() => undefined}
+        onSubmit={async () => undefined}
+      />
+    );
+
+    await expect.poll(() => zxingFallback.preload.mock.calls.length).toBe(1);
+  } finally {
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
+  }
+});
+
 test('product scanner recognizes a barcode through the camera when iPhone has no native BarcodeDetector', async () => {
   const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
   const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
@@ -302,6 +322,8 @@ test('product scanner recognizes a barcode through the camera when iPhone has no
   const onScan = vi.fn();
   zxingFallback.detectedValue = '4600494600012';
   zxingFallback.stop.mockClear();
+  zxingFallback.preload.mockClear();
+  zxingFallback.start.mockClear();
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
   Reflect.deleteProperty(window, 'BarcodeDetector');
 
@@ -313,9 +335,8 @@ test('product scanner recognizes a barcode through the camera when iPhone has no
     await expect.poll(() => onScan.mock.calls.length).toBe(1);
     expect(onScan).toHaveBeenCalledWith('4600494600012');
     expect(zxingFallback.stop.mock.calls.length).toBeGreaterThan(0);
-    expect(zxingFallback.options?.delayBetweenScanAttempts).toBeLessThanOrEqual(60);
-    expect(zxingFallback.hints?.get(DecodeHintType.POSSIBLE_FORMATS)).toHaveLength(8);
-    expect(zxingFallback.hints?.has(DecodeHintType.TRY_HARDER)).toBe(false);
+    expect(zxingFallback.preload).toHaveBeenCalledOnce();
+    expect(zxingFallback.start).toHaveBeenCalledOnce();
     await expect.element(screen.getByText(/автораспознавание недоступно/i)).not.toBeInTheDocument();
   } finally {
     zxingFallback.detectedValue = '';
@@ -342,7 +363,7 @@ test('phone scanner uses the whole camera frame and shows only a square orientat
       <BarcodeCaptureDialog open autoStartCamera onClose={() => undefined} onScan={() => undefined} />
     );
 
-    await expect.element(screen.getByText(/сканируем весь кадр/i)).toBeVisible();
+    await expect.element(screen.getByText(/быстрое сканирование/i)).toBeVisible();
     const guide = document.querySelector<HTMLElement>('.grocery-barcode-dialog__guide')!;
     expect(Math.abs(guide.getBoundingClientRect().width - guide.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     expect(getUserMedia).toHaveBeenCalledWith(expect.objectContaining({
@@ -369,6 +390,8 @@ test('shared product scanner also recognizes a barcode on iPhone instead of show
   const onDetected = vi.fn();
   zxingFallback.detectedValue = '4600494600012';
   zxingFallback.stop.mockClear();
+  zxingFallback.preload.mockClear();
+  zxingFallback.start.mockClear();
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
   Reflect.deleteProperty(window, 'BarcodeDetector');
 
@@ -379,7 +402,9 @@ test('shared product scanner also recognizes a barcode on iPhone instead of show
     expect(onDetected).toHaveBeenCalledWith('4600494600012');
     expect(getUserMedia).toHaveBeenCalledOnce();
     expect(zxingFallback.stop.mock.calls.length).toBeGreaterThan(0);
-    await expect.element(screen.getByText(/сканируем весь кадр/i)).toBeVisible();
+    expect(zxingFallback.preload).toHaveBeenCalledOnce();
+    expect(zxingFallback.start).toHaveBeenCalledOnce();
+    await expect.element(screen.getByText(/быстрое сканирование/i)).toBeVisible();
     const guide = document.querySelector<HTMLElement>('.shared-catalog-scanner__camera > span')!;
     expect(Math.abs(guide.getBoundingClientRect().width - guide.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     await expect.element(screen.getByText(/браузер не поддерживает сканирование/i)).not.toBeInTheDocument();

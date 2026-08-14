@@ -15,6 +15,6 @@ test('the browser suite prebundles runtime dependencies so GitHub CI cannot relo
   );
   assert.match(
     vitestConfig,
-    /optimizeDeps:\s*\{[\s\S]*include:\s*\[[\s\S]*['"]@zxing\/browser['"][\s\S]*\]/
+    /optimizeDeps:\s*\{[\s\S]*include:\s*\[[\s\S]*['"]zxing-wasm\/reader['"][\s\S]*\]/
   );
 });
