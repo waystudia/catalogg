@@ -241,6 +241,12 @@
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
 }
 
+.grocery-products-table {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
 .grocery-products-table__head,
 .grocery-products-table article {
   display: grid;
