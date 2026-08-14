@@ -97,3 +97,13 @@ test('enables restaurant cash confirmation after the driver hands over the order
 
   await expect.element(screen.getByRole('button', { name: 'Подтвердить получение наличных', exact: true })).toBeEnabled();
 });
+
+test('opens a separate order-scoped chat inside the compact restaurant order card', async () => {
+  const screen = await renderOrder(cashDelivery('assigned'));
+
+  await expect.element(screen.getByRole('button', { name: 'Открыть чат заказа' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Открыть чат заказа' }).click();
+
+  await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).toBeVisible();
+  await expect.element(screen.getByText('Ответьте клиенту и курьеру, зафиксируйте договорённость.')).toBeVisible();
+});

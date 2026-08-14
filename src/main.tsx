@@ -9,7 +9,6 @@ import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import {
   BusinessAdminRoute,
   CatalogAdminRoute,
-  LegacyBusinessAdminRedirect,
   LegacyLoginRedirect,
   PwaHomeRoute,
   PwaResumeTracker,
@@ -66,7 +65,14 @@ const SharedProductPreviewPage = import.meta.env.DEV
         default: module.SharedProductPreviewPage
       })))
   : null;
+const RestaurantAdminPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import('./features/restaurant-admin/RestaurantAdminPreview').then((module) => ({
+        default: module.RestaurantAdminPreview
+      })))
+  : null;
 const passkeyPreviewIsActive = import.meta.env.DEV && window.location.hash.startsWith('#/__passkey-preview/');
+const restaurantAdminPreviewIsActive = import.meta.env.DEV && window.location.hash.startsWith('#/__restaurant-admin-preview');
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -101,6 +107,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               {SharedProductPreviewPage && (
                 <Route path="/__shared-product-preview" element={<SharedProductPreviewPage />} />
               )}
+              {RestaurantAdminPreview && (
+                <Route path="/__restaurant-admin-preview" element={<RestaurantAdminPreview />} />
+              )}
               <Route path="/" element={<PwaHomeRoute />} />
               <Route path="/city" element={<ClientPlatformApp />} />
               <Route path="/categories" element={<ClientPlatformApp />} />
@@ -114,9 +123,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/login" element={<LegacyLoginRedirect />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
               <Route path="/business/:slug/*" element={<BusinessAdminRoute />} />
-              <Route path="/:slug/:section" element={<LegacyBusinessAdminRedirect />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/scanner" element={<ScannerPage />} />
+              <Route path="/:slug/scanner" element={<ScannerPage />} />
               <Route path="/admin/catalogs/:slug" element={<CatalogAdminRoute />} />
               <Route path="/admin/payments" element={<PaymentsPage />} />
               <Route path="/admin/*" element={<PlatformAdminApp />} />
@@ -125,7 +134,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/:slug" element={<RestaurantPublicRoute />} />
             </Routes>
           </StorefrontBoundary>
-          {!passkeyPreviewIsActive && <LegalSurface />}
+          {!passkeyPreviewIsActive && !restaurantAdminPreviewIsActive && <LegalSurface />}
         </Suspense>
       </HashRouter>
     </QueryClientProvider>

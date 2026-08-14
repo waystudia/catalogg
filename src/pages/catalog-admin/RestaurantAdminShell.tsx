@@ -25,8 +25,10 @@ import {
   ShoppingBag,
   Store,
   Tags,
+  Truck,
   Trash2,
   Upload,
+  User,
   Users,
   UtensilsCrossed,
   WalletCards
@@ -48,7 +50,7 @@ import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
 import { changeCatalogAdminPassword, type CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission, restoreRestaurantOrderNotificationSubscription, showRestaurantOrderNotification } from '../../shared/restaurantOrderNotifications';
-import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, getOrderPaymentMethod, getVisibleAdminOrderComment, isGroceryStorePosOrder, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
+import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, getAdminOrderFulfillmentLabel, getAdminOrderLocationLabel, getAdminOrderPhoneHref, getAdminOrderStatusLabel, getAdminOrderWhatsAppHref, getBusinessPaymentStatusLabel, getOrderPaymentMethod, getVisibleAdminOrderComment, isGroceryStorePosOrder, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
 import { getRestaurantModuleEntitlementByCatalog } from '../../shared/api/restaurantModulesApi';
 import { getRestaurantAdminModuleAccess, type RestaurantAdminModuleAccess } from '../../features/platform-admin-modules/restaurantModuleAccess';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../../features/restaurant-pos/RestaurantPosPage';
@@ -63,6 +65,7 @@ import { acceptCatalogOrderAssignment, escalateCatalogOrderAssignments, getCatal
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
 import { OrderConversationInbox, type OrderConversationInboxItem } from '../../features/order-conversation/OrderConversationInbox';
+import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
 import { loadGroceryInventory, postGroceryReceiving, saveGroceryInventoryItem, type GroceryInventoryMovement, type GroceryReceivingLineInput } from '../../shared/api/groceryInventoryApi';
 import { GroceryProductsPage } from '../../features/grocery-operations/GroceryProductsPage';
 import { GroceryReceivingPage } from '../../features/grocery-operations/GroceryReceivingPage';
@@ -77,6 +80,7 @@ import { SharedBarcodeScanner } from '../../features/shared-product-catalog/Shar
 import { preloadProductPhotoBackgroundRemoval } from '../../features/shared-product-catalog/productPhotoBackground';
 import { prepareBarcodeScanSound } from '../../features/grocery-operations/barcodeScanFeedback';
 import { BrandLogo } from '../../shared/BrandLogo';
+import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -1453,13 +1457,25 @@ export function OrderDetails({
   onOpenChat: (orderId: string) => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const capabilities = getBusinessOrderCapabilities(businessType);
   const isGroceryBusiness = businessType === 'grocery';
   const storePosOrder = isGroceryStorePosOrder(order, businessType);
   const groceryCashOrder = isGroceryBusiness && getOrderPaymentMethod(order.comment) === 'cash';
-  const visibleOrderComment = isGroceryBusiness ? getVisibleAdminOrderComment(order.comment) : order.comment;
-  const paymentStatusLabel = storePosOrder ? 'Оплачено на кассе' : getBusinessPaymentStatusLabel(orderPaymentStatusLabels[order.paymentStatus], businessType);
+  const visibleOrderComment = getVisibleAdminOrderComment(order.comment);
+  const orderLocation = getAdminOrderLocationLabel(order, businessType);
+  const customerPhoneHref = getAdminOrderPhoneHref(order.clientPhone);
+  const customerWhatsAppHref = getAdminOrderWhatsAppHref(order.clientPhone);
+  const driverPhoneHref = getAdminOrderPhoneHref(order.driverPhone ?? '');
+  const driverWhatsAppHref = getAdminOrderWhatsAppHref(order.driverPhone ?? '');
+  const paymentStatusLabel = storePosOrder
+    ? 'Оплачено на кассе'
+    : getBusinessPaymentStatusLabel(orderPaymentStatusLabels[order.paymentStatus], businessType);
   const localPaymentStatusLabel = getBusinessPaymentStatusLabel(paymentStatusLabels[paymentStatus], businessType);
-  const paymentSummary = formatAdminPaymentSummary(storePosOrder ? 'Продажа оплачена' : groceryCashOrder ? 'Наличными на кассе' : localPaymentStatusLabel, paymentStatusLabel);
+  const paymentSummary = formatAdminPaymentSummary(
+    storePosOrder ? 'Продажа оплачена' : groceryCashOrder ? 'Наличными на кассе' : localPaymentStatusLabel,
+    paymentStatusLabel
+  );
   const deleteOrder = async () => {
     if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
@@ -1469,279 +1485,408 @@ export function OrderDetails({
       setIsDeleting(false);
     }
   };
-  const orderActions = !storePosOrder && (!workerMode || assignment?.state === 'accepted') ? (
-    <div className="ra-order-actions ra-order-actions--top" aria-label="Действия с заказом">
-      {order.status === 'new' && (
-        <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
-          Принять
-        </button>
-      )}
-      {['accepted', 'confirmed'].includes(order.status) && (
-        <button type="button" onClick={() => onStatusChange(order, 'preparing')}>
-          {isGroceryBusiness ? 'Начать сборку' : 'Готовится'}
-        </button>
-      )}
-      {order.status === 'preparing' && (
-        <button type="button" onClick={() => onStatusChange(order, 'ready')}>
-          {isGroceryBusiness ? 'Заказ собран' : 'Готово'}
-        </button>
-      )}
-      {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
-        <button type="button" disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)} onClick={() => onStatusChange(order, 'waiting_driver')}>
-          Вызвать доставку
-        </button>
-      )}
-      {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
-        <button type="button" onClick={() => onStatusChange(order, 'completed')}>
-          Завершить
-        </button>
-      )}
-      {!workerMode && order.status === 'waiting_driver' && (
-        <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
-          Передано водителю
-        </button>
-      )}
-      {!workerMode && order.status === 'on_the_way' && (
-        <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
-          Доставлен
-        </button>
-      )}
-      {order.status === 'new' && (
-        <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>
-          Отклонить
-        </button>
-      )}
-      {!workerMode && (order.isTestOrder || canDeleteOrders) && (
-        <button className="ra-order-actions__danger" type="button" disabled={isDeleting} onClick={() => void deleteOrder()}>
-          <Trash2 />
-          {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
-        </button>
-      )}
-    </div>
-  ) : null;
+
+  useEffect(() => {
+    setIsChatOpen(false);
+  }, [order.id]);
+  const orderActions =
+    !storePosOrder && (!workerMode || assignment?.state === 'accepted') ? (
+      <div className="ra-order-actions ra-order-actions--top" aria-label="Действия с заказом">
+        {order.status === 'new' && (
+          <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
+            Принять
+          </button>
+        )}
+        {['accepted', 'confirmed'].includes(order.status) && (
+          <button type="button" onClick={() => onStatusChange(order, 'preparing')}>
+            {capabilities.startWorkLabel}
+          </button>
+        )}
+        {order.status === 'preparing' && (
+          <button type="button" onClick={() => onStatusChange(order, 'ready')}>
+            {capabilities.readyLabel}
+          </button>
+        )}
+        {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+          <button
+            type="button"
+            disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
+            onClick={() => onStatusChange(order, 'waiting_driver')}
+          >
+            Вызвать доставку
+          </button>
+        )}
+        {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
+          <button type="button" onClick={() => onStatusChange(order, 'completed')}>
+            Завершить
+          </button>
+        )}
+        {!workerMode && order.status === 'waiting_driver' && (
+          <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
+            Передано водителю
+          </button>
+        )}
+        {!workerMode && order.status === 'on_the_way' && (
+          <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
+            Доставлен
+          </button>
+        )}
+        {order.status === 'new' && (
+          <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>
+            Отклонить
+          </button>
+        )}
+        {!workerMode && (order.isTestOrder || canDeleteOrders) && (
+          <button
+            className="ra-order-actions__danger"
+            type="button"
+            disabled={isDeleting}
+            onClick={() => void deleteOrder()}
+          >
+            <Trash2 />
+            {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+          </button>
+        )}
+      </div>
+    ) : null;
 
   return (
-    <aside className="ra-card ra-order-details">
-      <header>
-        <div>
-          <small>Заказ</small>
-          <h2>#{order.orderNumber}</h2>
-        </div>
-        <em data-tone={orderStatusTones[order.status]}>{getAdminOrderStatusLabel(order.status, businessType)}</em>
-      </header>
-      {storePosOrder && <p className="ra-order-store-sale-note">Продажа оформлена в магазине и не требует сборки или переписки.</p>}
-      {orderActions}
-      {!storePosOrder && assignment && (
-        <section className="ra-payment-box">
-          <h3>
-            <Users />
-            Ответственный
-          </h3>
-          <p>{assignment.isMine ? 'Назначено вам' : assignment.assigneeName}</p>
-          {assignment.state === 'offered' && assignment.isMine && (
-            <button type="button" onClick={() => void onAcceptAssignment(assignment)}>
-              Принять в работу
-            </button>
-          )}
-          {assignment.state === 'accepted' && <small>Заказ принят в работу</small>}
-        </section>
-      )}
-      <dl>
-        <div>
-          <dt>{isGroceryBusiness ? 'Покупатель' : 'Клиент'}</dt>
-          <dd>{order.clientName}</dd>
-        </div>
-        <div>
-          <dt>Телефон</dt>
-          <dd>{order.clientPhone || 'Не указан'}</dd>
-        </div>
-        <div>
-          <dt>{isGroceryBusiness ? 'Получение' : 'Тип'}</dt>
-          <dd>{getAdminOrderFulfillmentLabel(order, businessType)}</dd>
-        </div>
-        {!isGroceryBusiness && (
+    <aside className="admin-order-details-panel ra-business-compact-order">
+      <section className="admin-order-work-card">
+        <header className="ra-business-compact-order__header">
           <div>
-            <dt>Адрес / кабинка</dt>
-            <dd>{order.deliveryAddress || order.cabinLabel || 'Не указано'}</dd>
+            <small>Заказ #{order.orderNumber}</small>
+            <h2>{getAdminOrderStatusLabel(order.status, businessType)}</h2>
           </div>
-        )}
-        {isGroceryBusiness && order.fulfillmentType === 'delivery' && (
-          <div>
-            <dt>Адрес доставки</dt>
-            <dd>{order.deliveryAddress || 'Не указан'}</dd>
+          <div className="ra-business-compact-order__total">
+            <strong>{formatPrice(order.total)}</strong>
+            <small>{order.items.length} поз.</small>
           </div>
+          <em data-tone={orderStatusTones[order.status]}>{getAdminOrderStatusLabel(order.status, businessType)}</em>
+        </header>
+        {storePosOrder && (
+          <p className="ra-order-store-sale-note">Продажа оформлена в магазине и не требует сборки или переписки.</p>
         )}
-        {order.fulfillmentType === 'delivery' && (
-          <div>
-            <dt>Координаты клиента</dt>
-            <dd>{order.deliveryLat !== null && order.deliveryLng !== null ? `${order.deliveryLat.toFixed(7)}, ${order.deliveryLng.toFixed(7)}` : 'Не указаны'}</dd>
-          </div>
-        )}
-        {order.fulfillmentType === 'delivery' && order.deliveryLat !== null && order.deliveryLng !== null && order.restaurantLat !== null && order.restaurantLng !== null && (
+        {!storePosOrder && assignment && (
           <section className="ra-payment-box">
             <h3>
-              <MapPin />
-              Карта доставки
+              <Users />
+              Ответственный
             </h3>
-            <DeliveryTrackingMap
-              restaurant={{
-                lat: order.restaurantLat,
-                lng: order.restaurantLng,
-                label: isGroceryBusiness ? 'Магазин' : 'Ресторан',
-                address: order.restaurantAddress
-              }}
-              client={{
-                lat: order.deliveryLat,
-                lng: order.deliveryLng,
-                label: order.clientName || 'Клиент',
-                address: order.deliveryAddress
-              }}
-              driver={
-                order.driverLat !== null && order.driverLng !== null
-                  ? {
-                      lat: order.driverLat,
-                      lng: order.driverLng,
-                      label: order.driverName || 'Водитель'
-                    }
-                  : null
-              }
-            />
-            <a
-              className="ra-order-map-link"
-              href={buildYandexMapsRouteUrl({
-                from: {
-                  lat: order.restaurantLat,
-                  lng: order.restaurantLng,
-                  address: order.restaurantAddress
-                },
-                to: {
-                  lat: order.deliveryLat,
-                  lng: order.deliveryLng,
-                  address: order.deliveryAddress
-                }
-              })}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Открыть маршрут в Яндекс Картах
-            </a>
+            <p>{assignment.isMine ? 'Назначено вам' : assignment.assigneeName}</p>
+            {assignment.state === 'offered' && assignment.isMine && (
+              <button type="button" onClick={() => void onAcceptAssignment(assignment)}>
+                Принять в работу
+              </button>
+            )}
+            {assignment.state === 'accepted' && <small>Заказ принят в работу</small>}
           </section>
         )}
-        {order.fulfillmentType === 'delivery' && order.restaurantAddress && (
-          <div>
-            <dt>{isGroceryBusiness ? 'Точка магазина' : 'Точка ресторана'}</dt>
-            <dd>{order.restaurantAddress}</dd>
-          </div>
-        )}
-        <div>
-          <dt>{isGroceryBusiness ? 'Информация' : 'Комментарий'}</dt>
-          <dd>{visibleOrderComment || (isGroceryBusiness ? 'Нет дополнительной информации' : 'Нет комментария')}</dd>
-        </div>
-        <div>
-          <dt>Оплата</dt>
-          <dd>{paymentStatusLabel}</dd>
-        </div>
-        {order.fulfillmentType === 'delivery' && (
-          <div>
-            <dt>Доставка</dt>
-            <dd>{order.deliveryStatus}</dd>
-          </div>
-        )}
-        {order.driverName && (
-          <div>
-            <dt>Водитель</dt>
-            <dd>
-              {order.driverName} · {order.driverPhone || 'телефон не указан'}
-            </dd>
-          </div>
-        )}
-      </dl>
-      <table className="ra-order-items">
-        <thead>
-          <tr>
-            <th scope="col">Товар</th>
-            <th scope="col">Количество и цена</th>
-            <th scope="col">Сумма</th>
-          </tr>
-        </thead>
-        <tbody>
-          {order.items.map((item) => (
-            <tr key={item.id}>
-              <td>{item.title}</td>
-              <td>{formatAdminOrderItemQuantity(item, businessType)}</td>
-              <td>{formatPrice(item.lineTotal)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {businessType === 'grocery' && !storePosOrder && (
-        <GroceryPickingPanel items={order.items} products={products} canPick={!workerMode || assignment?.state === 'accepted'} onChanged={onPickingChanged} />
-      )}
-      {!storePosOrder && (
-        <button className="ra-order-chat-button" type="button" onClick={() => onOpenChat(order.id)}>
-          <MessageCircle /> Открыть чат заказа
-        </button>
-      )}
-      <div className="ra-order-total">
-        <span>Итого</span>
-        <strong>{formatPrice(order.total)}</strong>
-      </div>
-      {!workerMode && (
-        <section className="ra-payment-box">
-          <h3>
-            <WalletCards />
-            Оплата
-          </h3>
-          <p>{paymentSummary}</p>
-          <dl>
-            <div>
-              <dt>Способ</dt>
-              <dd>{groceryCashOrder ? 'Наличные' : `Перевод ${isGroceryBusiness ? 'магазину' : 'ресторану'}`}</dd>
+        <section className="admin-order-facts">
+          <article>
+            <Truck />
+            <span>{getAdminOrderFulfillmentLabel(order, businessType)}</span>
+            <strong>{orderLocation}</strong>
+            <small>
+              {new Date(order.createdAt).toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </small>
+          </article>
+          <article>
+            <User />
+            <span>{capabilities.customerLabel}</span>
+            <strong>{order.clientName || capabilities.customerLabel}</strong>
+            <small>{order.clientPhone || 'Телефон не указан'}</small>
+          </article>
+          <article>
+            <MapPin />
+            <span>Адрес</span>
+            <strong>{orderLocation}</strong>
+            <small>
+              {order.fulfillmentType === 'delivery'
+                ? 'Адрес доставки'
+                : getAdminOrderFulfillmentLabel(order, businessType)}
+            </small>
+          </article>
+        </section>
+
+        <section className="admin-order-person-cards">
+          <details className="admin-order-person-card">
+            <summary>
+              <span className="admin-order-person-card__avatar">
+                <User />
+              </span>
+              <span>
+                <small>Данные: {capabilities.customerLabel.toLocaleLowerCase('ru-RU')}</small>
+                <strong>{order.clientName || capabilities.customerLabel}</strong>
+                <small>{order.clientPhone || 'Телефон не указан'}</small>
+              </span>
+              <ArrowRight />
+            </summary>
+            <div className="admin-order-person-card__body">
+              <p>
+                <MapPin />
+                {orderLocation}
+              </p>
+              <div>
+                {customerPhoneHref && <a href={customerPhoneHref}>Позвонить</a>}
+                {customerWhatsAppHref && (
+                  <a href={customerWhatsAppHref} target="_blank" rel="noreferrer">
+                    WhatsApp
+                  </a>
+                )}
+              </div>
             </div>
-            {!groceryCashOrder && (
-              <div>
-                <dt>Получатель</dt>
-                <dd>{paymentSettings.displayName}</dd>
+          </details>
+          {order.driverName ? (
+            <details className="admin-order-person-card admin-order-person-card--driver">
+              <summary>
+                <span className="admin-order-person-card__avatar">
+                  <Truck />
+                </span>
+                <span>
+                  <small>Данные водителя</small>
+                  <strong>{order.driverName}</strong>
+                  <small>
+                    {[order.driverVehicleInfo, order.driverCarNumber].filter(Boolean).join(' · ') ||
+                      order.driverPhone ||
+                      'Автомобиль не указан'}
+                  </small>
+                </span>
+                <ArrowRight />
+              </summary>
+              <div className="admin-order-person-card__body">
+                <p>{order.driverPhone || 'Телефон не указан'}</p>
+                <div>
+                  {driverPhoneHref && <a href={driverPhoneHref}>Позвонить</a>}
+                  {driverWhatsAppHref && (
+                    <a href={driverWhatsAppHref} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
               </div>
-            )}
-            {!groceryCashOrder && (
-              <div>
-                <dt>Номер</dt>
-                <dd>{paymentSettings.transferNumber}</dd>
-              </div>
-            )}
-          </dl>
-          {!groceryCashOrder && (
+            </details>
+          ) : order.fulfillmentType === 'delivery' ? (
+            <article className="admin-order-person-card admin-order-person-card--empty">
+              <span className="admin-order-person-card__avatar">
+                <Truck />
+              </span>
+              <span>
+                <small>Данные водителя</small>
+                <strong>Водитель не назначен</strong>
+                <small>Появится после назначения</small>
+              </span>
+            </article>
+          ) : null}
+        </section>
+
+        {visibleOrderComment && <p className="admin-order-comment">{visibleOrderComment}</p>}
+
+        <dl className="ra-business-order-meta">
+          {order.fulfillmentType === 'delivery' && (
             <div>
-              <button type="button" onClick={() => onPaymentStatusChange(order.id, 'confirmed')}>
-                Подтвердить оплату
-              </button>
-              <button type="button" onClick={() => onPaymentStatusChange(order.id, 'declined')}>
-                Отклонить
-              </button>
+              <dt>Координаты клиента</dt>
+              <dd>
+                {order.deliveryLat !== null && order.deliveryLng !== null
+                  ? `${order.deliveryLat.toFixed(7)}, ${order.deliveryLng.toFixed(7)}`
+                  : 'Не указаны'}
+              </dd>
             </div>
           )}
-        </section>
-      )}
-      {order.fulfillmentType === 'delivery' && (
-        <section className="ra-payment-box">
-          <h3>
-            <QrCode />
-            Выдача водителю
-          </h3>
-          <p>{order.driverName ? `${order.driverName} назначен на заказ` : 'Водитель ещё не назначен'}</p>
-          <dl>
+          {order.fulfillmentType === 'delivery' &&
+            order.deliveryLat !== null &&
+            order.deliveryLng !== null &&
+            order.restaurantLat !== null &&
+            order.restaurantLng !== null && (
+              <section className="ra-payment-box">
+                <h3>
+                  <MapPin />
+                  Карта доставки
+                </h3>
+                <DeliveryTrackingMap
+                  restaurant={{
+                    lat: order.restaurantLat,
+                    lng: order.restaurantLng,
+                    label: isGroceryBusiness ? 'Магазин' : 'Ресторан',
+                    address: order.restaurantAddress
+                  }}
+                  client={{
+                    lat: order.deliveryLat,
+                    lng: order.deliveryLng,
+                    label: order.clientName || 'Клиент',
+                    address: order.deliveryAddress
+                  }}
+                  driver={
+                    order.driverLat !== null && order.driverLng !== null
+                      ? {
+                          lat: order.driverLat,
+                          lng: order.driverLng,
+                          label: order.driverName || 'Водитель'
+                        }
+                      : null
+                  }
+                />
+                <a
+                  className="ra-order-map-link"
+                  href={buildYandexMapsRouteUrl({
+                    from: {
+                      lat: order.restaurantLat,
+                      lng: order.restaurantLng,
+                      address: order.restaurantAddress
+                    },
+                    to: {
+                      lat: order.deliveryLat,
+                      lng: order.deliveryLng,
+                      address: order.deliveryAddress
+                    }
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Открыть маршрут в Яндекс Картах
+                </a>
+              </section>
+            )}
+          {order.fulfillmentType === 'delivery' && order.restaurantAddress && (
             <div>
-              <dt>QR</dt>
-              <dd>{order.qrToken ? 'Будет проверен сканером' : 'Создаётся при назначении доставки'}</dd>
+              <dt>{isGroceryBusiness ? 'Точка магазина' : 'Точка ресторана'}</dt>
+              <dd>{order.restaurantAddress}</dd>
             </div>
+          )}
+          <div>
+            <dt>Оплата</dt>
+            <dd>{paymentStatusLabel}</dd>
+          </div>
+          {order.fulfillmentType === 'delivery' && (
             <div>
-              <dt>Статус</dt>
+              <dt>Доставка</dt>
               <dd>{order.deliveryStatus}</dd>
             </div>
-          </dl>
+          )}
+          {order.driverName && (
+            <div>
+              <dt>Водитель</dt>
+              <dd>
+                {order.driverName} · {order.driverPhone || 'телефон не указан'}
+              </dd>
+            </div>
+          )}
+        </dl>
+        <section className="admin-order-composition">
+          <h2>Состав заказа</h2>
+          <div className="admin-order-items">
+            {order.items.map((item) => (
+              <div key={item.id}>
+                <span>{item.title}</span>
+                <small>{formatAdminOrderItemQuantity(item, businessType)}</small>
+                <strong>{formatPrice(item.lineTotal)}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="admin-order-total">
+            <span>Итого</span>
+            <strong>{formatPrice(order.total)}</strong>
+          </div>
         </section>
-      )}
+        {businessType === 'grocery' && !storePosOrder && (
+          <GroceryPickingPanel
+            items={order.items}
+            products={products}
+            canPick={!workerMode || assignment?.state === 'accepted'}
+            onChanged={onPickingChanged}
+          />
+        )}
+        {!storePosOrder && (
+          <>
+            <button
+              className="admin-order-chat-toggle"
+              type="button"
+              aria-expanded={isChatOpen}
+              aria-controls={`business-order-chat-${order.id}`}
+              onClick={() => setIsChatOpen((isOpen) => !isOpen)}
+            >
+              <MessageCircle /> {isChatOpen ? 'Скрыть чат заказа' : 'Открыть чат заказа'}
+            </button>
+            {isChatOpen && (
+              <div id={`business-order-chat-${order.id}`}>
+                <OrderConversationPanel
+                  orderId={order.id}
+                  catalogId={order.catalogId}
+                  expectedViewer="staff"
+                  merchantLabel={capabilities.merchantLabel}
+                  orderStatus={order.status}
+                  onChanged={onPickingChanged}
+                />
+              </div>
+            )}
+            <button className="ra-order-chat-button" type="button" onClick={() => onOpenChat(order.id)}>
+              Все чаты по заказам
+            </button>
+          </>
+        )}
+        {!workerMode && (
+          <section className="ra-payment-box">
+            <h3>
+              <WalletCards />
+              Оплата
+            </h3>
+            <p>{paymentSummary}</p>
+            <dl>
+              <div>
+                <dt>Способ</dt>
+                <dd>{groceryCashOrder ? 'Наличные' : `Перевод ${isGroceryBusiness ? 'магазину' : 'ресторану'}`}</dd>
+              </div>
+              {!groceryCashOrder && (
+                <div>
+                  <dt>Получатель</dt>
+                  <dd>{paymentSettings.displayName}</dd>
+                </div>
+              )}
+              {!groceryCashOrder && (
+                <div>
+                  <dt>Номер</dt>
+                  <dd>{paymentSettings.transferNumber}</dd>
+                </div>
+              )}
+            </dl>
+            {!groceryCashOrder && (
+              <div>
+                <button type="button" onClick={() => onPaymentStatusChange(order.id, 'confirmed')}>
+                  Подтвердить оплату
+                </button>
+                <button type="button" onClick={() => onPaymentStatusChange(order.id, 'declined')}>
+                  Отклонить
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+        {order.fulfillmentType === 'delivery' && (
+          <section className="ra-payment-box">
+            <h3>
+              <QrCode />
+              Выдача водителю
+            </h3>
+            <p>{order.driverName ? `${order.driverName} назначен на заказ` : 'Водитель ещё не назначен'}</p>
+            <dl>
+              <div>
+                <dt>QR</dt>
+                <dd>{order.qrToken ? 'Будет проверен сканером' : 'Создаётся при назначении доставки'}</dd>
+              </div>
+              <div>
+                <dt>Статус</dt>
+                <dd>{order.deliveryStatus}</dd>
+              </div>
+            </dl>
+          </section>
+        )}
+        {orderActions}
+      </section>
     </aside>
   );
 }

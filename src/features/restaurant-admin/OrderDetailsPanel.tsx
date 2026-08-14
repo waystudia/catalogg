@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { Product } from '../../entities/models';
+import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
 import {
   assignRestaurantOrderDriver,
   confirmRestaurantCashPayment,
@@ -30,39 +32,49 @@ import {
   type RestaurantPaymentSettings
 } from '../../shared/paymentSettings';
 import {
-  adminOrderStatusLabels,
   adminOrderStatusTones,
-  fulfillmentLabels,
+  formatAdminOrderItemQuantity,
+  getAdminOrderFulfillmentLabel,
   getAdminOrderItemsCount,
   getAdminOrderLocationLabel,
   getAdminOrderPhoneHref,
   getAdminOrderRouteHref,
   getAdminOrderWhatsAppHref,
+  getAdminOrderStatusLabel,
   getOrderPaymentMethod,
   getVisibleAdminOrderComment,
   orderPaymentMethodLabels,
   paymentStatusLabels
 } from './orderPresentation';
 import { calculateDriverRestaurantSettlement } from '../order/orderLifecycle';
+import { GroceryPickingPanel } from '../order-picking/GroceryPickingPanel';
+import { OrderConversationPanel } from '../order-conversation/OrderConversationPanel';
+import type { BusinessType } from '../../shared/businessTerminology';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
 export function OrderDetailsPanel({
   order,
   catalogSlug,
+  businessType = 'restaurant',
+  products = [],
   paymentSettings,
   onClose,
   onStatus,
   onRefreshOrders,
+  onOrderChanged,
   canDeleteOrder = false,
   onDelete
 }: {
   order: RestaurantOrder;
   catalogSlug: string;
+  businessType?: BusinessType;
+  products?: Product[];
   paymentSettings: RestaurantPaymentSettings;
   onClose: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onRefreshOrders: () => void;
+  onOrderChanged?: () => void;
   canDeleteOrder?: boolean;
   onDelete: () => Promise<void>;
 }) {
@@ -76,6 +88,9 @@ export function OrderDetailsPanel({
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPaymentPanelOpen, setIsPaymentPanelOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const capabilities = getBusinessOrderCapabilities(businessType);
+  const customerDetailsLabel = capabilities.customerLabel === 'Покупатель' ? 'Данные покупателя' : 'Данные клиента';
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
     !order.driverName &&
@@ -210,9 +225,9 @@ export function OrderDetailsPanel({
     order.status === 'new'
       ? { label: 'Принять заказ', status: 'accepted' }
       : ['accepted', 'confirmed'].includes(order.status)
-        ? { label: 'Начать готовить', status: 'preparing' }
+        ? { label: capabilities.startWorkLabel, status: 'preparing' }
         : order.status === 'preparing'
-          ? { label: 'Заказ готов', status: 'ready' }
+          ? { label: capabilities.readyLabel, status: 'ready' }
           : order.status === 'ready' && order.fulfillmentType === 'delivery'
             ? { label: 'Вызвать доставку', status: 'waiting_driver', disabled: waitingForPayment }
             : order.status === 'ready'
@@ -249,10 +264,10 @@ export function OrderDetailsPanel({
           <button type="button" onClick={onClose} aria-label="Назад к списку заказов"><ArrowLeft /></button>
           <div>
             <span>Заказ #{order.orderNumber}</span>
-            <strong>{adminOrderStatusLabels[order.status]}</strong>
+            <strong>{getAdminOrderStatusLabel(order.status, businessType)}</strong>
             <i data-tone={adminOrderStatusTones[order.status]}>
               <span aria-hidden="true" />
-              {adminOrderStatusLabels[order.status]}
+              {getAdminOrderStatusLabel(order.status, businessType)}
             </i>
           </div>
           <div className="admin-order-work-card__total">
@@ -285,14 +300,14 @@ export function OrderDetailsPanel({
         <section className="admin-order-facts">
           <article>
             <Truck />
-            <span>{fulfillmentLabels[order.fulfillmentType]}</span>
-            <strong>{order.fulfillmentType === 'delivery' ? order.deliverySettlement || order.deliveryCity || 'Доставка' : order.cabinLabel || fulfillmentLabels[order.fulfillmentType]}</strong>
+            <span>{getAdminOrderFulfillmentLabel(order, businessType)}</span>
+            <strong>{order.fulfillmentType === 'delivery' ? order.deliverySettlement || order.deliveryCity || 'Доставка' : order.cabinLabel || getAdminOrderFulfillmentLabel(order, businessType)}</strong>
             <small>{orderDate.toLocaleDateString('ru-RU')} · {orderDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
           </article>
           <article>
             <User />
-            <span>Клиент</span>
-            <strong>{order.clientName || 'Клиент'}</strong>
+            <span>{capabilities.customerLabel}</span>
+            <strong>{order.clientName || capabilities.customerLabel}</strong>
             <small>{order.clientPhone || 'Телефон не указан'}</small>
           </article>
           <article>
@@ -312,8 +327,8 @@ export function OrderDetailsPanel({
             <summary>
               <span className="admin-order-person-card__avatar"><User /></span>
               <span>
-                <small>Данные клиента</small>
-                <strong>{order.clientName || 'Клиент'}</strong>
+                <small>{customerDetailsLabel}</small>
+                <strong>{order.clientName || capabilities.customerLabel}</strong>
                 <small>{order.clientPhone || 'Телефон не указан'}</small>
               </span>
               <ArrowRight />
@@ -373,8 +388,8 @@ export function OrderDetailsPanel({
           <details className="admin-order-map-details">
             <summary>Карта доставки</summary>
             <DeliveryTrackingMap
-              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
-              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: orderAddress }}
+              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: capabilities.merchantLabel, address: order.restaurantAddress }}
+              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || capabilities.customerLabel, address: orderAddress }}
               driver={order.driverLat !== null && order.driverLng !== null
                 ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
                 : null}
@@ -388,7 +403,7 @@ export function OrderDetailsPanel({
           {order.items.map((item) => (
             <div key={item.id}>
               <span>{item.title}</span>
-              <small>×{item.quantity}</small>
+              <small>{formatAdminOrderItemQuantity(item, businessType)}</small>
               <strong>{formatPrice(item.lineTotal)}</strong>
             </div>
           ))}
@@ -398,6 +413,41 @@ export function OrderDetailsPanel({
           <strong>{formatPrice(order.total)}</strong>
         </div>
         </section>
+
+        {capabilities.supportsPicking && products.length > 0 && (
+          <GroceryPickingPanel
+            items={order.items}
+            products={products}
+            canPick={!orderIsFinished}
+            onChanged={() => {
+              onOrderChanged?.();
+              onRefreshOrders();
+            }}
+          />
+        )}
+
+        <button
+          className="admin-order-chat-toggle"
+          type="button"
+          aria-expanded={isChatOpen}
+          aria-controls={`admin-order-chat-${order.id}`}
+          onClick={() => setIsChatOpen((isOpen) => !isOpen)}
+        >
+          <MessageCircle />
+          {isChatOpen ? 'Скрыть чат заказа' : 'Открыть чат заказа'}
+        </button>
+        {isChatOpen && (
+          <div id={`admin-order-chat-${order.id}`}>
+            <OrderConversationPanel
+              orderId={order.id}
+              catalogId={order.catalogId}
+              expectedViewer="staff"
+              merchantLabel={capabilities.merchantLabel}
+              orderStatus={order.status}
+              onChanged={onOrderChanged}
+            />
+          </div>
+        )}
 
         <section className="admin-order-status-grid">
           <button
@@ -535,7 +585,7 @@ export function OrderDetailsPanel({
         )}
         {orderIsFinished && (
           <p className="admin-order-primary-actions__complete">
-            <Check /> {adminOrderStatusLabels[order.status]}
+            <Check /> {getAdminOrderStatusLabel(order.status, businessType)}
           </p>
         )}
         {showDriverDispatch && (

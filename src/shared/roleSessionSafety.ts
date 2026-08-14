@@ -13,7 +13,7 @@ export const getRestaurantCatalogBackTarget = ({
   catalogSlug: string;
   isAdmin: boolean;
   routeSection?: string;
-}) => isAdmin || routeSection === 'dishes' ? `/business/${catalogSlug.trim()}` : '/';
+}) => isAdmin || routeSection === 'dishes' ? `/${catalogSlug.trim()}/dashboard` : '/';
 
 export const getDriverBackTarget = (pathname: string) => {
   const normalized = pathname.split('?')[0].replace(/\/+$/, '') || '/driver';

@@ -5,6 +5,7 @@ import type { Product } from '../../src/entities/models';
 import { OrderDetails } from '../../src/pages/catalog-admin/RestaurantAdminShell';
 import type { RestaurantOrder } from '../../src/shared/api/restaurantOrdersApi';
 import '../../src/pages/catalog-admin/catalog-admin.css';
+import '../../src/app/styles.css';
 
 const itemProduct: Product = {
   id: 'product-1', title: 'Финики Тунис', price: 470, description: '', image_url: '', ingredients: '', weight: '', spicy_level: 0,
@@ -37,21 +38,52 @@ test('store POS detail is a finished receipt without chat, picking, assignment, 
   const screen = await render(<OrderDetails order={baseOrder('Касса магазина · Наличные')} products={[itemProduct]} businessType="grocery" assignment={null} paymentSettings={paymentSettings} paymentStatus="confirmed" canDeleteOrders workerMode={false} {...callbacks} />);
 
   await expect.element(screen.getByText('Продажа оформлена в магазине и не требует сборки или переписки.')).toBeVisible();
-  await expect.element(screen.getByRole('table')).toBeVisible();
-  await expect.element(screen.getByRole('columnheader', { name: 'Товар' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Состав заказа' })).toBeVisible();
+  await expect.element(screen.getByText('Финики Тунис')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Открыть чат заказа' })).not.toBeInTheDocument();
   await expect.element(screen.getByRole('region', { name: 'Сборка продуктового заказа' })).not.toBeInTheDocument();
   await expect.element(screen.getByRole('button', { name: 'Принять' })).not.toBeInTheDocument();
 });
 
-test('remote takeaway keeps compact picking and places lifecycle actions above order data', async () => {
+test('remote takeaway uses the compact order card with picking, chat and actions below the order', async () => {
   await page.viewport(1040, 576);
   const screen = await render(<OrderDetails order={baseOrder('Самовывоз')} products={[itemProduct]} businessType="grocery" assignment={null} paymentSettings={paymentSettings} paymentStatus="awaiting_transfer" canDeleteOrders workerMode={false} {...callbacks} />);
 
   const accept = screen.getByRole('button', { name: 'Принять' }).element();
-  const table = screen.getByRole('table').element();
+  const composition = screen.getByRole('heading', { name: 'Состав заказа' }).element();
   await expect.element(screen.getByRole('button', { name: 'Открыть чат заказа' })).toBeVisible();
   await expect.element(screen.getByRole('region', { name: 'Сборка продуктового заказа' })).toBeVisible();
-  expect(accept.getBoundingClientRect().top).toBeLessThan(table.getBoundingClientRect().top);
+  expect(accept.getBoundingClientRect().top).toBeGreaterThan(composition.getBoundingClientRect().top);
+  await screen.getByRole('button', { name: 'Открыть чат заказа' }).click();
+  await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).toBeVisible();
   expect(screen.getByRole('region', { name: 'Сборка продуктового заказа' }).element().querySelector('article')!.getBoundingClientRect().height).toBeLessThan(120);
+});
+
+test('mobile composition keeps a long weight price on one readable line below the product title', async () => {
+  await page.viewport(372, 576);
+  const order = baseOrder('Самовывоз');
+  order.items[0] = {
+    ...order.items[0],
+    title: 'Финики королевские Меджул',
+    requestedQuantity: 750,
+    unitPrice: 1190,
+    lineTotal: 893
+  };
+  order.total = 893;
+
+  const screen = await render(<OrderDetails order={order} products={[itemProduct]} businessType="grocery" assignment={null} paymentSettings={paymentSettings} paymentStatus="awaiting_transfer" canDeleteOrders workerMode={false} {...callbacks} />);
+  const composition = screen.getByRole('heading', { name: 'Состав заказа' }).element().parentElement!;
+  const row = composition.querySelector('.admin-order-items > div')!;
+  const title = row.querySelector('span')!;
+  const quantity = row.querySelector('small')!;
+  const price = row.querySelector('strong')!;
+  const titleBox = title.getBoundingClientRect();
+  const quantityBox = quantity.getBoundingClientRect();
+  const priceBox = price.getBoundingClientRect();
+
+  expect(quantity.textContent).toBe('750 г × 1\u00a0190 ₽/кг');
+  expect(quantityBox.top).toBeGreaterThanOrEqual(titleBox.bottom);
+  expect(Math.abs(quantityBox.top - priceBox.top)).toBeLessThan(2);
+  expect(quantity.scrollWidth).toBeLessThanOrEqual(quantity.clientWidth);
+  expect(priceBox.right).toBeLessThanOrEqual(row.getBoundingClientRect().right);
 });

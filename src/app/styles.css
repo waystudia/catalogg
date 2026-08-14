@@ -2299,6 +2299,59 @@
   gap: 8px;
 }
 
+.admin-order-chat-toggle {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #d9d3ff;
+  border-radius: 12px;
+  background: #f5f3ff;
+  color: #5b3df4;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-order-chat-toggle svg {
+  width: 19px;
+  height: 19px;
+}
+
+.restaurant-admin-preview-switcher {
+  position: fixed;
+  z-index: 100;
+  top: 12px;
+  right: 18px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #d9d3ff;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+}
+
+.restaurant-admin-preview-switcher button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: transparent;
+  color: #475467;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.restaurant-admin-preview-switcher button[data-active="true"] {
+  background: #5b3df4;
+  color: #ffffff;
+}
+
 .admin-order-contact-actions a {
   display: inline-flex;
   min-height: 40px;
@@ -2493,11 +2546,26 @@
   }
 
   .admin-order-composition .admin-order-items > div {
-    grid-template-columns: minmax(0, 1fr) 28px minmax(58px, auto);
-    column-gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    row-gap: 3px;
     min-height: 27px;
-    padding: 6px 1px;
+    padding: 7px 1px;
     font-size: 12px;
+  }
+
+  .admin-order-composition .admin-order-items > div > span {
+    grid-column: 1 / -1;
+  }
+
+  .admin-order-composition .admin-order-items > div > small {
+    grid-column: 1;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .admin-order-composition .admin-order-items > div > strong {
+    grid-column: 2;
   }
 
   .admin-order-status-grid article {
