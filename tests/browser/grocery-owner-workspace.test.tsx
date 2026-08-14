@@ -69,6 +69,22 @@ test('shows a grocery owner store and product language in the shared workspace',
   await expect.element(screen.getByRole('button', { name: 'Чаты' }).first()).toBeVisible();
 });
 
+test('opens the fast shared scanner immediately from the main add-product action', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <RestaurantAdminShell access={groceryOwnerAccess()} onRefresh={vi.fn()} onSignOut={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Новый товар' })).toBeVisible();
+  await expect.element(screen.getByText('Весь кадр')).toBeVisible();
+});
+
 test('places tenant chats between team and warehouse and opens the shared inbox', async () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(

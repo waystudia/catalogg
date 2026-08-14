@@ -28,8 +28,10 @@ import {
   type MasterCategory
 } from '../../shared/api/sharedProductCatalogApi';
 import { SharedBarcodeScanner } from './SharedBarcodeScanner';
+import { prepareBarcodeScanSound } from '../grocery-operations/barcodeScanFeedback';
 import {
   removeProductPhotoBackground,
+  preloadProductPhotoBackgroundRemoval,
   type ProductPhotoProcessor
 } from './productPhotoBackground';
 import './shared-product-catalog.css';
@@ -234,6 +236,7 @@ export function SharedProductCatalogPage({
   }, [categoryFilter, demo, products, query]);
 
   const useDetectedBarcode = (barcode: string) => {
+    void preloadProductPhotoBackgroundRemoval();
     setScannerOpen(false);
     setQuery(barcode);
     const found = findSharedProductByBarcode(products, barcode);
@@ -367,7 +370,11 @@ export function SharedProductCatalogPage({
           <h1>Общая база товаров</h1>
           <p>Название, группа, описание, фото и штрих‑код — единые для всех магазинов.</p>
         </div>
-        <button type="button" onClick={() => setFormOpen(true)}><Plus />Добавить товар</button>
+        <button type="button" onClick={() => {
+          prepareBarcodeScanSound();
+          setFormOpen(true);
+          setScannerOpen(true);
+        }}><Plus />Добавить товар</button>
       </header>
 
       <section className="shared-catalog-toolbar">
@@ -376,7 +383,10 @@ export function SharedProductCatalogPage({
           <option value="all">Все группы</option>
           {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
         </select>
-        <button type="button" onClick={() => setScannerOpen(true)}><Camera />Сканировать</button>
+        <button type="button" onClick={() => {
+          prepareBarcodeScanSound();
+          setScannerOpen(true);
+        }}><Camera />Сканировать</button>
       </section>
 
       {message && <p className="shared-catalog-message"><Check />{message}</p>}
@@ -389,10 +399,13 @@ export function SharedProductCatalogPage({
             <button type="button" onClick={() => setFormOpen(false)}>Закрыть</button>
           </div>
           <div className="shared-catalog-form__grid">
-            <label>Штрих‑код<span className="shared-catalog-barcode-field"><Barcode /><input required inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value.slice(0, 32) }))} placeholder="4601234567890" /><button type="button" aria-label="Сканировать штрих‑код" onClick={() => setScannerOpen(true)}><Camera />Сканировать</button></span></label>
+            <label>Штрих‑код<span className="shared-catalog-barcode-field"><Barcode /><input required inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value.slice(0, 32) }))} placeholder="4601234567890" /><button type="button" aria-label="Сканировать штрих‑код" onClick={() => {
+              prepareBarcodeScanSound();
+              setScannerOpen(true);
+            }}><Camera />Сканировать</button></span></label>
+            <label>Фотография<span className="shared-catalog-file"><ImagePlus /><input ref={photoInputRef} type="file" accept="image/*" capture="environment" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /><small>{originalPhoto?.name ?? 'Сфотографировать или выбрать файл'}</small></span></label>
             <label>Название<input required maxLength={120} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Название с упаковки" /></label>
             <label>Общая группа<span className="shared-catalog-category-row"><select required value={draft.categoryId} onChange={(event) => setDraft((current) => ({ ...current, categoryId: event.target.value }))}><option value="">Выберите группу</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><button type="button" onClick={() => setNewCategoryOpen(true)}><Plus />Новая</button></span></label>
-            <label>Фотография<span className="shared-catalog-file"><ImagePlus /><input ref={photoInputRef} type="file" accept="image/*" capture="environment" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /><small>{originalPhoto?.name ?? 'Сфотографировать или выбрать файл'}</small></span></label>
           </div>
           {originalPhoto && (
             <section className="shared-catalog-photo-review" aria-label="Проверка фотографии товара">

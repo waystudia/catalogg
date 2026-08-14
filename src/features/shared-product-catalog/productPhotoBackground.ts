@@ -1,5 +1,5 @@
 const BACKGROUND_MODEL = 'Ko033/isnet-general-use-onnx';
-const MAX_PROCESSED_SIDE = 1600;
+const MAX_PROCESSED_SIDE = 1024;
 
 export type ProductPhotoProgress = (percent: number) => void;
 export type ProductPhotoProcessor = (
@@ -118,6 +118,8 @@ const loadSegmenter = async (report: (percent: number) => void) => {
   report(70);
   return segmenter;
 };
+
+export const preloadProductPhotoBackgroundRemoval = () => loadSegmenter(() => undefined).then(() => undefined);
 
 export const whiteBackgroundFileName = (originalName: string) => {
   const baseName = originalName.replace(/\.[^.]+$/, '').trim() || 'product';

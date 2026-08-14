@@ -8,6 +8,7 @@ import {
   startBrowserBarcodeDecoder,
   type BrowserBarcodeDecoderControls
 } from './browserBarcodeDecoder';
+import { playBarcodeScanSound } from './barcodeScanFeedback';
 
 type DetectedBarcode = { rawValue?: string };
 type BarcodeDetectorLike = {
@@ -43,6 +44,7 @@ export function BarcodeCaptureDialog({ open, autoStartCamera = false, title = 'Ð
     (rawBarcode: string) => {
       const barcode = normalizeBarcode(rawBarcode);
       if (!barcode) return false;
+      playBarcodeScanSound();
       stopCamera();
       setValue('');
       onScan(barcode);
