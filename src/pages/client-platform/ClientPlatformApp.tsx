@@ -285,8 +285,6 @@ const formatRestaurantCount = (count: number) => {
   return `${count} ресторанов`;
 };
 
-const getCityRestaurantsPath = (cityId?: string) => cityId ? `/restaurants?city=${encodeURIComponent(cityId)}` : '/restaurants';
-
 const getDeliveryFee = (restaurant: ClientRestaurant, draft: ClientCheckoutDraft, summary: { subtotal: number }) =>
   calculateClientDeliveryFee({
     orderType: draft.orderType,
@@ -1134,15 +1132,6 @@ function ContentPageScreen({
         })}
       </article>
     </>
-  );
-}
-
-function SectionHeader({ title, to }: { title: string; to: string }) {
-  return (
-    <div className="section-header">
-      <h2>{title}</h2>
-      <Link to={to}>Смотреть все <ChevronRight /></Link>
-    </div>
   );
 }
 
