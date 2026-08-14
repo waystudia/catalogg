@@ -128,12 +128,12 @@ export function GroceryProductsPage({
           return (
             <article key={product.id}>
               <span className="grocery-product-cell"><ProductImage product={product} /><span><strong>{product.title}</strong><small>{categoryNames.get(product.category_id) ?? 'Без категории'}</small></span></span>
-              <span className="grocery-code-cell"><strong>{product.sku || 'Без артикула'}</strong><small>{product.barcode || 'Штрих‑код не указан'}</small></span>
-              <span data-label="Остаток"><strong>{formatInventoryQuantity(product)}</strong><small>мин. {formatInventoryQuantity(product, minimum)}</small></span>
-              <span data-label="Закупка"><strong>{money(product.cost_price ?? 0)}</strong></span>
-              <span data-label="Продажа"><strong>{money(product.price)}</strong><small>{product.sale_unit === 'weight' ? 'за 1 кг' : 'за 1 шт'}</small></span>
-              <span data-label="Маржа"><strong>{money(margin.amount)}</strong><small>{margin.percent}%</small></span>
-              <span data-label="Статус"><em className="grocery-status" data-status={status}>{status === 'hidden' ? 'Скрыт' : status === 'out' ? 'Нет в наличии' : status === 'low' ? 'Заканчивается' : 'В продаже'}</em></span>
+              <span className="grocery-code-cell" data-label="Артикул / штрих‑код"><strong>{product.sku || 'Без артикула'}</strong><small>{product.barcode || 'Штрих‑код не указан'}</small></span>
+              <span className="grocery-product-metric grocery-product-metric--stock" data-label="Остаток"><strong>{formatInventoryQuantity(product)}</strong><small>мин. {formatInventoryQuantity(product, minimum)}</small></span>
+              <span className="grocery-product-metric grocery-product-metric--cost" data-label="Закупка"><strong>{money(product.cost_price ?? 0)}</strong></span>
+              <span className="grocery-product-metric grocery-product-metric--sale" data-label="Продажа"><strong>{money(product.price)}</strong><small>{product.sale_unit === 'weight' ? 'за 1 кг' : 'за 1 шт'}</small></span>
+              <span className="grocery-product-metric grocery-product-metric--margin" data-label="Маржа"><strong>{money(margin.amount)}</strong><small>{margin.percent}%</small></span>
+              <span className="grocery-product-status" data-label="Статус"><em className="grocery-status" data-status={status}>{status === 'hidden' ? 'Скрыт' : status === 'out' ? 'Нет в наличии' : status === 'low' ? 'Заканчивается' : 'В продаже'}</em></span>
               <span className="grocery-row-actions"><button type="button" aria-label={`Редактировать ${product.title}`} disabled={readOnly} onClick={() => onEdit(product)}><Pencil /></button></span>
             </article>
           );

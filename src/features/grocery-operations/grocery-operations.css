@@ -1625,36 +1625,79 @@
   .grocery-warehouse-table article {
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 9px 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
     margin-bottom: 9px;
     border: 1px solid var(--grocery-line);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 12px;
     background: #fff;
+    box-shadow: 0 7px 20px rgba(15, 23, 42, 0.045);
   }
   .grocery-product-cell {
     grid-column: 1 / -1;
-  }
-  .grocery-products-table article > span:not(.grocery-product-cell) {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
+    min-height: 52px;
+    padding-right: 42px;
   }
   .grocery-products-table article > span:not(.grocery-product-cell)::before {
     content: attr(data-label);
     color: var(--grocery-muted);
     font-size: 10px;
-    font-weight: 750;
+    font-weight: 800;
+    line-height: 1.2;
   }
   .grocery-code-cell {
     grid-column: 1 / -1;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3px 10px !important;
+    border-top: 1px solid #eef1f5;
+    border-bottom: 1px solid #eef1f5;
+    padding: 9px 0;
+  }
+  .grocery-code-cell::before {
+    grid-column: 1 / -1;
+  }
+  .grocery-code-cell strong,
+  .grocery-code-cell small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .grocery-product-metric {
+    min-height: 64px;
+    display: grid !important;
+    align-content: center;
+    justify-content: stretch !important;
+    gap: 4px !important;
+    border-radius: 11px;
+    padding: 8px 10px;
+    background: #f7f8fb;
+  }
+  .grocery-product-metric strong {
+    font-size: 14px;
+    line-height: 1.15;
+  }
+  .grocery-product-metric small {
+    font-size: 10px;
+  }
+  .grocery-product-status {
+    grid-column: 1 / -1;
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between !important;
+    min-height: 29px;
+    padding: 2px 0 0;
+  }
+  .grocery-product-status .grocery-status {
+    margin-left: auto;
   }
   .grocery-row-actions,
   .grocery-row-edit {
     position: absolute;
-    right: 27px;
-    margin-top: 7px;
+    top: 12px;
+    right: 12px;
+    margin: 0;
   }
   .grocery-products-table article {
     position: relative;
