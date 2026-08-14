@@ -1,12 +1,40 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  getDriverDashboardDeliveries,
   getDriverDeliveryProgress,
   getDriverNextAction,
   splitDriverHomeOffers
 } from './dashboardPresentation';
 
 describe('driver dashboard presentation', () => {
+  it('keeps every assigned delivery active when the driver accepts another order', () => {
+    const firstActive = { deliveryId: 'active-first', isAssignedToViewer: true, status: 'on_the_way' as const };
+    const secondActive = { deliveryId: 'active-second', isAssignedToViewer: true, status: 'assigned' as const };
+    const waiting = { deliveryId: 'waiting', isAssignedToViewer: false, status: 'waiting_courier' as const };
+
+    assert.deepEqual(
+      getDriverDashboardDeliveries([firstActive, secondActive, waiting], true),
+      {
+        activeDeliveries: [firstActive, secondActive],
+        availableDeliveries: [waiting]
+      }
+    );
+  });
+
+  it('keeps accepted deliveries visible while the driver is offline', () => {
+    const active = { deliveryId: 'active', isAssignedToViewer: true, status: 'assigned' as const };
+    const waiting = { deliveryId: 'waiting', isAssignedToViewer: false, status: 'waiting_courier' as const };
+
+    assert.deepEqual(
+      getDriverDashboardDeliveries([active, waiting], false),
+      {
+        activeDeliveries: [active],
+        availableDeliveries: []
+      }
+    );
+  });
+
   it('separates one urgent offer, two compact offers, and the hidden remainder', () => {
     const result = splitDriverHomeOffers([
       { deliveryId: 'urgent' },

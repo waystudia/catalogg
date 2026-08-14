@@ -7,7 +7,10 @@ import {
   type DriverStatus,
   type OrderLifecycleSnapshot
 } from '../../features/order/orderLifecycle';
-import { getDriverGrossEarning } from '../../features/driver/dashboardPresentation';
+import {
+  getDriverDashboardDeliveries,
+  getDriverGrossEarning
+} from '../../features/driver/dashboardPresentation';
 import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
@@ -72,7 +75,7 @@ export type DriverEarning = {
 
 export type DriverDashboardSnapshot = {
   readonly profile: DriverProfile;
-  readonly activeDelivery: DeliveryOffer | null;
+  readonly activeDeliveries: readonly DeliveryOffer[];
   readonly availableDeliveries: readonly DeliveryOffer[];
   readonly history: readonly DriverEarning[];
   readonly stats: {
@@ -474,7 +477,7 @@ const loadCurrentDriverDashboardData = async (): Promise<DriverSoftQueryResult<D
 
 const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboardSnapshot => ({
   profile,
-  activeDelivery: null,
+  activeDeliveries: [],
   availableDeliveries: profile.isOnline ? demoOffers : [],
   history: demoHistory,
   stats: {
@@ -849,21 +852,21 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
     }
   }
 
-  const activeDelivery = offers.find((offer) => offer.isAssignedToViewer) ?? null;
-  const availableDeliveries = profile.isOnline
-    ? offers.filter((offer) => !offer.isAssignedToViewer && normalizeDeliveryStatus(offer.status) === 'waiting_courier')
-    : [];
+  const { activeDeliveries, availableDeliveries } = getDriverDashboardDeliveries(
+    offers,
+    profile.isOnline
+  );
 
   const history = ((earningsResult.data ?? []) as unknown as EarningRow[]).map(rowToEarning);
   const earningsToday = history.reduce((sum, earning) => sum + earning.amount, 0);
 
   return {
     profile,
-    activeDelivery,
+    activeDeliveries,
     availableDeliveries,
     history,
     stats: {
-      ordersToday: history.length + (activeDelivery ? 1 : 0),
+      ordersToday: history.length + activeDeliveries.length,
       completedToday: history.length,
       canceledToday: 0,
       earningsToday,

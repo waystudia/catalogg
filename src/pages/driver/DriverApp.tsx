@@ -453,7 +453,7 @@ const emptySnapshot: DriverDashboardSnapshot = {
     lastLng: null,
     lastLocationAt: null
   },
-  activeDelivery: null,
+  activeDeliveries: [],
   availableDeliveries: [],
   history: [],
   stats: {
@@ -515,9 +515,9 @@ export function DriverApp() {
           getCurrentBillingDebtStatus().catch(() => null)
         ]);
         const visibleDeliveries = [
-          nextSnapshot.activeDelivery,
+          ...nextSnapshot.activeDeliveries,
           ...nextSnapshot.availableDeliveries
-        ].filter((offer): offer is DeliveryOffer => Boolean(offer));
+        ];
         const knownIds = knownDeliveryIdsRef.current;
         const newDeliveryIds = hasLoadedDeliveriesRef.current
           ? visibleDeliveries
@@ -642,7 +642,7 @@ export function DriverApp() {
   };
   const effectiveDriverId = hasDriverAccess ? selectedDriverId : '';
   const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
-  const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDelivery?.deliveryId);
+  const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDeliveries.length > 0);
 
   const applyLiveDriverPosition = useCallback((position: GeolocationPosition): DriverLocationReading => {
     const recordedAtMs = Number.isFinite(position.timestamp) && position.timestamp > 0
@@ -825,19 +825,30 @@ export function DriverApp() {
     return () => window.clearInterval(intervalId);
   }, [authChecked, driverWorkActivated, hasDriverAccess, loadDashboard, route]);
 
-  const activeDelivery = useMemo(() => {
-    if (snapshot.activeDelivery && localActiveDelivery?.deliveryId === snapshot.activeDelivery.deliveryId) {
-      return {
-        ...localActiveDelivery,
-        ...snapshot.activeDelivery,
-        status: latestDeliveryStatus(localActiveDelivery.status, snapshot.activeDelivery.status),
-        pickupQrToken: snapshot.activeDelivery.pickupQrToken ?? localActiveDelivery.pickupQrToken,
-        routeToClientUrl: snapshot.activeDelivery.routeToClientUrl ?? localActiveDelivery.routeToClientUrl
-      };
-    }
+  const activeDeliveries = useMemo(() => {
+    if (!localActiveDelivery) return [...snapshot.activeDeliveries];
 
-    return localActiveDelivery ?? snapshot.activeDelivery;
-  }, [localActiveDelivery, snapshot.activeDelivery]);
+    const serverDelivery = snapshot.activeDeliveries.find(
+      (delivery) => delivery.deliveryId === localActiveDelivery.deliveryId
+    );
+    const optimisticDelivery = serverDelivery
+      ? {
+          ...localActiveDelivery,
+          ...serverDelivery,
+          status: latestDeliveryStatus(localActiveDelivery.status, serverDelivery.status),
+          pickupQrToken: serverDelivery.pickupQrToken ?? localActiveDelivery.pickupQrToken,
+          routeToClientUrl: serverDelivery.routeToClientUrl ?? localActiveDelivery.routeToClientUrl
+        }
+      : localActiveDelivery;
+
+    return [
+      optimisticDelivery,
+      ...snapshot.activeDeliveries.filter(
+        (delivery) => delivery.deliveryId !== optimisticDelivery.deliveryId
+      )
+    ];
+  }, [localActiveDelivery, snapshot.activeDeliveries]);
+  const activeDelivery = activeDeliveries[0] ?? null;
   const debtControlState = billingDebtStatus
     ? getDebtControlState({ ...billingDebtStatus })
     : null;
@@ -849,8 +860,7 @@ export function DriverApp() {
       )
     : [];
   const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
-  const mapCandidates = [activeDelivery, ...snapshot.availableDeliveries]
-    .filter((delivery): delivery is DeliveryOffer => Boolean(delivery));
+  const mapCandidates = [...activeDeliveries, ...snapshot.availableDeliveries];
   const mapDelivery = routeDeliveryId
     ? mapCandidates.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
     : activeDelivery ?? availableDeliveries[0] ?? null;
@@ -921,13 +931,18 @@ export function DriverApp() {
           <DriverOrdersScreen
             driverId={effectiveDriverId}
             offers={availableDeliveries}
-            activeDelivery={activeDelivery}
+            activeDeliveries={activeDeliveries}
             recentDeliveryIds={recentDeliveryIds}
             error={error}
             onRefresh={loadDashboard}
           />
         ) : route === 'active' ? (
-          <DriverActiveScreen delivery={activeDelivery} onRefresh={loadDashboard} />
+          <DriverActiveScreen
+            delivery={routeDeliveryId
+              ? activeDeliveries.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
+              : activeDelivery}
+            onRefresh={loadDashboard}
+          />
         ) : route === 'map' ? (
           <DriverMapScreen
             delivery={mapDelivery}
@@ -937,7 +952,11 @@ export function DriverApp() {
             onRefresh={loadDashboard}
           />
         ) : route === 'qr' ? (
-          <DriverQrScreen delivery={activeDelivery} />
+          <DriverQrScreen
+            delivery={routeDeliveryId
+              ? activeDeliveries.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
+              : activeDelivery}
+          />
         ) : route === 'earnings' ? (
           <DriverEarningsScreen snapshot={snapshot} />
         ) : route === 'settings' ? (
@@ -953,7 +972,7 @@ export function DriverApp() {
           <DriverHomeScreen
             profile={profile}
             snapshot={snapshot}
-            activeDelivery={activeDelivery}
+            activeDeliveries={activeDeliveries}
             availableDeliveries={availableDeliveries}
             billingDebtStatus={billingDebtStatus}
             error={error}
@@ -1077,7 +1096,7 @@ function DriverHeader({ title, action }: { title: string; action?: ReactNode }) 
 function DriverHomeScreen({
   profile,
   snapshot,
-  activeDelivery,
+  activeDeliveries,
   availableDeliveries,
   billingDebtStatus,
   error,
@@ -1086,7 +1105,7 @@ function DriverHomeScreen({
 }: {
   profile: DriverProfile;
   snapshot: DriverDashboardSnapshot;
-  activeDelivery: DeliveryOffer | null;
+  activeDeliveries: readonly DeliveryOffer[];
   availableDeliveries: readonly DeliveryOffer[];
   billingDebtStatus: BillingDebtStatus | null;
   error: string;
@@ -1212,9 +1231,14 @@ function DriverHomeScreen({
         <DriverStat label="Рейтинг" value={profile.rating.toFixed(1)} />
       </section>
 
-      <DriverSectionTitle title="Текущая доставка" to="/driver/active" />
-      {activeDelivery ? (
-        <DriverCurrentDeliveryPanel offer={activeDelivery} onRefresh={onRefresh} />
+      <DriverSectionTitle
+        title={activeDeliveries.length > 1 ? `Активные доставки · ${activeDeliveries.length}` : 'Текущая доставка'}
+        to="/driver/orders"
+      />
+      {activeDeliveries.length > 0 ? (
+        activeDeliveries.map((delivery) => (
+          <DriverCurrentDeliveryPanel offer={delivery} onRefresh={onRefresh} key={delivery.deliveryId} />
+        ))
       ) : (
         <section className="driver-empty-block driver-empty-block--compact">
           <ClipboardList />
@@ -1424,14 +1448,14 @@ function DriverCurrentDeliveryPanel({
     try {
       if (nextAction.status === 'delivered') {
         await completeDeliveryProgress(offer.deliveryId);
-        updateLocalDeliveryStatus(nextAction.status);
-        completeLocalDelivery();
+        updateLocalDeliveryStatus(offer.deliveryId, nextAction.status);
+        completeLocalDelivery(offer.deliveryId);
       } else if (offer.status === 'arrived_to_restaurant' && nextAction.status === 'handed_over') {
         await confirmDriverPickup(offer.deliveryId);
-        updateLocalDeliveryStatus(nextAction.status);
+        updateLocalDeliveryStatus(offer.deliveryId, nextAction.status);
       } else {
         await updateDeliveryProgress(offer.deliveryId, nextAction.status);
-        updateLocalDeliveryStatus(nextAction.status);
+        updateLocalDeliveryStatus(offer.deliveryId, nextAction.status);
       }
       await onRefresh();
     } catch (advanceError) {
@@ -1721,14 +1745,14 @@ export function DriverYandexNavigationActions({
 function DriverOrdersScreen({
   driverId,
   offers,
-  activeDelivery,
+  activeDeliveries,
   recentDeliveryIds,
   error,
   onRefresh
 }: {
   driverId: string;
   offers: readonly DeliveryOffer[];
-  activeDelivery: DeliveryOffer | null;
+  activeDeliveries: readonly DeliveryOffer[];
   recentDeliveryIds: Set<string>;
   error: string;
   onRefresh: () => Promise<boolean>;
@@ -1736,11 +1760,13 @@ function DriverOrdersScreen({
   const location = useLocation();
   const deliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
   const visibleOffers = useMemo(
-    () =>
-      activeDelivery
-        ? [activeDelivery, ...offers.filter((offer) => offer.deliveryId !== activeDelivery.deliveryId)]
-        : [...offers],
-    [activeDelivery, offers]
+    () => [
+      ...activeDeliveries,
+      ...offers.filter(
+        (offer) => !activeDeliveries.some((active) => active.deliveryId === offer.deliveryId)
+      )
+    ],
+    [activeDeliveries, offers]
   );
   const selectedOffer = visibleOffers.find((offer) => offer.deliveryId === deliveryId) ?? null;
   const offerGroups = useMemo(() => groupOrdersByDate(visibleOffers), [visibleOffers]);
@@ -1878,7 +1904,7 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
             </button>
           )}
           {qrPayload ? (
-            <Link to="/driver/qr">
+            <Link to={`/driver/qr/${offer.deliveryId}`}>
               <QrCode />
               QR
             </Link>
@@ -1939,7 +1965,7 @@ export function DriverActiveScreen({
   const updateStatus = async (status?: DeliveryStatus, to?: string) => {
     if (!delivery || isUpdatingStatus) return;
     if (to && !status) {
-      navigate(to);
+      navigate(to === '/driver/map' ? `/driver/map/${delivery.deliveryId}` : to);
       return;
     }
     if (!status) return;
@@ -1948,8 +1974,8 @@ export function DriverActiveScreen({
     try {
       if (status === 'delivered') {
         await completeDeliveryProgress(delivery.deliveryId);
-        updateLocalDeliveryStatus(status);
-        completeLocalDelivery();
+        updateLocalDeliveryStatus(delivery.deliveryId, status);
+        completeLocalDelivery(delivery.deliveryId);
         navigate('/driver/earnings');
         return;
       }
@@ -1959,7 +1985,7 @@ export function DriverActiveScreen({
       } else {
         await updateDeliveryProgress(delivery.deliveryId, status);
       }
-      updateLocalDeliveryStatus(status);
+      updateLocalDeliveryStatus(delivery.deliveryId, status);
       if (to) navigate(to);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : 'Не удалось обновить статус');
@@ -2052,7 +2078,7 @@ export function DriverActiveScreen({
           {waitingForRestaurantSettlement ? (
             <button type="button" disabled><QrCode />QR после расчёта</button>
           ) : (
-            <Link to="/driver/qr"><QrCode />QR</Link>
+            <Link to={`/driver/qr/${delivery.deliveryId}`}><QrCode />QR</Link>
           )}
         </div>
         {waitingForRestaurantSettlement && (
@@ -2091,9 +2117,9 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 
   useEffect(() => {
     if (delivery?.pickupQrConfirmed) {
-      navigate('/driver/active', { replace: true });
+      navigate(`/driver/active/${delivery.deliveryId}`, { replace: true });
     }
-  }, [delivery?.pickupQrConfirmed, navigate]);
+  }, [delivery?.deliveryId, delivery?.pickupQrConfirmed, navigate]);
 
   return (
     <>
@@ -2335,7 +2361,7 @@ export function DriverMapScreen({
         await onConfirmRestaurantArrival(delivery.deliveryId);
       } else {
         await updateDeliveryProgress(delivery.deliveryId, 'arrived_to_restaurant');
-        updateLocalDeliveryStatus('arrived_to_restaurant');
+        updateLocalDeliveryStatus(delivery.deliveryId, 'arrived_to_restaurant');
         await refreshDriverPickupQr(delivery.deliveryId);
       }
       await onRefresh?.();
@@ -2479,7 +2505,7 @@ export function DriverMapScreen({
                 </span>
                 <div>
                   {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`} aria-label="Позвонить клиенту"><Phone /></a>}
-                  {delivery.catalogId && <button type="button" aria-label="Написать клиенту" onClick={() => navigate('/driver/active')}><MessageCircle /></button>}
+                  {delivery.catalogId && <button type="button" aria-label="Написать клиенту" onClick={() => navigate(`/driver/active/${delivery.deliveryId}`)}><MessageCircle /></button>}
                   {clientChatUrl && <a href={clientChatUrl} target="_blank" rel="noreferrer" aria-label="Открыть WhatsApp клиента"><ExternalLink /></a>}
                 </div>
               </article>
