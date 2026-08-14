@@ -86,9 +86,7 @@ export const selectMarketplaceFeed = (
   filters: MarketplaceFeedFilters
 ): MarketplaceItem[] => {
   const eligibleRestaurants = filterRestaurantsWithCityFallback(snapshot.restaurants, {
-    cityId: filters.cityId,
-    categorySlug: 'all',
-    query: ''
+    cityId: filters.cityId
   }).filter((restaurant) => filters.businessType === 'all' || restaurant.businessType === filters.businessType);
 
   const dishesByRestaurant = new Map<string, ClientDish[]>();
@@ -103,7 +101,7 @@ export const selectMarketplaceFeed = (
     (dishesByRestaurant.get(restaurant.slug) ?? [])
       .map((dish) => toMarketplaceItem(dish, restaurant))
       .sort(compareCatalogItems)
-  ).filter((items) => items.length > 0);
+  );
 
   return interleaveSellerCatalogs(sellerCatalogs);
 };

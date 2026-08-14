@@ -245,6 +245,16 @@ describe('client marketplace feed', () => {
     ]);
   });
 
+  it('treats legacy businesses without an explicit type as restaurants', () => {
+    const snapshot = getSnapshot({
+      restaurants: [getRestaurant({ businessType: undefined })],
+      dishes: [getDish()]
+    });
+
+    expect(selectMarketplaceFeed(snapshot, { cityId: 'tsotsi-yurt', businessType: 'all' }))
+      .toEqual([expect.objectContaining({ businessType: 'restaurant', sourceType: 'dish' })]);
+  });
+
   it('orders a seller catalog by popularity, discount and then title before interleaving uneven catalogs', () => {
     const snapshot = getSnapshot({
       restaurants: [
