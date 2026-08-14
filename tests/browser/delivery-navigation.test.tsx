@@ -37,6 +37,7 @@ const navigationDelivery = (status: 'assigned' | 'arrived_to_restaurant' | 'hand
 
 const activeDelivery = (status: DeliveryOffer['status']): DeliveryOffer => ({
   businessType: 'restaurant',
+  catalogId: '',
   deliveryId: 'delivery-map-1',
   orderId: 'order-map-1',
   orderNumber: 'M9584',
@@ -529,6 +530,7 @@ test('shows route progress for the current restaurant or client leg', async () =
 test('shows an assigned order detail in the same accepted-delivery card used on the home screen', async () => {
   const delivery: DeliveryOffer = {
     businessType: 'restaurant',
+    catalogId: '',
     deliveryId: 'delivery-1',
     orderId: 'order-1',
     orderNumber: 'M6714',

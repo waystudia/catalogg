@@ -8,9 +8,11 @@ import {
   resolveOrderSubstitution,
   sendOrderMessage,
   subscribeOrderConversation,
-  type OrderConversation
+  type OrderConversation,
+  type OrderConversationViewer
 } from '../../shared/api/orderConversationApi';
 import { requestRestaurantOrderNotificationPermission } from '../../shared/restaurantOrderNotifications';
+import { getOrderConversationQuickReplies } from './orderConversationQuickReplies';
 import './order-conversation.css';
 
 type ConversationApi = {
@@ -34,14 +36,18 @@ export function OrderConversationPanel({
   catalogId,
   expectedViewer,
   merchantLabel = 'Заведение',
+  orderStatus,
+  estimatedMinutes,
   initialConversation,
   api = defaultApi,
   onChanged
 }: {
   orderId: string;
   catalogId: string;
-  expectedViewer: 'client' | 'staff';
+  expectedViewer: OrderConversationViewer;
   merchantLabel?: string;
+  orderStatus?: string;
+  estimatedMinutes?: number | null;
   initialConversation?: OrderConversation;
   api?: ConversationApi;
   onChanged?: () => void;
@@ -58,7 +64,7 @@ export function OrderConversationPanel({
 
   const refresh = useCallback(async () => {
     try {
-      const next = await api.load(orderId, catalogId, expectedViewer === 'client');
+      const next = await api.load(orderId, catalogId, expectedViewer);
       setConversation(next);
       setError('');
     } catch (caught) {
@@ -75,7 +81,7 @@ export function OrderConversationPanel({
   }, [api, initialConversation, orderId, refresh]);
 
   useEffect(() => {
-    if (initialConversation || expectedViewer !== 'client') return;
+    if (initialConversation || expectedViewer === 'staff') return;
     const interval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refresh();
     }, 12_000);
@@ -85,6 +91,10 @@ export function OrderConversationPanel({
   const pending = useMemo(
     () => conversation.substitutions.filter((request) => request.state === 'pending'),
     [conversation.substitutions]
+  );
+  const quickReplies = useMemo(
+    () => getOrderConversationQuickReplies({ viewer: expectedViewer, orderStatus, estimatedMinutes }),
+    [estimatedMinutes, expectedViewer, orderStatus]
   );
 
   useEffect(() => {
@@ -113,7 +123,7 @@ export function OrderConversationPanel({
     if (!body || sending) return;
     setSending(true);
     try {
-      await api.send(orderId, catalogId, body, expectedViewer === 'client');
+      await api.send(orderId, catalogId, body, expectedViewer);
       setMessage('');
       await refresh();
       onChanged?.();
@@ -135,7 +145,11 @@ export function OrderConversationPanel({
       <header>
         <div>
           <h3><MessageCircle /> Чат по заказу</h3>
-          <p>{expectedViewer === 'client' ? `Здесь ${merchantLabel.toLocaleLowerCase('ru-RU')} уточнит детали заказа.` : 'Ответьте клиенту и зафиксируйте договорённость.'}</p>
+          <p>{expectedViewer === 'client'
+            ? `Здесь ${merchantLabel.toLocaleLowerCase('ru-RU')} и курьер уточнят детали заказа.`
+            : expectedViewer === 'driver'
+              ? 'Напишите клиенту или заведению по текущей доставке.'
+              : 'Ответьте клиенту и курьеру, зафиксируйте договорённость.'}</p>
         </div>
         <button type="button" className="order-conversation__icon" aria-label="Обновить чат" onClick={() => void refresh()}>
           <RefreshCw />
@@ -144,7 +158,7 @@ export function OrderConversationPanel({
 
       {expectedViewer === 'client' && (
         <button type="button" className="order-conversation__push" onClick={() => void enableClientPush()}>
-          <Bell /> Получать уведомления о заменах
+          <Bell /> Получать уведомления о сообщениях
         </button>
       )}
 
@@ -179,13 +193,13 @@ export function OrderConversationPanel({
           <p className="order-conversation__hint">Сообщений пока нет.</p>
         ) : conversation.messages.map((item) => (
           <article data-sender={item.senderKind} key={item.id}>
-            <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? merchantLabel : 'Система'}</small>
+            <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? merchantLabel : item.senderKind === 'driver' ? 'Курьер' : 'Система'}</small>
             <p>{item.body}</p>
           </article>
         ))}
       </div>
 
-      {conversation.adjustments.some((item) => item.state === 'pending') && (
+      {expectedViewer !== 'driver' && conversation.adjustments.some((item) => item.state === 'pending') && (
         <div className="order-conversation__adjustments">
           <strong>Изменение суммы</strong>
           {conversation.adjustments.filter((item) => item.state === 'pending').map((item) => (
@@ -195,6 +209,11 @@ export function OrderConversationPanel({
       )}
 
       <form onSubmit={(event) => { event.preventDefault(); void submitMessage(); }}>
+        <div className="order-conversation__quick-replies" aria-label="Готовые сообщения">
+          {quickReplies.map((reply) => (
+            <button type="button" key={reply} onClick={() => setMessage(reply)}>{reply}</button>
+          ))}
+        </div>
         <label htmlFor={`order-message-${orderId}`}>Сообщение</label>
         <textarea
           id={`order-message-${orderId}`}

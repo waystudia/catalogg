@@ -123,6 +123,7 @@ export function PublicOrderStatusScreen({
           orderId={orderId}
           catalogId={catalogIdQuery.data}
           expectedViewer="client"
+          orderStatus={value.status}
           onChanged={() => void statusQuery.refetch()}
         />
       )}

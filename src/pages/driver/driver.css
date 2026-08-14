@@ -555,17 +555,21 @@
   gap: 4px;
 }
 
-.driver-map-sheet__client a {
+.driver-map-sheet__client a,
+.driver-map-sheet__client button {
   display: grid;
   width: 24px;
   height: 24px;
   place-items: center;
+  border: 0;
   border-radius: 50%;
   background: #f0edff;
   color: #5b3df4;
+  cursor: pointer;
 }
 
-.driver-map-sheet__client a svg {
+.driver-map-sheet__client a svg,
+.driver-map-sheet__client button svg {
   width: 12px;
   height: 12px;
 }

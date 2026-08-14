@@ -624,9 +624,11 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     merchantLabel: terms.place,
     customerName: order.clientName || 'Клиент',
     statusLabel: getAdminOrderStatusLabel(order.status, access.catalog?.businessType),
+    orderStatus: order.status,
+    estimatedMinutes: deliverySettings.default_preparation_minutes,
     createdAt: order.createdAt,
     totalLabel: formatPrice(order.total)
-  })), [access.catalog?.businessType, catalogData.restaurant.name, roleVisibleOrders, terms.place]);
+  })), [access.catalog?.businessType, catalogData.restaurant.name, deliverySettings.default_preparation_minutes, roleVisibleOrders, terms.place]);
 
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);

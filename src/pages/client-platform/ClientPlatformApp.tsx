@@ -2552,6 +2552,8 @@ function OrderStatusPage({
           catalogId={restaurant.id}
           expectedViewer="client"
           merchantLabel={terms.place}
+          orderStatus={order.status}
+          estimatedMinutes={order.estimatedTimeMin}
         />
         {canCancel && (
           <button
@@ -3179,6 +3181,8 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       merchantLabel: getBusinessTerms(restaurant?.businessType).place,
       customerName: order.clientName,
       statusLabel: statusLabels[order.status],
+      orderStatus: order.status,
+      estimatedMinutes: order.estimatedTimeMin,
       createdAt: order.createdAt,
       totalLabel: formatPrice(order.totalAmount)
     }];

@@ -95,6 +95,7 @@ import {
   type DriverLegalActivation
 } from '../../shared/api/driverActivationApi';
 import { DebtControlBanner } from '../../features/restaurant-billing/DebtControlBanner';
+import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
 import { getDebtControlState } from '../../features/restaurant-billing/debtControl';
 import { legalDocumentReleases, legalDocuments } from '../../shared/legalDocuments';
 import './driver.css';
@@ -2043,6 +2044,11 @@ export function DriverActiveScreen({
         {delivery.deliveryComment && <DriverRouteLine icon={<ShieldCheck />} label="Комментарий" value={delivery.deliveryComment} />}
         <div className="driver-action-row">
           {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить</a>}
+          {delivery.catalogId && (
+            <button type="button" onClick={() => document.getElementById('order-conversation')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <MessageCircle />Чат заказа
+            </button>
+          )}
           {waitingForRestaurantSettlement ? (
             <button type="button" disabled><QrCode />QR после расчёта</button>
           ) : (
@@ -2061,6 +2067,16 @@ export function DriverActiveScreen({
           </button>
         )}
         <DriverYandexNavigationActions delivery={delivery} />
+        {delivery.catalogId && (
+          <OrderConversationPanel
+            orderId={delivery.orderId}
+            catalogId={delivery.catalogId}
+            expectedViewer="driver"
+            merchantLabel={getBusinessTerms(delivery.businessType).place}
+            orderStatus={delivery.status}
+            estimatedMinutes={delivery.routeEtaMin}
+          />
+        )}
         {error && <p className="driver-error">{error}</p>}
       </section>
     </>
@@ -2463,7 +2479,8 @@ export function DriverMapScreen({
                 </span>
                 <div>
                   {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`} aria-label="Позвонить клиенту"><Phone /></a>}
-                  {clientChatUrl && <a href={clientChatUrl} target="_blank" rel="noreferrer" aria-label="Написать клиенту"><MessageCircle /></a>}
+                  {delivery.catalogId && <button type="button" aria-label="Написать клиенту" onClick={() => navigate('/driver/active')}><MessageCircle /></button>}
+                  {clientChatUrl && <a href={clientChatUrl} target="_blank" rel="noreferrer" aria-label="Открыть WhatsApp клиента"><ExternalLink /></a>}
                 </div>
               </article>
             </div>

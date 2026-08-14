@@ -1,6 +1,7 @@
 import { MessageCircle, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { OrderConversationPanel } from './OrderConversationPanel';
+import type { OrderConversationViewer } from '../../shared/api/orderConversationApi';
 import './order-conversation.css';
 
 export type OrderConversationInboxItem = {
@@ -11,6 +12,8 @@ export type OrderConversationInboxItem = {
   merchantLabel?: string;
   customerName?: string;
   statusLabel: string;
+  orderStatus?: string;
+  estimatedMinutes?: number | null;
   createdAt: string;
   totalLabel?: string;
 };
@@ -33,7 +36,7 @@ export function OrderConversationInbox({
   onChanged
 }: {
   items: OrderConversationInboxItem[];
-  expectedViewer: 'client' | 'staff';
+  expectedViewer: OrderConversationViewer;
   selectedOrderId?: string | null;
   onSelectedOrderChange?: (orderId: string) => void;
   onChanged?: () => void;
@@ -131,6 +134,8 @@ export function OrderConversationInbox({
                   catalogId={selectedItem.catalogId}
                   expectedViewer={expectedViewer}
                   merchantLabel={selectedItem.merchantLabel}
+                  orderStatus={selectedItem.orderStatus}
+                  estimatedMinutes={selectedItem.estimatedMinutes}
                   onChanged={onChanged}
                 />
               </>
