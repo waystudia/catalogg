@@ -11100,3 +11100,104 @@ a {
     max-height: calc(100dvh - 143px - env(safe-area-inset-bottom));
   }
 }
+
+/* Product cards use the product photo as the full-card background. */
+.product-tile {
+  display: block;
+  isolation: isolate;
+}
+
+.product-tile__image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.product-tile__body {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 7px;
+  padding: 64px 10px 10px;
+  background: linear-gradient(180deg, rgb(10 13 20 / 0%) 0%, rgb(10 13 20 / 74%) 48%, rgb(10 13 20 / 92%) 100%);
+  color: #ffffff;
+}
+
+.product-tile__body > div:first-child {
+  overflow: visible;
+}
+
+.product-tile h3 {
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 72%);
+}
+
+.product-tile p {
+  display: none;
+}
+
+.product-tile__bottom {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.product-tile strong,
+.product-tile__stepper-count {
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 72%);
+}
+
+.product-tile strong del {
+  color: rgb(255 255 255 / 72%);
+}
+
+.product-tile__stepper-button--minus {
+  border-color: rgb(255 255 255 / 52%);
+  background: rgb(15 23 42 / 58%);
+  color: #ffffff;
+  backdrop-filter: blur(5px);
+}
+
+.product-tile .add-button {
+  border-color: rgb(255 255 255 / 76%);
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+}
+
+.product-photo-carousel__dots {
+  bottom: 58px;
+  z-index: 5;
+}
+
+.product-tile__quantity-badge {
+  right: 10px;
+  bottom: 54px;
+  z-index: 5;
+}
+
+.product-state--hidden,
+.product-state--sold-out {
+  top: 10px;
+  right: auto;
+  bottom: auto;
+  left: 10px;
+  z-index: 5;
+}
+
+@media (max-width: 720px) {
+  .product-tile__body {
+    gap: 5px;
+    padding: 52px 9px 9px;
+  }
+}
+
+@media (max-width: 340px) {
+  .product-tile__body {
+    padding: 46px 8px 8px;
+  }
+}
