@@ -7,6 +7,7 @@ import {
   Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
+import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
 import { useAuthStore } from '../stores';
 import { getCurrentStock } from '../restaurant-settings/catalogAdminModel';
 import { DeliverySettingsCard, SettingsHub, defaultRestaurantDeliverySettings } from '../restaurant-settings';
@@ -34,8 +35,8 @@ import { calculateRestaurantFinance } from './restaurantFinance';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
-  adminOrderStatusFilters, adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
-  getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
+  adminOrderStatusFilters, adminOrderStatusTones, getAdminOrderFulfillmentLabel,
+  getAdminOrderItemsCount, getAdminOrderLocationLabel, getAdminOrderStatusLabel, groupAdminOrdersByMonth,
   playRestaurantAdminOrderSound, type AdminOrderFilter
 } from './orderPresentation';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
@@ -90,6 +91,7 @@ export function RestaurantAdminWorkspace({
 }) {
   const navigate = useNavigate();
   const terms = getBusinessTerms(restaurant.business_type);
+  const orderCapabilities = getBusinessOrderCapabilities(restaurant.business_type);
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
@@ -436,7 +438,7 @@ export function RestaurantAdminWorkspace({
                   key={item.status}
                   onClick={() => setFilter(item.status)}
                 >
-                  {item.label}
+                  {item.status === 'preparing' && orderCapabilities.supportsPicking ? 'Собираются' : item.label}
                 </button>
               ))}
             </div>
@@ -445,6 +447,8 @@ export function RestaurantAdminWorkspace({
                 <OrderDetailsPanel
                   order={selectedVisibleOrder}
                   catalogSlug={catalogSlug}
+                  businessType={restaurant.business_type}
+                  products={products}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
                   onStatus={async (status, reason) => {
@@ -452,6 +456,7 @@ export function RestaurantAdminWorkspace({
                     setSelectedOrder((current) => (current ? { ...current, status } : current));
                   }}
                   onRefreshOrders={onRefreshOrders}
+                  onOrderChanged={onRefreshOrders}
                   canDeleteOrder={selectedVisibleOrder.isTestOrder || canDeletePreactivationOrders}
                   onDelete={() => deleteOrder(selectedVisibleOrder)}
                 />
@@ -486,14 +491,14 @@ export function RestaurantAdminWorkspace({
                                 <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
                               </span>
                               <span className="admin-order-card__meta">
-                                {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
+                                {getAdminOrderFulfillmentLabel(order, restaurant.business_type)} · {getAdminOrderItemsCount(order)} поз.
                               </span>
                               <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
                               <span className="admin-order-card__foot">
                                 <b>{formatPrice(order.total)}</b>
                                 <i data-tone={adminOrderStatusTones[order.status]}>
                                   {order.status === 'new' && <span aria-hidden="true" />}
-                                  {adminOrderStatusLabels[order.status]}
+                                  {getAdminOrderStatusLabel(order.status, restaurant.business_type)}
                                 </i>
                               </span>
                             </button>
@@ -528,6 +533,7 @@ export function RestaurantAdminWorkspace({
           <section className="restaurant-admin__content">
             {settingsView === 'home' ? (
               <SettingsHub
+                businessType={restaurant.business_type}
                 onProfile={() => onOpenScreen('settings-profile')}
                 onDesign={() => onOpenScreen('settings-design')}
                 onCategories={() => onOpenScreen('settings-categories')}
@@ -543,6 +549,7 @@ export function RestaurantAdminWorkspace({
               />
             ) : (
               <DeliverySettingsCard
+                businessType={restaurant.business_type}
                 catalogSlug={catalogSlug}
                 settings={deliverySettings ?? defaultRestaurantDeliverySettings}
                 onSave={onSaveDeliverySettings}

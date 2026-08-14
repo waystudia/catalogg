@@ -7,14 +7,14 @@ import {
 
 describe('role account session safety', () => {
   it('keeps restaurant owners inside their panel when leaving the public catalog', () => {
-    expect(getRestaurantCatalogBackTarget({ catalogSlug: 'mangal', isAdmin: true })).toBe('/business/mangal');
-    expect(getRestaurantCatalogBackTarget({ catalogSlug: '  mangal  ', isAdmin: true })).toBe('/business/mangal');
+    expect(getRestaurantCatalogBackTarget({ catalogSlug: 'mangal', isAdmin: true })).toBe('/mangal/dashboard');
+    expect(getRestaurantCatalogBackTarget({ catalogSlug: '  mangal  ', isAdmin: true })).toBe('/mangal/dashboard');
     expect(getRestaurantCatalogBackTarget({ catalogSlug: 'mangal', isAdmin: false })).toBe('/');
     expect(getRestaurantCatalogBackTarget({
       catalogSlug: 'mangal',
       isAdmin: false,
       routeSection: 'dishes'
-    })).toBe('/business/mangal');
+    })).toBe('/mangal/dashboard');
   });
 
   it('keeps every driver back action inside the driver application', () => {

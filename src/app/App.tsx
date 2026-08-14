@@ -2000,7 +2000,7 @@ function AppContent({
   };
   const openRestaurantAdminPath = useCallback(
     (nextScreen: Screen = 'admin-home') => {
-      const targetPath = nextScreen === 'settings-payments' ? `/business/${catalogSlug}/settings/payments` : `/business/${catalogSlug}`;
+      const targetPath = nextScreen === 'settings-payments' ? `/${catalogSlug}/payments` : `/${catalogSlug}/dashboard`;
       setScreen(nextScreen);
       rememberPwaResumePath(targetPath);
       navigate(targetPath, { replace: true });
@@ -2008,7 +2008,7 @@ function AppContent({
     [catalogSlug, navigate]
   );
   const openRestaurantSettingsHub = useCallback(() => {
-    const targetPath = `/business/${catalogSlug}/settings`;
+    const targetPath = `/${catalogSlug}/settings`;
     setScreen('admin-home');
     rememberPwaResumePath(targetPath);
     navigate(targetPath, { replace: true });

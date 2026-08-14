@@ -190,9 +190,10 @@ describe('staff login role selection', () => {
     }
   });
 
-  it('routes every business type to the same universal workspace', () => {
+  it('keeps grocery in the retail workspace and restaurants in the compact dashboard', () => {
     expect(getCatalogWorkspaceRedirect({ slug: 'finik', business_type: 'grocery' })).toBe('/business/finik');
-    expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/business/mangal');
+    expect(getCatalogWorkspaceRedirect({ slug: 'mangal', business_type: 'restaurant' })).toBe('/mangal/dashboard');
+    expect(getCatalogWorkspaceRedirect({ slug: 'rizih', business_type: 'coffee_shop' })).toBe('/rizih/dashboard');
   });
 
   it('extracts the exact requested business profile before resolving a shared role', () => {

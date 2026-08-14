@@ -134,6 +134,10 @@ export function CatalogAdminApp({ slug, routePath }: CatalogAdminAppProps) {
     );
   }
 
+  if (routePath !== undefined && access.catalog?.businessType !== 'grocery') {
+    return <Navigate to={`/${slug}/dashboard`} replace />;
+  }
+
   return (
       <CatalogDashboard
         access={access}

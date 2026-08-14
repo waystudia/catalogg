@@ -1,6 +1,7 @@
 import { buildYandexMapsRouteUrl } from '../order/orderLifecycle';
 import type { RestaurantOrder, RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 import type { PaymentStatus } from '../../shared/paymentSettings';
+import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
 
 export type AdminOrderFilter = 'all' | 'new' | 'preparing' | 'on_the_way' | 'delivered' | 'cancelled';
 
@@ -122,9 +123,9 @@ export function getAdminOrderChannel(order: Pick<RestaurantOrder, 'comment' | 'f
 }
 
 export function getAdminOrderStatusLabel(status: RestaurantOrderStatus, businessType?: string) {
-  if (businessType !== 'grocery') return adminOrderStatusLabels[status];
-  if (status === 'preparing' || status === 'cooking') return 'Собирается';
-  if (status === 'ready') return 'Собран';
+  const capabilities = getBusinessOrderCapabilities(businessType);
+  if (status === 'preparing' || status === 'cooking') return capabilities.inProgressStatusLabel;
+  if (status === 'ready') return capabilities.readyStatusLabel;
   return adminOrderStatusLabels[status];
 }
 
@@ -138,9 +139,11 @@ export function formatAdminPaymentSummary(...labels: string[]) {
 }
 
 export function getAdminOrderFulfillmentLabel(order: RestaurantOrder, businessType?: string) {
-  if (businessType !== 'grocery') return fulfillmentLabels[order.fulfillmentType];
+  const capabilities = getBusinessOrderCapabilities(businessType);
   if (order.fulfillmentType === 'delivery') return 'Доставка';
-  return isGroceryStorePosOrder(order, businessType) ? 'Покупка в магазине' : 'Самовывоз';
+  if (isGroceryStorePosOrder(order, businessType)) return 'Покупка в магазине';
+  if (!capabilities.supportsHall || order.fulfillmentType === 'takeaway') return 'Самовывоз';
+  return fulfillmentLabels[order.fulfillmentType];
 }
 
 export function getAdminOrderLocationLabel(order: RestaurantOrder, businessType?: string) {
@@ -151,7 +154,7 @@ export function getAdminOrderLocationLabel(order: RestaurantOrder, businessType?
 }
 
 export function formatAdminOrderItemQuantity(item: RestaurantOrder['items'][number], businessType?: string) {
-  if (businessType === 'grocery' && item.saleUnit === 'weight') {
+  if (getBusinessOrderCapabilities(businessType).supportsPicking && item.saleUnit === 'weight') {
     const grams = Math.max(0, Math.round(item.requestedQuantity ?? item.quantity));
     return `${new Intl.NumberFormat('ru-RU').format(grams)} г × ${new Intl.NumberFormat('ru-RU').format(item.unitPrice)} ₽/кг`;
   }

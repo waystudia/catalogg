@@ -50,7 +50,7 @@ test('enabled restaurant opens POS from the dashboard quick action under orders 
   await expect.element(posButton).toBeVisible();
   await posButton.click();
 
-  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/business/mangal/pos');
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/pos');
   await expect.element(screen.getByRole('heading', { name: 'Касса — Новый заказ' })).toBeVisible();
   await expect.element(screen.getByText('Блюда из текущего каталога «Мангал»')).toBeVisible();
 });
