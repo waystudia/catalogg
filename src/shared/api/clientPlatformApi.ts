@@ -76,6 +76,7 @@ type ProductRow = {
   title: string;
   status: 'draft' | 'active' | 'hidden' | 'sold_out' | 'archived';
   price: number;
+  old_price: number | null;
   description: string;
   weight: string;
   stock_count: number;
@@ -314,6 +315,7 @@ const mapLegacyProductToPlatformProduct = (catalogId: string, product: LegacyPro
     title: product.title,
     status: product.is_hidden ? 'hidden' : stockCount <= 0 && !product.is_unlimited ? 'sold_out' : 'active',
     price: product.price,
+    old_price: null,
     description: product.description,
     weight: product.weight,
     stock_count: stockCount,
@@ -675,7 +677,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .order('sort_order'),
       supabase
         .from('products')
-        .select('id, catalog_id, category_id, title, status, price, description, weight, stock_count, stock_quantity, is_unlimited, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, allow_substitution, sku, barcode, is_popular')
+        .select('id, catalog_id, category_id, title, status, price, old_price, description, weight, stock_count, stock_quantity, is_unlimited, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, allow_substitution, sku, barcode, is_popular')
         .in('catalog_id', catalogIds)
         .in('status', ['active', 'sold_out'])
         .order('sort_order'),
@@ -950,6 +952,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       name: product.title,
       description: product.description,
       price: product.price,
+      oldPrice: product.old_price,
       imageUrl: firstImageByProductId.get(product.id) ?? '',
       tags: product.status === 'sold_out' ? ['Нет в наличии'] : product.is_popular ? ['Популярное'] : [],
       isPopular: product.is_popular,

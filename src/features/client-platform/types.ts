@@ -102,6 +102,7 @@ export type ClientDish = {
   name: string;
   description: string;
   price: number;
+  oldPrice?: number | null;
   imageUrl: string;
   tags: string[];
   isPopular: boolean;
@@ -119,6 +120,29 @@ export type ClientDish = {
   barcode: string;
   weight?: string;
   photoQuality?: PhotoQualitySettings;
+};
+
+export type MarketplaceItem = {
+  id: string;
+  sourceType: 'dish' | 'product';
+  businessId: string;
+  businessSlug: string;
+  businessType: BusinessType;
+  businessName: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  price: number;
+  oldPrice: number | null;
+  discountPercent: number | null;
+  rating: number;
+  availability: boolean;
+  estimatedTime: string;
+  categoryId: string;
+  href: string;
+  isPopular: boolean;
+  isPromoted: false;
+  promotionLabel: '';
 };
 
 export type ClientCartLine = {
