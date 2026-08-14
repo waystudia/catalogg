@@ -37,7 +37,7 @@ import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
 import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../data/groceryCatalog';
-import { deleteRestaurantTestOrder, getRestaurantDeliverySettings, getRestaurantOrders, createRestaurantOrderFromCart, saveRestaurantDeliverySettings, subscribeToRestaurantOrdersRealtime, updateRestaurantOrderPaymentStatus, updateRestaurantOrderStatus, type RestaurantDeliverySettings, type RestaurantOrder, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import { completeGroceryPosOrder, deleteRestaurantTestOrder, getRestaurantDeliverySettings, getRestaurantOrders, createRestaurantOrderFromCart, saveRestaurantDeliverySettings, subscribeToRestaurantOrdersRealtime, updateRestaurantOrderPaymentStatus, updateRestaurantOrderStatus, type RestaurantDeliverySettings, type RestaurantOrder, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/order/orderLifecycle';
@@ -48,7 +48,7 @@ import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS, type PhotoQualitySettings } from '../../shared/photoQuality';
 import { changeCatalogAdminPassword, type CatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission, restoreRestaurantOrderNotificationSubscription, showRestaurantOrderNotification } from '../../shared/restaurantOrderNotifications';
-import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, getOrderPaymentMethod, getVisibleAdminOrderComment, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
+import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, getAdminOrderFulfillmentLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, getOrderPaymentMethod, getVisibleAdminOrderComment, isGroceryStorePosOrder, playRestaurantAdminOrderSound } from '../../features/restaurant-admin/orderPresentation';
 import { getRestaurantModuleEntitlementByCatalog } from '../../shared/api/restaurantModulesApi';
 import { getRestaurantAdminModuleAccess, type RestaurantAdminModuleAccess } from '../../features/platform-admin-modules/restaurantModuleAccess';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../../features/restaurant-pos/RestaurantPosPage';
@@ -616,7 +616,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   });
   const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? roleVisibleOrders[0] ?? null;
   const selectedOrderAssignment = selectedOrder ? (orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null) : null;
-  const businessChatItems = useMemo<OrderConversationInboxItem[]>(() => roleVisibleOrders.map((order) => ({
+  const businessChatItems = useMemo<OrderConversationInboxItem[]>(() => roleVisibleOrders.filter((order) => !isGroceryStorePosOrder(order, access.catalog?.businessType)).map((order) => ({
     orderId: order.id,
     catalogId: order.catalogId,
     orderNumber: order.orderNumber,
@@ -699,7 +699,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   };
 
   const submitGroceryPosOrder = async (lines: GroceryPosLine[], customerName: string, payment: GroceryPosPayment) => {
-    await createRestaurantOrderFromCart({
+    const orderId = await createRestaurantOrderFromCart({
       slug,
       businessType: 'grocery',
       items: lines.map((line) =>
@@ -715,8 +715,10 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
       customerName: customerName || 'Покупатель на кассе',
       comment: formatGroceryPosOrderComment(payment)
     });
+    if (!orderId) throw new Error('Не удалось сохранить кассовую продажу');
+    await completeGroceryPosOrder(orderId, slug);
     await refreshData({ silent: true });
-    toast.success('Заказ с кассы добавлен в общую очередь');
+    toast.success('Продажа сохранена в завершённых');
   };
 
   const updateOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus) => {
@@ -1411,7 +1413,7 @@ function OrdersPage({
   );
 }
 
-function OrderDetails({
+export function OrderDetails({
   order,
   products,
   businessType,
@@ -1444,11 +1446,12 @@ function OrderDetails({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const isGroceryBusiness = businessType === 'grocery';
+  const storePosOrder = isGroceryStorePosOrder(order, businessType);
   const groceryCashOrder = isGroceryBusiness && getOrderPaymentMethod(order.comment) === 'cash';
   const visibleOrderComment = isGroceryBusiness ? getVisibleAdminOrderComment(order.comment) : order.comment;
-  const paymentStatusLabel = getBusinessPaymentStatusLabel(orderPaymentStatusLabels[order.paymentStatus], businessType);
+  const paymentStatusLabel = storePosOrder ? 'Оплачено на кассе' : getBusinessPaymentStatusLabel(orderPaymentStatusLabels[order.paymentStatus], businessType);
   const localPaymentStatusLabel = getBusinessPaymentStatusLabel(paymentStatusLabels[paymentStatus], businessType);
-  const paymentSummary = formatAdminPaymentSummary(groceryCashOrder ? 'Наличными на кассе' : localPaymentStatusLabel, paymentStatusLabel);
+  const paymentSummary = formatAdminPaymentSummary(storePosOrder ? 'Продажа оплачена' : groceryCashOrder ? 'Наличными на кассе' : localPaymentStatusLabel, paymentStatusLabel);
   const deleteOrder = async () => {
     if (isDeleting || !window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setIsDeleting(true);
@@ -1458,6 +1461,56 @@ function OrderDetails({
       setIsDeleting(false);
     }
   };
+  const orderActions = !storePosOrder && (!workerMode || assignment?.state === 'accepted') ? (
+    <div className="ra-order-actions ra-order-actions--top" aria-label="Действия с заказом">
+      {order.status === 'new' && (
+        <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
+          Принять
+        </button>
+      )}
+      {['accepted', 'confirmed'].includes(order.status) && (
+        <button type="button" onClick={() => onStatusChange(order, 'preparing')}>
+          {isGroceryBusiness ? 'Начать сборку' : 'Готовится'}
+        </button>
+      )}
+      {order.status === 'preparing' && (
+        <button type="button" onClick={() => onStatusChange(order, 'ready')}>
+          {isGroceryBusiness ? 'Заказ собран' : 'Готово'}
+        </button>
+      )}
+      {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
+        <button type="button" disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)} onClick={() => onStatusChange(order, 'waiting_driver')}>
+          Вызвать доставку
+        </button>
+      )}
+      {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
+        <button type="button" onClick={() => onStatusChange(order, 'completed')}>
+          Завершить
+        </button>
+      )}
+      {!workerMode && order.status === 'waiting_driver' && (
+        <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
+          Передано водителю
+        </button>
+      )}
+      {!workerMode && order.status === 'on_the_way' && (
+        <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
+          Доставлен
+        </button>
+      )}
+      {order.status === 'new' && (
+        <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>
+          Отклонить
+        </button>
+      )}
+      {!workerMode && (order.isTestOrder || canDeleteOrders) && (
+        <button className="ra-order-actions__danger" type="button" disabled={isDeleting} onClick={() => void deleteOrder()}>
+          <Trash2 />
+          {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
+        </button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <aside className="ra-card ra-order-details">
@@ -1468,7 +1521,9 @@ function OrderDetails({
         </div>
         <em data-tone={orderStatusTones[order.status]}>{getAdminOrderStatusLabel(order.status, businessType)}</em>
       </header>
-      {assignment && (
+      {storePosOrder && <p className="ra-order-store-sale-note">Продажа оформлена в магазине и не требует сборки или переписки.</p>}
+      {orderActions}
+      {!storePosOrder && assignment && (
         <section className="ra-payment-box">
           <h3>
             <Users />
@@ -1593,20 +1648,32 @@ function OrderDetails({
           </div>
         )}
       </dl>
-      <div className="ra-order-items">
-        {order.items.map((item) => (
-          <span key={item.id}>
-            {item.title}
-            <strong>{formatAdminOrderItemQuantity(item, businessType)}</strong>
-          </span>
-        ))}
-      </div>
-      {businessType === 'grocery' && (
+      <table className="ra-order-items">
+        <thead>
+          <tr>
+            <th scope="col">Товар</th>
+            <th scope="col">Количество и цена</th>
+            <th scope="col">Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+          {order.items.map((item) => (
+            <tr key={item.id}>
+              <td>{item.title}</td>
+              <td>{formatAdminOrderItemQuantity(item, businessType)}</td>
+              <td>{formatPrice(item.lineTotal)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {businessType === 'grocery' && !storePosOrder && (
         <GroceryPickingPanel items={order.items} products={products} canPick={!workerMode || assignment?.state === 'accepted'} onChanged={onPickingChanged} />
       )}
-      <button className="ra-order-chat-button" type="button" onClick={() => onOpenChat(order.id)}>
-        <MessageCircle /> Открыть чат заказа
-      </button>
+      {!storePosOrder && (
+        <button className="ra-order-chat-button" type="button" onClick={() => onOpenChat(order.id)}>
+          <MessageCircle /> Открыть чат заказа
+        </button>
+      )}
       <div className="ra-order-total">
         <span>Итого</span>
         <strong>{formatPrice(order.total)}</strong>
@@ -1666,56 +1733,6 @@ function OrderDetails({
             </div>
           </dl>
         </section>
-      )}
-      {(!workerMode || assignment?.state === 'accepted') && (
-        <div className="ra-order-actions">
-          {order.status === 'new' && (
-            <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
-              Принять
-            </button>
-          )}
-          {['accepted', 'confirmed'].includes(order.status) && (
-            <button type="button" onClick={() => onStatusChange(order, 'preparing')}>
-              {isGroceryBusiness ? 'Начать сборку' : 'Готовится'}
-            </button>
-          )}
-          {order.status === 'preparing' && (
-            <button type="button" onClick={() => onStatusChange(order, 'ready')}>
-              {isGroceryBusiness ? 'Заказ собран' : 'Готово'}
-            </button>
-          )}
-          {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
-            <button type="button" disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)} onClick={() => onStatusChange(order, 'waiting_driver')}>
-              Вызвать доставку
-            </button>
-          )}
-          {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
-            <button type="button" onClick={() => onStatusChange(order, 'completed')}>
-              Завершить
-            </button>
-          )}
-          {!workerMode && order.status === 'waiting_driver' && (
-            <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
-              Передано водителю
-            </button>
-          )}
-          {!workerMode && order.status === 'on_the_way' && (
-            <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
-              Доставлен
-            </button>
-          )}
-          {order.status === 'new' && (
-            <button type="button" onClick={() => onStatusChange(order, 'cancelled')}>
-              Отклонить
-            </button>
-          )}
-          {!workerMode && (order.isTestOrder || canDeleteOrders) && (
-            <button className="ra-order-actions__danger" type="button" disabled={isDeleting} onClick={() => void deleteOrder()}>
-              <Trash2 />
-              {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
-            </button>
-          )}
-        </div>
       )}
     </aside>
   );

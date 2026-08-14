@@ -1,18 +1,17 @@
 .grocery-picking {
   display: grid;
-  gap: 14px;
-  margin: 14px 0;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 10px;
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 12px;
   background: #f8fafc;
 }
 
 .grocery-picking > header,
 .grocery-picking > header > div,
-.grocery-picking__lines,
-.grocery-picking__lines article {
+.grocery-picking__lines {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .grocery-picking > header {
@@ -31,6 +30,11 @@
   gap: 8px;
 }
 
+.grocery-picking > header p {
+  color: #667085;
+  font-size: 12px;
+}
+
 .grocery-picking svg {
   width: 18px;
   height: 18px;
@@ -44,11 +48,13 @@
 }
 
 .grocery-picking__lines article {
-  grid-template-columns: minmax(160px, 1fr) auto;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) auto minmax(260px, 1.4fr) auto;
   align-items: center;
+  gap: 8px;
   border: 1px solid #e4e7ec;
-  border-radius: 14px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 8px 10px;
   background: #fff;
 }
 
@@ -56,6 +62,11 @@
 .grocery-picking__lines label {
   display: grid;
   gap: 4px;
+}
+
+.grocery-picking__lines article > div:first-child small {
+  color: #667085;
+  font-size: 11px;
 }
 
 .grocery-picking__lines article > span {
@@ -78,14 +89,18 @@
   color: #b54708;
 }
 
-.grocery-picking__lines label,
-.grocery-picking__lines article > div:last-child {
-  grid-column: 1 / -1;
+.grocery-picking__controls {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(90px, 0.45fr) minmax(150px, 1fr);
+  gap: 6px;
 }
 
 .grocery-picking__lines input,
 .grocery-picking__lines select {
-  min-height: 42px;
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
   border: 1px solid #d0d5dd;
   border-radius: 10px;
   padding: 0 10px;
@@ -93,20 +108,19 @@
   font: inherit;
 }
 
-.grocery-picking__lines article > div:last-child {
+.grocery-picking__actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .grocery-picking__lines button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 40px;
+  min-height: 34px;
   border: 0;
   border-radius: 10px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: #067647;
   color: #fff;
   font: inherit;
@@ -126,6 +140,10 @@
 
   .grocery-picking__lines article > span {
     justify-self: start;
+  }
+
+  .grocery-picking__controls {
+    grid-template-columns: 1fr;
   }
 
   .grocery-picking__lines button {

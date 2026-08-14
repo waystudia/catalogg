@@ -118,31 +118,36 @@ export function GroceryPickingPanel({
                 </small>
               </div>
               <span>{stateLabels[state]}</span>
-              {!resolved && item.saleUnit === 'weight' && (
-                <label>
-                  Фактический вес, г
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={weights[item.id] ?? String(item.requestedQuantity ?? item.quantity)}
-                    onChange={(event) => setWeights((current) => ({ ...current, [item.id]: event.target.value }))}
-                  />
-                </label>
-              )}
-              {!resolved && candidates.length > 0 && (
-                <label>
-                  Предложить замену
-                  <select
-                    value={replacementByItem[item.id] ?? candidates[0].id}
-                    onChange={(event) => setReplacementByItem((current) => ({ ...current, [item.id]: event.target.value }))}
-                  >
-                    {candidates.map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
-                  </select>
-                </label>
+              {!resolved && (
+                <div className="grocery-picking__controls">
+                  {item.saleUnit === 'weight' && (
+                    <label>
+                      Фактический вес, г
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={weights[item.id] ?? String(item.requestedQuantity ?? item.quantity)}
+                        onChange={(event) => setWeights((current) => ({ ...current, [item.id]: event.target.value }))}
+                      />
+                    </label>
+                  )}
+                  {candidates.length > 0 && (
+                    <label>
+                      Замена
+                      <select
+                        aria-label="Предложить замену"
+                        value={replacementByItem[item.id] ?? candidates[0].id}
+                        onChange={(event) => setReplacementByItem((current) => ({ ...current, [item.id]: event.target.value }))}
+                      >
+                        {candidates.map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
+                      </select>
+                    </label>
+                  )}
+                </div>
               )}
               {!resolved && (
-                <div>
+                <div className="grocery-picking__actions">
                   <button type="button" disabled={!canPick || busyItemId === item.id} onClick={() => void picked(item)}>
                     <Check /> Собрано
                   </button>

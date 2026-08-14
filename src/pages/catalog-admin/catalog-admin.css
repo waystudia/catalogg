@@ -1396,21 +1396,54 @@
 }
 
 .ra-order-items {
-  display: grid;
-  gap: 8px;
+  width: 100%;
+  border-collapse: collapse;
   border-top: 1px solid #eef0f4;
   border-bottom: 1px solid #eef0f4;
-  padding: 12px 0;
+  font-size: 14px;
 }
 
-.ra-order-items span,
 .ra-stock-list article {
   justify-content: space-between;
 }
 
-.ra-order-items span {
-  display: flex;
-  gap: 12px;
+.ra-order-items th,
+.ra-order-items td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #eef0f4;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ra-order-items th {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ra-order-items th:nth-child(n + 2),
+.ra-order-items td:nth-child(n + 2) {
+  text-align: right;
+}
+
+.ra-order-items td:first-child {
+  font-weight: 800;
+}
+
+.ra-order-items tr:last-child td {
+  border-bottom: 0;
+}
+
+.ra-order-store-sale-note {
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .ra-order-total {
@@ -1439,6 +1472,17 @@
 
 .ra-order-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ra-order-actions--top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-radius: 10px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
 }
 
 .ra-order-actions button.ra-order-actions__danger {
@@ -2220,6 +2264,20 @@
 
   .business-workspace-content {
     margin-top: 12px;
+  }
+
+  .ra-order-items th,
+  .ra-order-items td {
+    padding: 8px 5px;
+    font-size: 12px;
+  }
+
+  .ra-order-items th {
+    font-size: 9px;
+  }
+
+  .ra-order-actions--top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .business-dashboard-finance {

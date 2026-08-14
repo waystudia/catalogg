@@ -1,6 +1,6 @@
 import type { RestaurantOrder } from '../../shared/api/restaurantOrdersApi';
 import { formatOrderTime } from '../../shared/orderListGroups';
-import { adminOrderStatusTones, getAdminOrderFulfillmentLabel, getAdminOrderItemsCount, getAdminOrderLocationLabel, getAdminOrderStatusLabel } from './orderPresentation';
+import { adminOrderStatusTones, getAdminOrderChannel, getAdminOrderFulfillmentLabel, getAdminOrderItemsCount, getAdminOrderLocationLabel, getAdminOrderStatusLabel, isGroceryStorePosOrder } from './orderPresentation';
 import { getRestaurantOrderBoardColumns, getRestaurantOrderBoardColumnId } from './orderBoard';
 import './restaurant-orders-board.css';
 
@@ -10,7 +10,7 @@ export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds,
   return (
     <section className="ra-order-board" role="region" aria-label="Доска заказов">
       {getRestaurantOrderBoardColumns(businessType).map((column) => {
-        const columnOrders = orders.filter((order) => getRestaurantOrderBoardColumnId(order.status) === column.id);
+        const columnOrders = orders.filter((order) => getRestaurantOrderBoardColumnId(isGroceryStorePosOrder(order, businessType) ? 'completed' : order.status) === column.id);
 
         return (
           <section className="ra-order-board__column" role="region" aria-label={`Колонка ${column.label}`} data-column={column.id} key={column.id}>
@@ -20,18 +20,19 @@ export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds,
             </header>
             <div className="ra-order-board__cards">
               {columnOrders.map((order) => (
-                <button className="ra-order-board-card" type="button" aria-label={`Заказ №${order.orderNumber}`} data-active={selectedOrderId === order.id} data-highlighted={recentOrderIds.has(order.id)} key={order.id} onClick={() => onSelectOrder(order.id)}>
+                <button className="ra-order-board-card" type="button" aria-label={`Заказ №${order.orderNumber}`} data-channel={getAdminOrderChannel(order, businessType)} data-active={selectedOrderId === order.id} data-highlighted={recentOrderIds.has(order.id)} key={order.id} onClick={() => onSelectOrder(order.id)}>
                   <span className="ra-order-board-card__head">
                     <strong>#{order.orderNumber}</strong>
                     <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
                   </span>
                   <span className="ra-order-board-card__meta">
-                    {getAdminOrderFulfillmentLabel(order, businessType)} • {getAdminOrderItemsCount(order)} поз.
+                    <b>{getAdminOrderFulfillmentLabel(order, businessType)}</b>
+                    <span>{getAdminOrderItemsCount(order)} поз.</span>
                   </span>
                   <span className="ra-order-board-card__address">{getAdminOrderLocationLabel(order, businessType)}</span>
                   <span className="ra-order-board-card__foot">
                     <strong>{formatPrice(order.total)}</strong>
-                    <em data-tone={adminOrderStatusTones[order.status]}>{getAdminOrderStatusLabel(order.status, businessType)}</em>
+                    <em data-tone={adminOrderStatusTones[isGroceryStorePosOrder(order, businessType) ? 'completed' : order.status]}>{isGroceryStorePosOrder(order, businessType) ? 'Продажа завершена' : getAdminOrderStatusLabel(order.status, businessType)}</em>
                   </span>
                 </button>
               ))}

@@ -87,3 +87,25 @@ test('orders are arranged in a horizontal grey Trello board', async () => {
   await screen.getByRole('button', { name: /Заказ №1023/u }).click();
   expect(onSelect).toHaveBeenCalledWith('1023');
 });
+
+test('store POS sales are separated from delivery and takeaway orders', async () => {
+  const storeSale = { ...order('store-sale', 'new'), fulfillmentType: 'takeaway' as const, comment: 'Касса магазина · Наличные' };
+  const takeaway = { ...order('takeaway', 'new'), fulfillmentType: 'takeaway' as const, comment: 'Заберу сам' };
+  const delivery = { ...order('delivery', 'new'), fulfillmentType: 'delivery' as const, comment: '' };
+  const screen = await render(
+    <RestaurantOrdersBoard
+      orders={[storeSale, takeaway, delivery]}
+      selectedOrderId={null}
+      recentOrderIds={new Set()}
+      businessType="grocery"
+      onSelectOrder={vi.fn()}
+    />
+  );
+
+  const completedColumn = screen.getByRole('region', { name: 'Колонка Завершённые' });
+  await expect.element(completedColumn.getByRole('button', { name: /Заказ №store-sale/u })).toBeVisible();
+  await expect.element(completedColumn.getByText('Продажа завершена')).toBeVisible();
+  expect(screen.getByRole('button', { name: /Заказ №store-sale/u }).element().dataset.channel).toBe('store');
+  expect(screen.getByRole('button', { name: /Заказ №takeaway/u }).element().dataset.channel).toBe('takeaway');
+  expect(screen.getByRole('button', { name: /Заказ №delivery/u }).element().dataset.channel).toBe('delivery');
+});

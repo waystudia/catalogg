@@ -110,6 +110,17 @@ export function getAdminOrderItemsCount(order: RestaurantOrder) {
   return order.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
 }
 
+export function isGroceryStorePosOrder(order: Pick<RestaurantOrder, 'comment' | 'fulfillmentType'>, businessType?: string) {
+  return businessType === 'grocery'
+    && order.fulfillmentType !== 'delivery'
+    && /(?:^|\n)\s*Касса магазина(?:\s|·|$)/iu.test(order.comment);
+}
+
+export function getAdminOrderChannel(order: Pick<RestaurantOrder, 'comment' | 'fulfillmentType'>, businessType?: string) {
+  if (isGroceryStorePosOrder(order, businessType)) return 'store';
+  return order.fulfillmentType === 'delivery' ? 'delivery' : order.fulfillmentType === 'takeaway' ? 'takeaway' : 'hall';
+}
+
 export function getAdminOrderStatusLabel(status: RestaurantOrderStatus, businessType?: string) {
   if (businessType !== 'grocery') return adminOrderStatusLabels[status];
   if (status === 'preparing' || status === 'cooking') return 'Собирается';
@@ -129,12 +140,12 @@ export function formatAdminPaymentSummary(...labels: string[]) {
 export function getAdminOrderFulfillmentLabel(order: RestaurantOrder, businessType?: string) {
   if (businessType !== 'grocery') return fulfillmentLabels[order.fulfillmentType];
   if (order.fulfillmentType === 'delivery') return 'Доставка';
-  return order.comment.includes('Касса магазина') ? 'Покупка в магазине' : 'Самовывоз';
+  return isGroceryStorePosOrder(order, businessType) ? 'Покупка в магазине' : 'Самовывоз';
 }
 
 export function getAdminOrderLocationLabel(order: RestaurantOrder, businessType?: string) {
   if (businessType === 'grocery' && order.fulfillmentType !== 'delivery') {
-    return order.comment.includes('Касса магазина') ? 'Касса магазина' : 'Самовывоз';
+    return isGroceryStorePosOrder(order, businessType) ? 'Касса магазина' : 'Самовывоз';
   }
   return order.deliverySettlement || order.deliveryCity || order.deliveryAddress || order.cabinLabel || (order.fulfillmentType === 'takeaway' ? 'Самовывоз' : 'В зале');
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, formatOrderPaymentMethodMarker, getAdminOrderFulfillmentLabel, getAdminOrderLocationLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, groupAdminOrdersByMonth, getOrderPaymentMethod, getVisibleAdminOrderComment } from './orderPresentation';
+import { formatAdminOrderItemQuantity, formatAdminPaymentSummary, formatOrderPaymentMethodMarker, getAdminOrderChannel, getAdminOrderFulfillmentLabel, getAdminOrderLocationLabel, getAdminOrderStatusLabel, getBusinessPaymentStatusLabel, groupAdminOrdersByMonth, getOrderPaymentMethod, getVisibleAdminOrderComment, isGroceryStorePosOrder } from './orderPresentation';
 import type { RestaurantOrder } from '../../shared/api/restaurantOrdersApi';
 
 describe('order payment presentation', () => {
@@ -26,6 +26,10 @@ describe('order payment presentation', () => {
     assert.equal(getAdminOrderFulfillmentLabel(order, 'grocery'), 'Покупка в магазине');
     assert.equal(getAdminOrderLocationLabel(order, 'grocery'), 'Касса магазина');
     assert.equal(getAdminOrderStatusLabel('preparing', 'grocery'), 'Собирается');
+    assert.equal(isGroceryStorePosOrder(order, 'grocery'), true);
+    assert.equal(getAdminOrderChannel(order, 'grocery'), 'store');
+    assert.equal(isGroceryStorePosOrder({ ...order, comment: 'Самовывоз' }, 'grocery'), false);
+    assert.equal(getAdminOrderChannel({ ...order, comment: 'Самовывоз' }, 'grocery'), 'takeaway');
   });
 
   it('shows grams and the per-kilogram price for weighted grocery order lines', () => {
