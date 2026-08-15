@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { MemoryRouter } from 'react-router-dom';
-import { ClientOrderCard, OrderFilterChips } from '../../src/features/client-orders/ClientOrders';
+import { ClientOrderCard, getClientOrderBadgeLabel, OrderFilterChips } from '../../src/features/client-orders/ClientOrders';
 import type { ClientOrder, ClientRestaurant } from '../../src/features/client-platform/types';
 
 const order: ClientOrder = {
@@ -65,4 +65,22 @@ test('filter chips expose all real order states without a separate chats tab', a
   await expect.element(screen.getByRole('button', { name: 'Завершённые' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Отменённые' })).toBeVisible();
   expect(document.body.textContent).not.toContain('Чаты');
+});
+
+test('uses lifecycle wording in the status badge instead of duplicating the short status', () => {
+  expect(getClientOrderBadgeLabel('completed')).toBe('Заказ завершён');
+  expect(getClientOrderBadgeLabel('canceled')).toBe('Заказ отменён');
+  expect(getClientOrderBadgeLabel('assigned_driver')).toBe('Курьер назначен');
+  expect(getClientOrderBadgeLabel('on_the_way')).toBe('Заказ у курьера');
+});
+
+test('keeps all four order filters reachable without horizontal overflow at 372px', async () => {
+  await render(
+    <div style={{ boxSizing: 'border-box', width: 372, paddingInline: 16 }}>
+      <OrderFilterChips value="all" currentCount={2} onChange={vi.fn()} />
+    </div>
+  );
+  const filters = document.querySelector<HTMLElement>('.client-order-filters');
+  expect(filters).not.toBeNull();
+  expect(filters!.scrollWidth).toBeLessThanOrEqual(filters!.clientWidth);
 });

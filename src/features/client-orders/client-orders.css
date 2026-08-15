@@ -5,6 +5,7 @@
   padding: 0 16px 4px;
   overflow-x: auto;
   scrollbar-width: none;
+  scroll-snap-type: x proximity;
 }
 
 .client-order-filters::-webkit-scrollbar {
@@ -26,6 +27,7 @@
   font: inherit;
   font-size: 13px;
   font-weight: 800;
+  scroll-snap-align: start;
 }
 
 .client-order-filters button[data-active='true'] {
@@ -310,4 +312,23 @@
   .client-order-card__amount strong { font-size: 15px; }
   .client-order-card__actions a,
   .client-order-card__actions button { font-size: 11px; padding-inline: 7px; }
+}
+
+@media (max-width: 430px) {
+  .client-order-filters {
+    gap: 5px;
+  }
+
+  .client-order-filters button {
+    min-width: 0;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+
+  .client-order-filters b {
+    min-width: 18px;
+    height: 18px;
+    padding-inline: 5px;
+    font-size: 10px;
+  }
 }
