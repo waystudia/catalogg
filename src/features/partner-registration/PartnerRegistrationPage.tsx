@@ -1,16 +1,19 @@
 import { ArrowLeft, CheckCircle2, Store, Truck } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
 import { legalDocuments } from '../../shared/legalDocuments';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import { registerPartner, type PartnerRole } from './partnerRegistrationApi';
 import './partner-registration.css';
 
 const settlements = ['Грозный', 'Аргун', 'Шали', 'Урус-Мартан', 'Гудермес'];
+const initialRegistrationFlow: { role: PartnerRole | null; step: number } = { role: null, step: 1 };
 
 export function PartnerRegistrationPage() {
   const navigate = useNavigate();
-  const [role, setRole] = useState<PartnerRole | null>(null);
-  const [step, setStep] = useState(1);
+  const [flow, flowHistory] = useBrowserBackedState('partner-registration:flow', initialRegistrationFlow);
+  const { role, step } = flow;
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -43,7 +46,7 @@ export function PartnerRegistrationPage() {
     setError('');
     if (password !== passwordRepeat) return setError('Пароли не совпадают.');
     if (password.length < 8) return setError('Пароль должен содержать минимум 8 символов.');
-    setStep((value) => Math.min(value + 1, maxStep));
+    flowHistory.open((current) => ({ ...current, step: Math.min(current.step + 1, maxStep) }));
   };
 
   const submit = async (event: FormEvent) => {
@@ -80,18 +83,18 @@ export function PartnerRegistrationPage() {
 
   if (!role) return (
     <main className="partner-registration">
-      <header><button aria-label="Назад" onClick={() => navigate('/profile')}><ArrowLeft /></button><span>Регистрация партнёра</span></header>
+      <header><button aria-label="Назад" onClick={() => navigateBackOrFallback(navigate, '/profile')}><ArrowLeft /></button><span>Регистрация партнёра</span></header>
       <section className="partner-registration__intro">
         <small>РАБОТА С WAYYAAM</small><h1>Как будете работать?</h1><p>Выберите роль. Аккаунт покупателя создаётся отдельно в профиле.</p>
-        <button className="partner-registration__role" onClick={() => setRole('seller')}><span><Store /></span><b>Продавец</b><small>Ресторан, кафе, кондитерская или магазин</small></button>
-        <button className="partner-registration__role" onClick={() => setRole('driver')}><span><Truck /></span><b>Курьер</b><small>Доставка заказов в выбранных районах</small></button>
+        <button className="partner-registration__role" onClick={() => flowHistory.open({ role: 'seller', step: 1 })}><span><Store /></span><b>Продавец</b><small>Ресторан, кафе, кондитерская или магазин</small></button>
+        <button className="partner-registration__role" onClick={() => flowHistory.open({ role: 'driver', step: 1 })}><span><Truck /></span><b>Курьер</b><small>Доставка заказов в выбранных районах</small></button>
       </section>
     </main>
   );
 
   return (
     <main className="partner-registration">
-      <header><button aria-label="Назад" onClick={() => step === 1 ? setRole(null) : setStep((value) => value - 1)}><ArrowLeft /></button><span>{title}</span><em>{step} из {maxStep}</em></header>
+      <header><button aria-label="Назад" onClick={() => flowHistory.back()}><ArrowLeft /></button><span>{title}</span><em>{step} из {maxStep}</em></header>
       <div className="partner-registration__progress">{Array.from({ length: maxStep }, (_, index) => <i className={index < step ? 'is-active' : ''} key={index} />)}</div>
 
       {step === 1 && <form onSubmit={next}>
@@ -114,7 +117,7 @@ export function PartnerRegistrationPage() {
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary" disabled={saving}>{saving ? 'Создаём кабинет…' : 'Создать заявку'}</button>
       </form>}
 
-      {role === 'driver' && step === 2 && <form onSubmit={(event) => { event.preventDefault(); setStep(3); }}>
+      {role === 'driver' && step === 2 && <form onSubmit={(event) => { event.preventDefault(); flowHistory.open({ role: 'driver', step: 3 }); }}>
         <small>ГЕОГРАФИЯ</small><h1>Где будете работать?</h1><p>Выберите место проживания и районы доставки.</p>
         <label>Где проживаете<input value={residencePlace} onChange={(event) => setResidencePlace(event.target.value)} required /></label>
         <label>Основной город работы<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} required /></label>

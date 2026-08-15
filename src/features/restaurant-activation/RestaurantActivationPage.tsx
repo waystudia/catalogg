@@ -8,8 +8,9 @@ import {
   LogOut,
   ShieldCheck
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { BrandLogo } from '../../shared/BrandLogo';
+import { hasPreviousAppHistoryEntry } from '../../shared/appNavigation';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   REQUIRED_ACTIVATION_CONFIRMATIONS,
@@ -106,6 +107,11 @@ export function RestaurantActivationPage({
     !requestId &&
     !activated
   );
+  const returnToExactOrigin = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!hasPreviousAppHistoryEntry(window.history.state)) return;
+    event.preventDefault();
+    window.history.back();
+  };
 
   const details = useMemo(() => view ? [
     [terms.place, view.restaurant.name],
@@ -201,7 +207,7 @@ export function RestaurantActivationPage({
       <header className="restaurant-activation-header">
         <BrandLogo />
         <div className="restaurant-activation-header__actions">
-          <a aria-label="Вернуться в кабинет" href={cabinetHref}><ArrowLeft /><span>В кабинет</span></a>
+          <a aria-label="Вернуться в кабинет" href={cabinetHref} onClick={returnToExactOrigin}><ArrowLeft /><span>В кабинет</span></a>
           <button type="button" onClick={() => void service.signOut()}><LogOut /> Выйти</button>
         </div>
       </header>

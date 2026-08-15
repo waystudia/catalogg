@@ -13,7 +13,8 @@ export function DesignEditor({
   onCloseProduct,
   onUpdateRestaurant,
   cartCount,
-  onNavigate
+  onNavigate,
+  onBack
 }: {
   editingProduct: Product | null;
   categories: Category[];
@@ -24,6 +25,7 @@ export function DesignEditor({
   onUpdateRestaurant: (patch: Partial<Restaurant>) => void;
   cartCount: number;
   onNavigate: (target: 'home' | 'catalog' | 'drinks' | 'cabins' | 'profile' | 'backup') => void;
+  onBack?: () => void;
 }) {
   const editor = useAdminStore((state) => state.editor);
   const setEditor = useAdminStore((state) => state.setEditor);
@@ -46,7 +48,8 @@ export function DesignEditor({
             businessType={restaurant.business_type}
             onBack={() => {
               onCloseProduct();
-              setEditor(null);
+              if (onBack) onBack();
+              else setEditor(null);
             }}
             onSave={onSaveProduct}
             onNavigate={(target) => {
@@ -66,7 +69,8 @@ export function DesignEditor({
                 type="button"
                 onClick={() => {
                   onCloseProduct();
-                  setEditor(null);
+                  if (onBack) onBack();
+                  else setEditor(null);
                 }}
               >
                 <ArrowLeft />

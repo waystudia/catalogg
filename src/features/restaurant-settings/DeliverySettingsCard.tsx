@@ -24,6 +24,7 @@ import {
   keepSettlementsAvailableForCity
 } from '../../shared/deliveryGeography';
 import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import { getCourierBillingRule, restaurantCourierTypeLabels, type RestaurantCourierType } from '../restaurant-billing/restaurantBillingRules';
 
 type DetailSection = null | 'couriers' | 'parameters' | 'zones' | 'qr';
@@ -69,7 +70,7 @@ export function DeliverySettingsCard({
   const terms = getBusinessTerms(businessType);
   const supportsSeating = businessType === 'restaurant' || businessType === 'coffee_shop';
   const [draft, setDraft] = useState(settings);
-  const [section, setSection] = useState<DetailSection>(null);
+  const [section, sectionHistory] = useBrowserBackedState<DetailSection>(`restaurant:${catalogSlug}:delivery-settings`, null);
   const [courierEmail, setCourierEmail] = useState('');
   const [courierType, setCourierType] = useState<RestaurantCourierType | ''>('');
   const [pendingCourierTypes, setPendingCourierTypes] = useState<Record<string, RestaurantCourierType | ''>>({});
@@ -196,7 +197,7 @@ export function DeliverySettingsCard({
     return (
       <section className="admin-section-card delivery-settings-card delivery-settings-detail">
         <header>
-          <button type="button" onClick={() => setSection(null)} aria-label="Назад к доставке"><ArrowLeft /></button>
+          <button type="button" onClick={() => sectionHistory.back()} aria-label="Назад к доставке"><ArrowLeft /></button>
           <div><small>Доставка и заказы</small><h2>{sectionTitles[section]}</h2></div>
         </header>
 
@@ -331,7 +332,7 @@ export function DeliverySettingsCard({
             <span><strong>Требовать QR-подтверждение</strong><small>Курьер завершает доставку после подтверждения QR-кодом клиента.</small></span>
           </label>
         )}
-        <button className="primary-wide" type="button" onClick={() => { save(); setSection(null); }}>Сохранить</button>
+        <button className="primary-wide" type="button" onClick={() => { save(); sectionHistory.back(); }}>Сохранить</button>
       </section>
     );
   }
@@ -350,10 +351,10 @@ export function DeliverySettingsCard({
       </div>
 
       <div className="delivery-settings-tiles delivery-settings-tiles--details">
-        <button type="button" onClick={() => setSection('couriers')}><Users /><span>Курьеры и платформа</span></button>
-        <button type="button" onClick={() => setSection('parameters')}><Settings /><span>Параметры доставки</span></button>
-        <button type="button" onClick={() => setSection('zones')}><MapPin /><span>Зоны и города</span></button>
-        <button type="button" onClick={() => setSection('qr')}><QrCode /><span>QR-подтверждение</span></button>
+        <button type="button" onClick={() => sectionHistory.open('couriers')}><Users /><span>Курьеры и платформа</span></button>
+        <button type="button" onClick={() => sectionHistory.open('parameters')}><Settings /><span>Параметры доставки</span></button>
+        <button type="button" onClick={() => sectionHistory.open('zones')}><MapPin /><span>Зоны и города</span></button>
+        <button type="button" onClick={() => sectionHistory.open('qr')}><QrCode /><span>QR-подтверждение</span></button>
       </div>
 
       <div className="delivery-settings-backup">

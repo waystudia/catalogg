@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { cabins, categories, products, restaurant, themeSettings } from '../../src/data/catalog';
 import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../src/data/groceryCatalog';
@@ -7,6 +7,10 @@ import { ExistingRestaurantSettingsPage } from '../../src/features/restaurant-ad
 import { SettingsHub, defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
 import { DEFAULT_PHOTO_QUALITY_SETTINGS } from '../../src/shared/photoQuality';
+
+beforeEach(() => {
+  window.history.replaceState({}, '', window.location.href);
+});
 
 const settingsHubCallbacks = () => ({
   onProfile: vi.fn(),
@@ -214,4 +218,7 @@ test('restaurant owner saves an optional cabin price in the existing cabin setti
   const savedCabins = onSaveCabins.mock.calls[0][0] as typeof cabins;
   const savedCabin = savedCabins.find((place) => place.id === cabins[0].id);
   expect(JSON.parse(savedCabin?.feature ?? '{}')).toMatchObject({ kind: 'cabin', price: 750 });
+
+  await screen.getByRole('button', { name: 'Вернуться к настройкам' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Настройки ресторана' })).toBeVisible();
 });

@@ -14,3 +14,13 @@ export const buildCityPickerPath = (returnTo: string) => {
     ? '/city'
     : `/city?returnTo=${encodeURIComponent(safeReturnTo)}`;
 };
+
+export const getRestaurantClientBackFallback = (restaurantSlug: string, pathname: string) => {
+  const base = `/r/${restaurantSlug}`;
+  if (pathname.includes('/payment/confirm')) return `${base}/payment`;
+  if (pathname.includes('/address') || pathname.endsWith('/payment')) return `${base}/checkout`;
+  if (pathname.includes('/checkout')) return `${base}/cart`;
+  if (pathname.includes('/cart') || pathname.includes('/reviews')) return base;
+  if (pathname.includes('/order/')) return '/profile/orders';
+  return '/restaurants';
+};

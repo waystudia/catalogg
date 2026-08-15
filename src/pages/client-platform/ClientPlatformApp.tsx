@@ -45,7 +45,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
-import { buildCityPickerPath, resolveCityPickerReturnTo } from '../../features/client-platform/clientPlatformNavigation';
+import { buildCityPickerPath, getRestaurantClientBackFallback, resolveCityPickerReturnTo } from '../../features/client-platform/clientPlatformNavigation';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
@@ -144,6 +144,7 @@ import {
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
 import { appIsRunningStandalone, clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import { getBusinessTypeDefinition } from '../../shared/businessRegistry';
 import {
   installGuideDismissedUntilKey,
@@ -421,7 +422,7 @@ const installSlides: Record<Exclude<InstallDevice, null>, Array<{ image: string;
 function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
   const [device, setDevice] = useState<InstallDevice>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [slideIndex, setSlideIndex] = useState(0);
+  const [slideIndex, slideHistory] = useBrowserBackedState<number>('client:pwa-install-guide:slide', 0);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const touchStartX = useRef<number | null>(null);
 
@@ -463,7 +464,14 @@ function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
     window.localStorage.setItem(installGuideDismissedUntilKey, String(Number.MAX_SAFE_INTEGER));
     setIsOpen(false);
   };
-  const changeSlide = (nextIndex: number) => setSlideIndex(Math.max(0, Math.min(slides.length - 1, nextIndex)));
+  const changeSlide = (nextIndex: number) => {
+    const boundedIndex = Math.max(0, Math.min(slides.length - 1, nextIndex));
+    if (boundedIndex === slideIndex - 1) {
+      slideHistory.back(() => slideHistory.replace(boundedIndex));
+      return;
+    }
+    if (boundedIndex !== slideIndex) slideHistory.open(boundedIndex);
+  };
   const promptAndroidInstall = async () => {
     if (!installPrompt) return;
     await installPrompt.prompt();
@@ -485,7 +493,7 @@ function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
             className={device === 'ios' ? 'is-active' : ''}
             type="button"
             aria-pressed={device === 'ios'}
-            onClick={() => { setDevice('ios'); setSlideIndex(0); }}
+            onClick={() => { setDevice('ios'); slideHistory.replace(0); }}
           >
             iPhone
           </button>
@@ -493,7 +501,7 @@ function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
             className={device === 'android' ? 'is-active' : ''}
             type="button"
             aria-pressed={device === 'android'}
-            onClick={() => { setDevice('android'); setSlideIndex(0); }}
+            onClick={() => { setDevice('android'); slideHistory.replace(0); }}
           >
             Android
           </button>
@@ -535,7 +543,7 @@ function PwaInstallGuide({ appName = 'WayYaam' }: { appName?: string }) {
         </div>
         <div className="install-guide__actions">
           {slideIndex > 0 && (
-            <button className="install-guide__secondary" type="button" onClick={() => changeSlide(slideIndex - 1)}>
+            <button className="install-guide__secondary" type="button" onClick={() => slideHistory.back(() => slideHistory.replace(slideIndex - 1))}>
               <ChevronLeft /> Назад
             </button>
           )}
@@ -1520,10 +1528,12 @@ function RestaurantArea({
 
 function RestaurantTopbar({ restaurant, title }: { restaurant: ClientRestaurant; title?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fallback = getRestaurantClientBackFallback(restaurant.slug, location.pathname);
 
   return (
     <header className="restaurant-topbar">
-      <button className="restaurant-icon-button" type="button" onClick={() => navigate(-1)} aria-label="Назад">
+      <button className="restaurant-icon-button" type="button" onClick={() => navigateBackOrFallback(navigate, fallback)} aria-label="Назад">
         <ArrowLeft />
       </button>
       <Link className="restaurant-home-link" to="/">

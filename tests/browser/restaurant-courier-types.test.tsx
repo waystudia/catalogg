@@ -1,9 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { DeliverySettingsCard } from '../../src/features/restaurant-settings/DeliverySettingsCard';
 import { defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings/defaults';
 import type { RestaurantCourierService } from '../../src/features/restaurant-settings/DeliverySettingsCard';
+
+beforeEach(() => {
+  window.history.replaceState({}, '', window.location.href);
+});
 
 const courierService = (): RestaurantCourierService => {
   const couriers: Awaited<ReturnType<RestaurantCourierService['list']>> = [];

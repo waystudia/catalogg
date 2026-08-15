@@ -32,6 +32,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
 import QRCode from 'qrcode';
 import { useDriverStore } from '../../features/driver/store';
 import { CombinedDeliveryStopsPanel } from '../../features/driver/CombinedDeliveryStopsPanel';
@@ -1083,7 +1084,7 @@ function DriverHeader({ title, action }: { title: string; action?: ReactNode }) 
 
   return (
     <header className="driver-header">
-      <button type="button" onClick={() => navigate(getDriverBackTarget(location.pathname))} aria-label="Назад">
+      <button type="button" onClick={() => navigateBackOrFallback(navigate, getDriverBackTarget(location.pathname))} aria-label="Назад">
         <ArrowLeft />
       </button>
       <h1>{title}</h1>
@@ -2414,7 +2415,7 @@ export function DriverMapScreen({
       <header className="driver-map-topbar">
         <button
           type="button"
-          onClick={() => navigate(getDriverBackTarget(location.pathname), { replace: true })}
+          onClick={() => navigateBackOrFallback(navigate, getDriverBackTarget(location.pathname))}
           aria-label="Выйти из карты"
         ><ArrowLeft /></button>
         <span role="status" aria-label="Статус GPS" aria-live="polite"><i aria-hidden="true" />{locationRefreshStatus}</span>

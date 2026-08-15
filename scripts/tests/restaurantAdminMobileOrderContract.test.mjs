@@ -13,7 +13,7 @@ const adminWorkspaceSource = readFileSync(
 describe('restaurant admin mobile order details', () => {
   it('opens an order through a handler that scrolls details into view', () => {
     assert.match(adminWorkspaceSource, /const openOrderFromList = \(order: RestaurantOrder\) => \{/);
-    assert.match(adminWorkspaceSource, /setSelectedOrder\(order\)/);
+    assert.match(adminWorkspaceSource, /selectedOrderHistory\.open\(order\)/);
     assert.match(adminWorkspaceSource, /querySelector\('\.admin-order-details-panel'\)/);
     assert.match(adminWorkspaceSource, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
     assert.match(adminWorkspaceSource, /onClick=\{\(\) => openOrderFromList\(order\)\}/);
@@ -21,7 +21,7 @@ describe('restaurant admin mobile order details', () => {
 
   it('automatically opens the first visible order and a newly arrived order', () => {
     assert.match(adminWorkspaceSource, /hasAutoOpenedOrderRef/);
-    assert.match(adminWorkspaceSource, /setSelectedOrder\(filteredOrders\[0\]\)/);
-    assert.match(adminWorkspaceSource, /setSelectedOrder\(newOrders\[0\]\)/);
+    assert.match(adminWorkspaceSource, /selectedOrderHistory\.replace\(filteredOrders\[0\]\)/);
+    assert.match(adminWorkspaceSource, /selectedOrderHistory\.replace\(newOrders\[0\]\)/);
   });
 });
