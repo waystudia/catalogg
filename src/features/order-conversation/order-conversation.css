@@ -160,6 +160,7 @@
 
 .order-inbox__thread-copy strong,
 .order-inbox__thread-copy small,
+.order-inbox__thread-copy span,
 .order-inbox__thread-copy em {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -173,10 +174,21 @@
 }
 
 .order-inbox__thread-copy em {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #f1efff;
   color: var(--order-inbox-brand);
   font-size: 11px;
   font-style: normal;
   font-weight: 800;
+}
+
+.order-inbox__thread-preview {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .order-inbox__thread time {
@@ -195,10 +207,10 @@
 
 .order-inbox__conversation-head {
   min-height: 68px;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   border-bottom: 1px solid #edf0f4;
 }
 
@@ -214,6 +226,34 @@
 
 .order-inbox__conversation-head b {
   flex: 0 0 auto;
+}
+
+.order-inbox__back,
+.order-inbox__order-link {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  background: #fff;
+  color: var(--order-inbox-brand);
+  cursor: pointer;
+}
+
+.order-inbox__back {
+  display: none;
+}
+
+.order-inbox__order-link {
+  border: 1px solid #e4e7ec;
+}
+
+.order-inbox__back svg,
+.order-inbox__order-link svg {
+  width: 22px;
+  height: 22px;
 }
 
 .order-inbox__conversation .order-conversation {
@@ -689,61 +729,170 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (min-width: 641px) and (max-width: 900px) {
   .order-inbox__layout {
-    min-height: 0;
-    grid-template-columns: 1fr;
-    overflow: visible;
-  }
-
-  .order-inbox__list {
-    border-right: 0;
-    border-bottom: 1px solid #e4e7ec;
-  }
-
-  .order-inbox__threads {
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x proximity;
+    grid-template-columns: minmax(260px, .85fr) minmax(0, 1.15fr);
   }
 
   .order-inbox__thread {
-    min-width: min(286px, 84vw);
-    border-right: 1px solid #edf0f4;
-    border-bottom: 0;
-    scroll-snap-align: start;
-  }
-
-  .order-inbox__thread[data-active='true'] {
-    box-shadow: inset 0 -3px var(--order-inbox-brand);
+    min-height: 102px;
   }
 }
 
 @media (max-width: 640px) {
   .order-inbox {
-    gap: 13px;
+    gap: 12px;
+  }
+
+  .order-inbox__header {
+    align-items: center;
+  }
+
+  .order-inbox__title-icon {
+    display: none;
+  }
+
+  .order-inbox__header h2 {
+    font-size: 30px;
   }
 
   .order-inbox__header p {
-    font-size: 13px;
+    display: none;
   }
 
   .order-inbox__layout {
-    margin-inline: -4px;
-    border-radius: 16px;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    overflow: visible;
+    margin-inline: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
-  .order-inbox__conversation {
-    padding: 0 10px 10px;
+  .order-inbox__list {
+    min-height: 0;
+    border: 0;
+    background: #fff;
   }
 
-  .order-inbox__conversation .order-conversation {
+  .order-inbox__search {
+    min-height: 64px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+
+  .order-inbox__search input {
+    height: 44px;
+    border-radius: 22px;
+    background: #f7f8fa;
+  }
+
+  .order-inbox__threads {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .order-inbox__thread {
+    min-width: 0;
+    min-height: 112px;
+    grid-template-columns: 50px minmax(0, 1fr) auto;
+    gap: 11px;
+    border-right: 0;
+    border-bottom: 1px solid #edf0f4;
     padding: 12px;
   }
 
-  .order-inbox__conversation .order-conversation[data-presentation='messenger'] {
-    min-height: min(540px, calc(100dvh - 280px));
+  .order-inbox__thread[data-active='true'] {
+    box-shadow: none;
+  }
+
+  .order-inbox__avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 20px;
+  }
+
+  .order-inbox__thread-copy {
+    gap: 2px;
+  }
+
+  .order-inbox__thread-copy strong {
+    font-size: 16px;
+  }
+
+  .order-inbox__thread time {
+    font-size: 11px;
+  }
+
+  .order-inbox__conversation {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    min-width: 0;
+    min-height: 100dvh;
+    height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    padding: env(safe-area-inset-top) 0 0;
+    background: #fff;
+  }
+
+  .order-inbox[data-view='conversation'] > .order-inbox__header,
+  .order-inbox[data-view='conversation'] .order-inbox__list {
+    display: none;
+  }
+
+  .order-inbox__conversation-head {
+    min-height: 70px;
+    grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
+    padding: 7px 10px;
+  }
+
+  .order-inbox__conversation-head .order-inbox__avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .order-inbox__conversation-head strong,
+  .order-inbox__conversation-head small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .order-inbox__conversation-head strong {
+    font-size: 17px;
+  }
+
+  .order-inbox__conversation-head small {
+    font-size: 11px;
+  }
+
+  .order-inbox__back {
+    display: grid;
+  }
+
+  .order-inbox__conversation .order-conversation {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
     padding: 0;
+  }
+
+  .order-inbox__conversation .order-conversation[data-presentation='messenger'] {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .order-inbox__conversation .order-conversation[data-presentation='messenger'] .order-conversation__messages {
+    padding-inline: 14px;
+  }
+
+  .order-inbox__conversation .order-conversation[data-presentation='messenger'] .order-conversation__composer {
+    padding-inline: 12px;
   }
 }

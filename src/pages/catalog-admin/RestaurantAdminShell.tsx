@@ -527,7 +527,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         hasLoadedOrdersRef.current = true;
         setOrders(restaurantOrders);
         setOrderAssignments(assignments);
-        setSelectedOrderId((current) => current ?? (isGrocery ? null : restaurantOrders[0]?.id ?? null));
+        setSelectedOrderId((current) => current && restaurantOrders.some((order) => order.id === current) ? current : null);
       } catch (error) {
         const message = error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`;
         if (!options.silent) setOrdersLoadError(message);
@@ -940,7 +940,16 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         <BrandLogo compact />
         <nav aria-label="Разделы кабинета бизнеса">
           {navItems.map((item) => (
-            <SectionButton key={item.id} active={section === item.id} icon={item.icon} label={item.label} onClick={() => goTo(item.id)} />
+            <SectionButton
+              key={item.id}
+              active={section === item.id}
+              icon={item.icon}
+              label={item.label}
+              onClick={() => {
+                if (item.id === 'chats') setSelectedOrderId(null);
+                goTo(item.id);
+              }}
+            />
           ))}
         </nav>
       </aside>
@@ -1049,8 +1058,12 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
             <OrderConversationInbox
               items={businessChatItems}
               expectedViewer="staff"
-              selectedOrderId={selectedOrder?.id ?? null}
+              selectedOrderId={selectedOrderId}
               onSelectedOrderChange={setSelectedOrderId}
+              onOpenOrder={(orderId) => {
+                setSelectedOrderId(orderId);
+                goTo('orders');
+              }}
               onChanged={() => void refreshData({ silent: true })}
             />
           )}

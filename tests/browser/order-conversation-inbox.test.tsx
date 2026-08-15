@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { OrderConversationInbox, type OrderConversationInboxItem } from '../../src/features/order-conversation/OrderConversationInbox';
 
@@ -27,17 +28,57 @@ const chats: OrderConversationInboxItem[] = [
   }
 ];
 
-test('keeps separate order threads and switches the selected tenant conversation', async () => {
-  const screen = await render(<OrderConversationInbox items={chats} expectedViewer="client" />);
+const summaryApi = {
+  load: async () => [
+    {
+      orderId: 'order-mangal',
+      body: 'Можно заменить товар?',
+      senderKind: 'client' as const,
+      createdAt: '2026-08-15T11:18:00.000Z'
+    },
+    {
+      orderId: 'order-finik',
+      body: 'Заказ уже собран.',
+      senderKind: 'staff' as const,
+      createdAt: '2026-08-15T11:12:00.000Z'
+    }
+  ],
+  subscribe: () => () => undefined
+};
 
-  await expect.element(screen.getByRole('heading', { name: 'Чаты по заказам' })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: /Финик/ })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: /Мангал/ })).toBeVisible();
-  await expect.element(screen.getByText('Заказ №1024 · Собирается')).toBeVisible();
+test('mobile opens with a vertical latest-first chat list and no conversation selected', async () => {
+  await page.viewport(372, 576);
+  const screen = await render(<OrderConversationInbox items={chats} expectedViewer="staff" summaryApi={summaryApi} />);
+
+  await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Адам/ })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Магомед/ })).toBeVisible();
+  await expect.element(screen.getByText('Можно заменить товар?')).toBeVisible();
+  await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).not.toBeInTheDocument();
+
+  await expect.poll(() => Array.from(screen.getByLabelText('Список чатов').element().querySelectorAll<HTMLButtonElement>('.order-inbox__thread')).map((node) => node.textContent)).toEqual([
+    expect.stringContaining('Магомед'),
+    expect.stringContaining('Адам')
+  ]);
+
+  const threadList = screen.getByLabelText('Список чатов').element().querySelector<HTMLElement>('.order-inbox__threads')!;
+  expect(getComputedStyle(threadList).overflowY).toBe('auto');
+  expect(document.documentElement.scrollWidth).toBe(document.documentElement.clientWidth);
+});
+
+test('mobile opens a full conversation and back returns to the chat list', async () => {
+  await page.viewport(372, 576);
+  const screen = await render(<OrderConversationInbox items={chats} expectedViewer="client" summaryApi={summaryApi} />);
 
   await screen.getByRole('button', { name: /Мангал/ }).click();
 
   await expect.element(screen.getByText('Заказ №2048 · Готовится')).toBeVisible();
   await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).toHaveAttribute('data-presentation', 'messenger');
   await expect.element(screen.getByLabelText('Сообщение')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Назад к списку чатов' })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Назад к списку чатов' }).click();
+
+  await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
+  await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).not.toBeInTheDocument();
 });
