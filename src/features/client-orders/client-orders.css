@@ -275,6 +275,10 @@
   color: #fff;
 }
 
+.client-order-card__actions[data-layout='history'] .client-order-card__repeat {
+  grid-column: 1 / -1;
+}
+
 .client-order-card__actions svg { width: 16px; height: 16px; }
 
 .client-order-card__actions b {
@@ -316,18 +320,21 @@
 
 @media (max-width: 430px) {
   .client-order-filters {
-    grid-template-columns: .55fr .9fr 1.25fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     display: grid;
-    gap: 4px;
+    gap: 8px;
     overflow-x: visible;
   }
 
   .client-order-filters button {
     width: 100%;
     min-width: 0;
-    gap: 4px;
-    padding-inline: 4px;
-    font-size: 10px;
+    gap: 6px;
+    overflow: hidden;
+    padding-inline: 12px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .client-order-filters b {

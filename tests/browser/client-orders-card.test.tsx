@@ -57,6 +57,32 @@ test('renders a compact active order with only details and its order-scoped chat
   expect(document.body.textContent).not.toContain('43.');
 });
 
+test('keeps the order chat in history and renders repeat as a separate action', async () => {
+  const onRepeat = vi.fn();
+  const screen = await render(
+    <MemoryRouter>
+      <ClientOrderCard
+        order={{ ...order, status: 'completed' }}
+        restaurant={{ ...restaurant, businessType: 'grocery' }}
+        orderNumber="F8364"
+        statusLabel="Доставлен"
+        detailsPath="/finik/order/111"
+        chatPath="/profile/orders/111/chat"
+        onRepeat={onRepeat}
+      />
+    </MemoryRouter>
+  );
+
+  await expect.element(screen.getByRole('link', { name: 'Подробнее' })).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: /Чат с магазином/ })).toBeVisible();
+  const repeatButton = screen.getByRole('button', { name: /Повторить заказ/ });
+  await expect.element(repeatButton).toBeVisible();
+  await repeatButton.click();
+  expect(onRepeat).toHaveBeenCalledTimes(1);
+  expect(document.querySelector('.client-order-card__actions')).toHaveAttribute('data-layout', 'history');
+  expect(document.querySelectorAll('.client-order-card__actions > *')).toHaveLength(3);
+});
+
 test('filter chips expose all real order states without a separate chats tab', async () => {
   const onChange = vi.fn();
   const screen = await render(<OrderFilterChips value="all" currentCount={2} onChange={onChange} />);
