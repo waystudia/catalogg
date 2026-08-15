@@ -149,7 +149,7 @@ describe('dish variant catalog cards', () => {
         required: false,
         minSelected: 0,
         maxSelected: 1,
-        options: [{ id: 'cheese', name: 'Сырный', priceDelta: 50 }]
+        options: [{ id: 'cheese', name: 'Сырный', priceDelta: 50, isDefault: false }]
       }]
     });
 
