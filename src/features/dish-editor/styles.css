@@ -336,7 +336,11 @@
 }
 
 .dish-switch input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .dish-switch span {
@@ -404,6 +408,59 @@
   max-height: 280px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.dish-pair-categories {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.dish-pair-categories::-webkit-scrollbar {
+  display: none;
+}
+
+.dish-pair-categories button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dish-pair-categories button.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+}
+
+.dish-choice-cards-toggle {
+  gap: 10px;
+  padding: 9px 10px;
+}
+
+.dish-choice-cards-toggle > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.dish-choice-cards-toggle strong {
+  font-size: 13px;
+}
+
+.dish-choice-cards-toggle small {
+  line-height: 1.3;
+}
+
+.dish-choice-cards-toggle input:disabled + span {
+  opacity: 0.45;
 }
 
 .dish-pair-option {
@@ -734,6 +791,16 @@
     overflow-y: hidden;
     padding: 0;
     scrollbar-width: none;
+  }
+
+  .dish-pair-categories {
+    gap: 5px;
+  }
+
+  .dish-pair-categories button {
+    min-height: 27px;
+    padding: 0 10px;
+    font-size: 10px;
   }
 
   .dish-pair-picker::-webkit-scrollbar {

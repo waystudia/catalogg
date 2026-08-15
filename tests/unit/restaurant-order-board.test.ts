@@ -3,8 +3,15 @@ import {
   getRestaurantOrderBoardColumnId,
   getRestaurantOrderBoardColumns
 } from '../../src/features/restaurant-admin/orderBoard';
+import { formatAdminOrderItemQuantity } from '../../src/features/restaurant-admin/orderPresentation';
+import type { RestaurantOrder } from '../../src/shared/api/restaurantOrdersApi';
 
 describe('restaurant order board', () => {
+  it('shows selected quantity before the unit price', () => {
+    const item = { quantity: 3, unitPrice: 380 } as RestaurantOrder['items'][number];
+    expect(formatAdminOrderItemQuantity(item)).toBe('3 × 380 ₽');
+  });
+
   it('maps every status and keeps the operational columns in left-to-right order', () => {
     expect([
       ['new', getRestaurantOrderBoardColumnId('new')],

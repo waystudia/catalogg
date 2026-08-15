@@ -103,7 +103,18 @@ export function DishForm({
 }) {
   const [sharedLookupState, setSharedLookupState] = useState<'idle' | 'loading' | 'found' | 'missing' | 'error'>('idle');
   const [sharedLookupMessage, setSharedLookupMessage] = useState('');
-
+  const [pairCategory, setPairCategory] = useState('all');
+  const pairProducts = products.filter((product) => product.id !== dish.id);
+  const pairCategories = categories.filter((category) =>
+    pairProducts.some((product) =>
+      (product.category_ids?.length ? product.category_ids : [product.category_id]).includes(category.id)
+    )
+  );
+  const visiblePairProducts = pairCategory === 'all'
+    ? pairProducts
+    : pairProducts.filter((product) =>
+      (product.category_ids?.length ? product.category_ids : [product.category_id]).includes(pairCategory)
+    );
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -525,13 +536,45 @@ export function DishForm({
             + Добавить вариант
           </button>
         )}
+        <label className="dish-switch dish-choice-cards-toggle">
+          <div>
+            <strong>Отдельные карточки</strong>
+            <small>Например: «Пицца Маргарита большая» или «Крылышки, 6 шт».</small>
+          </div>
+          <input
+            aria-label="Добавить варианты в каталог отдельными карточками"
+            type="checkbox"
+            checked={dish.publishChoiceCards}
+            disabled={dish.choiceOptions.length === 0}
+            onChange={(event) => onChange({ publishChoiceCards: event.target.checked })}
+          />
+          <span aria-hidden="true" />
+        </label>
       </section>
 
       <section className="dish-section">
         <h3>Часто покупают вместе</h3>
+        <nav className="dish-pair-categories" aria-label="Категории сопутствующих блюд">
+          <button
+            className={pairCategory === 'all' ? 'is-active' : ''}
+            type="button"
+            onClick={() => setPairCategory('all')}
+          >
+            Все
+          </button>
+          {pairCategories.map((category) => (
+            <button
+              className={pairCategory === category.id ? 'is-active' : ''}
+              type="button"
+              key={category.id}
+              onClick={() => setPairCategory(category.id)}
+            >
+              {category.name}
+            </button>
+          ))}
+        </nav>
         <div className="dish-pair-picker">
-          {products
-            .filter((product) => product.id !== dish.id)
+          {visiblePairProducts
             .map((product) => {
               const selected = dish.pairIds.includes(product.id);
               return (

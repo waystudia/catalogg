@@ -2101,21 +2101,28 @@
 }
 
 .admin-order-composition .admin-order-items > div {
-  grid-template-columns: minmax(0, 1fr) 34px minmax(64px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(64px, auto);
   column-gap: 10px;
+  row-gap: 2px;
   min-height: 30px;
   padding: 6px 2px;
   border-bottom: 1px solid #f0f2f5;
   font-size: 13px;
 }
 
-.admin-order-composition .admin-order-items small {
+.admin-order-composition .admin-order-items > div > span {
+  grid-column: 1 / -1;
+}
+
+.admin-order-composition .admin-order-items > div > small {
+  grid-column: 1;
   color: #475467;
   font-size: 12px;
-  text-align: center;
+  text-align: left;
 }
 
 .admin-order-composition .admin-order-items strong {
+  grid-column: 2;
   text-align: right;
   white-space: nowrap;
 }
@@ -2622,10 +2629,6 @@
     min-height: 27px;
     padding: 7px 1px;
     font-size: 12px;
-  }
-
-  .admin-order-composition .admin-order-items > div > span {
-    grid-column: 1 / -1;
   }
 
   .admin-order-composition .admin-order-items > div > small {
@@ -7786,7 +7789,8 @@ a {
   left: max(18px, calc((100vw - 980px) / 2 + 30px));
   z-index: 14;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 220px);
+  justify-content: center;
   gap: 0;
   min-height: 72px;
   border: 1px solid #e8e0d4;
@@ -9933,7 +9937,7 @@ a {
     right: 16px;
     bottom: calc(14px + env(safe-area-inset-bottom));
     left: 16px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 220px);
     min-height: 76px;
     border: 1px solid #e8e0d4;
     border-radius: 24px;

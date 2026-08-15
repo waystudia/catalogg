@@ -29,7 +29,6 @@ import {
   Salad,
   Sandwich,
   Search,
-  Settings,
   Share2,
   ShieldCheck,
   ShoppingBag,
@@ -111,6 +110,11 @@ import {
   ThemeSettingsScreen
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
+import {
+  getDishProductRemovalIds,
+  mergeDishProductChanges,
+  persistDishProductChanges
+} from '../features/dish-editor/dishVariantCards';
 import { buildProfileLoginPath, navigateBackOrFallback } from '../shared/appNavigation';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
 import { ClientBrowserPairingBanner } from '../features/client-pairing/ClientPairing';
@@ -1821,7 +1825,7 @@ function UpsellReminder({
   );
 }
 
-function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'; onAdd: () => void; onSettings: () => void }) {
+export function AdminPanel({ onAdd }: { onAdd: () => void }) {
   const isAdmin = useAuthStore((state) => state.isAdmin);
 
   if (!isAdmin) {
@@ -1830,11 +1834,8 @@ function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'
 
   return (
     <nav className="admin-panel">
-      <button className={active === 'add' ? 'is-active' : ''} type="button" onClick={onAdd}>
+      <button type="button" onClick={onAdd}>
         <Plus /> Добавить
-      </button>
-      <button className={active === 'settings' ? 'is-active' : ''} type="button" onClick={onSettings}>
-        <Settings /> Настройки
       </button>
     </nav>
   );
@@ -2305,30 +2306,39 @@ function AppContent({
     setAdminEditor('dish');
   };
 
-  const saveProduct = (product: Product) => {
-    const normalizedProduct = applyStockValues(product, getDailyStock(product), getCurrentStock(product));
-    setLocalProducts((current) => {
-      const exists = current.some((item) => item.id === normalizedProduct.id);
-      return exists ? current.map((item) => (item.id === normalizedProduct.id ? normalizedProduct : item)) : [normalizedProduct, ...current];
-    });
+  const saveProduct = (product: Product, generatedProducts: Product[] = [], removedProductIds: string[] = []) => {
+    const normalizedProducts = [product, ...generatedProducts].map((item) =>
+      applyStockValues(item, getDailyStock(item), getCurrentStock(item))
+    );
+    const normalizedProduct = normalizedProducts[0];
+    setLocalProducts((current) => mergeDishProductChanges(current, normalizedProducts, removedProductIds));
     if (selectedProduct?.id === normalizedProduct.id) {
       setSelectedProduct(normalizedProduct);
     }
     setEditingProduct(null);
     setAdminEditor(null);
     setStockTargets((current) => {
-      const next = { ...current, [normalizedProduct.id]: getDailyStock(normalizedProduct) };
+      const next = { ...current };
+      removedProductIds.forEach((productId) => delete next[productId]);
+      normalizedProducts.forEach((savedProduct) => {
+        next[savedProduct.id] = getDailyStock(savedProduct);
+      });
       saveStockTargets(next);
       return next;
     });
-    persist(saveProductToSupabase(normalizedProduct));
+    persist(persistDishProductChanges(normalizedProducts, removedProductIds, {
+      save: saveProductToSupabase,
+      remove: deleteProductFromSupabase
+    }));
   };
 
   const deleteProduct = (productId: string) => {
-    setLocalProducts((current) => current.filter((product) => product.id !== productId));
+    const removedProductIds = getDishProductRemovalIds(localProducts, productId);
+    const removedIds = new Set(removedProductIds);
+    setLocalProducts((current) => current.filter((product) => !removedIds.has(product.id)));
     setStockTargets((current) => {
       const next = { ...current };
-      delete next[productId];
+      removedProductIds.forEach((removedProductId) => delete next[removedProductId]);
       saveStockTargets(next);
       return next;
     });
@@ -2336,7 +2346,10 @@ function AppContent({
       setSelectedProduct(null);
       setScreen('home');
     }
-    persist(deleteProductFromSupabase(productId));
+    persist(persistDishProductChanges([], removedProductIds, {
+      save: saveProductToSupabase,
+      remove: deleteProductFromSupabase
+    }));
   };
 
   const toggleProduct = (productId: string, key: ProductFlag) => {
@@ -3004,9 +3017,7 @@ function AppContent({
 
       {!screen.startsWith('settings') && screen !== 'admin-home' && (
         <AdminPanel
-          active={undefined}
           onAdd={() => setAdminEditor('dish')}
-          onSettings={() => setScreen('admin-home')}
         />
       )}
       <DesignEditor
