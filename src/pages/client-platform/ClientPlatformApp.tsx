@@ -84,6 +84,7 @@ import {
   subscribeClientOrderRealtime,
   subscribeClientPlatformSnapshotRealtime
 } from '../../shared/api/clientPlatformApi';
+import { initializePostOrderAddon } from '../../shared/api/combinedOrderApi';
 import {
   buildClientAuthPath,
   getCurrentClientAddresses,
@@ -2407,6 +2408,9 @@ function PaymentConfirmPage({
 
     recordOrderConsent();
     submitOrder(order);
+    void initializePostOrderAddon(orderId).catch((error) => {
+      console.warn('Post-order addon initialization failed', error);
+    });
     navigate(`/r/${restaurant.slug}/order/${order.id}`);
   };
 

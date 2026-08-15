@@ -44,7 +44,6 @@ import {
   type RestaurantDeliverySettings
 } from '../../shared/api/restaurantOrdersApi';
 import {
-  buildOrderStatusShareUrl,
   buildRestaurantOrderFingerprint,
   createRestaurantOrderIdempotencyKey,
   findRestaurantOrderStockIssues,
@@ -83,7 +82,12 @@ import { loadCatalog } from '../../shared/supabase';
 import { buildRestaurantMapUrl } from '../../shared/restaurantLocation';
 import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
-import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
+import {
+  buildMerchantOrderPanelUrl,
+  buildWhatsappOrderNotificationText
+} from '../../shared/whatsappOrder';
+import { formatPublicOrderNumber } from '../../shared/publicOrderNumber';
+import { initializePostOrderAddon } from '../../shared/api/combinedOrderApi';
 import {
   getStoredClientSessionToken,
   loginClientAccount,
@@ -489,23 +493,6 @@ export function CheckoutScreen({
       setOrder({ cabinId: '' });
     }
   }, [activeCabins, cabinId, mode, setOrder]);
-  const fulfillmentLabel = mode === 'hall'
-    ? `В зале${selectedCabin ? `, ${selectedCabin.title}` : ''}`
-    : mode === 'delivery'
-      ? 'Доставка'
-      : 'Самовывоз';
-  const orderLines = buildWhatsappOrderText({
-    businessName: restaurant.name,
-    businessLabel: restaurant.business_type === 'confectionery' ? 'Кондитерская' : restaurant.business_type === 'coffee_shop' ? 'Кофейня' : 'Ресторан',
-    items,
-    fulfillmentLabel,
-    customerName: clientName,
-    customerPhone: clientPhone,
-    deliveryAddress: mode === 'delivery' ? finalDeliveryAddress : '',
-    comment: orderComment,
-    paymentLabel: usesBankTransfer ? 'Безналично' : 'Наличными',
-    total
-  }).split('\n');
   const getOrderIdempotencyKey = (payload: CreateRestaurantOrderFromCartInput) => {
     const fingerprint = buildRestaurantOrderFingerprint(payload);
 
@@ -518,24 +505,19 @@ export function CheckoutScreen({
 
     return orderAttemptRef.current.idempotencyKey;
   };
-  const buildWhatsappHref = (orderId?: string) => {
+  const buildWhatsappHref = (orderId: string) => {
     if (!restaurant.whatsapp) return '#';
-
-    const lines = orderId
-      ? [
-          ...orderLines,
-          '',
-          'Ссылка на статус заказа:',
-          buildOrderStatusShareUrl({
-            origin: window.location.origin,
-            basePath: import.meta.env.BASE_URL,
-            restaurantSlug: catalogSlug,
-            orderId
-          })
-        ]
-      : orderLines;
-
-    return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;
+    const panelUrl = buildMerchantOrderPanelUrl({
+      origin: window.location.origin,
+      basePath: import.meta.env.BASE_URL,
+      merchantSlug: catalogSlug,
+      orderId
+    });
+    const notification = buildWhatsappOrderNotificationText({
+      orderNumber: formatPublicOrderNumber(orderId, restaurant.name || catalogSlug),
+      panelUrl
+    });
+    return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(notification)}`;
   };
   const restaurantMapUrl = buildRestaurantMapUrl({
     lat: restaurant.lat,
@@ -1274,6 +1256,9 @@ export function CheckoutScreen({
                         price: getCartItemPrice(item),
                         quantity: item.quantity
                       }))
+                    });
+                    void initializePostOrderAddon(orderId).catch((error) => {
+                      console.warn('Post-order addon initialization failed', error);
                     });
                     recordOrderConsent();
                     clearCart();

@@ -2,6 +2,39 @@ import type { CartItem } from '../entities/models';
 import { getSelectedModifierDetails } from '../entities/productModifiers';
 import { getCartItemTotal, normalizeSelectedWeight, formatRublePrice } from '../entities/productPricing';
 
+const normalizeBasePath = (basePath: string) => {
+  const normalized = `/${basePath.trim().replace(/^\/+|\/+$/g, '')}`;
+  return normalized === '/' ? '/' : `${normalized}/`;
+};
+
+export const buildMerchantOrderPanelUrl = ({
+  origin,
+  basePath,
+  merchantSlug,
+  orderId
+}: {
+  readonly origin: string;
+  readonly basePath: string;
+  readonly merchantSlug: string;
+  readonly orderId: string;
+}) => {
+  const normalizedOrigin = origin.trim().replace(/\/+$/g, '');
+  const merchantPath = `/${encodeURIComponent(merchantSlug.trim())}/order/${encodeURIComponent(orderId.trim())}`;
+  return `${normalizedOrigin}${normalizeBasePath(basePath)}#/login?returnTo=${encodeURIComponent(merchantPath)}`;
+};
+
+export const buildWhatsappOrderNotificationText = ({
+  orderNumber,
+  panelUrl
+}: {
+  readonly orderNumber: string;
+  readonly panelUrl: string;
+}) => [
+  `Новый заказ WayYaam №${orderNumber.trim().slice(0, 32)}.`,
+  'Откройте заказ в панели WayYaam.',
+  panelUrl.trim()
+].join('\n');
+
 const formatOrderDate = (value: string) => {
   const parsed = new Date(`${value}T00:00:00`);
   return Number.isNaN(parsed.getTime())
