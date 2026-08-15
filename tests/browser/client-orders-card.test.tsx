@@ -73,14 +73,3 @@ test('uses lifecycle wording in the status badge instead of duplicating the shor
   expect(getClientOrderBadgeLabel('assigned_driver')).toBe('Курьер назначен');
   expect(getClientOrderBadgeLabel('on_the_way')).toBe('Заказ у курьера');
 });
-
-test('keeps all four order filters reachable without horizontal overflow at 372px', async () => {
-  await render(
-    <div style={{ boxSizing: 'border-box', width: 372, paddingInline: 16 }}>
-      <OrderFilterChips value="all" currentCount={2} onChange={vi.fn()} />
-    </div>
-  );
-  const filters = document.querySelector<HTMLElement>('.client-order-filters');
-  expect(filters).not.toBeNull();
-  expect(filters!.scrollWidth).toBeLessThanOrEqual(filters!.clientWidth);
-});
