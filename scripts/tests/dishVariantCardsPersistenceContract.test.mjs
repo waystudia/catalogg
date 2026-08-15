@@ -16,4 +16,20 @@ test('dish variant card metadata persists in legacy and universal catalogs', () 
   assert.match(catalogAdapter, /'publish_choice_cards'/);
   assert.match(catalogAdapter, /'generated_from_choice'/);
   assert.match(catalogAdapter, /'generated_choice_index'/);
+  assert.match(
+    catalogAdapter,
+    /if \(activeCatalogIsLegacy\)[\s\S]*from\('product'\)\.upsert\(legacyProduct, \{ onConflict: 'id' \}\)/
+  );
+  assert.match(
+    catalogAdapter,
+    /from\('products'\)[\s\S]*\.eq\('catalog_id', activePlatformCatalogId\)[\s\S]*\.eq\('slug', row\.slug\)[\s\S]*\.maybeSingle\(\)/
+  );
+  assert.match(
+    catalogAdapter,
+    /if \(existing\?\.id\)[\s\S]*from\('products'\)\.update\(row\)/
+  );
+  assert.match(
+    catalogAdapter,
+    /deleteProductFromSupabase[\s\S]*if \(activeCatalogIsLegacy\)[\s\S]*from\('product'\)\.delete\(\)\.eq\('id', productId\)/
+  );
 });
