@@ -65,6 +65,8 @@ import { getCatalogWorkspaceAccess, getVisibleAssignedOrderIds, type CatalogOrde
 import { acceptCatalogOrderAssignment, escalateCatalogOrderAssignments, getCatalogOrderAssignments, updateCatalogAssignedOrderStatus } from '../../shared/api/catalogStaffApi';
 import { CatalogTeamPage } from '../../features/catalog-staff/CatalogTeamPage';
 import { GroceryPickingPanel } from '../../features/order-picking/GroceryPickingPanel';
+import { StoreOrderQueue } from '../../features/store-orders/StoreOrderQueue';
+import { StoreOrderPickingPage } from '../../features/store-orders/StoreOrderPickingPage';
 import { OrderConversationInbox, type OrderConversationInboxItem } from '../../features/order-conversation/OrderConversationInbox';
 import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
 import { loadGroceryInventory, postGroceryReceiving, saveGroceryInventoryItem, type GroceryInventoryMovement, type GroceryReceivingLineInput } from '../../shared/api/groceryInventoryApi';
@@ -342,6 +344,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const [receivingAutoProduct, setReceivingAutoProduct] = useState<Product | null>(null);
   const [posAutoProduct, setPosAutoProduct] = useState<Product | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [ordersLoadError, setOrdersLoadError] = useState('');
   const [dishQuery, setDishQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [orderQuery, setOrderQuery] = useState('');
@@ -452,7 +455,10 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
 
   const refreshData = useCallback(
     async (options: { silent?: boolean } = {}) => {
-      if (!options.silent) setIsLoadingData(true);
+      if (!options.silent) {
+        setIsLoadingData(true);
+        setOrdersLoadError('');
+      }
       try {
         const catalogId = access.catalog?.id;
         const assignmentPromise = catalogId
@@ -521,9 +527,11 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         hasLoadedOrdersRef.current = true;
         setOrders(restaurantOrders);
         setOrderAssignments(assignments);
-        setSelectedOrderId((current) => current ?? restaurantOrders[0]?.id ?? null);
+        setSelectedOrderId((current) => current ?? (isGrocery ? null : restaurantOrders[0]?.id ?? null));
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`);
+        const message = error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`;
+        if (!options.silent) setOrdersLoadError(message);
+        toast.error(message);
       } finally {
         setIsLoadingData(false);
       }
@@ -626,7 +634,8 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     const text = `${order.orderNumber} ${order.clientName} ${order.clientPhone}`.toLowerCase();
     return text.includes(orderQuery.trim().toLowerCase());
   });
-  const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId) ?? filteredOrders[0] ?? roleVisibleOrders[0] ?? null;
+  const selectedOrder = roleVisibleOrders.find((order) => order.id === selectedOrderId)
+    ?? (isGrocery ? null : filteredOrders[0] ?? roleVisibleOrders[0] ?? null);
   const selectedOrderAssignment = selectedOrder ? (orderAssignments.find((assignment) => assignment.orderId === selectedOrder.id && ['offered', 'accepted'].includes(assignment.state)) ?? null) : null;
   const businessChatItems = useMemo<OrderConversationInboxItem[]>(() => roleVisibleOrders.filter((order) => !isGroceryStorePosOrder(order, access.catalog?.businessType)).map((order) => ({
     orderId: order.id,
@@ -919,7 +928,12 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
 
   return (
     <main
-      className={section === 'pos' ? 'restaurant-admin-shell business-workspace-shell business-workspace-shell--pos' : 'restaurant-admin-shell business-workspace-shell'}
+      className={[
+        'restaurant-admin-shell',
+        'business-workspace-shell',
+        section === 'pos' ? 'business-workspace-shell--pos' : '',
+        section === 'orders' && isGrocery ? 'business-workspace-shell--grocery-orders' : ''
+      ].filter(Boolean).join(' ')}
       data-business-type={isGrocery ? 'grocery' : access.catalog?.businessType}
     >
       <aside className="restaurant-admin-sidebar business-workspace-sidebar">
@@ -1009,12 +1023,16 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               selectedOrder={selectedOrder}
               selectedAssignment={selectedOrderAssignment}
               query={orderQuery}
+              loading={isLoadingData}
+              error={ordersLoadError}
               paymentSettings={paymentSettings}
               paymentStatuses={paymentStatuses}
               recentOrderIds={recentOrderIds}
               canDeleteOrders={access.legalActivationStatus !== 'active'}
               workerMode={workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace}
+              storeName={catalogData.restaurant.name || 'Магазин'}
               onQueryChange={setOrderQuery}
+              onRefresh={() => void refreshData()}
               onSelectOrder={setSelectedOrderId}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
@@ -1390,12 +1408,16 @@ function OrdersPage({
   selectedOrder,
   selectedAssignment,
   query,
+  loading,
+  error,
   paymentSettings,
   paymentStatuses,
   recentOrderIds,
   canDeleteOrders,
   workerMode,
+  storeName,
   onQueryChange,
+  onRefresh,
   onSelectOrder,
   onStatusChange,
   onPaymentStatusChange,
@@ -1410,12 +1432,16 @@ function OrdersPage({
   selectedOrder: RestaurantOrder | null;
   selectedAssignment: CatalogOrderWorkAssignment | null;
   query: string;
+  loading: boolean;
+  error: string;
   paymentSettings: PaymentSettings;
   paymentStatuses: Record<string, PaymentStatus>;
   recentOrderIds: Set<string>;
   canDeleteOrders: boolean;
   workerMode: boolean;
+  storeName: string;
   onQueryChange: (query: string) => void;
+  onRefresh: () => void;
   onSelectOrder: (id: string) => void;
   onStatusChange: (
     order: RestaurantOrder,
@@ -1428,6 +1454,36 @@ function OrdersPage({
   onPickingChanged: () => void;
   onOpenChat: (orderId: string) => void;
 }) {
+  if (businessType === 'grocery') {
+    if (selectedOrder) {
+      return (
+        <StoreOrderPickingPage
+          order={selectedOrder}
+          products={products}
+          storeName={storeName}
+          canPick={!workerMode || selectedAssignment?.state === 'accepted'}
+          onBack={() => onSelectOrder('')}
+          onStatusChange={(status) => onStatusChange(selectedOrder, status)}
+          onPickingChanged={onPickingChanged}
+          onOpenChat={() => onOpenChat(selectedOrder.id)}
+        />
+      );
+    }
+
+    return (
+      <StoreOrderQueue
+        orders={orders}
+        query={query}
+        loading={loading}
+        error={error}
+        onQueryChange={onQueryChange}
+        onRefresh={onRefresh}
+        onSelectOrder={onSelectOrder}
+        onAcceptOrder={(order) => onStatusChange(order, 'accepted', 15)}
+      />
+    );
+  }
+
   return (
     <div className="ra-orders-layout">
       <section className="ra-page-stack">

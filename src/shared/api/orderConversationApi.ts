@@ -137,6 +137,26 @@ export async function markCatalogOrderItemPicked(orderItemId: string, fulfilledQ
   return number(data);
 }
 
+export type CatalogOrderItemScanResult = {
+  fulfilledQuantity: number;
+  requestedQuantity: number;
+  state: 'pending' | 'picked';
+};
+
+export async function scanCatalogOrderItem(orderItemId: string): Promise<CatalogOrderItemScanResult> {
+  if (!supabase) return { fulfilledQuantity: 1, requestedQuantity: 1, state: 'picked' };
+  const { data, error } = await supabase.rpc('scan_catalog_order_item', {
+    target_order_item_id: orderItemId
+  });
+  if (error) throw new Error(error.message);
+  const result = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+  return {
+    fulfilledQuantity: number(result.fulfilled_quantity),
+    requestedQuantity: number(result.requested_quantity),
+    state: result.state === 'picked' ? 'picked' : 'pending'
+  };
+}
+
 export async function proposeCatalogOrderSubstitution(input: {
   orderItemId: string;
   proposedProductId: string;

@@ -1,152 +1,317 @@
 .grocery-picking {
   display: grid;
-  gap: 10px;
-  margin: 10px 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f8fafc;
-}
-
-.grocery-picking > header,
-.grocery-picking > header > div,
-.grocery-picking__lines {
-  display: grid;
-  gap: 6px;
-}
-
-.grocery-picking > header {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-}
-
-.grocery-picking h3,
-.grocery-picking p {
+  gap: 8px;
   margin: 0;
 }
 
-.grocery-picking h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.grocery-picking > header p {
-  color: #667085;
-  font-size: 12px;
-}
-
-.grocery-picking svg {
-  width: 18px;
-  height: 18px;
-}
-
 .grocery-picking__notice {
+  margin: 0;
   border-radius: 10px;
   padding: 10px;
   background: #fffaeb;
   color: #b54708;
+  font-size: 12px;
+}
+
+.grocery-picking__lines {
+  display: grid;
+  gap: 8px;
 }
 
 .grocery-picking__lines article {
+  min-width: 0;
   display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) auto minmax(260px, 1.4fr) auto;
+  grid-template-columns: 52px minmax(130px, 1fr) minmax(68px, auto) minmax(105px, auto) minmax(190px, auto);
   align-items: center;
-  gap: 8px;
-  border: 1px solid #e4e7ec;
-  border-radius: 10px;
+  gap: 10px;
+  border: 1px solid #e5e7ed;
+  border-radius: 12px;
   padding: 8px 10px;
   background: #fff;
 }
 
-.grocery-picking__lines article > div:first-child,
-.grocery-picking__lines label {
+.grocery-picking__lines article[data-state='picked'],
+.grocery-picking__lines article[data-state='substituted'] {
+  border-color: #cdebdc;
+  background: #fbfffd;
+}
+
+.grocery-picking__photo {
+  width: 52px;
+  height: 52px;
   display: grid;
-  gap: 4px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #edf0f4;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #98a2b3;
 }
 
-.grocery-picking__lines article > div:first-child small {
-  color: #667085;
+.grocery-picking__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.grocery-picking__photo svg {
+  width: 22px;
+  height: 22px;
+}
+
+.grocery-picking__identity,
+.grocery-picking__quantity {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.grocery-picking__identity strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grocery-picking__identity small,
+.grocery-picking__quantity small {
+  color: #7b8499;
+  font-size: 10px;
+}
+
+.grocery-picking__quantity {
+  justify-items: end;
   font-size: 11px;
+  white-space: nowrap;
 }
 
-.grocery-picking__lines article > span {
-  border-radius: 999px;
-  padding: 5px 8px;
+.grocery-picking__state {
+  justify-self: start;
+  border-radius: 8px;
+  padding: 7px 9px;
   background: #f2f4f7;
   color: #475467;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
-.grocery-picking__lines article[data-state='picked'] > span,
-.grocery-picking__lines article[data-state='substituted'] > span {
+.grocery-picking__lines article[data-state='picked'] .grocery-picking__state,
+.grocery-picking__lines article[data-state='substituted'] .grocery-picking__state {
   background: #ecfdf3;
-  color: #027a48;
+  color: #067647;
 }
 
-.grocery-picking__lines article[data-state='substitution_pending'] > span {
+.grocery-picking__lines article[data-state='substitution_pending'] .grocery-picking__state {
   background: #fffaeb;
   color: #b54708;
 }
 
-.grocery-picking__controls {
-  min-width: 0;
+.grocery-picking__weight {
+  min-width: 118px;
   display: grid;
-  grid-template-columns: minmax(90px, 0.45fr) minmax(150px, 1fr);
-  gap: 6px;
+  gap: 3px;
+  color: #667085;
+  font-size: 9px;
 }
 
-.grocery-picking__lines input,
-.grocery-picking__lines select {
+.grocery-picking__weight input,
+.grocery-replacement-sheet select {
   width: 100%;
   min-width: 0;
-  min-height: 34px;
+  min-height: 38px;
   border: 1px solid #d0d5dd;
   border-radius: 10px;
-  padding: 0 10px;
+  padding: 0 9px;
   background: #fff;
+  color: #101828;
   font: inherit;
 }
 
 .grocery-picking__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(84px, 1fr));
   gap: 6px;
 }
 
-.grocery-picking__lines button {
+.grocery-picking__actions button {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  border: 0;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d8eadf;
   border-radius: 10px;
   padding: 0 10px;
-  background: #067647;
+  background: #f1fbf5;
+  color: #079455;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.grocery-picking__actions button + button {
+  border-color: #e4e7ec;
+  background: #fafbfc;
+  color: #475467;
+}
+
+.grocery-picking__actions button:disabled {
+  opacity: 0.5;
+}
+
+.grocery-picking__actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+.grocery-replacement-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: grid;
+  align-items: end;
+}
+
+.grocery-replacement-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.grocery-replacement-sheet > section {
+  position: relative;
+  z-index: 1;
+  max-height: min(560px, calc(100dvh - 40px));
+  display: grid;
+  gap: 13px;
+  overflow-y: auto;
+  border-radius: 22px 22px 0 0;
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  background: #fff;
+  box-shadow: 0 -14px 40px rgba(15, 23, 42, 0.18);
+}
+
+.grocery-replacement-sheet header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.grocery-replacement-sheet header > div,
+.grocery-replacement-sheet label {
+  display: grid;
+  gap: 5px;
+}
+
+.grocery-replacement-sheet header strong {
+  font-size: 19px;
+}
+
+.grocery-replacement-sheet header span,
+.grocery-replacement-sheet label,
+.grocery-replacement-sheet > section > small {
+  color: #667085;
+  font-size: 12px;
+}
+
+.grocery-replacement-sheet header button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.grocery-replacement-sheet__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.grocery-replacement-sheet__actions button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #e4ddff;
+  border-radius: 12px;
+  background: #653bf4;
   color: #fff;
   font: inherit;
   font-weight: 800;
 }
 
-.grocery-picking__lines button + button {
+.grocery-replacement-sheet__actions button:nth-child(2),
+.grocery-replacement-sheet__actions button:nth-child(3) {
   background: #fff;
-  color: #b42318;
-  box-shadow: inset 0 0 0 1px #fda29b;
+  color: #475467;
 }
 
-@media (max-width: 640px) {
+.grocery-replacement-sheet__actions button:disabled {
+  color: #98a2b3;
+  opacity: 0.65;
+}
+
+@media (max-width: 700px) {
   .grocery-picking__lines article {
-    grid-template-columns: 1fr;
+    grid-template-columns: 48px minmax(0, 1fr) 68px;
+    grid-template-areas:
+      'photo identity quantity'
+      'photo weight state'
+      'actions actions actions';
+    gap: 6px 8px;
+    padding: 7px 8px;
   }
 
-  .grocery-picking__lines article > span {
-    justify-self: start;
+  .grocery-picking__photo {
+    width: 48px;
+    height: 52px;
+    grid-area: photo;
   }
 
-  .grocery-picking__controls {
-    grid-template-columns: 1fr;
+  .grocery-picking__identity {
+    grid-area: identity;
   }
 
-  .grocery-picking__lines button {
-    flex: 1;
+  .grocery-picking__quantity {
+    grid-area: quantity;
+  }
+
+  .grocery-picking__state {
+    max-width: 100%;
+    grid-area: state;
+    justify-self: end;
+    overflow: hidden;
+    padding: 5px 6px;
+    text-overflow: ellipsis;
+  }
+
+  .grocery-picking__weight {
+    min-width: 0;
+    grid-area: weight;
+    grid-template-columns: 1fr 70px;
+    align-items: center;
+  }
+
+  .grocery-picking__weight input {
+    min-height: 34px;
+  }
+
+  .grocery-picking__actions {
+    grid-area: actions;
+  }
+}
+
+@media (min-width: 701px) {
+  .grocery-replacement-sheet > section {
+    width: min(520px, calc(100vw - 40px));
+    margin: 0 auto 20px;
+    border-radius: 22px;
   }
 }

@@ -120,6 +120,34 @@ test('uses the same order chat inbox for a restaurant without changing its busin
   await expect.element(screen.getByRole('heading', { name: 'Чаты по заказам' })).toBeVisible();
 });
 
+test('routes only grocery orders into the compact store queue', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <RestaurantAdminShell access={groceryOwnerAccess()} routePath="orders" onRefresh={vi.fn()} onSignOut={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await expect.element(screen.getByRole('region', { name: 'Заказы магазина' })).toBeVisible();
+  await expect.element(screen.getByRole('region', { name: 'Доска заказов' })).not.toBeInTheDocument();
+});
+
+test('keeps the existing restaurant order board outside the grocery workflow', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <RestaurantAdminShell access={restaurantOwnerAccess()} routePath="orders" onRefresh={vi.fn()} onSignOut={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await expect.element(screen.getByRole('region', { name: 'Доска заказов' })).toBeVisible();
+  await expect.element(screen.getByRole('region', { name: 'Заказы магазина' })).not.toBeInTheDocument();
+});
+
 test('keeps the grocery POS workspace vertically scrollable at the reported desktop viewport', async () => {
   await page.viewport(1040, 576);
   const screen = await render(

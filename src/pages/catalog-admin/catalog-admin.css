@@ -2327,6 +2327,14 @@
     padding: 0;
   }
 
+  .business-workspace-shell--grocery-orders .business-workspace-hero {
+    display: none;
+  }
+
+  .business-workspace-shell--grocery-orders .business-workspace-content {
+    margin-top: 0;
+  }
+
   .business-workspace-hero {
     min-height: 142px;
     align-items: flex-start;
