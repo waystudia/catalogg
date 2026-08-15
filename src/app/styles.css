@@ -6649,6 +6649,30 @@ a {
   font-size: 23px;
 }
 
+.checkout-summary__breakdown {
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid #ece8e1;
+  padding-top: 11px;
+}
+
+.checkout-summary__breakdown span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkout-summary__breakdown small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.checkout-summary__breakdown b {
+  color: var(--checkout-ink);
+  font-size: 14px;
+}
+
 .checkout-delivery-facts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

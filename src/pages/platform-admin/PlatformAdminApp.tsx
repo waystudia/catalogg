@@ -2531,7 +2531,14 @@ function SubscriptionsPage() {
           </form>
           <section className="platform-simple-list">
             {pricingRules.map((rule) => (
-              <article key={rule.id}><strong>{rule.fromSettlement} → {rule.toSettlement}</strong><b>{formatMoney(rule.amount)}</b><small>{rule.isActive ? 'Активен' : 'Выключен'}</small></article>
+              <article key={rule.id} title={rule.pricingNote}>
+                <strong>{rule.fromSettlement} → {rule.toSettlement}</strong>
+                <b>{formatMoney(rule.amount)}</b>
+                <small>
+                  {rule.roadDistanceKm == null ? '' : `${rule.roadDistanceKm.toLocaleString('ru-RU')} км · `}
+                  {rule.pricingSource === 'route_zone_model' ? 'Расчётный' : rule.isActive ? 'Активен' : 'Выключен'}
+                </small>
+              </article>
             ))}
             {!pricingRulesQuery.isLoading && pricingRules.length === 0 && <p className="platform-empty-copy">Маршрутных тарифов пока нет</p>}
           </section>

@@ -286,7 +286,11 @@ export const buildYandexMapsRouteAppUrl = (input: BuildYandexMapsRouteUrlInput) 
   return `yandexmaps://maps.yandex.ru/?${query}`;
 };
 
-const normalizeSettlement = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
+const normalizeSettlement = (value: string) =>
+  value
+    .trim()
+    .toLocaleLowerCase('ru-RU')
+    .replace(/[^\p{L}\p{N}]+/gu, '');
 
 export const findDeliveryPrice = (
   prices: readonly DeliveryPriceRule[],

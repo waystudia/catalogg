@@ -7,6 +7,10 @@ export type DeliveryPricingRule = {
   toSettlement: string;
   amount: number;
   isActive: boolean;
+  roadDistanceKm: number | null;
+  estimatedDurationMinutes: number | null;
+  pricingSource: 'local_rule' | 'local_courier_quote' | 'route_zone_model' | 'manual' | string;
+  pricingNote: string;
 };
 
 export type DeliveryPriceRequest = {
@@ -27,6 +31,10 @@ type PricingRuleRow = {
   to_settlement: string;
   amount: number;
   is_active: boolean;
+  road_distance_km: number | null;
+  estimated_duration_minutes: number | null;
+  pricing_source: string | null;
+  pricing_note: string | null;
 };
 
 type PriceRequestRow = {
@@ -49,14 +57,18 @@ const mapRule = (row: PricingRuleRow): DeliveryPricingRule => ({
   fromSettlement: row.from_settlement,
   toSettlement: row.to_settlement,
   amount: Number(row.amount),
-  isActive: row.is_active
+  isActive: row.is_active,
+  roadDistanceKm: row.road_distance_km == null ? null : Number(row.road_distance_km),
+  estimatedDurationMinutes: row.estimated_duration_minutes == null ? null : Number(row.estimated_duration_minutes),
+  pricingSource: row.pricing_source ?? 'manual',
+  pricingNote: row.pricing_note ?? ''
 });
 
 export async function getDeliveryPricingRules(): Promise<DeliveryPricingRule[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('delivery_pricing_rules')
-    .select('id, from_settlement, to_settlement, amount, is_active')
+    .select('id, from_settlement, to_settlement, amount, is_active, road_distance_km, estimated_duration_minutes, pricing_source, pricing_note')
     .order('from_settlement')
     .order('to_settlement');
   if (error) throw error;
@@ -64,6 +76,14 @@ export async function getDeliveryPricingRules(): Promise<DeliveryPricingRule[]> 
 }
 
 export async function getConfiguredDeliveryPrice(fromSettlement: string, toSettlement: string): Promise<number | null> {
+  if (!fromSettlement.trim() || !toSettlement.trim()) return null;
+  if (supabase) {
+    const { data, error } = await supabase.rpc('get_delivery_route_price', {
+      from_settlement_input: fromSettlement,
+      to_settlement_input: toSettlement
+    });
+    if (!error && data != null) return Number(data);
+  }
   try {
     return findDeliveryPrice(await getDeliveryPricingRules(), fromSettlement, toSettlement);
   } catch {
@@ -90,7 +110,9 @@ export async function saveDeliveryPricingRule(input: {
     from_settlement: fromSettlement,
     to_settlement: toSettlement,
     amount,
-    is_active: true
+    is_active: true,
+    pricing_source: 'manual',
+    pricing_note: 'Изменено супер-админом'
   }, { onConflict: 'from_settlement,to_settlement' });
   if (error) throw error;
 }

@@ -118,6 +118,7 @@ describe('order delivery lifecycle', () => {
     assert.equal(findDeliveryPrice(prices, 'Цоци-Юрт', 'Шали'), 700);
     assert.equal(findDeliveryPrice(prices, 'Цоци-Юрт', 'Цоци-Юрт'), 250);
     assert.equal(findDeliveryPrice(prices, ' цоци-юрт ', ' шали '), 700);
+    assert.equal(findDeliveryPrice(prices, ' цоци юрт ', 'ЦОЦИ‑ЮРТ'), 250);
     assert.equal(findDeliveryPrice(prices, 'Шали', 'Грозный'), null);
     assert.equal(findDeliveryPrice([{ fromSettlement: 'Шали', toSettlement: 'Грозный', amount: -1 }], 'Шали', 'Грозный'), null);
     assert.equal(findDeliveryPrice(prices, '', 'Шали'), null);

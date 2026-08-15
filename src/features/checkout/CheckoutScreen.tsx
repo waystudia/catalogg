@@ -54,6 +54,7 @@ import {
   getDeliverySettlements,
   submitSettlementRequest
 } from '../../shared/api/settlementsApi';
+import { getConfiguredDeliveryPrice } from '../../shared/api/deliveryPricingApi';
 import {
   isValidRussianClientPhone,
   loadPublicClientCheckoutProfile,
@@ -100,6 +101,7 @@ import { ClientPasskeyRegistrationDialog } from '../client-pairing/ClientPairing
 import { qualifiesForFreeDelivery } from './deliveryPricing';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
+const DEFAULT_FALLBACK_DELIVERY_FEE = 120;
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const buildDeliveryAddress = (city: string, settlement: string, address: string) =>
   Array.from(new Set([city.trim(), settlement.trim(), address.trim()].filter(Boolean))).join(', ');
@@ -216,6 +218,19 @@ export function CheckoutScreen({
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
   );
+  const deliveryPriceQuery = useQuery({
+    queryKey: ['checkout-delivery-price', configuredCity, effectiveDeliverySettlement],
+    queryFn: () => getConfiguredDeliveryPrice(configuredCity, effectiveDeliverySettlement),
+    enabled: mode === 'delivery' && Boolean(configuredCity && effectiveDeliverySettlement),
+    staleTime: 5 * 60 * 1000
+  });
+  const routeDeliveryFee = deliveryPriceQuery.data ?? DEFAULT_FALLBACK_DELIVERY_FEE;
+  const payableDeliveryFee = mode === 'delivery' ? (hasFreeDelivery ? 0 : routeDeliveryFee) : 0;
+  const checkoutGrandTotal = total + payableDeliveryFee;
+  const isDeliveryPriceLoading =
+    mode === 'delivery' &&
+    Boolean(configuredCity && effectiveDeliverySettlement) &&
+    deliveryPriceQuery.isLoading;
   const finalDeliveryAddress = buildDeliveryAddress(effectiveDeliveryCity, effectiveDeliverySettlement, deliveryAddress);
   const settlementNeedsAdminReview =
     Boolean(effectiveDeliverySettlement) &&
@@ -544,7 +559,8 @@ export function CheckoutScreen({
       ? ['Определите местоположение или выберите точку на карте.']
       : []),
     ...(mode === 'delivery' && !effectiveDeliverySettlement ? ['Выберите село или город.'] : []),
-    ...(mode === 'delivery' && !deliveryAddress.trim() ? ['Введите улицу и номер дома.'] : [])
+    ...(mode === 'delivery' && !deliveryAddress.trim() ? ['Введите улицу и номер дома.'] : []),
+    ...(isDeliveryPriceLoading ? ['Рассчитываем стоимость доставки.'] : [])
   ];
 
   if (!isClientSessionReady) {
@@ -957,14 +973,20 @@ export function CheckoutScreen({
             </article>
           );})}
         </div>
+        {mode === 'delivery' && (
+          <div className="checkout-summary__breakdown" aria-live="polite">
+            <span><small>Товары</small><b>{formatPrice(total)}</b></span>
+            <span><small>Доставка</small><b>{isDeliveryPriceLoading ? 'Рассчитываем…' : formatPrice(payableDeliveryFee)}</b></span>
+          </div>
+        )}
         <div className="checkout-summary__total">
           <span><ShoppingCart /> Итого</span>
-          <strong>{formatPrice(total)}</strong>
+          <strong>{isDeliveryPriceLoading ? '—' : formatPrice(checkoutGrandTotal)}</strong>
         </div>
       </section>
 
       <section className="checkout-delivery-facts">
-        <div><Truck /><span>Стоимость доставки</span><strong>{hasFreeDelivery ? '0 ₽' : 'По тарифу'}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
+        <div><Truck /><span>Стоимость доставки</span><strong>{isDeliveryPriceLoading ? 'Считаем…' : formatPrice(payableDeliveryFee)}</strong>{freeDeliveryFrom > 0 && <small>при сумме от {formatPrice(freeDeliveryFrom)}</small>}</div>
         <div><Clock /><span>Время доставки</span><strong>≈ {deliverySettings.default_preparation_minutes}–{deliverySettings.default_preparation_minutes + 20} мин</strong></div>
         <div><CreditCard /><span>Оплата</span><strong>{usesBankTransfer ? 'Безналично' : 'Наличными'}</strong><small>{usesBankTransfer ? 'переводом' : 'при получении'}</small></div>
       </section>

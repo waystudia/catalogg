@@ -35,6 +35,17 @@ import './platform-geography.css';
 
 const normalize = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+const formatRouteMeta = (rule: { roadDistanceKm: number | null; pricingSource: string }) => {
+  const distance = rule.roadDistanceKm == null ? '' : `${rule.roadDistanceKm.toLocaleString('ru-RU')} км`;
+  const source = rule.pricingSource === 'route_zone_model'
+    ? 'расчётный'
+    : rule.pricingSource === 'local_courier_quote'
+      ? 'подтверждён водителем'
+      : rule.pricingSource === 'local_rule'
+        ? 'внутри села'
+        : 'ручной';
+  return [distance, source].filter(Boolean).join(' · ');
+};
 
 async function getGeographyDirectory() {
   const [settlements, requests, pricingRules, priceRequests, drivers, clients, users] = await Promise.all([
@@ -274,7 +285,12 @@ export function PlatformGeographyPage() {
               <input value={priceAmount} onChange={(event) => setPriceAmount(event.target.value)} type="number" min="0" placeholder="Цена" required />
               <button type="submit" disabled={saving}><Plus />Сохранить</button>
             </form>
-            {directory?.pricingRules.map((rule) => <p key={rule.id}><span>{rule.fromSettlement} → {rule.toSettlement}</span><b>{formatMoney(rule.amount)}</b></p>)}
+            {directory?.pricingRules.map((rule) => (
+              <p key={rule.id} title={rule.pricingNote}>
+                <span>{rule.fromSettlement} → {rule.toSettlement}<small>{formatRouteMeta(rule)}</small></span>
+                <b>{formatMoney(rule.amount)}</b>
+              </p>
+            ))}
           </div>
         )}
         <button type="button" onClick={() => setApprovalsOpen((value) => !value)}>
