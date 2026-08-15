@@ -11,6 +11,10 @@ import {
   getDriverDashboardDeliveries,
   getDriverGrossEarning
 } from '../../features/driver/dashboardPresentation';
+import type {
+  DriverDeliveryStop,
+  DriverDeliveryStopStatus
+} from '../../features/driver/combinedDeliveryStops';
 import { clearPwaResumePath } from '../pwaSession';
 import { parseRestaurantCoordinatesFromMapLink } from '../restaurantLocation';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
@@ -62,6 +66,9 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly driverRestaurantDeliveryPayoutReceivedAmount: number;
   readonly pickupQrConfirmed: boolean;
   readonly pickupQrExpiresAt?: string;
+  readonly orderGroupId: string | null;
+  readonly isCombined: boolean;
+  readonly stops: readonly DriverDeliveryStop[];
 };
 
 export type DriverEarning = {
@@ -118,6 +125,25 @@ type DeliveryRow = {
   driver_restaurant_order_payment_amount?: number | null;
   driver_restaurant_delivery_payout_received_at?: string | null;
   driver_restaurant_delivery_payout_received_amount?: number | null;
+  order_group_id?: string | null;
+  is_combined?: boolean | null;
+  delivery_stops?: Array<{
+    id?: unknown;
+    delivery_id?: unknown;
+    merchant_order_id?: unknown;
+    stop_type?: unknown;
+    sequence?: unknown;
+    status?: unknown;
+    latitude?: unknown;
+    longitude?: unknown;
+    address?: unknown;
+    merchant_name?: unknown;
+    merchant_type?: unknown;
+    merchant_order_status?: unknown;
+    estimated_ready_at?: unknown;
+    estimated_arrival_at?: unknown;
+    is_primary?: unknown;
+  }> | null;
   created_at: string;
   orders?: MaybeArray<{
     id: string;
@@ -244,6 +270,51 @@ const coordinateValue = (value: unknown) => {
   return Number.isFinite(number) ? number : null;
 };
 
+const deliveryStopStatuses: ReadonlySet<DriverDeliveryStopStatus> = new Set([
+  'pending',
+  'arrived',
+  'completed',
+  'skipped',
+  'cancelled'
+]);
+
+const rowToDeliveryStop = (
+  row: NonNullable<DeliveryRow['delivery_stops']>[number]
+): DriverDeliveryStop | null => {
+  const id = typeof row.id === 'string' ? row.id : '';
+  const deliveryId = typeof row.delivery_id === 'string' ? row.delivery_id : '';
+  const stopType = row.stop_type === 'pickup' || row.stop_type === 'dropoff'
+    ? row.stop_type
+    : null;
+  const status = typeof row.status === 'string' && deliveryStopStatuses.has(row.status as DriverDeliveryStopStatus)
+    ? row.status as DriverDeliveryStopStatus
+    : null;
+  const latitude = coordinateValue(row.latitude);
+  const longitude = coordinateValue(row.longitude);
+  const sequence = Number(row.sequence);
+  if (!id || !deliveryId || !stopType || !status || latitude === null || longitude === null || !Number.isInteger(sequence)) {
+    return null;
+  }
+
+  return {
+    id,
+    deliveryId,
+    merchantOrderId: typeof row.merchant_order_id === 'string' ? row.merchant_order_id : null,
+    stopType,
+    sequence,
+    status,
+    latitude,
+    longitude,
+    address: typeof row.address === 'string' ? row.address : '',
+    merchantName: typeof row.merchant_name === 'string' ? row.merchant_name : '',
+    merchantType: normalizeBusinessType(row.merchant_type),
+    merchantOrderStatus: typeof row.merchant_order_status === 'string' ? row.merchant_order_status : null,
+    estimatedReadyAt: typeof row.estimated_ready_at === 'string' ? row.estimated_ready_at : null,
+    estimatedArrivalAt: typeof row.estimated_arrival_at === 'string' ? row.estimated_arrival_at : null,
+    isPrimary: row.is_primary === true
+  };
+};
+
 const resolveOrderContactName = (order: Pick<OrderContactRow, 'customer_name' | 'client_name'>) =>
   order.customer_name || order.client_name || '';
 
@@ -312,7 +383,10 @@ const demoOffers: readonly DeliveryOffer[] = [
     driverRestaurantOrderPaymentAmount: 0,
     driverRestaurantDeliveryPayoutReceivedAt: null,
     driverRestaurantDeliveryPayoutReceivedAmount: 0,
-    pickupQrConfirmed: false
+    pickupQrConfirmed: false,
+    orderGroupId: null,
+    isCombined: false,
+    stops: []
   },
   {
     ...buildDriverDeliveryView({
@@ -346,7 +420,10 @@ const demoOffers: readonly DeliveryOffer[] = [
     driverRestaurantOrderPaymentAmount: 0,
     driverRestaurantDeliveryPayoutReceivedAt: null,
     driverRestaurantDeliveryPayoutReceivedAmount: 0,
-    pickupQrConfirmed: false
+    pickupQrConfirmed: false,
+    orderGroupId: null,
+    isCombined: false,
+    stops: []
   }
 ];
 
@@ -570,7 +647,13 @@ const rowToOffer = (
       row.driver_restaurant_delivery_payout_received_amount ?? 0
     ),
     pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at),
-    pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined
+    pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined,
+    orderGroupId: row.order_group_id ?? null,
+    isCombined: Boolean(row.is_combined),
+    stops: (row.delivery_stops ?? [])
+      .map(rowToDeliveryStop)
+      .filter((stop): stop is DriverDeliveryStop => stop !== null)
+      .sort((left, right) => left.sequence - right.sequence)
   };
 };
 
@@ -1024,6 +1107,40 @@ export async function updateDeliveryProgress(deliveryId: string, status: Deliver
     throw new DriverActionError('Войдите как водитель ещё раз.', 'auth');
   }
   throw new DriverActionError('Не удалось обновить статус. Проверьте связь и повторите.', 'network');
+}
+
+export async function updateCurrentDriverDeliveryStop(
+  deliveryId: string,
+  stopId: string,
+  status: 'arrived' | 'completed'
+) {
+  if (!supabase) return;
+
+  const { error } = await withDriverRequestTimeout(
+    supabase.rpc('update_current_driver_delivery_stop', {
+      target_delivery_id: deliveryId,
+      target_stop_id: stopId,
+      next_status: status
+    }),
+    'Не удалось обновить остановку. Проверьте связь и повторите.',
+    15_000
+  );
+  if (!error) return;
+
+  const errorText = error instanceof Error ? error.message : String(error);
+  if (/previous delivery stop|mark arrival/i.test(errorText)) {
+    throw new DriverActionError('Сначала завершите предыдущую точку маршрута.', 'unavailable');
+  }
+  if (/qr-код|qr code/i.test(errorText)) {
+    throw new DriverActionError('Покажите QR-код основному заведению перед получением заказа.', 'unavailable');
+  }
+  if (/оплат/i.test(errorText)) {
+    throw new DriverActionError(errorText, 'unavailable');
+  }
+  if (/authentication|required|jwt|auth/i.test(errorText)) {
+    throw new DriverActionError('Войдите как водитель ещё раз.', 'auth');
+  }
+  throw new DriverActionError('Не удалось обновить остановку. Проверьте связь и повторите.', 'network');
 }
 
 export async function confirmDriverRestaurantOrderPayment(deliveryId: string) {

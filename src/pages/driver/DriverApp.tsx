@@ -34,12 +34,17 @@ import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { useDriverStore } from '../../features/driver/store';
+import { CombinedDeliveryStopsPanel } from '../../features/driver/CombinedDeliveryStopsPanel';
 import {
   getDriverDeliveryProgress,
   getDriverNextAction,
   preferFreshDriverLocation,
   splitDriverHomeOffers
 } from '../../features/driver/dashboardPresentation';
+import {
+  getActiveDeliveryStop,
+  getCombinedDeliveryRoutePoints
+} from '../../features/driver/combinedDeliveryStops';
 import {
   buildYandexMapsRouteAppUrl,
   calculateDriverRestaurantSettlement,
@@ -1479,23 +1484,31 @@ function DriverCurrentDeliveryPanel({
           <small>Осталось ≈ {offer.routeEtaMin} мин</small>
         </span>
       </header>
-      <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
-      <p><MapPin /><span><small>Точка Б</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
+      {!offer.isCombined && (
+        <>
+          <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
+          <p><MapPin /><span><small>Точка Б</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
+        </>
+      )}
       <div className="driver-current-block__summary">
         <span>Ваш заработок</span>
         <strong>{formatPrice(offer.deliveryFee)}</strong>
       </div>
-      <ol className="driver-delivery-progress" aria-label="Статус доставки">
-        {progress.labels.map((label, index) => {
-          const step = index + 1;
-          return (
-            <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
-              <span>{step}</span>
-              <small>{label}</small>
-            </li>
-          );
-        })}
-      </ol>
+      {offer.isCombined ? (
+        <CombinedDeliveryStopsPanel offer={offer} onRefresh={onRefresh} compact />
+      ) : (
+        <ol className="driver-delivery-progress" aria-label="Статус доставки">
+          {progress.labels.map((label, index) => {
+            const step = index + 1;
+            return (
+              <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
+                <span>{step}</span>
+                <small>{label}</small>
+              </li>
+            );
+          })}
+        </ol>
+      )}
       {waitingForRestaurantSettlement && (
         <DriverCashPaymentHandover offer={offer} onRefresh={onRefresh} />
       )}
@@ -1538,7 +1551,7 @@ function DriverCurrentDeliveryPanel({
         ) : (
           <button className="driver-secondary" type="button" disabled><Phone />Позвонить</button>
         )}
-        {nextAction && (
+        {!offer.isCombined && nextAction && (
           <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
             {isUpdating ? 'Сохраняем...' : nextAction.label}
           </button>
@@ -2034,25 +2047,31 @@ export function DriverActiveScreen({
             <small>Осталось ≈ {delivery.routeEtaMin} мин</small>
           </span>
         </header>
-        <p>
-          <Home />
-          <span>
-            <small>Точка А</small>
-            <strong>{delivery.restaurantName} · {formatDriverDeliveryAddress(delivery.restaurantAddress)}</strong>
-          </span>
-        </p>
-        <p>
-          <MapPin />
-          <span>
-            <small>Точка Б</small>
-            <strong>{displayDeliveryAddress}</strong>
-          </span>
-        </p>
+        {!delivery.isCombined && (
+          <>
+            <p>
+              <Home />
+              <span>
+                <small>Точка А</small>
+                <strong>{delivery.restaurantName} · {formatDriverDeliveryAddress(delivery.restaurantAddress)}</strong>
+              </span>
+            </p>
+            <p>
+              <MapPin />
+              <span>
+                <small>Точка Б</small>
+                <strong>{displayDeliveryAddress}</strong>
+              </span>
+            </p>
+          </>
+        )}
         <div className="driver-current-block__summary">
           <span>Ваш заработок</span>
           <strong>{formatPrice(delivery.deliveryFee)}</strong>
         </div>
-        {progress && (
+        {delivery.isCombined ? (
+          <CombinedDeliveryStopsPanel offer={delivery} onRefresh={onRefresh} />
+        ) : progress && (
           <ol className="driver-delivery-progress" aria-label="Статус доставки">
             {progress.labels.map((label, index) => {
               const step = index + 1;
@@ -2087,7 +2106,7 @@ export function DriverActiveScreen({
         {!waitingForRestaurantSettlement && waitingForQr && (
           <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>
         )}
-        {nextAction && (
+        {!delivery.isCombined && nextAction && (
           <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)} disabled={isUpdatingStatus || pickupBlocked}>
             {isUpdatingStatus ? 'Обновляем...' : nextAction.label}
           </button>
@@ -2225,7 +2244,11 @@ export function DriverMapScreen({
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
   const activeLeg = navigationStage?.activeLeg ?? 'restaurant';
-  const routeLegKey = `${delivery?.deliveryId ?? 'none'}:${activeLeg}`;
+  const activeCombinedStop = useMemo(
+    () => delivery?.isCombined ? getActiveDeliveryStop(delivery.stops) : null,
+    [delivery]
+  );
+  const routeLegKey = `${delivery?.deliveryId ?? 'none'}:${activeCombinedStop?.id ?? activeLeg}`;
   const mapData = useMemo(() => delivery ? getDriverDeliveryMapData(delivery) : null, [delivery]);
   const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
@@ -2250,7 +2273,13 @@ export function DriverMapScreen({
     : null;
   const yandexRouteUrl = delivery
     ? buildYandexMapsRouteAppUrl({
-        to: navigationStage?.activeLeg === 'client'
+        to: activeCombinedStop
+          ? {
+              lat: activeCombinedStop.latitude,
+              lng: activeCombinedStop.longitude,
+              address: activeCombinedStop.address
+            }
+          : navigationStage?.activeLeg === 'client'
           ? {
               lat: delivery.deliveryLat,
               lng: delivery.deliveryLng,
@@ -2268,7 +2297,12 @@ export function DriverMapScreen({
     : '';
   const currentRoutePoints = useMemo(
     () => delivery
-      ? delivery.status === 'waiting_courier'
+      ? delivery.isCombined
+        ? getCombinedDeliveryRoutePoints(
+            delivery.stops,
+            currentDriverPoint ? { lat: currentDriverPoint.lat, lng: currentDriverPoint.lng } : null
+          )
+        : delivery.status === 'waiting_courier'
         ? [
             { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
             { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
@@ -2283,7 +2317,13 @@ export function DriverMapScreen({
             client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
           })
       : [],
-    [currentDriverPoint?.lat, currentDriverPoint?.lng, delivery, mapData]
+    [currentDriverPoint, delivery, mapData]
+  );
+  const combinedEditorPoints = useMemo(
+    () => delivery?.isCombined
+      ? getCombinedDeliveryRoutePoints(delivery.stops, null)
+      : [],
+    [delivery]
   );
   const activeRestaurantPoint = useMemo(
     () => activeLeg === 'restaurant' && completeMapData && delivery
@@ -2391,15 +2431,16 @@ export function DriverMapScreen({
         ><RefreshCw /></button>
       </header>
       <div className="driver-map-canvas">
-        {delivery && completeMapData ? (
+        {delivery && (delivery.isCombined ? currentRoutePoints.length > 0 : completeMapData) ? (
             <DeliveryTrackingMap
               key={`${delivery.deliveryId}:${routeRefreshKey}`}
               className="driver-tracking-map"
               initialStyle="satellite"
               navigationMode
-              restaurant={activeRestaurantPoint}
-              client={activeClientPoint}
+              restaurant={delivery.isCombined ? null : activeRestaurantPoint}
+              client={delivery.isCombined ? null : activeClientPoint}
               routePoints={currentRoutePoints}
+              editorPoints={combinedEditorPoints}
               followDriverHeading={currentDriverPoint !== null}
               driver={currentDriverPoint}
               onRequestCurrentLocation={onRequestCurrentLocation}
@@ -2448,7 +2489,7 @@ export function DriverMapScreen({
                 <small>✓ Заказ принят</small>
                 <strong>{delivery.orderNumber}</strong>
               </span>
-              {delivery.status === 'assigned' && (
+              {!delivery.isCombined && delivery.status === 'assigned' && (
                 <button
                   className="driver-map-sheet__arrival"
                   type="button"
@@ -2460,15 +2501,23 @@ export function DriverMapScreen({
               )}
             </header>
             {workflowError && <small className="driver-map-sheet__error">{workflowError}</small>}
-            <DriverRouteLegProgress
-              activeLeg={activeLeg}
-              restaurantName={delivery.restaurantName}
-              clientName={delivery.clientName || 'Клиент'}
-              totalDistanceM={routeTotalDistanceM}
-              remainingDistanceM={remainingDistanceM}
-              remainingDurationS={remainingDurationS}
-            />
-          {progress && (
+            {delivery.isCombined ? (
+              <CombinedDeliveryStopsPanel
+                offer={delivery}
+                onRefresh={async () => (await onRefresh?.()) ?? true}
+                compact
+              />
+            ) : (
+              <DriverRouteLegProgress
+                activeLeg={activeLeg}
+                restaurantName={delivery.restaurantName}
+                clientName={delivery.clientName || 'Клиент'}
+                totalDistanceM={routeTotalDistanceM}
+                remainingDistanceM={remainingDistanceM}
+                remainingDurationS={remainingDurationS}
+              />
+            )}
+          {!delivery.isCombined && progress && (
             <ol className="driver-delivery-progress" aria-label="Статус доставки">
               {progress.labels.map((label, index) => {
                 const step = index + 1;
@@ -2494,7 +2543,10 @@ export function DriverMapScreen({
                 }}
               >
                 <Navigation />
-                <span><strong>Яндекс Карты</strong><small>К ресторану и клиенту</small></span>
+                <span>
+                  <strong>Яндекс Карты</strong>
+                  <small>{activeCombinedStop ? `К точке ${activeCombinedStop.sequence}` : 'К ресторану и клиенту'}</small>
+                </span>
                 <ChevronRight />
               </a>
               <article className="driver-map-sheet__client">
