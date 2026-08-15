@@ -101,7 +101,7 @@ test('places tenant chats between team and warehouse and opens the shared inbox'
   expect(labels.indexOf('Команда')).toBeGreaterThan(labels.indexOf('Заказы'));
   expect(labels.indexOf('Чаты')).toBeGreaterThan(labels.indexOf('Команда'));
   expect(labels.indexOf('Чаты')).toBeLessThan(labels.indexOf('Склад'));
-  await expect.element(screen.getByRole('heading', { name: 'Чаты по заказам' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
   await expect.element(screen.getByText('Чатов пока нет')).toBeVisible();
 });
 
@@ -117,7 +117,7 @@ test('uses the same order chat inbox for a restaurant without changing its busin
 
   await expect.element(screen.getByText('Панель: ресторан')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Чаты' }).first()).toBeVisible();
-  await expect.element(screen.getByRole('heading', { name: 'Чаты по заказам' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
 });
 
 test('routes only grocery orders into the compact store queue', async () => {

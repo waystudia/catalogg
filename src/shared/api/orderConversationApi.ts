@@ -37,6 +37,13 @@ export type ClientOrderChatUnreadCount = {
   unreadCount: number;
 };
 
+export type OrderConversationSummary = {
+  orderId: string;
+  body: string;
+  senderKind: OrderMessage['senderKind'];
+  createdAt: string;
+};
+
 export type OrderPaymentAdjustment = {
   id: string;
   kind: 'additional_charge' | 'refund';
@@ -246,6 +253,48 @@ export async function markClientOrderChatRead(orderId: string, catalogId: string
   });
   if (error) throw new Error(error.message);
   return number(data);
+}
+
+export async function getStaffOrderConversationSummaries(orderIds: string[], catalogId: string): Promise<OrderConversationSummary[]> {
+  if (!supabase || orderIds.length === 0 || !catalogId) return [];
+  const uniqueOrderIds = Array.from(new Set(orderIds)).slice(0, 200);
+  const latestByOrder = new Map<string, OrderConversationSummary>();
+  const pageSize = 1000;
+  for (let page = 0; page < 5 && latestByOrder.size < uniqueOrderIds.length; page += 1) {
+    const { data, error } = await supabase
+      .from('order_messages')
+      .select('order_id, sender_kind, body, created_at')
+      .eq('catalog_id', catalogId)
+      .in('order_id', uniqueOrderIds)
+      .order('created_at', { ascending: false })
+      .range(page * pageSize, ((page + 1) * pageSize) - 1);
+    if (error) throw new Error(error.message);
+    const pageRows = rows(data);
+    pageRows.forEach((row) => {
+      const orderId = text(row.order_id);
+      if (!orderId || latestByOrder.has(orderId)) return;
+      latestByOrder.set(orderId, {
+        orderId,
+        body: text(row.body),
+        senderKind: text(row.sender_kind, 'system') as OrderMessage['senderKind'],
+        createdAt: text(row.created_at)
+      });
+    });
+    if (pageRows.length < pageSize) break;
+  }
+  return Array.from(latestByOrder.values());
+}
+
+export function subscribeStaffOrderConversationInbox(catalogId: string, onChange: () => void) {
+  if (!supabase || !catalogId) return () => undefined;
+  const client = supabase;
+  const channel = client
+    .channel(`order-conversation-inbox-${catalogId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_messages', filter: `catalog_id=eq.${catalogId}` }, onChange)
+    .subscribe();
+  return () => {
+    void client.removeChannel(channel);
+  };
 }
 
 export function subscribeOrderConversation(orderId: string, onChange: () => void) {
