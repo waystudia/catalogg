@@ -258,5 +258,36 @@ begin
   if (select stock_quantity from public.products where id = addon_product.id) <> stock_before - requested_quantity then
     raise exception 'second confirm reserved stock twice';
   end if;
+
+  update public.orders
+  set status = 'canceled'::public.order_status
+  where id = addon_order_id;
+  if (select stock_quantity from public.products where id = addon_product.id) <> stock_before then
+    raise exception 'addon cancellation did not restore stock exactly once';
+  end if;
+  if (select status::text from public.orders where id = primary_order_id) in ('cancelled', 'canceled') then
+    raise exception 'addon cancellation also cancelled the primary order';
+  end if;
+  if (select addon_delivery_fee_amount from public.order_groups where id = target_group_id) <> 0 then
+    raise exception 'addon cancellation did not remove the addon delivery fee';
+  end if;
+  if not exists (
+    select 1 from public.delivery_stops
+    where delivery_id = target_delivery_id
+      and merchant_order_id = addon_order_id
+      and status = 'cancelled'
+  ) then
+    raise exception 'addon cancellation did not cancel its pickup stop';
+  end if;
+
+  update public.orders
+  set status = 'canceled'::public.order_status
+  where id = primary_order_id;
+  if (select status from public.order_groups where id = target_group_id) <> 'cancelled' then
+    raise exception 'primary cancellation did not cancel the order group';
+  end if;
+  if (select status from public.deliveries where id = target_delivery_id) <> 'canceled' then
+    raise exception 'primary cancellation did not cancel the shared delivery';
+  end if;
 end;
 $$;
