@@ -4766,6 +4766,235 @@
   color: #667085;
 }
 
+.platform-addon-pricing {
+  display: grid;
+  gap: 18px;
+}
+
+.platform-addon-pricing__intro,
+.platform-addon-pricing__tiers,
+.platform-addon-pricing__error {
+  border: 1px solid #e6e9f0;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(20, 24, 40, 0.06);
+}
+
+.platform-addon-pricing__intro {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(135deg, #f5f1ff, #fff);
+}
+
+.platform-addon-pricing__intro > span {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+  color: #5b3df4;
+  background: #fff;
+}
+
+.platform-addon-pricing__intro svg {
+  width: 24px;
+  height: 24px;
+}
+
+.platform-addon-pricing__intro strong,
+.platform-addon-pricing__tiers h2 {
+  color: #101828;
+  font-size: 17px;
+}
+
+.platform-addon-pricing__intro p,
+.platform-addon-pricing__tiers p {
+  margin: 5px 0 0;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.platform-addon-pricing__tiers {
+  overflow: hidden;
+  padding: 18px;
+}
+
+.platform-addon-pricing__tiers > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.platform-addon-pricing__tiers h2 {
+  margin: 0;
+}
+
+.platform-addon-pricing__tiers > header > button,
+.platform-addon-pricing > footer > button,
+.platform-addon-pricing__error button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 16px;
+  color: #fff;
+  background: #5b3df4;
+  font-weight: 800;
+}
+
+.platform-addon-pricing__tiers > header > button svg,
+.platform-addon-pricing > footer > button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.platform-addon-pricing__head,
+.platform-addon-pricing__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
+  gap: 12px;
+  align-items: end;
+}
+
+.platform-addon-pricing__head {
+  padding: 0 0 8px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.platform-addon-pricing__row {
+  border-top: 1px solid #eef0f4;
+  padding: 12px 0;
+}
+
+.platform-addon-pricing__row label > span:first-child {
+  display: none;
+}
+
+.platform-addon-pricing__input {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  border: 1px solid #d7dce5;
+  border-radius: 14px;
+  padding: 0 12px;
+  background: #fbfcfe;
+}
+
+.platform-addon-pricing__input:focus-within {
+  border-color: #5b3df4;
+  box-shadow: 0 0 0 3px rgba(91, 61, 244, 0.12);
+}
+
+.platform-addon-pricing__input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #101828;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+}
+
+.platform-addon-pricing__input b {
+  color: #667085;
+}
+
+.platform-addon-pricing__row > button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid #ffd6d2;
+  border-radius: 14px;
+  color: #d92d20;
+  background: #fff7f6;
+}
+
+.platform-addon-pricing__row > button:disabled,
+.platform-addon-pricing button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.platform-addon-pricing__row > button svg {
+  width: 19px;
+  height: 19px;
+}
+
+.platform-addon-pricing > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.platform-addon-pricing > footer small {
+  max-width: 560px;
+  color: #667085;
+  line-height: 1.45;
+}
+
+.platform-addon-pricing__skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.platform-addon-pricing__skeleton span {
+  height: 70px;
+  border-radius: 18px;
+  background: linear-gradient(90deg, #f1f3f7, #fafbfc, #f1f3f7);
+  background-size: 200% 100%;
+  animation: platform-skeleton 1.2s linear infinite;
+}
+
+.platform-addon-pricing__error {
+  padding: 20px;
+}
+
+@media (max-width: 620px) {
+  .platform-addon-pricing__tiers {
+    padding: 14px;
+  }
+
+  .platform-addon-pricing__tiers > header,
+  .platform-addon-pricing > footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .platform-addon-pricing__tiers > header > button,
+  .platform-addon-pricing > footer > button {
+    width: 100%;
+  }
+
+  .platform-addon-pricing__head {
+    display: none;
+  }
+
+  .platform-addon-pricing__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+
+  .platform-addon-pricing__row label > span:first-child {
+    display: block;
+    margin-bottom: 6px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+  }
+}
+
 .platform-recent-payments {
   overflow: hidden;
   border: 1px solid #e9eaf0;

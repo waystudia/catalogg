@@ -239,6 +239,9 @@ export function CombinedOrderAddonPanel({
 
   if (!offer?.available || offerExpired) return null;
 
+  const displayedAddonFee =
+    selectedMerchant?.addonDeliveryFee ?? offer.addonDeliveryFee;
+
   return (
     <section
       id="combined-order-addon-panel"
@@ -260,7 +263,7 @@ export function CombinedOrderAddonPanel({
         <p>
           {confirmation
             ? `Оба заказа привезёт один курьер. Общая сумма ${formatPrice(confirmation.grandTotal)}.`
-            : `Снеки, напитки и другие товары по пути. Доплата к доставке — +${formatPrice(offer.addonDeliveryFee)}.`}
+            : `Снеки, напитки и другие товары по пути. Доплата к доставке — от +${formatPrice(offer.addonDeliveryFee)}.`}
         </p>
         {!confirmation && (
           <span>
@@ -353,7 +356,7 @@ export function CombinedOrderAddonPanel({
                         </small>
                         <em>
                           Доплата к доставке:{" "}
-                          {formatPrice(offer.addonDeliveryFee)}
+                          {formatPrice(merchant.addonDeliveryFee)}
                         </em>
                       </span>
                     </button>
@@ -369,7 +372,7 @@ export function CombinedOrderAddonPanel({
                       <strong>К текущей доставке</strong>
                       <small>Адрес и курьера повторно выбирать не нужно.</small>
                     </span>
-                    <b>+{formatPrice(offer.addonDeliveryFee)}</b>
+                    <b>+{formatPrice(displayedAddonFee)}</b>
                   </div>
                   {catalogQuery.isLoading ? (
                     <div
@@ -548,7 +551,7 @@ export function CombinedOrderAddonPanel({
                 >
                   {isWorking
                     ? "Рассчитываем…"
-                    : `Продолжить · ${formatPrice(cartSubtotal + offer.addonDeliveryFee)}`}
+                    : `Продолжить · ${formatPrice(cartSubtotal + displayedAddonFee)}`}
                 </button>
               )}
               {step === "quote" && quote && (

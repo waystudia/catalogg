@@ -132,6 +132,7 @@ import { SharedProductCatalogPage } from '../../features/shared-product-catalog/
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
 import { PlatformRestaurantModulesPage } from '../../features/platform-admin-modules/PlatformRestaurantModulesPage';
+import { PlatformAddonPricingSettings } from '../../features/platform-admin-addons/PlatformAddonPricingSettings';
 import { RestaurantActivationsAdminPage } from '../../features/platform-admin-activations/RestaurantActivationsAdminPage';
 import { BusinessTypeSelect } from '../../features/platform-admin-business-types/BusinessTypeSelect';
 import { StorefrontSettingsCard } from '../../features/platform-admin-storefronts/StorefrontSettingsCard';
@@ -2805,7 +2806,7 @@ export function LegacyContestsPage() {
   );
 }
 
-type SettingsView = 'overview' | 'banners' | 'pages' | 'support';
+type SettingsView = 'overview' | 'banners' | 'pages' | 'support' | 'delivery-addons';
 
 const bannerKindLabel: Record<PlatformBannerAdmin['kind'], string> = {
   banner: 'Баннер',
@@ -2966,6 +2967,15 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
     );
   }
 
+  if (view === 'delivery-addons') {
+    return (
+      <PlatformAddonPricingSettings
+        onBack={() => setView('overview')}
+        Header={PlatformInnerHeader}
+      />
+    );
+  }
+
   const supportConfigured = Boolean(
     settingsQuery.data?.supportWhatsapp
     || settingsQuery.data?.supportPhone
@@ -2996,6 +3006,15 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
       Icon: Headphones,
       tone: 'blue',
       configured: supportConfigured
+    },
+    {
+      view: 'delivery-addons' as const,
+      title: 'Объединённая доставка',
+      description: 'Доплата 40, 50, 100 ₽ по размеру крюка',
+      summary: 'Тарифы',
+      Icon: Route,
+      tone: 'purple',
+      configured: true
     }
   ];
 

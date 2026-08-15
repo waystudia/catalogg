@@ -20,13 +20,22 @@ describe("combined order API mapping", () => {
           name: "Финик",
           business_type: "grocery",
           extraTimeMinutes: 4.2,
+          addonDeliveryFee: 50,
+        },
+        {
+          id: "merchant-2",
+          slug: "legacy-store",
+          name: "Старый ответ",
+          business_type: "grocery",
         },
         {},
       ],
     });
     assert.equal(offer?.available, true);
-    assert.equal(offer?.merchants.length, 1);
+    assert.equal(offer?.merchants.length, 2);
     assert.equal(offer?.merchants[0]?.extraTimeMinutes, 4.2);
+    assert.equal(offer?.merchants[0]?.addonDeliveryFee, 50);
+    assert.equal(offer?.merchants[1]?.addonDeliveryFee, 40);
   });
 
   it("maps server-authoritative quote and confirmation totals", () => {

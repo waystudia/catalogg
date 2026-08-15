@@ -56,6 +56,10 @@ type OfferContext = {
     max_route_candidates: number;
     max_shown_merchants: number;
     quote_ttl_seconds: number;
+    fee_tiers: Array<{
+      max_extra_distance_km: number;
+      fee: number;
+    }>;
   };
   primary_order: {
     id: string;
@@ -81,6 +85,7 @@ type OfferContext = {
 
 type EligibleCandidate = Candidate & {
   route: Extract<CombinedRouteEligibility, { eligible: true }>;
+  addon_delivery_fee: number;
 };
 
 type AdminClient = ReturnType<typeof createClient>;
@@ -168,8 +173,27 @@ const loadOfferContext = async (
     client_session_token: clientSessionToken,
   });
   if (error) throw error;
-  return data as OfferContext;
+  const context = data as OfferContext;
+  const { data: feeTiers, error: feeTiersError } = await admin
+    .from("post_order_addon_fee_tiers")
+    .select("max_extra_distance_km, fee")
+    .eq("config_id", "global")
+    .order("max_extra_distance_km", { ascending: true });
+  if (feeTiersError) throw feeTiersError;
+  context.config.fee_tiers = (feeTiers ?? []).map((tier) => ({
+    max_extra_distance_km: asNumber(tier.max_extra_distance_km),
+    fee: asNumber(tier.fee),
+  }));
+  return context;
 };
+
+const addonFeeForDistance = (
+  context: OfferContext,
+  extraDistanceKm: number,
+) =>
+  context.config.fee_tiers.find(
+    (tier) => extraDistanceKm <= tier.max_extra_distance_km,
+  )?.fee ?? context.offer.addon_delivery_fee;
 
 const consumeRateLimit = async (
   admin: AdminClient,
@@ -282,7 +306,16 @@ const calculateRoutes = async (
           ),
         },
       });
-      return route.eligible ? [{ ...candidate, route }] : [];
+      return route.eligible
+        ? [{
+            ...candidate,
+            route,
+            addon_delivery_fee: addonFeeForDistance(
+              context,
+              route.extraDistanceKm,
+            ),
+          }]
+        : [];
     })
     .sort(
       (left, right) =>
@@ -311,6 +344,9 @@ const publishOffer = async (
     customer_arrival_at: new Date(route.customerArrivalAtMs).toISOString(),
   }));
   const status = shown.length > 0 ? "available" : "ineligible";
+  const minimumFee = shown.length > 0
+    ? Math.min(...shown.map((merchant) => merchant.addon_delivery_fee))
+    : context.offer.addon_delivery_fee;
   const updatePayload = {
     status,
     candidate_snapshot: candidateSnapshot,
@@ -351,7 +387,7 @@ const publishOffer = async (
         recipient_client_account_id: context.client_account_id,
         notification_type: "POST_ORDER_ADDON_AVAILABLE",
         title: "Добавить к доставке? 🥤",
-        body: `Напитки и снеки из магазина по пути — +${context.offer.addon_delivery_fee} ₽`,
+        body: `Напитки и снеки из магазина по пути — от +${minimumFee} ₽`,
         action_url: `/${context.primary_order.catalog_slug}/order/${context.primary_order.id}?addon=1`,
         dedupe_key: `post-order-addon:${context.order_group_id}`,
         expires_at: context.offer.expires_at,
@@ -371,15 +407,19 @@ const publishOffer = async (
 const handleOffer = async (admin: AdminClient, context: OfferContext) => {
   const eligible = await calculateRoutes(context, context.candidates ?? []);
   const merchants = await publishOffer(admin, context, eligible);
+  const minimumFee = merchants.length > 0
+    ? Math.min(...merchants.map((merchant) => merchant.addon_delivery_fee))
+    : context.offer.addon_delivery_fee;
   return {
     available: merchants.length > 0,
     reason: merchants.length > 0 ? "" : "no_eligible_merchants",
     orderGroupId: context.order_group_id,
     offerId: context.offer.id,
     expiresAt: context.offer.expires_at,
-    addonDeliveryFee: context.offer.addon_delivery_fee,
-    merchants: merchants.map(({ route, ...merchant }) => ({
+    addonDeliveryFee: minimumFee,
+    merchants: merchants.map(({ route, addon_delivery_fee, ...merchant }) => ({
       ...merchant,
+      addonDeliveryFee: addon_delivery_fee,
       extraDistanceKm: route.extraDistanceKm,
       extraTimeMinutes: route.extraTimeMinutes,
       routeSequence: route.sequence,

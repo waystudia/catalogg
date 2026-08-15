@@ -8,6 +8,7 @@ export type CombinedOrderAddonMerchant = {
   readonly assemblyMinutes: number;
   readonly extraDistanceKm: number;
   readonly extraTimeMinutes: number;
+  readonly addonDeliveryFee: number;
   readonly routeSequence: readonly string[];
 };
 
@@ -135,6 +136,12 @@ export const mapCombinedOrderAddonOffer = (
             ),
             extraTimeMinutes: asNumber(
               merchant.extraTimeMinutes ?? merchant.extra_time_minutes,
+            ),
+            addonDeliveryFee: asNumber(
+              merchant.addonDeliveryFee ??
+                merchant.addon_delivery_fee ??
+                row.addonDeliveryFee ??
+                row.addon_delivery_fee,
             ),
             routeSequence: asStringArray(
               merchant.routeSequence ?? merchant.route_sequence,
