@@ -1,28 +1,30 @@
 import { ArrowLeft, Clock3, ReceiptText } from 'lucide-react';
 import { useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { OrderConversationPanel } from '../order-conversation/OrderConversationPanel';
 import { markClientOrderChatRead } from '../../shared/api/orderConversationApi';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
+import { getBusinessTerms } from '../../shared/businessTerminology';
 import type { ClientOrder, ClientRestaurant } from '../client-platform/types';
-import { formatClientOrderDate, OrderStatusBadge } from './ClientOrders';
+import { formatClientOrderDate } from './ClientOrders';
 import './client-order-chat-page.css';
 
 export function ClientOrderChatPage({
   order,
   restaurant,
   orderNumber,
-  statusLabel,
   detailsPath,
   onRead
 }: {
   order: ClientOrder;
   restaurant?: ClientRestaurant;
   orderNumber: string;
-  statusLabel: string;
   detailsPath: string;
   onRead?: () => void;
 }) {
+  const navigate = useNavigate();
   const catalogId = order.catalogId || restaurant?.id || '';
+  const businessTerms = getBusinessTerms(restaurant?.businessType);
   const markRead = useCallback(() => {
     if (!catalogId) return;
     void markClientOrderChatRead(order.id, catalogId)
@@ -32,8 +34,14 @@ export function ClientOrderChatPage({
 
   return (
     <main className="client-order-chat-page">
-      <header className="client-order-chat-header">
-        <Link to="/profile/orders" aria-label="Вернуться к заказам"><ArrowLeft /></Link>
+      <header className="client-order-chat-header" aria-label={`Чат с ${businessTerms.placeInstrumental}`}>
+        <button
+          type="button"
+          onClick={() => navigateBackOrFallback(navigate, '/profile/orders')}
+          aria-label="Назад"
+        >
+          <ArrowLeft />
+        </button>
         <span className="client-order-chat-header__logo" aria-hidden="true">
           {restaurant?.logoUrl
             ? <img src={restaurant.logoUrl} alt="" />
@@ -41,7 +49,7 @@ export function ClientOrderChatPage({
         </span>
         <span>
           <strong>{order.restaurantName}</strong>
-          <small>Заказ №{orderNumber}</small>
+          <small>Чат заказа</small>
         </span>
       </header>
 
@@ -53,10 +61,7 @@ export function ClientOrderChatPage({
           </span>
           <b>{new Intl.NumberFormat('ru-RU').format(order.totalAmount)} ₽</b>
         </header>
-        <div>
-          <OrderStatusBadge status={order.status} label={statusLabel} />
-          <Link to={detailsPath}><ReceiptText /> Детали заказа</Link>
-        </div>
+        <Link to={detailsPath}><ReceiptText /> Детали заказа</Link>
       </section>
 
       {catalogId ? (

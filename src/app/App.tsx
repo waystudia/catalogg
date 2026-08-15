@@ -111,7 +111,7 @@ import {
   ThemeSettingsScreen
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
-import { buildProfileLoginPath } from '../shared/appNavigation';
+import { buildProfileLoginPath, navigateBackOrFallback } from '../shared/appNavigation';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
 import { ClientBrowserPairingBanner } from '../features/client-pairing/ClientPairing';
 import {
@@ -2815,7 +2815,7 @@ function AppContent({
         <TopBar
           title="Статус заказа"
           canBack
-          onBack={() => navigate(`/${catalogSlug}`)}
+          onBack={() => navigateBackOrFallback(navigate, `/${catalogSlug}`)}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
           onAdmin={() => navigate(buildProfileLoginPath(`/business/${catalogSlug}`))}
