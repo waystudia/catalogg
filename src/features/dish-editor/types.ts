@@ -34,13 +34,14 @@ export type Dish = {
   contentSource?: Product['content_source'];
   saleUnit: CatalogSaleUnit;
   allowSubstitution: boolean;
+  publishChoiceCards: boolean;
 };
 
 export function productToDish(product: Product | null, fallbackCategory: string): Dish {
   const categories = product?.category_ids?.length ? product.category_ids : product?.category_id ? [product.category_id] : [fallbackCategory];
 
   return {
-    id: product?.id ?? `dish-${Date.now()}`,
+    id: product?.id ?? crypto.randomUUID(),
     name: product?.title ?? '',
     price: product?.price ?? 0,
     categories,
@@ -81,7 +82,8 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     masterContentVersion: product?.master_content_version,
     contentSource: product?.content_source,
     saleUnit: product?.sale_unit ?? (product?.pricing_type === 'per_kg' ? 'weight' : 'piece'),
-    allowSubstitution: product?.allow_substitution ?? false
+    allowSubstitution: product?.allow_substitution ?? false,
+    publishChoiceCards: product?.publish_choice_cards ?? false
   };
 }
 
@@ -138,6 +140,7 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     minimum_quantity: isWeighted ? Math.max(1, Math.round(dish.minimumWeight * 1000)) : 1,
     quantity_step: isWeighted ? Math.max(1, Math.round(dish.weightStep * 1000)) : 1,
     stock_quantity: normalizedStockQuantity,
-    allow_substitution: dish.allowSubstitution
+    allow_substitution: dish.allowSubstitution,
+    publish_choice_cards: dish.publishChoiceCards
   };
 }

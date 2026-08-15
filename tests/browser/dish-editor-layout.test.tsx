@@ -34,6 +34,15 @@ const product: Product = {
   choice_options: []
 };
 
+const relatedProduct = (overrides: Partial<Product>): Product => ({
+  ...product,
+  id: 'related-dish',
+  title: 'Картошка фри',
+  category_id: 'pizza',
+  category_ids: ['pizza'],
+  ...overrides
+});
+
 const restaurant: Restaurant = {
   id: 'restaurant-1',
   name: 'Мангал',
@@ -68,6 +77,28 @@ const renderDishEditor = (editingProduct: Product | null, onSaveProduct = vi.fn(
         onNavigate={vi.fn()}
       />
     </>
+  );
+};
+
+const renderDishEditorWithProducts = (
+  editingProduct: Product | null,
+  products: Product[],
+  onSaveProduct = vi.fn()
+) => {
+  useAdminStore.setState({ editor: 'dish', isPanelOpen: true });
+
+  return render(
+    <DesignEditor
+      editingProduct={editingProduct}
+      categories={categories}
+      products={products}
+      restaurant={restaurant}
+      onSaveProduct={onSaveProduct}
+      onCloseProduct={vi.fn()}
+      onUpdateRestaurant={vi.fn()}
+      cartCount={0}
+      onNavigate={vi.fn()}
+    />
   );
 };
 
@@ -138,9 +169,97 @@ test('edits a separate name and price for every dish variant', async () => {
     await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
 
     await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
-    expect(onSaveProduct).toHaveBeenCalledWith(expect.objectContaining({
+    expect(onSaveProduct.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
       choice_options: [{ name: 'Большая', price: 750 }]
     }));
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});
+
+test('filters often-bought-together dishes with horizontally selectable mini categories', async () => {
+  try {
+    const fries = relatedProduct({ id: 'fries', title: 'Картошка фри' });
+    const wings = relatedProduct({
+      id: 'wings',
+      title: 'Острые крылышки',
+      category_id: 'meat',
+      category_ids: ['meat']
+    });
+    const screen = await renderDishEditorWithProducts(product, [product, fries, wings]);
+    const pairCategories = screen.getByRole('navigation', { name: 'Категории сопутствующих блюд' });
+    const meatCategory = pairCategories.getByRole('button', { name: 'Мясо' });
+    meatCategory.element().scrollIntoView({ block: 'center' });
+
+    await expect.element(pairCategories.getByRole('button', { name: 'Все' })).toBeVisible();
+    await expect.element(screen.getByText('Картошка фри')).toBeVisible();
+    await expect.element(screen.getByText('Острые крылышки')).toBeVisible();
+
+    await meatCategory.click();
+
+    await expect.element(screen.getByText('Острые крылышки')).toBeVisible();
+    await expect.element(screen.getByText('Картошка фри')).not.toBeInTheDocument();
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});
+
+test('optionally synchronizes dish variants into separate catalog cards without duplicates', async () => {
+  const onSaveProduct = vi.fn();
+  const sourceProduct: Product = {
+    ...product,
+    title: 'Пицца «Маргарита»',
+    choice_options: [
+      { name: 'большая', price: 750 },
+      { name: '6 шт', price: 990 }
+    ]
+  };
+  const existingVariant = relatedProduct({
+    id: 'existing-large-card',
+    title: 'Старое название',
+    generated_from_choice: sourceProduct.id,
+    generated_choice_index: 0
+  });
+  const obsoleteVariant = relatedProduct({
+    id: 'obsolete-card',
+    title: 'Удалённый вариант',
+    generated_from_choice: sourceProduct.id,
+    generated_choice_index: 4
+  });
+
+  try {
+    const screen = await renderDishEditorWithProducts(
+      sourceProduct,
+      [sourceProduct, existingVariant, obsoleteVariant],
+      onSaveProduct
+    );
+    const publishVariants = screen.getByRole('checkbox', { name: 'Добавить варианты в каталог отдельными карточками' });
+    const publishVariantsLabel = screen.getByText('Отдельные карточки');
+    publishVariantsLabel.element().scrollIntoView({ block: 'center' });
+    await publishVariantsLabel.click();
+    await expect.element(publishVariants).toBeChecked();
+    await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
+
+    await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
+    expect(onSaveProduct.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ publish_choice_cards: true }));
+    expect(onSaveProduct.mock.calls[0]?.[1]).toEqual([
+      expect.objectContaining({
+        id: 'existing-large-card',
+        title: 'Пицца «Маргарита» большая',
+        price: 750,
+        choice_options: [],
+        generated_from_choice: sourceProduct.id,
+        generated_choice_index: 0
+      }),
+      expect.objectContaining({
+        title: 'Пицца «Маргарита», 6 шт',
+        price: 990,
+        choice_options: [],
+        generated_from_choice: sourceProduct.id,
+        generated_choice_index: 1
+      })
+    ]);
+    expect(onSaveProduct.mock.calls[0]?.[2]).toEqual(['obsolete-card']);
   } finally {
     useAdminStore.setState({ editor: null, isPanelOpen: false });
   }

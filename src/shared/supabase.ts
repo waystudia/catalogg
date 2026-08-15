@@ -411,6 +411,9 @@ const productConfigKeys = [
   'allow_inscription',
   'allow_decoration_comment',
   'allow_production_schedule',
+  'publish_choice_cards',
+  'generated_from_choice',
+  'generated_choice_index',
   'placeholder_kind',
   'minimum_stock'
 ] as const satisfies ReadonlyArray<keyof Product>;

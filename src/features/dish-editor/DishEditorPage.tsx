@@ -5,6 +5,7 @@ import { saveDishDraft } from './storage';
 import { dishToProduct, productToDish, type Dish } from './types';
 import { DishForm } from './DishForm';
 import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
+import { synchronizeDishVariantCards } from './dishVariantCards';
 
 function validateDish(dish: Dish, businessType: BusinessType) {
   const terms = getBusinessTerms(businessType);
@@ -40,7 +41,7 @@ export function DishEditorPage({
   products: Product[];
   cartCount: number;
   onBack: () => void;
-  onSave: (product: Product) => void;
+  onSave: (product: Product, generatedProducts?: Product[], removedProductIds?: string[]) => void;
   onNavigate: (target: 'home' | 'catalog' | 'drinks' | 'cabins' | 'profile') => void;
   businessType?: BusinessType;
 }) {
@@ -66,7 +67,9 @@ export function DishEditorPage({
 
     try {
       await saveDishDraft(dish);
-      onSave(dishToProduct(dish, product));
+      const savedProduct = dishToProduct(dish, product);
+      const { generatedProducts, removedProductIds } = synchronizeDishVariantCards(savedProduct, products);
+      onSave(savedProduct, generatedProducts, removedProductIds);
       setStatus('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       window.setTimeout(() => setStatus('idle'), 1800);

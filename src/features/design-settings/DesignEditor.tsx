@@ -19,7 +19,7 @@ export function DesignEditor({
   categories: Category[];
   products: Product[];
   restaurant: Restaurant;
-  onSaveProduct: (product: Product) => void;
+  onSaveProduct: (product: Product, generatedProducts?: Product[], removedProductIds?: string[]) => void;
   onCloseProduct: () => void;
   onUpdateRestaurant: (patch: Partial<Restaurant>) => void;
   cartCount: number;

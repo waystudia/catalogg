@@ -145,6 +145,9 @@ export type Product = {
   allow_inscription?: boolean;
   allow_decoration_comment?: boolean;
   allow_production_schedule?: boolean;
+  publish_choice_cards?: boolean;
+  generated_from_choice?: string;
+  generated_choice_index?: number;
   placeholder_kind?: 'dessert';
   sku?: string;
   barcode?: string;
