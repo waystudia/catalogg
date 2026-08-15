@@ -62,6 +62,9 @@ const orderUrl = (slug: string, orderId: string) =>
 const clientOrderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
 
+const clientAddonOrderUrl = (slug: string, orderId: string) =>
+  `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?addon=1`;
+
 const driverOrderUrl = (deliveryId: string) =>
   `${appBaseUrl()}#/driver/orders/${encodeURIComponent(deliveryId)}`;
 
@@ -304,6 +307,110 @@ Deno.serve(async (request) => {
           subscriptions = subscriptions.filter((subscription) => subscription.user_id !== senderAuthUserId);
         }
       }
+    }
+
+    if (event.table === 'notifications') {
+      const notificationId = asId(record.id);
+      const { data: notification } = await admin
+        .from('notifications')
+        .select('id, recipient_client_account_id, recipient_auth_user_id, notification_type, title, body, action_url, dedupe_key, read_at, expires_at, metadata')
+        .eq('id', notificationId)
+        .maybeSingle();
+      const expiresAt = asString(notification?.expires_at);
+      if (
+        !notification ||
+        notification.read_at ||
+        (expiresAt && Date.parse(expiresAt) <= Date.now())
+      ) {
+        return jsonResponse({ ok: true, sent: 0, skipped: 'notification_inactive' });
+      }
+
+      const notificationType = asString(notification.notification_type);
+      const metadata = notification.metadata && typeof notification.metadata === 'object'
+        ? notification.metadata as Record<string, unknown>
+        : {};
+      const orderGroupId = asId(metadata.order_group_id);
+      const offerId = asId(metadata.offer_id);
+      if (notificationType === 'POST_ORDER_ADDON_AVAILABLE') {
+        const { data: offer } = await admin
+          .from('addon_offers')
+          .select('status, expires_at, viewed_at')
+          .eq('id', offerId)
+          .eq('order_group_id', orderGroupId)
+          .maybeSingle();
+        if (
+          !offer ||
+          offer.status !== 'available' ||
+          offer.viewed_at ||
+          Date.parse(asString(offer.expires_at)) <= Date.now()
+        ) {
+          return jsonResponse({ ok: true, sent: 0, skipped: 'addon_offer_opened_or_expired' });
+        }
+      }
+
+      const { data: orderGroup } = orderGroupId
+        ? await admin
+          .from('order_groups')
+          .select('primary_order_id')
+          .eq('id', orderGroupId)
+          .maybeSingle()
+        : { data: null };
+      const primaryOrderId = asId(metadata.primary_order_id) || asId(orderGroup?.primary_order_id);
+      const { data: primaryOrder } = primaryOrderId
+        ? await admin
+          .from('orders')
+          .select('catalog_id')
+          .eq('id', primaryOrderId)
+          .maybeSingle()
+        : { data: null };
+      const catalogId = asId(primaryOrder?.catalog_id);
+      const { data: catalog } = catalogId
+        ? await admin.from('catalogs').select('slug').eq('id', catalogId).maybeSingle()
+        : { data: null };
+      const slug = asString(catalog?.slug);
+
+      title = asString(notification.title) || 'Обновление заказа';
+      body = asString(notification.body) || 'Откройте заказ, чтобы посмотреть подробности.';
+      url = slug && primaryOrderId
+        ? clientAddonOrderUrl(slug, primaryOrderId)
+        : `${appBaseUrl()}#/`;
+      tag = asString(notification.dedupe_key) || `client-notification-${notificationId}`;
+
+      const recipientClientAccountId = asId(notification.recipient_client_account_id);
+      const recipientAuthUserId = asId(notification.recipient_auth_user_id);
+      const { data: clientAccount } = recipientClientAccountId
+        ? await admin
+          .from('client_accounts')
+          .select('auth_user_id')
+          .eq('id', recipientClientAccountId)
+          .maybeSingle()
+        : { data: null };
+      const recipientIds = Array.from(new Set([
+        recipientClientAccountId,
+        recipientAuthUserId,
+        asId(clientAccount?.auth_user_id)
+      ].filter(Boolean)));
+
+      const [byOrder, byUser] = await Promise.all([
+        primaryOrderId
+          ? admin
+            .from('web_push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth, app_base_url')
+            .eq('role', 'client')
+            .eq('order_id', primaryOrderId)
+          : Promise.resolve({ data: [] }),
+        recipientIds.length > 0
+          ? admin
+            .from('web_push_subscriptions')
+            .select('id, user_id, endpoint, p256dh, auth, app_base_url')
+            .eq('role', 'client')
+            .in('user_id', recipientIds)
+          : Promise.resolve({ data: [] })
+      ]);
+      subscriptions = uniqueSubscriptions([
+        ...withTargetUrl(byOrder.data, url),
+        ...withTargetUrl(byUser.data, url)
+      ]);
     }
 
     if (event.table === 'deliveries') {

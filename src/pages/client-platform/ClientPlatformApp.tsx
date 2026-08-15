@@ -87,6 +87,7 @@ import {
 import { initializePostOrderAddon } from '../../shared/api/combinedOrderApi';
 import { CombinedOrderAddonPanel } from '../../features/combined-order/CombinedOrderAddonPanel';
 import { CombinedOrderSummaryPanel } from '../../features/combined-order/CombinedOrderSummaryPanel';
+import { ClientNotificationCenter } from '../../features/client-notifications/ClientNotificationCenter';
 import {
   buildClientAuthPath,
   getCurrentClientAddresses,
@@ -775,9 +776,7 @@ function HomePage({
           <span>{city?.name ?? 'Выбрать город'}</span>
           <ChevronDown />
         </Link>
-        <button className="icon-button notification-button has-unread" type="button" aria-label="Уведомления">
-          <Bell />
-        </button>
+        <ClientNotificationCenter />
       </header>
 
       <Link className="platform-search platform-search--home" to="/restaurants">

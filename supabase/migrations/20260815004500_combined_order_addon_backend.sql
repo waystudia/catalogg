@@ -388,6 +388,7 @@ begin
     'primary_order', jsonb_build_object(
       'id', primary_order.id,
       'catalog_id', primary_order.catalog_id,
+      'catalog_slug', primary_catalog.slug,
       'status', primary_order.status,
       'customer_name', primary_order.customer_name,
       'customer_phone', primary_order.customer_phone,

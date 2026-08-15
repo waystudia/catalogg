@@ -60,6 +60,7 @@ type OfferContext = {
   primary_order: {
     id: string;
     catalog_id: string;
+    catalog_slug: string;
     status: string;
     delivery_latitude: number;
     delivery_longitude: number;
@@ -351,12 +352,13 @@ const publishOffer = async (
         notification_type: "POST_ORDER_ADDON_AVAILABLE",
         title: "Добавить к доставке? 🥤",
         body: `Напитки и снеки из магазина по пути — +${context.offer.addon_delivery_fee} ₽`,
-        action_url: `/open-order/${context.order_group_id}/addons`,
+        action_url: `/${context.primary_order.catalog_slug}/order/${context.primary_order.id}?addon=1`,
         dedupe_key: `post-order-addon:${context.order_group_id}`,
         expires_at: context.offer.expires_at,
         metadata: {
           order_group_id: context.order_group_id,
           offer_id: context.offer.id,
+          primary_order_id: context.primary_order.id,
         },
       }),
     ]);
@@ -395,16 +397,23 @@ const handleView = async (admin: AdminClient, context: OfferContext) => {
     .maybeSingle();
   if (error) throw error;
   if (data) {
-    const { error: eventError } = await admin
-      .from("order_group_events")
-      .insert({
+    const [eventResult, notificationResult] = await Promise.all([
+      admin.from("order_group_events").insert({
         order_group_id: context.order_group_id,
         event_type: "ADDON_OFFER_VIEWED",
         actor_type: "client",
         actor_id: context.client_account_id,
         metadata: {},
-      });
-    if (eventError) throw eventError;
+      }),
+      admin
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("recipient_client_account_id", context.client_account_id)
+        .eq("dedupe_key", `post-order-addon:${context.order_group_id}`)
+        .is("read_at", null),
+    ]);
+    if (eventResult.error) throw eventResult.error;
+    if (notificationResult.error) throw notificationResult.error;
   }
   return { viewed: true, orderGroupId: context.order_group_id };
 };

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildYandexMapsRouteUrl } from './orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
@@ -14,6 +14,7 @@ import {
 import type { BusinessType } from '../../shared/businessTerminology';
 import { CombinedOrderAddonPanel } from '../combined-order/CombinedOrderAddonPanel';
 import { CombinedOrderSummaryPanel } from '../combined-order/CombinedOrderSummaryPanel';
+import { ClientNotificationCenter } from '../client-notifications/ClientNotificationCenter';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
@@ -35,6 +36,7 @@ export function PublicOrderStatusScreen({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [addonOpenSignal, setAddonOpenSignal] = useState(0);
   const statusQuery = useQuery({
     queryKey: ['public-order-status', orderId],
     queryFn: () => getPublicRestaurantOrderStatus(orderId),
@@ -60,8 +62,31 @@ export function PublicOrderStatusScreen({
     });
   }, [catalogIdQuery.data, location.search]);
 
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has('addon')) return;
+    setAddonOpenSignal((signal) => signal + 1);
+    window.requestAnimationFrame(() => {
+      document.getElementById('combined-order-addon-panel')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    });
+  }, [location.search]);
+
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <>
+      <ClientNotificationCenter
+        orderId={orderId}
+        onAddonAction={() => {
+          setAddonOpenSignal((signal) => signal + 1);
+          window.requestAnimationFrame(() => {
+            document.getElementById('combined-order-addon-panel')?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center'
+            });
+          });
+        }}
+      />
       <section className="checkout-summary public-order-status">
         <div>
           <span>Заказ №{value.id.slice(0, 8).toUpperCase()}</span>
@@ -125,6 +150,7 @@ export function PublicOrderStatusScreen({
           <CombinedOrderAddonPanel
             primaryOrderId={orderId}
             primaryOrderNumber={value.id.slice(0, 8).toUpperCase()}
+            openSignal={addonOpenSignal}
             onCreated={() => {
               void statusQuery.refetch();
               void trackingQuery.refetch();

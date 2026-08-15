@@ -52,7 +52,7 @@ describe('secure primary combined-order initialization', () => {
 
   it('starts initialization after both existing checkout paths save a real order id', () => {
     assert.match(combinedOrderApi, /getStoredClientSessionToken\(\)/);
-    assert.match(combinedOrderApi, /rpc\('initialize_post_order_addon'/);
+    assert.match(combinedOrderApi, /rpc\(['"]initialize_post_order_addon['"]/);
     assert.match(combinedOrderApi, /client_session_token: sessionToken/);
     assert.match(legacyCheckout, /void initializePostOrderAddon\(orderId\)\.catch/);
     assert.match(platformCheckout, /void initializePostOrderAddon\(orderId\)\.catch/);

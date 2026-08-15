@@ -10,7 +10,7 @@ import {
   Store,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatClientDishQuantity } from "../client-platform/clientPlatformLogic";
 import {
   confirmPostOrderAddon,
@@ -67,10 +67,12 @@ export function CombinedOrderAddonPanel({
   primaryOrderId,
   primaryOrderNumber,
   onCreated,
+  openSignal = 0,
 }: {
   primaryOrderId: string;
   primaryOrderNumber?: string;
   onCreated?: (confirmation: CombinedOrderAddonConfirmation) => void;
+  openSignal?: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<AddonStep>("merchants");
@@ -134,7 +136,7 @@ export function CombinedOrderAddonPanel({
   }, [catalogQuery.data?.dishes, selectedMerchant]);
   const cartSubtotal = calculateAddonCartSubtotal(cartLines, dishes);
 
-  const openOffer = () => {
+  const openOffer = useCallback(() => {
     if (!offer?.available || offerExpired) return;
     setIsOpen(true);
     setStep(confirmation ? "success" : "merchants");
@@ -145,7 +147,11 @@ export function CombinedOrderAddonPanel({
         () => undefined,
       );
     }
-  };
+  }, [confirmation, offer, offerExpired]);
+
+  useEffect(() => {
+    if (openSignal > 0) openOffer();
+  }, [openOffer, openSignal]);
 
   const selectMerchant = (merchant: CombinedOrderAddonMerchant) => {
     setSelectedMerchant(merchant);
@@ -210,6 +216,7 @@ export function CombinedOrderAddonPanel({
 
   return (
     <section
+      id="combined-order-addon-panel"
       className="combined-addon"
       aria-label="Добавить товары к текущей доставке"
     >
