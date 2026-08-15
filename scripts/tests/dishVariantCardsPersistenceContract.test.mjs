@@ -32,4 +32,9 @@ test('dish variant card metadata persists in legacy and universal catalogs', () 
     catalogAdapter,
     /deleteProductFromSupabase[\s\S]*if \(activeCatalogIsLegacy\)[\s\S]*from\('product'\)\.delete\(\)\.eq\('id', productId\)/
   );
+  assert.match(catalogAdapter, /'spicy_level',[\s\S]*'category_ids',[\s\S]*'pair_ids'/);
+  assert.match(
+    catalogAdapter,
+    /resolvePlatformProductCategoryId[\s\S]*from\('category'\)[\s\S]*from\('categories'\)[\s\S]*\.eq\('slug', createSlug\(legacyCategory\.name\)\)/
+  );
 });

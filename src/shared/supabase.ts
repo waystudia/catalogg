@@ -398,6 +398,10 @@ const applyProductModifiers = (
 
 const productConfigKeys = [
   'old_price',
+  'spicy_level',
+  'category_ids',
+  'drink_type',
+  'pair_ids',
   'pricing_type',
   'price_prefix',
   'price_tier',
@@ -415,6 +419,7 @@ const productConfigKeys = [
   'generated_from_choice',
   'generated_choice_index',
   'placeholder_kind',
+  'cost_price',
   'minimum_stock'
 ] as const satisfies ReadonlyArray<keyof Product>;
 
@@ -1047,6 +1052,26 @@ const productToPlatformRow = (product: Product) => ({
   }
 });
 
+async function resolvePlatformProductCategoryId(product: Product) {
+  if (!supabase || !activePlatformCatalogId || !product.category_id) return null;
+  if (uuidPattern.test(product.category_id)) return product.category_id;
+  if (!activeCatalogIsLegacy) return null;
+
+  const legacyCategory = (await throwOnError(
+    supabase.from('category').select('name').eq('id', product.category_id).maybeSingle()
+  )) as { name?: string } | null;
+  if (!legacyCategory?.name) return null;
+  const platformCategory = (await throwOnError(
+    supabase
+      .from('categories')
+      .select('id')
+      .eq('catalog_id', activePlatformCatalogId)
+      .eq('slug', createSlug(legacyCategory.name))
+      .maybeSingle()
+  )) as { id?: string } | null;
+  return platformCategory?.id && uuidPattern.test(platformCategory.id) ? platformCategory.id : null;
+}
+
 async function saveProductChoices(product: Product) {
   if (!supabase || !activePlatformCatalogId) return;
   const current = await throwOnError(
@@ -1206,7 +1231,11 @@ async function syncPlatformProductImages(productId: string, imageUrls: readonly 
 export async function saveProductToSupabase(product: Product) {
   if (!supabase) return;
   if (activePlatformCatalogId) {
-    const row = productToPlatformRow(product);
+    const platformCategoryId = await resolvePlatformProductCategoryId(product);
+    const row = {
+      ...productToPlatformRow(product),
+      category_id: activeCatalogIsLegacy && !platformCategoryId ? undefined : platformCategoryId
+    };
     if (activeCatalogIsLegacy) {
       const legacyProduct: Record<string, unknown> = { ...product };
       delete legacyProduct.choice_options;
