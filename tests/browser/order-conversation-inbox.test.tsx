@@ -77,6 +77,10 @@ test('mobile opens a full conversation and back returns to the chat list', async
   await expect.element(screen.getByLabelText('Сообщение')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Назад к списку чатов' })).toBeVisible();
 
+  const composerRect = screen.getByLabelText('Сообщение').element().getBoundingClientRect();
+  expect(composerRect.top).toBeGreaterThanOrEqual(0);
+  expect(composerRect.bottom).toBeLessThanOrEqual(window.innerHeight);
+
   await screen.getByRole('button', { name: 'Назад к списку чатов' }).click();
 
   await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();

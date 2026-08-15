@@ -2452,4 +2452,8 @@
     width: 100%;
     line-height: 1.15;
   }
+
+  .business-workspace-shell--chat-open .restaurant-admin-bottom-nav {
+    display: none;
+  }
 }
