@@ -48,6 +48,7 @@ const summaryApi = {
 
 test('mobile opens with a vertical latest-first chat list and no conversation selected', async () => {
   await page.viewport(372, 576);
+  window.history.replaceState({}, '', window.location.href);
   const screen = await render(<OrderConversationInbox items={chats} expectedViewer="staff" summaryApi={summaryApi} />);
 
   await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
@@ -68,6 +69,7 @@ test('mobile opens with a vertical latest-first chat list and no conversation se
 
 test('mobile opens a full conversation and back returns to the chat list', async () => {
   await page.viewport(372, 576);
+  window.history.replaceState({}, '', window.location.href);
   const screen = await render(<OrderConversationInbox items={chats} expectedViewer="client" summaryApi={summaryApi} />);
 
   await screen.getByRole('button', { name: /Мангал/ }).click();
@@ -85,4 +87,21 @@ test('mobile opens a full conversation and back returns to the chat list', async
 
   await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
   await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).not.toBeInTheDocument();
+});
+
+test('browser Back returns to the exact filtered chat list', async () => {
+  await page.viewport(372, 576);
+  window.history.replaceState({}, '', window.location.href);
+  const screen = await render(<OrderConversationInbox items={chats} expectedViewer="client" summaryApi={summaryApi} />);
+
+  await screen.getByLabelText('Поиск чатов').fill('Мангал');
+  await screen.getByRole('button', { name: /Мангал/ }).click();
+  await expect.element(screen.getByText('Заказ №2048 · Готовится')).toBeVisible();
+
+  window.history.back();
+
+  await expect.element(screen.getByRole('heading', { name: 'Чаты' })).toBeVisible();
+  await expect.element(screen.getByLabelText('Поиск чатов')).toHaveValue('Мангал');
+  await expect.element(screen.getByRole('button', { name: /Мангал/ })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Финик/ })).not.toBeInTheDocument();
 });

@@ -138,6 +138,7 @@ import { BusinessTypeSelect } from '../../features/platform-admin-business-types
 import { StorefrontSettingsCard } from '../../features/platform-admin-storefronts/StorefrontSettingsCard';
 import { BUSINESS_TYPE_DEFINITIONS } from '../../shared/businessRegistry';
 import { ClientGeographyFields } from './ClientGeographyFields';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import {
   getRestaurantModuleEntitlementByCatalog,
   saveRestaurantModuleEntitlement,
@@ -2332,7 +2333,7 @@ function SubscriptionsPage() {
   const [fromSettlement, setFromSettlement] = useState('');
   const [toSettlement, setToSettlement] = useState('');
   const [amount, setAmount] = useState(200);
-  const [view, setView] = useState<SubscriptionView>('overview');
+  const [view, viewHistory] = useBrowserBackedState<SubscriptionView>('platform:subscriptions:view', 'overview');
 
   useEffect(() => {
     if (!billingSettingsQuery.data) return;
@@ -2447,7 +2448,7 @@ function SubscriptionsPage() {
   );
 
   if (view !== 'overview') {
-    const onBack = () => setView('overview');
+    const onBack = viewHistory.back;
     if (view === 'modules') {
       return <PlatformRestaurantModulesPage onBack={onBack} />;
     }
@@ -2613,7 +2614,7 @@ function SubscriptionsPage() {
 
       <section className="platform-hub-list">
         {menuItems.map(({ view: nextView, title, description, summary, Icon, tone }) => (
-          <button type="button" onClick={() => setView(nextView)} key={nextView}>
+          <button type="button" onClick={() => viewHistory.open(nextView)} key={nextView}>
             <span className={`platform-hub-list__icon is-${tone}`}><Icon /></span>
             <span><strong>{title}</strong><small>{description}</small></span>
             <b>{summary}</b>
@@ -2623,7 +2624,7 @@ function SubscriptionsPage() {
       </section>
 
       <section className="platform-recent-payments">
-        <header><h2>Последние платежи</h2><button type="button" onClick={() => setView('payments')}>Все платежи <ChevronRight /></button></header>
+        <header><h2>Последние платежи</h2><button type="button" onClick={() => viewHistory.open('payments')}>Все платежи <ChevronRight /></button></header>
         {renderSubscriptions(subscriptions.slice(0, 3))}
       </section>
     </main>
@@ -2847,9 +2848,9 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
   const pagesQuery = useQuery({ queryKey: ['platform-content-pages'], queryFn: () => getPlatformContentPages() });
-  const [view, setView] = useState<SettingsView>('overview');
-  const [editingBanner, setEditingBanner] = useState<PlatformBannerAdmin | 'new' | null>(null);
-  const [editingPage, setEditingPage] = useState<PlatformContentPage | 'new' | null>(null);
+  const [view, viewHistory] = useBrowserBackedState<SettingsView>('platform:settings:view', 'overview');
+  const [editingBanner, bannerHistory] = useBrowserBackedState<PlatformBannerAdmin | 'new' | null>('platform:settings:banner-editor', null);
+  const [editingPage, pageHistory] = useBrowserBackedState<PlatformContentPage | 'new' | null>('platform:settings:page-editor', null);
 
   const refreshBanners = () => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
   const refreshPages = () => void queryClient.invalidateQueries({ queryKey: ['platform-content-pages'] });
@@ -2861,10 +2862,10 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
           banner={editingBanner === 'new' ? undefined : editingBanner}
           pages={pagesQuery.data ?? []}
           defaultSortOrder={bannersQuery.data?.length ?? 0}
-          onBack={() => setEditingBanner(null)}
+          onBack={bannerHistory.back}
           onSaved={() => {
             refreshBanners();
-            setEditingBanner(null);
+            bannerHistory.back();
           }}
         />
       );
@@ -2874,8 +2875,8 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
         <PlatformInnerHeader
           title="Баннеры"
           description="Баннеры, новости, акции и конкурсы"
-          onBack={() => setView('overview')}
-          action={<button className="platform-inner-head__action" type="button" onClick={() => setEditingBanner('new')}><Plus />Создать</button>}
+          onBack={viewHistory.back}
+          action={<button className="platform-inner-head__action" type="button" onClick={() => bannerHistory.open('new')}><Plus />Создать</button>}
         />
         <section className="platform-content-list">
           {(bannersQuery.data ?? []).map((banner) => (
@@ -2889,7 +2890,7 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
               </span>
               <span><strong>{banner.name || banner.title}</strong><small>{bannerKindLabel[banner.kind]} · {banner.isActive ? 'Активен' : 'Неактивен'}</small></span>
               <b>{banner.pageId ? 'Страница выбрана' : 'Без страницы'}</b>
-              <button type="button" onClick={() => setEditingBanner(banner)}>Редактировать</button>
+              <button type="button" onClick={() => bannerHistory.open(banner)}>Редактировать</button>
               <button
                 type="button"
                 className="is-danger"
@@ -2915,11 +2916,11 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
       return (
         <PlatformContentPageEditor
           page={editingPage === 'new' ? undefined : editingPage}
-          onBack={() => setEditingPage(null)}
+          onBack={pageHistory.back}
           onSaved={() => {
             refreshPages();
             refreshBanners();
-            setEditingPage(null);
+            pageHistory.back();
           }}
         />
       );
@@ -2929,8 +2930,8 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
         <PlatformInnerHeader
           title="Вспомогательные страницы"
           description="Страницы, открываемые из баннеров"
-          onBack={() => setView('overview')}
-          action={<button className="platform-inner-head__action" type="button" onClick={() => setEditingPage('new')}><Plus />Создать страницу</button>}
+          onBack={viewHistory.back}
+          action={<button className="platform-inner-head__action" type="button" onClick={() => pageHistory.open('new')}><Plus />Создать страницу</button>}
         />
         <section className="platform-content-list platform-content-list--pages">
           {(pagesQuery.data ?? []).map((page) => (
@@ -2939,7 +2940,7 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
               <span><strong>{page.name}</strong><small>{getContentPageClientPath(page)}</small></span>
               <b>{page.status === 'published' ? 'Опубликована' : page.status === 'draft' ? 'Черновик' : 'Неактивна'}</b>
               <em>{page.bannerUsageCount} материалов</em>
-              <button type="button" onClick={() => setEditingPage(page)}>Редактировать</button>
+              <button type="button" onClick={() => pageHistory.open(page)}>Редактировать</button>
               <button
                 type="button"
                 className="is-danger"
@@ -2968,7 +2969,7 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
     return (
       <PlatformSupportEditor
         settings={settingsQuery.data}
-        onBack={() => setView('overview')}
+        onBack={viewHistory.back}
         onSaved={() => void queryClient.invalidateQueries({ queryKey: ['platform-global-settings'] })}
       />
     );
@@ -2977,7 +2978,7 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
   if (view === 'delivery-addons') {
     return (
       <PlatformAddonPricingSettings
-        onBack={() => setView('overview')}
+        onBack={viewHistory.back}
         Header={PlatformInnerHeader}
       />
     );
@@ -3035,7 +3036,7 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
       </header>
       <section className="platform-settings-hub">
         {overviewItems.map(({ view: nextView, title, description, summary, Icon, tone, configured }) => (
-          <button type="button" onClick={() => setView(nextView)} key={nextView}>
+          <button type="button" onClick={() => viewHistory.open(nextView)} key={nextView}>
             <span className={`platform-settings-hub__icon is-${tone}`}><Icon /></span>
             <span><strong>{title}</strong><small>{description}</small></span>
             <b className={configured ? 'is-configured' : ''}>{summary}</b>

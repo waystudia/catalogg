@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useBrowserBackedState } from '../shared/useBrowserBackedState';
 import { Toaster, toast } from 'sonner';
 import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
 import {
@@ -189,14 +190,12 @@ const queryClient = new QueryClient({
     }
   }
 });
-
 type CatalogSnapshot = Awaited<ReturnType<typeof loadCatalog>>;
 type CatalogCacheEntry = { savedAt: number; data: CatalogSnapshot };
 const CATALOG_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CATALOG_CACHE_MAX_BYTES = 1_800_000;
 const catalogCacheKey = (slug: string) => `waycatalog:catalog-cache:v2:${slug}`;
 const deliverySettingsCacheKey = (slug: string) => `waycatalog:delivery-settings-cache:${slug}`;
-
 const readCatalogCache = (slug: string): CatalogCacheEntry | undefined => {
   try {
     const raw = window.localStorage.getItem(catalogCacheKey(slug));
@@ -1944,7 +1943,9 @@ function AppContent({
   const setAdmin = useAuthStore((state) => state.setAdmin);
   const [adminSessionChecked, setAdminSessionChecked] = useState(false);
   const setAdminEditor = useAdminStore((state) => state.setEditor);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [adminEditorView, adminEditorHistory] = useBrowserBackedState<'dish' | 'categories' | 'design' | 'settings' | null>(`restaurant:${catalogSlug}:admin-editor`, null);
+  const [screen, screenHistory] = useBrowserBackedState<Screen>(`restaurant:${catalogSlug}:screen`, 'home');
+  const setScreen = screenHistory.replace;
   const catalogScrollPositionRef = useRef(0);
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [drinkCategory, setDrinkCategory] = useState('all');
@@ -1954,8 +1955,10 @@ function AppContent({
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
-  const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; categoryId?: string }>({ mode: 'list' });
-  const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; cabinId?: string }>({ mode: 'list' });
+  const [categoryEditor, categoryEditorHistory] = useBrowserBackedState<{ mode: CategoryEditorMode; categoryId?: string }>(`restaurant:${catalogSlug}:category-editor`, { mode: 'list' });
+  const setCategoryEditor = categoryEditorHistory.replace;
+  const [cabinEditor, cabinEditorHistory] = useBrowserBackedState<{ mode: CabinEditorMode; cabinId?: string }>(`restaurant:${catalogSlug}:cabin-editor`, { mode: 'list' });
+  const setCabinEditor = cabinEditorHistory.replace;
   const [localProducts, setLocalProducts] = useState<Product[]>(() => placeholderCatalog.products);
   const [localCategories, setLocalCategories] = useState<Category[]>(() => placeholderCatalog.categories);
   const [localCabins, setLocalCabins] = useState<Cabin[]>(() => placeholderCatalog.cabins);
@@ -1968,6 +1971,10 @@ function AppContent({
   );
   const [loadingGraceExpired, setLoadingGraceExpired] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState<RestaurantPaymentSettings>(() => loadPaymentSettings(catalogSlug));
+
+  useEffect(() => setAdminEditor(adminEditorView), [adminEditorView, setAdminEditor]);
+  const openAdminEditor = (editor: Exclude<typeof adminEditorView, null>) => adminEditorHistory.open(editor);
+  const closeAdminEditor = () => adminEditorHistory.back(() => adminEditorHistory.replace(null));
   const disabledModuleAccess: RestaurantAdminModuleAccess = { pos: 'disabled', warehouse: 'disabled' };
   const restaurantModuleAccessQuery = useQuery({
     queryKey: ['restaurant-admin-module-access', catalogSlug],
@@ -2006,14 +2013,14 @@ function AppContent({
       rememberPwaResumePath(targetPath);
       navigate(targetPath, { replace: true });
     },
-    [catalogSlug, navigate]
+    [catalogSlug, navigate, setScreen]
   );
   const openRestaurantSettingsHub = useCallback(() => {
     const targetPath = `/${catalogSlug}/settings`;
     setScreen('admin-home');
     rememberPwaResumePath(targetPath);
     navigate(targetPath, { replace: true });
-  }, [catalogSlug, navigate]);
+  }, [catalogSlug, navigate, setScreen]);
 
   const refreshRestaurantOrders = useCallback(() => {
     if (!isAdmin) return;
@@ -2181,7 +2188,7 @@ function AppContent({
     if (routeSection === 'payments') {
       setScreen('settings-payments');
     }
-  }, [isAdmin, routeSection]);
+  }, [isAdmin, routeSection, setScreen]);
 
   useEffect(() => {
     setLoadingGraceExpired(false);
@@ -2288,12 +2295,11 @@ function AppContent({
   const openProduct = (product: Product) => {
     catalogScrollPositionRef.current = window.scrollY;
     setSelectedProduct(product);
-    setScreen('product');
+    screenHistory.open('product');
   };
 
   const returnFromProduct = () => {
-    setSelectedProduct(null);
-    setScreen('home');
+    screenHistory.back(() => setScreen('home'));
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: catalogScrollPositionRef.current, behavior: 'auto' });
@@ -2303,7 +2309,7 @@ function AppContent({
 
   const editProduct = (product: Product) => {
     setEditingProduct(product);
-    setAdminEditor('dish');
+    openAdminEditor('dish');
   };
 
   const saveProduct = (product: Product, generatedProducts: Product[] = [], removedProductIds: string[] = []) => {
@@ -2316,7 +2322,7 @@ function AppContent({
       setSelectedProduct(normalizedProduct);
     }
     setEditingProduct(null);
-    setAdminEditor(null);
+    closeAdminEditor();
     setStockTargets((current) => {
       const next = { ...current };
       removedProductIds.forEach((productId) => delete next[productId]);
@@ -2617,27 +2623,22 @@ function AppContent({
         title={settingsTitle}
         onBack={() => {
           if (screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode !== 'list') {
-            setCabinEditor({ mode: 'list' });
+            cabinEditorHistory.back(() => setCabinEditor({ mode: 'list' }));
             return;
           }
           if (screen === 'settings-categories' && categoryEditor.mode !== 'list') {
-            setCategoryEditor({ mode: 'list' });
+            categoryEditorHistory.back(() => setCategoryEditor({ mode: 'list' }));
             return;
           }
-          if (screen === 'settings') return openRestaurantSettingsHub();
-          if (screen === 'settings-theme' || screen === 'settings-photo-quality') {
-            setScreen('settings-design');
-            return;
-          }
-          openRestaurantSettingsHub();
+          screenHistory.back(openRestaurantSettingsHub);
         }}
         onAction={
           screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode === 'list'
-            ? () => setCabinEditor({ mode: 'add' })
+            ? () => cabinEditorHistory.open({ mode: 'add' })
             : screen === 'settings-categories' && settingsCatalogTab === 'cabins' && cabinEditor.mode === 'edit' && cabinEditor.cabinId
               ? () => deleteCabinFromSettings(cabinEditor.cabinId!)
               : screen === 'settings-categories' && settingsCatalogTab === 'categories' && categoryEditor.mode === 'list'
-            ? () => setCategoryEditor({ mode: 'add' })
+            ? () => categoryEditorHistory.open({ mode: 'add' })
             : screen === 'settings-categories' && settingsCatalogTab === 'categories' && categoryEditor.mode === 'edit' && categoryEditor.categoryId
               ? () => deleteCategoryFromSettings(categoryEditor.categoryId!)
               : undefined
@@ -2649,7 +2650,7 @@ function AppContent({
         }
         actionIcon={(settingsCatalogTab === 'cabins' ? cabinEditor.mode : categoryEditor.mode) === 'edit' ? <Trash2 /> : undefined}
       />
-      {screen === 'settings' && <SettingsHome onOpen={setScreen} />}
+      {screen === 'settings' && <SettingsHome onOpen={(nextScreen) => screenHistory.open(nextScreen)} />}
       {screen === 'settings-profile' && (
         <ProfileSettings restaurant={catalog.restaurant} onSave={saveRestaurant} />
       )}
@@ -2669,8 +2670,12 @@ function AppContent({
           editingId={categoryEditor.categoryId}
           cabinMode={cabinEditor.mode}
           editingCabinId={cabinEditor.cabinId}
-          onCabinModeChange={(mode, cabinId) => setCabinEditor({ mode, cabinId })}
-          onModeChange={(mode, categoryId) => setCategoryEditor({ mode, categoryId })}
+          onCabinModeChange={(mode, cabinId) => mode === 'list'
+            ? cabinEditorHistory.back(() => cabinEditorHistory.replace({ mode }))
+            : cabinEditorHistory.open({ mode, cabinId })}
+          onModeChange={(mode, categoryId) => mode === 'list'
+            ? categoryEditorHistory.back(() => categoryEditorHistory.replace({ mode }))
+            : categoryEditorHistory.open({ mode, categoryId })}
           onChangeCategories={saveCategories}
           onChangeCabins={saveCabins}
           onChangeTags={saveTags}
@@ -2678,8 +2683,8 @@ function AppContent({
       )}
       {screen === 'settings-design' && (
         <DesignSettingsHome
-          onOpenTheme={() => setScreen('settings-theme')}
-          onOpenPhotoQuality={() => setScreen('settings-photo-quality')}
+          onOpenTheme={() => screenHistory.open('settings-theme')}
+          onOpenPhotoQuality={() => screenHistory.open('settings-photo-quality')}
         />
       )}
       {screen === 'settings-theme' && <ThemeSettingsScreen theme={themeStore} onChange={saveTheme} />}
@@ -2791,12 +2796,12 @@ function AppContent({
       paymentSettings={paymentSettings}
       deliverySettings={deliverySettings}
       moduleAccess={restaurantModuleAccessQuery.data ?? disabledModuleAccess}
-      onOpenScreen={setScreen}
+      onOpenScreen={(nextScreen) => screenHistory.open(nextScreen)}
       onOpenSeating={() => {
         setSettingsCatalogTab('cabins');
         setCategoryEditor({ mode: 'list' });
         setCabinEditor({ mode: 'list' });
-        setScreen('settings-categories');
+        screenHistory.open('settings-categories');
       }}
       onOpenCatalog={() => {
         setCatalogCategory('all');
@@ -2805,7 +2810,7 @@ function AppContent({
         rememberPwaResumePath(targetPath);
         navigate(targetPath, { replace: true });
       }}
-      onAddDish={() => setAdminEditor('dish')}
+      onAddDish={() => openAdminEditor('dish')}
       onOrderStatus={changeOrderStatus}
       onRefreshOrders={refreshRestaurantOrders}
       onSaveDeliverySettings={saveDeliverySettings}
@@ -2890,7 +2895,7 @@ function AppContent({
             canBack={routeSection === 'reviews' || screen !== 'home'}
             onBack={() => {
               if (routeSection === 'reviews') {
-                navigate(`/${catalogSlug}`);
+                navigateBackOrFallback(navigate, `/${catalogSlug}`);
                 return;
               }
               if (routeSection === 'dishes') {
@@ -2901,7 +2906,7 @@ function AppContent({
                 returnFromProduct();
                 return;
               }
-              setScreen('home');
+              screenHistory.back(() => setScreen('home'));
             }}
             onPlatformBack={() => navigate('/')}
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
@@ -2930,7 +2935,7 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }))}
+              onBack={() => navigateBackOrFallback(navigate, getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }))}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -2950,7 +2955,7 @@ function AppContent({
               initialCategory={catalogCategory}
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => setScreen('home')}
+              onBack={() => screenHistory.back(() => setScreen('home'))}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -3001,24 +3006,15 @@ function AppContent({
             />
           )}
           {showAfterOrderPanel && cartCount > 0 && (
-            <CartAfterOrderPanel
-              onClear={clearSubmittedCart}
-              onContinue={continueShoppingAfterOrder}
-            />
+            <CartAfterOrderPanel onClear={clearSubmittedCart} onContinue={continueShoppingAfterOrder} />
           )}
           <SiteCredit />
-          <CartBar
-            deliverySettings={deliverySettings}
-            onCheckout={() => setIsCartOpen(true)}
-            onContinue={continueFromCartBar}
-          />
+          <CartBar deliverySettings={deliverySettings} onCheckout={() => setIsCartOpen(true)} onContinue={continueFromCartBar} />
         </>
       )}
 
       {!screen.startsWith('settings') && screen !== 'admin-home' && (
-        <AdminPanel
-          onAdd={() => setAdminEditor('dish')}
-        />
+        <AdminPanel onAdd={() => openAdminEditor('dish')} />
       )}
       <DesignEditor
         editingProduct={editingProduct}
@@ -3027,6 +3023,7 @@ function AppContent({
         restaurant={catalog.restaurant}
         onSaveProduct={saveProduct}
         onCloseProduct={() => setEditingProduct(null)}
+        onBack={closeAdminEditor}
         onUpdateRestaurant={updateRestaurant}
         cartCount={cartCount}
         onNavigate={(target) => {
@@ -3050,7 +3047,7 @@ function AppContent({
           if (target === 'backup') {
             setScreen('settings-backup');
           }
-          setAdminEditor(null);
+          closeAdminEditor();
         }}
       />
       {orderFlow.step !== 'done' && activeFlowCategory && screen !== 'catalog' && screen !== 'drinks' && (

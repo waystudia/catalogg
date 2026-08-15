@@ -15,6 +15,8 @@ import {
   resolveProfileLoginTarget
 } from '../../src/shared/appNavigation';
 import type { NavigateFunction } from 'react-router-dom';
+import { hasBrowserBackedOrigin } from '../../src/shared/useBrowserBackedState';
+import { getRestaurantClientBackFallback } from '../../src/features/client-platform/clientPlatformNavigation';
 
 describe('staff login role selection', () => {
   it('returns to the exact previous screen and uses a fallback only for direct entries', () => {
@@ -27,6 +29,27 @@ describe('staff login role selection', () => {
 
     navigateBackOrFallback(navigate, '/profile/orders', { idx: 0 });
     expect(navigate).toHaveBeenLastCalledWith('/profile/orders', { replace: true });
+  });
+
+  it('recognizes only the matching component history scope', () => {
+    const state = {
+      __wayyaamExactBack: {
+        activeScope: 'business:finik:chat',
+        snapshots: { 'business:finik:chat': { selectedOrderId: 'F0231' } }
+      }
+    };
+
+    expect(hasBrowserBackedOrigin(state, 'business:finik:chat')).toBe(true);
+    expect(hasBrowserBackedOrigin(state, 'business:mangal:chat')).toBe(false);
+  });
+
+  it('keeps direct restaurant entries inside an authorized deterministic flow', () => {
+    expect(getRestaurantClientBackFallback('finik', '/r/finik')).toBe('/restaurants');
+    expect(getRestaurantClientBackFallback('finik', '/r/finik/cart')).toBe('/r/finik');
+    expect(getRestaurantClientBackFallback('finik', '/r/finik/checkout')).toBe('/r/finik/cart');
+    expect(getRestaurantClientBackFallback('finik', '/r/finik/address')).toBe('/r/finik/checkout');
+    expect(getRestaurantClientBackFallback('finik', '/r/finik/payment/confirm')).toBe('/r/finik/payment');
+    expect(getRestaurantClientBackFallback('finik', '/r/finik/order/F0231')).toBe('/profile/orders');
   });
 
   it('opens every role login inside the client profile and rejects unsafe return paths', () => {

@@ -6,6 +6,7 @@ import {
   confirmDeliveryPickupQr,
   getRestaurantOrderIdForDelivery
 } from '../../shared/api/deliveryApi';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
 import './scanner.css';
 
 type ParsedQr =
@@ -226,7 +227,7 @@ export function ScannerPage({
       <button
         className="scanner-back-button"
         type="button"
-        onClick={onBack ?? (() => navigate(-1))}
+        onClick={onBack ?? (() => navigateBackOrFallback(navigate, slug ? `/${slug}` : '/'))}
         aria-label="Назад"
       >
         <ArrowLeft />

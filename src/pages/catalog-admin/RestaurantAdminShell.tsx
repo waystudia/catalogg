@@ -88,6 +88,8 @@ import {
   type MerchantReadyMinutes
 } from '../../features/restaurant-admin/MerchantReadyEstimatePicker';
 import { getCombinedDispatchReadinessMessage } from '../../features/combined-order/dispatchReadiness';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -311,13 +313,15 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     catalogRole: access.role,
     staffRole: access.staffRole
   });
+  const slug = access.catalog?.slug ?? 'demo';
   const initialRoute = resolveBusinessAdminRoutePath(routePath);
   const [section, setSection] = useState<AdminSection>(() => (
     workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace
       ? (initialRoute.section === 'chats' ? 'chats' : 'orders')
       : initialRoute.section
   ));
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>(initialRoute.settingsSection);
+  const [settingsSection, settingsSectionHistory] = useBrowserBackedState<SettingsSection>(`business:${slug}:settings-section`, initialRoute.settingsSection);
+  const setSettingsSection = settingsSectionHistory.replace;
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: isGrocery ? groceryRestaurant : demoRestaurant,
     categories: isGrocery ? groceryCategories : demoCategories,
@@ -347,8 +351,12 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const [dishQuery, setDishQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [orderQuery, setOrderQuery] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [selectedOrderReturnSection, setSelectedOrderReturnSection] = useState<'orders' | 'chats'>('orders');
+  const [orderSelection, orderSelectionHistory] = useBrowserBackedState(`business:${slug}:selected-order`, {
+    orderId: null as string | null,
+    returnSection: 'orders' as 'orders' | 'chats'
+  });
+  const selectedOrderId = orderSelection.orderId;
+  const selectedOrderReturnSection = orderSelection.returnSection;
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() => readJson(paymentStorageKey(access.catalog?.slug ?? 'demo'), defaultPaymentSettings));
@@ -361,7 +369,6 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const hasLoadedOrdersRef = useRef(false);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
 
-  const slug = access.catalog?.slug ?? 'demo';
   const terms = getBusinessTerms(access.catalog?.businessType);
   const groceryAccessMode = access.role === 'viewer' || !['active', 'trial'].includes(access.subscriptionStatus) ? 'read_only' : 'active';
   const publicUrl = useMemo(() => (access.catalog ? getCatalogPublicUrl(access.catalog.slug) : '#'), [access.catalog]);
@@ -442,7 +449,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     }
     setSection(navItems.some((item) => item.id === nextRoute.section) ? nextRoute.section : 'home');
     setSettingsSection(nextRoute.settingsSection);
-  }, [navItems, routePath, workspaceAccess.canSeeFullWorkspace, workspaceAccess.isOrderWorker]);
+  }, [navItems, routePath, setSettingsSection, workspaceAccess.canSeeFullWorkspace, workspaceAccess.isOrderWorker]);
   const enableOrderNotifications = () => {
     void requestRestaurantOrderNotificationPermission({
       role: 'restaurant',
@@ -532,7 +539,10 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         hasLoadedOrdersRef.current = true;
         setOrders(restaurantOrders);
         setOrderAssignments(assignments);
-        setSelectedOrderId((current) => current && restaurantOrders.some((order) => order.id === current) ? current : null);
+        orderSelectionHistory.replace((current) => ({
+          ...current,
+          orderId: current.orderId && restaurantOrders.some((order) => order.id === current.orderId) ? current.orderId : null
+        }));
       } catch (error) {
         const message = error instanceof Error ? error.message : `Не удалось загрузить данные ${isGrocery ? 'магазина' : 'ресторана'}`;
         if (!options.silent) setOrdersLoadError(message);
@@ -541,7 +551,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         setIsLoadingData(false);
       }
     },
-    [access.catalog?.businessType, access.catalog?.description, access.catalog?.id, access.catalog?.name, access.staffRole, access.userId, isGrocery, slug, workspaceAccess.canManageTeam]
+    [access.catalog?.businessType, access.catalog?.description, access.catalog?.id, access.catalog?.name, access.staffRole, access.userId, isGrocery, orderSelectionHistory, slug, workspaceAccess.canManageTeam]
   );
 
   useEffect(() => {
@@ -796,7 +806,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
       const deleted = await deleteRestaurantTestOrder(order);
       if (!deleted) throw new Error('Заказ уже удалён или не найден');
       setOrders((current) => current.filter((item) => item.id !== order.id));
-      setSelectedOrderId((current) => (current === order.id ? null : current));
+      orderSelectionHistory.replace((current) => ({ ...current, orderId: current.orderId === order.id ? null : current.orderId }));
       setPaymentStatuses((current) => Object.fromEntries(Object.entries(current).filter(([orderId]) => orderId !== order.id)));
       knownOrderIdsRef.current.delete(order.id);
       toast.success(`Заказ #${order.orderNumber} удалён`);
@@ -952,7 +962,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               icon={item.icon}
               label={item.label}
               onClick={() => {
-                if (item.id === 'chats') setSelectedOrderId(null);
+                if (item.id === 'chats') orderSelectionHistory.replace({ orderId: null, returnSection: 'orders' });
                 goTo(item.id);
               }}
             />
@@ -1049,15 +1059,16 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               onQueryChange={setOrderQuery}
               onRefresh={() => void refreshData()}
               onSelectOrder={(orderId) => {
-                setSelectedOrderReturnSection('orders');
-                setSelectedOrderId(orderId);
+                orderSelectionHistory.open({ orderId, returnSection: 'orders' });
               }}
               onBackFromOrder={() => {
                 if (selectedOrderReturnSection === 'chats') {
-                  goTo('chats');
+                  setSection('chats');
+                  setSettingsSection('hub');
+                  navigateBackOrFallback(navigate, buildBusinessAdminRoutePath(slug, 'chats', 'hub'));
                   return;
                 }
-                setSelectedOrderId(null);
+                orderSelectionHistory.back();
               }}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
@@ -1065,7 +1076,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               onAcceptAssignment={acceptWorkAssignment}
               onPickingChanged={() => void refreshData({ silent: true })}
               onOpenChat={(orderId) => {
-                setSelectedOrderId(orderId);
+                orderSelectionHistory.replace({ orderId, returnSection: 'orders' });
                 goTo('chats');
               }}
             />
@@ -1075,10 +1086,9 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               items={businessChatItems}
               expectedViewer="staff"
               selectedOrderId={selectedOrderId}
-              onSelectedOrderChange={setSelectedOrderId}
+              onSelectedOrderChange={(orderId) => orderSelectionHistory.replace((current) => ({ ...current, orderId }))}
               onOpenOrder={(orderId) => {
-                setSelectedOrderReturnSection('chats');
-                setSelectedOrderId(orderId);
+                orderSelectionHistory.replace({ orderId, returnSection: 'chats' });
                 goTo('orders');
               }}
               onChanged={() => void refreshData({ silent: true })}
@@ -1128,7 +1138,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
                   <input type="password" value={confirmPassword} minLength={10} autoComplete="new-password" onChange={(event) => setConfirmPassword(event.target.value)} />
                 </label>
                 <div className="catalog-admin-password__actions">
-                  <button type="button" onClick={() => setSettingsSection('hub')}>
+                  <button type="button" onClick={() => settingsSectionHistory.back(() => setSettingsSection('hub'))}>
                     Назад
                   </button>
                   <button
@@ -1140,7 +1150,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
                         .then(() => {
                           setNewPassword('');
                           setConfirmPassword('');
-                          setSettingsSection('hub');
+                          settingsSectionHistory.back(() => setSettingsSection('hub'));
                           toast.success('Пароль обновлён');
                         })
                         .catch((error) => toast.error(error instanceof Error ? error.message : 'Не удалось сменить пароль'))
@@ -1175,7 +1185,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
                 onSaveDelivery={saveExistingDelivery}
                 onImport={importExistingSettings}
                 onSignOut={onSignOut}
-                onChangePassword={() => setSettingsSection('password')}
+                onChangePassword={() => settingsSectionHistory.open('password')}
                 onActivate={() => navigate('/restaurant/activation')}
                 legalActivationStatus={access.legalActivationStatus}
                 workspaceLinks={isGrocery ? [

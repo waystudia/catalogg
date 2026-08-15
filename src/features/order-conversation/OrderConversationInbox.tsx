@@ -1,5 +1,5 @@
 import { ArrowLeft, ClipboardList, MessageCircle, Search } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OrderConversationPanel } from './OrderConversationPanel';
 import {
   getStaffOrderConversationSummaries,
@@ -7,6 +7,7 @@ import {
   type OrderConversationSummary,
   type OrderConversationViewer
 } from '../../shared/api/orderConversationApi';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import './order-conversation.css';
 
 export type OrderConversationInboxItem = {
@@ -82,10 +83,15 @@ export function OrderConversationInbox({
   onChanged?: () => void;
   summaryApi?: ConversationSummaryApi;
 }) {
-  const [query, setQuery] = useState('');
-  const [localSelectedOrderId, setLocalSelectedOrderId] = useState<string | null>(selectedOrderId ?? null);
+  const historyScope = `order-inbox:${expectedViewer}:${Array.from(new Set(items.map((item) => item.catalogId))).sort().join(',')}`;
+  const [conversationState, conversationHistory] = useBrowserBackedState(historyScope, {
+    query: '',
+    selectedOrderId: selectedOrderId ?? null
+  });
+  const { query } = conversationState;
   const [summaries, setSummaries] = useState<OrderConversationSummary[]>([]);
-  const activeOrderId = selectedOrderId === undefined ? localSelectedOrderId : selectedOrderId;
+  const lastReportedOrderIdRef = useRef<string | null>(selectedOrderId ?? null);
+  const activeOrderId = conversationState.selectedOrderId;
   const summaryByOrder = useMemo(() => new Map(summaries.map((summary) => [summary.orderId, summary])), [summaries]);
   const orderedItems = useMemo(() => [...items].sort((left, right) => {
     const leftDate = summaryByOrder.get(left.orderId)?.createdAt ?? left.createdAt;
@@ -126,18 +132,25 @@ export function OrderConversationInbox({
 
   useEffect(() => {
     if (!activeOrderId || items.some((item) => item.orderId === activeOrderId)) return;
-    setLocalSelectedOrderId(null);
+    conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
+    lastReportedOrderIdRef.current = null;
     onSelectedOrderChange?.(null);
-  }, [activeOrderId, items, onSelectedOrderChange]);
+  }, [activeOrderId, conversationHistory, items, onSelectedOrderChange]);
+
+  useEffect(() => {
+    if (lastReportedOrderIdRef.current === conversationState.selectedOrderId) return;
+    lastReportedOrderIdRef.current = conversationState.selectedOrderId;
+    onSelectedOrderChange?.(conversationState.selectedOrderId);
+  }, [conversationState.selectedOrderId, onSelectedOrderChange]);
 
   const selectConversation = (orderId: string) => {
-    setLocalSelectedOrderId(orderId);
+    conversationHistory.open((current) => ({ ...current, selectedOrderId: orderId }));
+    lastReportedOrderIdRef.current = orderId;
     onSelectedOrderChange?.(orderId);
   };
 
   const closeConversation = () => {
-    setLocalSelectedOrderId(null);
-    onSelectedOrderChange?.(null);
+    conversationHistory.back();
   };
 
   const handleChanged = () => {
@@ -164,7 +177,7 @@ export function OrderConversationInbox({
               <Search />
               <input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => conversationHistory.replace((current) => ({ ...current, query: event.target.value }))}
                 placeholder="Поиск"
                 aria-label="Поиск чатов"
               />

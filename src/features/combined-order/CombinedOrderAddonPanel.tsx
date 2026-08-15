@@ -24,6 +24,7 @@ import {
 } from "../../shared/api/combinedOrderApi";
 import { getClientPlatformSnapshot } from "../../shared/api/clientPlatformApi";
 import { getPhotoQualityFilter } from "../../shared/photoQuality";
+import { useBrowserBackedState } from "../../shared/useBrowserBackedState";
 import {
   calculateAddonCartSubtotal,
   toCombinedOrderAddonItems,
@@ -77,7 +78,7 @@ export function CombinedOrderAddonPanel({
   openSignal?: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<AddonStep>("merchants");
+  const [step, stepHistory] = useBrowserBackedState<AddonStep>(`combined-order:${primaryOrderId}:step`, "merchants");
   const [selectedMerchant, setSelectedMerchant] =
     useState<CombinedOrderAddonMerchant | null>(null);
   const [cartLines, setCartLines] = useState<readonly AddonCartLine[]>([]);
@@ -144,12 +145,12 @@ export function CombinedOrderAddonPanel({
     openedRef.current = true;
     setIsOpen(true);
     if (confirmation) {
-      setStep("success");
+      stepHistory.replace("success");
     } else if (offer.merchants.length === 1) {
       setSelectedMerchant(offer.merchants[0]);
-      setStep("catalog");
+      stepHistory.replace("catalog");
     } else {
-      setStep("merchants");
+      stepHistory.replace("merchants");
     }
     setErrorMessage("");
     if (!viewedRef.current) {
@@ -158,7 +159,7 @@ export function CombinedOrderAddonPanel({
         () => undefined,
       );
     }
-  }, [confirmation, offer, offerExpired]);
+  }, [confirmation, offer, offerExpired, stepHistory]);
 
   useEffect(() => {
     if (openSignal > 0) openOffer();
@@ -183,7 +184,7 @@ export function CombinedOrderAddonPanel({
     setCartLines([]);
     setQuote(null);
     setErrorMessage("");
-    setStep("catalog");
+    stepHistory.open("catalog");
   };
 
   const requestQuote = async () => {
@@ -199,7 +200,7 @@ export function CombinedOrderAddonPanel({
         idempotencyKey: createIdempotencyKey("addon-quote"),
       });
       setQuote(nextQuote);
-      setStep("quote");
+      stepHistory.open("quote");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -223,7 +224,7 @@ export function CombinedOrderAddonPanel({
         idempotencyKey: restoreConfirmKey(offer.orderGroupId),
       });
       setConfirmation(result);
-      setStep("success");
+      stepHistory.replace("success");
       await queryClient.invalidateQueries({
         queryKey: ["combined-order-summary", primaryOrderId],
       });
@@ -295,7 +296,7 @@ export function CombinedOrderAddonPanel({
                   type="button"
                   onClick={() => {
                     setErrorMessage("");
-                    setStep(step === "quote" ? "catalog" : "merchants");
+                    stepHistory.back();
                   }}
                   aria-label="Назад"
                 >

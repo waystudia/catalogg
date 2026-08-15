@@ -1,5 +1,5 @@
 import { CheckCircle2, Download, FileKey2, RefreshCw, ShieldAlert } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   restaurantActivationAdminApi,
   type RestaurantActivationAdminRow,
@@ -48,6 +48,7 @@ export function RestaurantActivationsAdminPage({
     const match = window.location.hash.match(/^#\/admin\/activations\/([^/?]+)/);
     return match ? decodeURIComponent(match[1]) : null;
   });
+  const openedFromListRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,12 +66,26 @@ export function RestaurantActivationsAdminPage({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const restoreFromHash = () => {
+      const match = window.location.hash.match(/^#\/admin\/activations\/([^/?]+)/);
+      setSelectedClientId(match ? decodeURIComponent(match[1]) : null);
+    };
+    window.addEventListener('hashchange', restoreFromHash);
+    window.addEventListener('popstate', restoreFromHash);
+    return () => {
+      window.removeEventListener('hashchange', restoreFromHash);
+      window.removeEventListener('popstate', restoreFromHash);
+    };
+  }, []);
+
   const filteredRows = useMemo(
     () => filter === 'all' ? rows : rows.filter((row) => row.legalStatus === filter),
     [filter, rows]
   );
 
   const openSetup = (row: RestaurantActivationAdminRow) => {
+    openedFromListRef.current = true;
     window.location.hash = `/admin/activations/${encodeURIComponent(row.clientId)}`;
     setSelectedClientId(row.clientId);
   };
@@ -93,8 +108,11 @@ export function RestaurantActivationsAdminPage({
         clientId={selectedClientId}
         service={service}
         onBack={() => {
-          window.location.hash = '/admin/activations';
-          setSelectedClientId(null);
+          if (openedFromListRef.current) window.history.back();
+          else {
+            window.location.hash = '/admin/activations';
+            setSelectedClientId(null);
+          }
           void load();
         }}
       />

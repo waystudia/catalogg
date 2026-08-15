@@ -46,6 +46,8 @@ import { DebtControlBanner } from '../restaurant-billing/DebtControlBanner';
 import { getCatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { StoreOrderQueue } from '../store-orders/StoreOrderQueue';
 import { StoreOrderPickingPage } from '../store-orders/StoreOrderPickingPage';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
+import { navigateBackOrFallback } from '../../shared/appNavigation';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -110,14 +112,15 @@ export function RestaurantAdminWorkspace({
   );
   const [filter, setFilter] = useState<AdminOrderFilter>('all');
   const [storeOrderQuery, setStoreOrderQuery] = useState('');
-  const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
-  const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
+  const [settingsView, settingsViewHistory] = useBrowserBackedState<'home' | 'delivery'>(`restaurant:${catalogSlug}:settings-view`, 'home');
+  const [selectedOrder, selectedOrderHistory] = useBrowserBackedState<RestaurantOrder | null>(`restaurant:${catalogSlug}:selected-order`, null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
   const hasAutoOpenedOrderRef = useRef(false);
   const orderListScrollPositionRef = useRef(0);
+  const hadSelectedOrderRef = useRef(false);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
   const today = new Date().toDateString();
@@ -175,12 +178,12 @@ export function RestaurantAdminWorkspace({
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status));
   const openTab = (nextTab: RestaurantAdminTab) => {
     setTab(nextTab);
-    if (nextTab !== 'settings') setSettingsView('home');
+    if (nextTab !== 'settings') settingsViewHistory.replace('home');
     navigate(buildRestaurantAdminTabPath(catalogSlug, nextTab));
   };
   const openOrderFromList = (order: RestaurantOrder) => {
     orderListScrollPositionRef.current = window.scrollY;
-    setSelectedOrder(order);
+    selectedOrderHistory.open(order);
     window.requestAnimationFrame(() => {
       document
         .querySelector('.admin-order-details-panel')
@@ -188,10 +191,7 @@ export function RestaurantAdminWorkspace({
     });
   };
   const closeOrderDetails = () => {
-    setSelectedOrder(null);
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
-    });
+    selectedOrderHistory.back();
   };
   const deleteOrder = async (order: RestaurantOrder) => {
     if (deletingOrderId) return;
@@ -199,7 +199,7 @@ export function RestaurantAdminWorkspace({
     try {
       const deleted = await deleteRestaurantTestOrder(order);
       if (!deleted) throw new Error('Заказ уже удалён или не найден');
-      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      if (selectedOrder?.id === order.id) selectedOrderHistory.replace(null);
       toast.success(`Заказ #${order.orderNumber} удалён`);
       onRefreshOrders();
     } catch (error) {
@@ -269,16 +269,25 @@ export function RestaurantAdminWorkspace({
     if (!routeOrderId) return;
     const order = orders.find((item) => item.id === routeOrderId);
     if (order) {
-      setSelectedOrder(order);
+      selectedOrderHistory.replace(order);
       setFilter('all');
     }
-  }, [orders, routeOrderId]);
+  }, [orders, routeOrderId, selectedOrderHistory]);
 
   useEffect(() => {
     if (isGrocery || hasAutoOpenedOrderRef.current || tab !== 'orders' || filteredOrders.length === 0) return;
     hasAutoOpenedOrderRef.current = true;
-    setSelectedOrder(filteredOrders[0]);
-  }, [filteredOrders, isGrocery, tab]);
+    selectedOrderHistory.replace(filteredOrders[0]);
+  }, [filteredOrders, isGrocery, selectedOrderHistory, tab]);
+
+  useEffect(() => {
+    if (!selectedOrder && hadSelectedOrderRef.current) {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
+      });
+    }
+    hadSelectedOrderRef.current = Boolean(selectedOrder);
+  }, [selectedOrder]);
 
   useEffect(() => {
     const knownIds = knownOrderIdsRef.current;
@@ -290,7 +299,7 @@ export function RestaurantAdminWorkspace({
       const newOrders = orders.filter((order) => newOrderIds.includes(order.id));
       if (!isGrocery && tab === 'orders' && newOrders[0]) {
         setFilter('new');
-        setSelectedOrder(newOrders[0]);
+        selectedOrderHistory.replace(newOrders[0]);
       }
       setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
       toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
@@ -314,7 +323,7 @@ export function RestaurantAdminWorkspace({
 
     knownOrderIdsRef.current = new Set(orders.map((order) => order.id));
     hasLoadedOrdersRef.current = true;
-  }, [catalogSlug, isGrocery, orders, tab]);
+  }, [catalogSlug, isGrocery, orders, selectedOrderHistory, tab]);
 
   return (
     <main className={[
@@ -452,7 +461,7 @@ export function RestaurantAdminWorkspace({
               onBack={closeOrderDetails}
               onStatusChange={async (status) => {
                 await onOrderStatus(selectedVisibleOrder, status);
-                setSelectedOrder((current) => current ? { ...current, status } : current);
+                selectedOrderHistory.replace((current) => current ? { ...current, status } : current);
               }}
               onPickingChanged={onRefreshOrders}
             />
@@ -500,7 +509,7 @@ export function RestaurantAdminWorkspace({
                   onClose={closeOrderDetails}
                   onStatus={async (status, reason, readyMinutes) => {
                     await onOrderStatus(selectedVisibleOrder, status, reason, readyMinutes);
-                    setSelectedOrder((current) => (current ? {
+                    selectedOrderHistory.replace((current) => (current ? {
                       ...current,
                       status,
                       estimatedReadyAt:
@@ -594,7 +603,7 @@ export function RestaurantAdminWorkspace({
                 onSeating={onOpenSeating}
                 onPayments={() => onOpenScreen('settings-payments')}
                 onImport={() => onOpenScreen('settings-backup')}
-                onDelivery={() => setSettingsView('delivery')}
+                onDelivery={() => settingsViewHistory.open('delivery')}
                 onActivate={() => navigate('/restaurant/activation')}
                 activationStatus={catalogAdminAccess?.legalActivationStatus ?? null}
                 onLogout={() => {
@@ -608,7 +617,7 @@ export function RestaurantAdminWorkspace({
                 settings={deliverySettings ?? defaultRestaurantDeliverySettings}
                 onSave={onSaveDeliverySettings}
                 onOpenBackup={() => onOpenScreen('settings-backup')}
-                onBack={() => setSettingsView('home')}
+                onBack={settingsViewHistory.back}
               />
             )}
           </section>
@@ -618,7 +627,7 @@ export function RestaurantAdminWorkspace({
           <section className="restaurant-admin__content">
             <ScannerPage
               embedded
-              onBack={() => openTab('home')}
+              onBack={() => navigateBackOrFallback(navigate, buildRestaurantAdminTabPath(catalogSlug, 'home'))}
               onConfirmed={(orderId) => {
                 navigate(`/${catalogSlug}/order/${encodeURIComponent(orderId)}`, { replace: true });
               }}

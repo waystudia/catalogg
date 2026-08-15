@@ -10,6 +10,7 @@ import type { CatalogBackupPayload } from '../restaurant-settings/catalogAdminMo
 import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
 import type { BusinessType } from '../../shared/businessTerminology';
 import type { LucideIcon } from 'lucide-react';
+import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 
 export type ExistingRestaurantSettingsView = 'home' | 'profile' | 'design' | 'theme' | 'photo-quality' | 'categories' | 'payments' | 'backup' | 'delivery';
 
@@ -76,38 +77,38 @@ export function ExistingRestaurantSettingsPage({
   }>;
   businessType?: BusinessType;
 }) {
-  const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
+  const [view, viewHistory] = useBrowserBackedState<ExistingRestaurantSettingsView>(`business:${catalogSlug}:settings-view`, initialView);
   const [catalogTab, setCatalogTab] = useState<SettingsCatalogTab>('categories');
-  const [categoryEditor, setCategoryEditor] = useState<{
+  const [categoryEditor, categoryEditorHistory] = useBrowserBackedState<{
     mode: CategoryEditorMode;
     id?: string;
-  }>({ mode: 'list' });
-  const [cabinEditor, setCabinEditor] = useState<{
+  }>(`business:${catalogSlug}:category-editor`, { mode: 'list' });
+  const [cabinEditor, cabinEditorHistory] = useBrowserBackedState<{
     mode: CabinEditorMode;
     id?: string;
-  }>({ mode: 'list' });
+  }>(`business:${catalogSlug}:cabin-editor`, { mode: 'list' });
 
   if (view === 'home') {
     return (
       <SettingsHub
-        onProfile={() => setView('profile')}
-        onDesign={() => setView('design')}
+        onProfile={() => viewHistory.open('profile')}
+        onDesign={() => viewHistory.open('design')}
         onCategories={() => {
           setCatalogTab('categories');
-          setView('categories');
+          viewHistory.open('categories');
         }}
         onSeating={
           businessType === 'restaurant' || businessType === 'coffee_shop'
             ? () => {
                 setCatalogTab('cabins');
-                setCabinEditor({ mode: 'list' });
-                setView('categories');
+                cabinEditorHistory.replace({ mode: 'list' });
+                viewHistory.open('categories');
               }
             : undefined
         }
-        onPayments={() => setView('payments')}
-        onImport={() => setView('backup')}
-        onDelivery={() => setView('delivery')}
+        onPayments={() => viewHistory.open('payments')}
+        onImport={() => viewHistory.open('backup')}
+        onDelivery={() => viewHistory.open('delivery')}
         onLogout={onSignOut}
         onPassword={onChangePassword}
         onActivate={onActivate}
@@ -119,7 +120,7 @@ export function ExistingRestaurantSettingsPage({
   }
 
   if (view === 'delivery') {
-    return <DeliverySettingsCard businessType={businessType} catalogSlug={catalogSlug} settings={deliverySettings} onSave={onSaveDelivery} onOpenBackup={() => setView('backup')} onBack={() => setView('home')} />;
+    return <DeliverySettingsCard businessType={businessType} catalogSlug={catalogSlug} settings={deliverySettings} onSave={onSaveDelivery} onOpenBackup={() => viewHistory.open('backup')} onBack={() => viewHistory.back(() => viewHistory.replace('home'))} />;
   }
 
   return (
@@ -128,11 +129,12 @@ export function ExistingRestaurantSettingsPage({
         className="ra-back-button"
         type="button"
         onClick={() => {
-          if (view === 'theme' || view === 'photo-quality') {
-            setView('design');
+          if (view === 'categories' && (categoryEditor.mode !== 'list' || cabinEditor.mode !== 'list')) {
+            if (catalogTab === 'cabins') cabinEditorHistory.back(() => cabinEditorHistory.replace({ mode: 'list' }));
+            else categoryEditorHistory.back(() => categoryEditorHistory.replace({ mode: 'list' }));
             return;
           }
-          setView('home');
+          viewHistory.back(() => viewHistory.replace('home'));
         }}
       >
         <ArrowLeft />
@@ -140,7 +142,7 @@ export function ExistingRestaurantSettingsPage({
       </button>
 
       {view === 'profile' && <ProfileSettings restaurant={restaurant} businessType={businessType} onSave={onSaveRestaurant} />}
-      {view === 'design' && <DesignSettingsHome businessType={businessType} onOpenTheme={() => setView('theme')} onOpenPhotoQuality={() => setView('photo-quality')} />}
+      {view === 'design' && <DesignSettingsHome businessType={businessType} onOpenTheme={() => viewHistory.open('theme')} onOpenPhotoQuality={() => viewHistory.open('photo-quality')} />}
       {view === 'theme' && <ThemeSettingsScreen businessType={businessType} theme={theme} onChange={onSaveTheme} />}
       {view === 'photo-quality' && <PhotoQualitySettingsScreen businessType={businessType} products={products} value={photoQuality} onSave={onSavePhotoQuality} />}
       {view === 'categories' && (
@@ -152,15 +154,19 @@ export function ExistingRestaurantSettingsPage({
           activeTab={catalogTab}
           onTabChange={(tab) => {
             setCatalogTab(tab);
-            setCategoryEditor({ mode: 'list' });
-            setCabinEditor({ mode: 'list' });
+            categoryEditorHistory.replace({ mode: 'list' });
+            cabinEditorHistory.replace({ mode: 'list' });
           }}
           mode={categoryEditor.mode}
           editingId={categoryEditor.id}
           cabinMode={cabinEditor.mode}
           editingCabinId={cabinEditor.id}
-          onModeChange={(mode, id) => setCategoryEditor({ mode, id })}
-          onCabinModeChange={(mode, id) => setCabinEditor({ mode, id })}
+          onModeChange={(mode, id) => mode === 'list'
+            ? categoryEditorHistory.back(() => categoryEditorHistory.replace({ mode }))
+            : categoryEditorHistory.open({ mode, id })}
+          onCabinModeChange={(mode, id) => mode === 'list'
+            ? cabinEditorHistory.back(() => cabinEditorHistory.replace({ mode }))
+            : cabinEditorHistory.open({ mode, id })}
           onChangeCategories={onSaveCategories}
           onChangeCabins={onSaveCabins}
           onChangeTags={onSaveTags}
