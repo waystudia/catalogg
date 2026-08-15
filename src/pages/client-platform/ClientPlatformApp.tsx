@@ -17,7 +17,6 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Grid2X2,
   Heart,
   Home,
   LocateFixed,
@@ -46,7 +45,8 @@ import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, filterRestaurantsWithCityFallback, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
+import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
+import { buildCityPickerPath, resolveCityPickerReturnTo } from '../../features/client-platform/clientPlatformNavigation';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
@@ -147,6 +147,11 @@ import {
   MarketplaceFeedSkeleton,
   MarketplaceProductGrid
 } from './ClientMarketplaceHome';
+import { ClientMarketplaceCategories } from './ClientMarketplaceCategories';
+import {
+  getBusinessCategoryBySlug,
+  selectBusinessesForDiscovery
+} from '../../features/client-platform/businessCategories';
 import './client-platform.css';
 
 const clientPlatformQueryClient = new QueryClient({
@@ -623,7 +628,12 @@ function ClientPlatformContent() {
   if (location.pathname === '/categories') {
     return (
       <PlatformLayout active="categories">
-        <CategoriesPage snapshot={snapshot} />
+        <ClientMarketplaceCategories
+          snapshot={snapshot}
+          isLoading={isLoading && !data}
+          isError={isError && !data}
+          onRetry={() => void refetch()}
+        />
       </PlatformLayout>
     );
   }
@@ -1137,8 +1147,9 @@ function ContentPageScreen({
   );
 }
 
-function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+export function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
   const recentCityIds = useClientPlatformStore((state) => state.recentCityIds);
   const setSelectedCity = useClientPlatformStore((state) => state.setSelectedCity);
@@ -1161,7 +1172,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   const chooseCity = (cityId: string) => {
     setSelectedCity(cityId);
-    navigate('/');
+    navigate(resolveCityPickerReturnTo(searchParams.get('returnTo')));
   };
 
   const submitOtherSettlement = async (event: FormEvent<HTMLFormElement>) => {
@@ -1259,34 +1270,27 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   );
 }
 
-function CategoriesPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
-  return (
-    <>
-      <PageHeader title="Категории" />
-      <div className="category-tile-grid">
-        {snapshot.categories.map((category) => (
-          <Link className="category-tile" to={`/restaurants?category=${category.slug}`} key={category.id}>
-            <img src={category.imageUrl} alt="" />
-            <strong>{category.name}</strong>
-          </Link>
-        ))}
-      </div>
-      <Link className="wide-link" to="/restaurants">
-        <Grid2X2 />
-        Все категории
-      </Link>
-    </>
-  );
-}
-
 function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+  const location = useLocation();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
   const [searchParams, setSearchParams] = useSearchParams();
   const cityId = getCityIdFromSearch(snapshot, searchParams.get('city')) ?? selectedCityId;
   const categorySlug = searchParams.get('category') ?? 'all';
+  const businessCategory = getBusinessCategoryBySlug(searchParams.get('businessCategory'));
   const queryParam = searchParams.get('query') ?? '';
   const [query, setQuery] = useState(queryParam);
-  const restaurants = filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId, categorySlug, query });
+  const deliveryOnly = searchParams.get('delivery') === '1';
+  const freeDeliveryOnly = searchParams.get('freeDelivery') === '1';
+  const restaurants = businessCategory && businessCategory.businessTypes.length === 0
+    ? []
+    : selectBusinessesForDiscovery(snapshot.restaurants, {
+        cityId,
+        categorySlug,
+        query,
+        businessTypes: businessCategory?.businessTypes,
+        deliveryOnly,
+        freeDeliveryOnly
+      });
 
   const setCategory = (slug: string) => {
     const next = new URLSearchParams(searchParams);
@@ -1300,37 +1304,48 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   return (
     <>
-      <PageHeader title="Заведения" />
+      <PageHeader title={businessCategory?.name ?? 'Все бизнесы'} backTo="/categories" />
       <label className="platform-search">
         <Search />
         <input
-          aria-label="Поиск заведений"
+          aria-label="Поиск бизнесов"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск заведений"
+          placeholder="Название, категория или тип бизнеса"
           type="search"
         />
       </label>
-      <div className="chip-row chip-row--scroll">
-        <button className={categorySlug === 'all' ? 'filter-chip is-active' : 'filter-chip'} type="button" onClick={() => setCategory('all')}>
-          Все
-        </button>
-        {snapshot.categories.map((category) => (
-          <button
-            className={categorySlug === category.slug ? 'filter-chip is-active' : 'filter-chip'}
-            type="button"
-            onClick={() => setCategory(category.slug)}
-            key={category.id}
-          >
-            {category.name}
+      {!businessCategory && (
+        <div className="chip-row chip-row--scroll">
+          <button className={categorySlug === 'all' ? 'filter-chip is-active' : 'filter-chip'} type="button" onClick={() => setCategory('all')}>
+            Все
           </button>
-        ))}
-      </div>
-      <div className="restaurant-list">
-        {restaurants.map((restaurant) => (
-          <RestaurantListItem restaurant={restaurant} categories={snapshot.categories} key={restaurant.id} />
-        ))}
-      </div>
+          {snapshot.categories.map((category) => (
+            <button
+              className={categorySlug === category.slug ? 'filter-chip is-active' : 'filter-chip'}
+              type="button"
+              onClick={() => setCategory(category.slug)}
+              key={category.id}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {restaurants.length > 0 ? (
+        <div className="restaurant-list">
+          {restaurants.map((restaurant) => (
+            <RestaurantListItem restaurant={restaurant} categories={snapshot.categories} key={restaurant.id} />
+          ))}
+        </div>
+      ) : (
+        <section className="empty-state empty-state--compact">
+          <Store />
+          <strong>Пока рядом нет доступных бизнесов</strong>
+          <p>Попробуйте другую категорию или населённый пункт.</p>
+          <Link to={buildCityPickerPath(`${location.pathname}${location.search}`)}>Выбрать другое место</Link>
+        </section>
+      )}
     </>
   );
 }
