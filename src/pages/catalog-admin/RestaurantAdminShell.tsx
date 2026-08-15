@@ -81,6 +81,10 @@ import { preloadProductPhotoBackgroundRemoval } from '../../features/shared-prod
 import { prepareBarcodeScanSound } from '../../features/grocery-operations/barcodeScanFeedback';
 import { BrandLogo } from '../../shared/BrandLogo';
 import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
+import {
+  MerchantReadyEstimatePicker,
+  type MerchantReadyMinutes
+} from '../../features/restaurant-admin/MerchantReadyEstimatePicker';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -731,7 +735,11 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     toast.success('Продажа сохранена в завершённых');
   };
 
-  const updateOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus) => {
+  const updateOrderStatus = async (
+    order: RestaurantOrder,
+    status: RestaurantOrderStatus,
+    readyMinutes?: MerchantReadyMinutes
+  ) => {
     try {
       if (workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace) {
         await updateCatalogAssignedOrderStatus({
@@ -740,9 +748,16 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
           status
         });
       } else {
-        await updateRestaurantOrderStatus(order, status);
+        await updateRestaurantOrderStatus(order, status, '', readyMinutes);
       }
-      setOrders((current) => current.map((item) => (item.id === order.id ? { ...item, status } : item)));
+      setOrders((current) => current.map((item) => (item.id === order.id ? {
+        ...item,
+        status,
+        estimatedReadyAt:
+          status === 'accepted' && readyMinutes
+            ? new Date(Date.now() + readyMinutes * 60_000).toISOString()
+            : item.estimatedReadyAt
+      } : item)));
       toast.success('Статус заказа обновлён');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось обновить заказ');
@@ -1400,7 +1415,11 @@ function OrdersPage({
   workerMode: boolean;
   onQueryChange: (query: string) => void;
   onSelectOrder: (id: string) => void;
-  onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
+  onStatusChange: (
+    order: RestaurantOrder,
+    status: RestaurantOrderStatus,
+    readyMinutes?: MerchantReadyMinutes
+  ) => Promise<void>;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   onDelete: (order: RestaurantOrder) => Promise<void>;
   onAcceptAssignment: (assignment: CatalogOrderWorkAssignment) => Promise<void>;
@@ -1447,7 +1466,11 @@ export function OrderDetails({
   assignment: CatalogOrderWorkAssignment | null;
   paymentSettings: PaymentSettings;
   paymentStatus: PaymentStatus;
-  onStatusChange: (order: RestaurantOrder, status: RestaurantOrderStatus) => void;
+  onStatusChange: (
+    order: RestaurantOrder,
+    status: RestaurantOrderStatus,
+    readyMinutes?: MerchantReadyMinutes
+  ) => Promise<void>;
   onPaymentStatusChange: (orderId: string, status: PaymentStatus) => void;
   canDeleteOrders: boolean;
   workerMode: boolean;
@@ -1458,6 +1481,7 @@ export function OrderDetails({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [readyMinutes, setReadyMinutes] = useState<MerchantReadyMinutes>(15);
   const capabilities = getBusinessOrderCapabilities(businessType);
   const isGroceryBusiness = businessType === 'grocery';
   const storePosOrder = isGroceryStorePosOrder(order, businessType);
@@ -1488,12 +1512,17 @@ export function OrderDetails({
 
   useEffect(() => {
     setIsChatOpen(false);
+    setReadyMinutes(15);
   }, [order.id]);
   const orderActions =
     !storePosOrder && (!workerMode || assignment?.state === 'accepted') ? (
-      <div className="ra-order-actions ra-order-actions--top" aria-label="Действия с заказом">
+      <>
+        {order.status === 'new' && !workerMode && (
+          <MerchantReadyEstimatePicker value={readyMinutes} onChange={setReadyMinutes} />
+        )}
+        <div className="ra-order-actions ra-order-actions--top" aria-label="Действия с заказом">
         {order.status === 'new' && (
-          <button type="button" onClick={() => onStatusChange(order, 'accepted')}>
+          <button type="button" onClick={() => onStatusChange(order, 'accepted', readyMinutes)}>
             Принять
           </button>
         )}
@@ -1547,7 +1576,8 @@ export function OrderDetails({
             {isDeleting ? 'Удаляем...' : 'Удалить заказ'}
           </button>
         )}
-      </div>
+        </div>
+      </>
     ) : null;
 
   return (
@@ -1581,6 +1611,14 @@ export function OrderDetails({
             )}
             {assignment.state === 'accepted' && <small>Заказ принят в работу</small>}
           </section>
+        )}
+        {order.estimatedReadyAt && !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status) && (
+          <p className="merchant-ready-estimate__saved">
+            Ожидаемая готовность: {new Date(order.estimatedReadyAt).toLocaleTimeString('ru-RU', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
         )}
         <section className="admin-order-facts">
           <article>

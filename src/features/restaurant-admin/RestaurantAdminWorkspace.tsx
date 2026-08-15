@@ -32,6 +32,7 @@ import { OrderDetailsPanel } from './OrderDetailsPanel';
 import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
 import { getCurrentBillingDebtStatus } from '../../shared/api/billingDebtApi';
 import { calculateRestaurantFinance } from './restaurantFinance';
+import type { MerchantReadyMinutes } from './MerchantReadyEstimatePicker';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
@@ -85,7 +86,12 @@ export function RestaurantAdminWorkspace({
   onOpenSeating: () => void;
   onOpenCatalog: () => void;
   onAddDish: () => void;
-  onOrderStatus: (order: RestaurantOrder, status: RestaurantOrderStatus, reason?: string) => Promise<void>;
+  onOrderStatus: (
+    order: RestaurantOrder,
+    status: RestaurantOrderStatus,
+    reason?: string,
+    readyMinutes?: MerchantReadyMinutes
+  ) => Promise<void>;
   onRefreshOrders: () => void;
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
@@ -451,9 +457,16 @@ export function RestaurantAdminWorkspace({
                   products={products}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
-                  onStatus={async (status, reason) => {
-                    await onOrderStatus(selectedVisibleOrder, status, reason);
-                    setSelectedOrder((current) => (current ? { ...current, status } : current));
+                  onStatus={async (status, reason, readyMinutes) => {
+                    await onOrderStatus(selectedVisibleOrder, status, reason, readyMinutes);
+                    setSelectedOrder((current) => (current ? {
+                      ...current,
+                      status,
+                      estimatedReadyAt:
+                        status === 'accepted' && readyMinutes
+                          ? new Date(Date.now() + readyMinutes * 60_000).toISOString()
+                          : current.estimatedReadyAt
+                    } : current));
                   }}
                   onRefreshOrders={onRefreshOrders}
                   onOrderChanged={onRefreshOrders}

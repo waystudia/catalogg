@@ -50,6 +50,10 @@ import { calculateDriverRestaurantSettlement } from '../order/orderLifecycle';
 import { GroceryPickingPanel } from '../order-picking/GroceryPickingPanel';
 import { OrderConversationPanel } from '../order-conversation/OrderConversationPanel';
 import type { BusinessType } from '../../shared/businessTerminology';
+import {
+  MerchantReadyEstimatePicker,
+  type MerchantReadyMinutes
+} from './MerchantReadyEstimatePicker';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -72,7 +76,7 @@ export function OrderDetailsPanel({
   products?: Product[];
   paymentSettings: RestaurantPaymentSettings;
   onClose: () => void;
-  onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
+  onStatus: (status: RestaurantOrderStatus, reason?: string, readyMinutes?: MerchantReadyMinutes) => Promise<void>;
   onRefreshOrders: () => void;
   onOrderChanged?: () => void;
   canDeleteOrder?: boolean;
@@ -89,6 +93,7 @@ export function OrderDetailsPanel({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPaymentPanelOpen, setIsPaymentPanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [readyMinutes, setReadyMinutes] = useState<MerchantReadyMinutes>(15);
   const capabilities = getBusinessOrderCapabilities(businessType);
   const customerDetailsLabel = capabilities.customerLabel === 'Покупатель' ? 'Данные покупателя' : 'Данные клиента';
   const showDriverDispatch =
@@ -121,6 +126,7 @@ export function OrderDetailsPanel({
   useEffect(() => {
     setPaymentStatus(order.restaurantPaymentConfirmedAt ? 'confirmed' : loadPaymentStatus(catalogSlug, order.id));
     setIsPaymentPanelOpen(false);
+    setReadyMinutes(15);
   }, [catalogSlug, order.id, order.restaurantPaymentConfirmedAt]);
   const refreshDriverDispatch = () => {
     onRefreshOrders();
@@ -239,7 +245,11 @@ export function OrderDetailsPanel({
     if (!nextStatusAction || nextStatusAction.disabled || isChangingStatus) return;
     setIsChangingStatus(true);
     try {
-      await onStatus(nextStatusAction.status);
+      if (nextStatusAction.status === 'accepted') {
+        await onStatus(nextStatusAction.status, undefined, readyMinutes);
+      } else {
+        await onStatus(nextStatusAction.status);
+      }
       toast.success(`Статус: ${nextStatusAction.label}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Не удалось изменить статус заказа');
@@ -566,6 +576,18 @@ export function OrderDetailsPanel({
         )}
 
         {order.driverName && <p className="admin-order-driver-note">Заказ принял водитель: <strong>{order.driverName}</strong></p>}
+
+        {order.status === 'new' && (
+          <MerchantReadyEstimatePicker value={readyMinutes} onChange={setReadyMinutes} />
+        )}
+        {order.estimatedReadyAt && !orderIsFinished && (
+          <p className="merchant-ready-estimate__saved">
+            Ожидаемая готовность: {new Date(order.estimatedReadyAt).toLocaleTimeString('ru-RU', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </p>
+        )}
 
         <footer className="admin-order-primary-actions">
         {order.status === 'new' && (

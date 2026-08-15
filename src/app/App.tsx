@@ -2460,11 +2460,23 @@ function AppContent({
     });
   };
 
-  const changeOrderStatus = async (order: RestaurantOrder, status: RestaurantOrderStatus, reason = '') => {
+  const changeOrderStatus = async (
+    order: RestaurantOrder,
+    status: RestaurantOrderStatus,
+    reason = '',
+    readyMinutes?: 10 | 15 | 20 | 30
+  ) => {
     try {
-      await updateRestaurantOrderStatus(order, status, reason);
+      await updateRestaurantOrderStatus(order, status, reason, readyMinutes);
       setRestaurantOrders((current) =>
-        current.map((item) => (item.id === order.id ? { ...item, status } : item))
+        current.map((item) => (item.id === order.id ? {
+          ...item,
+          status,
+          estimatedReadyAt:
+            status === 'accepted' && readyMinutes
+              ? new Date(Date.now() + readyMinutes * 60_000).toISOString()
+              : item.estimatedReadyAt
+        } : item))
       );
       refreshRestaurantOrders();
     } catch (error) {

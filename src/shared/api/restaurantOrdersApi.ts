@@ -78,6 +78,7 @@ export type RestaurantOrder = {
   total: number;
   createdAt: string;
   acceptedAt: string | null;
+  estimatedReadyAt?: string | null;
   readyAt: string | null;
   completedAt: string | null;
   cancellationReason: string;
@@ -218,6 +219,7 @@ type OrderRow = {
   total: number;
   created_at: string;
   accepted_at?: string | null;
+  estimated_ready_at?: string | null;
   ready_at?: string | null;
   completed_at?: string | null;
   cancellation_reason?: string;
@@ -538,6 +540,7 @@ const orderSelect = `
   total,
   created_at,
   accepted_at,
+  estimated_ready_at,
   ready_at,
   completed_at,
   cancellation_reason,
@@ -636,6 +639,7 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     total: row.total,
     createdAt: row.created_at,
     acceptedAt: row.accepted_at ?? null,
+    estimatedReadyAt: row.estimated_ready_at ?? null,
     readyAt: row.ready_at ?? null,
     completedAt: row.completed_at ?? null,
     cancellationReason: row.cancellation_reason ?? '',
@@ -1139,17 +1143,35 @@ export async function getPublicOrderTracking(orderId: string): Promise<PublicOrd
   };
 }
 
-export async function updateRestaurantOrderStatus(order: RestaurantOrder, status: RestaurantOrderStatus, reason = '') {
+export async function updateRestaurantOrderStatus(
+  order: RestaurantOrder,
+  status: RestaurantOrderStatus,
+  reason = '',
+  readyMinutes?: number
+) {
   if (!supabase) {
     updateFallbackRestaurantOrder(order, {
       status,
       acceptedAt: status === 'accepted' ? new Date().toISOString() : order.acceptedAt,
+      estimatedReadyAt:
+        status === 'accepted' && readyMinutes
+          ? new Date(Date.now() + readyMinutes * 60_000).toISOString()
+          : order.estimatedReadyAt,
       readyAt: status === 'ready' ? new Date().toISOString() : order.readyAt,
       completedAt: ['completed', 'delivered'].includes(status) ? new Date().toISOString() : order.completedAt
     });
     return;
   }
   const persistedStatus = status === 'cancelled' ? 'canceled' : status;
+  if (status === 'accepted' && readyMinutes !== undefined) {
+    const acceptanceResult = await supabase.rpc('accept_merchant_order_with_ready_estimate', {
+      target_order_id: order.id,
+      target_catalog_id: order.catalogId,
+      ready_minutes: readyMinutes
+    });
+    if (!acceptanceResult.error) return;
+    if (!relationMissing(acceptanceResult.error)) throw acceptanceResult.error;
+  }
   if (
     status === 'waiting_driver' &&
     !canSendOrderToDelivery({
