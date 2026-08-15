@@ -133,6 +133,10 @@
   margin-top: 10px;
 }
 
+.client-order-chat-page + .legal-footer {
+  display: none;
+}
+
 .client-order-chat-page__error {
   display: grid;
   place-items: center;
