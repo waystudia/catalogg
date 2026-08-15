@@ -526,7 +526,8 @@
 
 .order-conversation[data-presentation='messenger'] {
   min-height: 0;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 0;
   margin: 0;
   border: 0;
@@ -550,6 +551,7 @@
 }
 
 .order-conversation[data-presentation='messenger'] .order-conversation__messages {
+  flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   display: grid;
@@ -646,6 +648,7 @@
   position: sticky;
   bottom: 0;
   z-index: 3;
+  flex: 0 0 auto;
   grid-template-columns: minmax(0, 1fr) 46px;
   align-items: end;
   gap: 8px;

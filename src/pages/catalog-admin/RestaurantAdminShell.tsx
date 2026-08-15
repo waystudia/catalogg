@@ -932,7 +932,8 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
         'restaurant-admin-shell',
         'business-workspace-shell',
         section === 'pos' ? 'business-workspace-shell--pos' : '',
-        section === 'orders' && isGrocery ? 'business-workspace-shell--grocery-orders' : ''
+        section === 'orders' && isGrocery ? 'business-workspace-shell--grocery-orders' : '',
+        section === 'chats' && selectedOrderId ? 'business-workspace-shell--chat-open' : ''
       ].filter(Boolean).join(' ')}
       data-business-type={isGrocery ? 'grocery' : access.catalog?.businessType}
     >
