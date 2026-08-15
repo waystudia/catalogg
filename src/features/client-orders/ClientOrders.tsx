@@ -207,15 +207,16 @@ export function ClientOrderCard({
 
       {isCurrent && <DeliveryProgressCard order={order} statusLabel={statusLabel} trackingHref={trackingHref} />}
 
-      <footer className="client-order-card__actions">
+      <footer className="client-order-card__actions" data-layout={isCurrent ? 'current' : 'history'}>
         <Link to={detailsPath}>Подробнее</Link>
-        {isCurrent ? (
-          <Link className="is-primary" to={chatPath}>
-            <MessageCircle /> Чат с {restaurant?.businessType === 'grocery' ? 'магазином' : 'рестораном'}
-            {unreadCount > 0 && <b>{Math.min(unreadCount, 99)}</b>}
-          </Link>
-        ) : (
-          <button type="button" onClick={onRepeat}><Repeat2 /> Повторить заказ</button>
+        <Link className="is-primary" to={chatPath}>
+          <MessageCircle /> Чат с {restaurant?.businessType === 'grocery' ? 'магазином' : 'рестораном'}
+          {unreadCount > 0 && <b>{Math.min(unreadCount, 99)}</b>}
+        </Link>
+        {!isCurrent && (
+          <button className="client-order-card__repeat" type="button" onClick={onRepeat}>
+            <Repeat2 /> Повторить заказ
+          </button>
         )}
       </footer>
     </article>
