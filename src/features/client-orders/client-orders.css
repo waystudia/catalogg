@@ -316,13 +316,18 @@
 
 @media (max-width: 430px) {
   .client-order-filters {
-    gap: 5px;
+    grid-template-columns: .55fr .9fr 1.25fr 1fr;
+    display: grid;
+    gap: 4px;
+    overflow-x: visible;
   }
 
   .client-order-filters button {
+    width: 100%;
     min-width: 0;
-    padding-inline: 9px;
-    font-size: 11px;
+    gap: 4px;
+    padding-inline: 4px;
+    font-size: 10px;
   }
 
   .client-order-filters b {
