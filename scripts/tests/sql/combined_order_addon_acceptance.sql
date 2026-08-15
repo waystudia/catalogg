@@ -19,6 +19,10 @@ declare
   item_quantity integer;
   line_total integer;
   stock_before integer;
+  platform_admin_user_id uuid;
+  dispatch_readiness jsonb;
+  dispatch_result uuid;
+  dispatch_blocked boolean := false;
   test_phone text := '+70000000001';
   session_token text := 'combined-order-acceptance-token';
   quote_token text := 'combined-order-acceptance-quote-token';
@@ -257,6 +261,95 @@ begin
   end if;
   if (select stock_quantity from public.products where id = addon_product.id) <> stock_before - requested_quantity then
     raise exception 'second confirm reserved stock twice';
+  end if;
+
+  select user_id into platform_admin_user_id
+  from public.platform_admins
+  order by user_id
+  limit 1;
+  if platform_admin_user_id is null then
+    raise exception 'combined dispatch acceptance requires a platform admin';
+  end if;
+  perform pg_catalog.set_config('request.jwt.claim.sub', platform_admin_user_id::text, true);
+
+  update public.orders
+  set status = 'ready'::public.order_status
+  where id = primary_order_id;
+  update public.orders
+  set status = 'preparing'::public.order_status
+  where id = addon_order_id;
+
+  dispatch_readiness := public.get_combined_order_dispatch_readiness(
+    primary_order_id,
+    primary_catalog_id
+  );
+  if coalesce((dispatch_readiness->>'can_dispatch')::boolean, true) is true then
+    raise exception 'combined delivery became dispatchable before addon merchant was ready';
+  end if;
+  if not exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(dispatch_readiness->'pending_merchants') pending
+    where (pending->>'id')::uuid = addon_order_id
+  ) then
+    raise exception 'dispatch readiness did not identify the pending addon merchant';
+  end if;
+
+  begin
+    perform public.dispatch_restaurant_order_to_delivery(
+      primary_order_id,
+      primary_catalog_id,
+      null,
+      null,
+      null,
+      null
+    );
+  exception when others then
+    if sqlerrm = 'combined_delivery_merchants_not_ready' then
+      dispatch_blocked := true;
+    else
+      raise;
+    end if;
+  end;
+  if dispatch_blocked is not true then
+    raise exception 'combined delivery dispatch was not blocked while addon merchant was preparing';
+  end if;
+
+  update public.orders
+  set status = 'ready'::public.order_status
+  where id = addon_order_id;
+  dispatch_readiness := public.get_combined_order_dispatch_readiness(
+    primary_order_id,
+    primary_catalog_id
+  );
+  if coalesce((dispatch_readiness->>'can_dispatch')::boolean, false) is not true then
+    raise exception 'combined delivery stayed blocked after all merchants were ready: %', dispatch_readiness;
+  end if;
+
+  dispatch_result := public.dispatch_restaurant_order_to_delivery(
+    primary_order_id,
+    primary_catalog_id,
+    null,
+    null,
+    null,
+    null
+  );
+  if dispatch_result <> target_delivery_id then
+    raise exception 'combined dispatch did not reuse the shared delivery';
+  end if;
+  if (select pg_catalog.count(*) from public.deliveries where order_group_id = target_group_id) <> 1 then
+    raise exception 'combined dispatch duplicated the shared delivery';
+  end if;
+  if exists (
+    select 1
+    from public.orders
+    where order_group_id = target_group_id
+      and status::text <> 'waiting_driver'
+      and status::text not in ('cancelled', 'canceled')
+  ) then
+    raise exception 'combined dispatch did not move all ready merchant orders together';
+  end if;
+  if (select status from public.deliveries where id = target_delivery_id) <> 'waiting_courier' then
+    raise exception 'combined dispatch did not expose the shared delivery to couriers';
   end if;
 
   update public.orders

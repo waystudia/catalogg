@@ -40,7 +40,8 @@ export function OrderConversationPanel({
   estimatedMinutes,
   initialConversation,
   api = defaultApi,
-  onChanged
+  onChanged,
+  panelId = 'order-conversation'
 }: {
   orderId: string;
   catalogId: string;
@@ -51,6 +52,7 @@ export function OrderConversationPanel({
   initialConversation?: OrderConversation;
   api?: ConversationApi;
   onChanged?: () => void;
+  panelId?: string;
 }) {
   const [conversation, setConversation] = useState<OrderConversation>(() =>
     initialConversation ?? emptyOrderConversation(expectedViewer)
@@ -141,7 +143,7 @@ export function OrderConversationPanel({
   };
 
   return (
-    <section id="order-conversation" className="order-conversation" aria-label="Чат заказа">
+    <section id={panelId} className="order-conversation" aria-label="Чат заказа">
       <header>
         <div>
           <h3><MessageCircle /> Чат по заказу</h3>

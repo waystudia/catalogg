@@ -17,6 +17,7 @@ import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabi
 import {
   assignRestaurantOrderDriver,
   confirmRestaurantCashPayment,
+  getCombinedOrderDispatchReadiness,
   getRestaurantDispatchDrivers,
   sendRestaurantOrderToDriverPool,
   type RestaurantDispatchDriver,
@@ -54,6 +55,7 @@ import {
   MerchantReadyEstimatePicker,
   type MerchantReadyMinutes
 } from './MerchantReadyEstimatePicker';
+import { getCombinedDispatchReadinessMessage } from '../combined-order/dispatchReadiness';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -98,8 +100,31 @@ export function OrderDetailsPanel({
   const customerDetailsLabel = capabilities.customerLabel === 'Покупатель' ? 'Данные покупателя' : 'Данные клиента';
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
+    !order.isAddon &&
     !order.driverName &&
     ['waiting_driver', 'assigned_driver', 'driver_assigned'].includes(order.status);
+  const combinedDispatchReadinessQuery = useQuery({
+    queryKey: ['combined-order-dispatch-readiness', order.id, order.catalogId, order.orderGroupId],
+    queryFn: () => getCombinedOrderDispatchReadiness(order),
+    enabled: Boolean(order.orderGroupId && order.status === 'ready' && order.fulfillmentType === 'delivery'),
+    refetchInterval: 5_000,
+    staleTime: 2_000
+  });
+  const combinedDispatchReadiness = combinedDispatchReadinessQuery.data;
+  const combinedDispatchBlocked = Boolean(
+    order.orderGroupId &&
+    order.status === 'ready' &&
+    (
+      combinedDispatchReadinessQuery.isLoading ||
+      combinedDispatchReadinessQuery.isError ||
+      !combinedDispatchReadiness?.canDispatch
+    )
+  );
+  const combinedDispatchMessage = combinedDispatchReadiness
+    ? getCombinedDispatchReadinessMessage(combinedDispatchReadiness)
+    : order.orderGroupId && order.status === 'ready'
+      ? 'Проверяем готовность всех заказов…'
+      : '';
   const dispatchDriversQuery = useQuery({
     queryKey: ['restaurant-dispatch-drivers', order.id, order.catalogId, order.deliveryCity, order.deliverySettlement, order.driverName],
     queryFn: () => getRestaurantDispatchDrivers(order),
@@ -235,7 +260,7 @@ export function OrderDetailsPanel({
         : order.status === 'preparing'
           ? { label: capabilities.readyLabel, status: 'ready' }
           : order.status === 'ready' && order.fulfillmentType === 'delivery'
-            ? { label: 'Вызвать доставку', status: 'waiting_driver', disabled: waitingForPayment }
+            ? { label: 'Вызвать доставку', status: 'waiting_driver', disabled: waitingForPayment || combinedDispatchBlocked }
             : order.status === 'ready'
               ? { label: 'Завершить заказ', status: 'completed' }
               : order.status === 'on_the_way'
@@ -586,6 +611,11 @@ export function OrderDetailsPanel({
               hour: '2-digit',
               minute: '2-digit'
             })}
+          </p>
+        )}
+        {combinedDispatchMessage && (
+          <p className="merchant-ready-estimate__saved" data-blocked={combinedDispatchBlocked || undefined}>
+            {combinedDispatchMessage}
           </p>
         )}
 

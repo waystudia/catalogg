@@ -2429,6 +2429,11 @@
   font-weight: 800;
 }
 
+.merchant-ready-estimate__saved[data-blocked] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .admin-order-primary-actions > button {
   min-height: 44px;
   border-radius: 12px;

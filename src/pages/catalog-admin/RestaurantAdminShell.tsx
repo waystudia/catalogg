@@ -33,13 +33,14 @@ import {
   UtensilsCrossed,
   WalletCards
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
 import { groceryCategories, groceryProducts, groceryRestaurant, groceryTheme } from '../../data/groceryCatalog';
-import { completeGroceryPosOrder, deleteRestaurantTestOrder, getRestaurantDeliverySettings, getRestaurantOrders, createRestaurantOrderFromCart, saveRestaurantDeliverySettings, subscribeToRestaurantOrdersRealtime, updateRestaurantOrderPaymentStatus, updateRestaurantOrderStatus, type RestaurantDeliverySettings, type RestaurantOrder, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import { completeGroceryPosOrder, deleteRestaurantTestOrder, getCombinedOrderDispatchReadiness, getRestaurantDeliverySettings, getRestaurantOrders, createRestaurantOrderFromCart, saveRestaurantDeliverySettings, subscribeToRestaurantOrdersRealtime, updateRestaurantOrderPaymentStatus, updateRestaurantOrderStatus, type RestaurantDeliverySettings, type RestaurantOrder, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/order/orderLifecycle';
@@ -85,6 +86,7 @@ import {
   MerchantReadyEstimatePicker,
   type MerchantReadyMinutes
 } from '../../features/restaurant-admin/MerchantReadyEstimatePicker';
+import { getCombinedDispatchReadinessMessage } from '../../features/combined-order/dispatchReadiness';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -1444,6 +1446,41 @@ function OrdersPage({
   );
 }
 
+function CombinedDeliveryDispatchAction({
+  order,
+  onDispatch
+}: {
+  order: RestaurantOrder;
+  onDispatch: () => void;
+}) {
+  const readinessQuery = useQuery({
+    queryKey: ['combined-order-dispatch-readiness', order.id, order.catalogId, order.orderGroupId],
+    queryFn: () => getCombinedOrderDispatchReadiness(order),
+    refetchInterval: 5_000,
+    staleTime: 2_000
+  });
+  const readiness = readinessQuery.data;
+  const blocked = readinessQuery.isLoading || readinessQuery.isError || !readiness?.canDispatch;
+  const message = readiness
+    ? getCombinedDispatchReadinessMessage(readiness)
+    : 'Проверяем готовность всех заказов…';
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus) || blocked}
+        onClick={onDispatch}
+      >
+        Вызвать доставку
+      </button>
+      <p className="ra-order-actions__readiness" data-blocked={blocked || undefined}>
+        {message}
+      </p>
+    </>
+  );
+}
+
 export function OrderDetails({
   order,
   products,
@@ -1537,25 +1574,32 @@ export function OrderDetails({
           </button>
         )}
         {!workerMode && order.status === 'ready' && order.fulfillmentType === 'delivery' && (
-          <button
-            type="button"
-            disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
-            onClick={() => onStatusChange(order, 'waiting_driver')}
-          >
-            Вызвать доставку
-          </button>
+          order.orderGroupId ? (
+            <CombinedDeliveryDispatchAction
+              order={order}
+              onDispatch={() => onStatusChange(order, 'waiting_driver')}
+            />
+          ) : (
+            <button
+              type="button"
+              disabled={['waiting_confirmation', 'rejected'].includes(order.paymentStatus)}
+              onClick={() => onStatusChange(order, 'waiting_driver')}
+            >
+              Вызвать доставку
+            </button>
+          )
         )}
         {order.status === 'ready' && order.fulfillmentType !== 'delivery' && (
           <button type="button" onClick={() => onStatusChange(order, 'completed')}>
             Завершить
           </button>
         )}
-        {!workerMode && order.status === 'waiting_driver' && (
+        {!workerMode && !order.orderGroupId && order.status === 'waiting_driver' && (
           <button type="button" onClick={() => onStatusChange(order, 'on_the_way')}>
             Передано водителю
           </button>
         )}
-        {!workerMode && order.status === 'on_the_way' && (
+        {!workerMode && !order.orderGroupId && order.status === 'on_the_way' && (
           <button type="button" onClick={() => onStatusChange(order, 'delivered')}>
             Доставлен
           </button>

@@ -1564,6 +1564,22 @@
   color: #b42318;
 }
 
+.ra-order-actions__readiness {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ra-order-actions__readiness[data-blocked] {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .ra-stock-note {
   justify-content: space-between;
   gap: 16px;

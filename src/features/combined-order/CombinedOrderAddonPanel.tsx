@@ -34,6 +34,8 @@ import "./combined-order.css";
 
 type AddonStep = "merchants" | "catalog" | "quote" | "success";
 
+export const POST_ORDER_ADDON_AUTO_OPEN_DELAY_MS = 5_000;
+
 const formatPrice = (value: number) =>
   `${new Intl.NumberFormat("ru-RU").format(Math.round(value))} ₽`;
 const createIdempotencyKey = (prefix: string) =>
@@ -86,6 +88,7 @@ export function CombinedOrderAddonPanel({
   const [isWorking, setIsWorking] = useState(false);
   const [now, setNow] = useState(Date.now());
   const viewedRef = useRef(false);
+  const openedRef = useRef(false);
   const queryClient = useQueryClient();
 
   const initializationQuery = useQuery({
@@ -138,8 +141,16 @@ export function CombinedOrderAddonPanel({
 
   const openOffer = useCallback(() => {
     if (!offer?.available || offerExpired) return;
+    openedRef.current = true;
     setIsOpen(true);
-    setStep(confirmation ? "success" : "merchants");
+    if (confirmation) {
+      setStep("success");
+    } else if (offer.merchants.length === 1) {
+      setSelectedMerchant(offer.merchants[0]);
+      setStep("catalog");
+    } else {
+      setStep("merchants");
+    }
     setErrorMessage("");
     if (!viewedRef.current) {
       viewedRef.current = true;
@@ -152,6 +163,20 @@ export function CombinedOrderAddonPanel({
   useEffect(() => {
     if (openSignal > 0) openOffer();
   }, [openOffer, openSignal]);
+
+  useEffect(() => {
+    if (
+      openedRef.current ||
+      confirmation ||
+      !offer?.available ||
+      offerExpired
+    ) return undefined;
+
+    const timer = window.setTimeout(() => {
+      openOffer();
+    }, POST_ORDER_ADDON_AUTO_OPEN_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [confirmation, offer?.available, offerExpired, openOffer]);
 
   const selectMerchant = (merchant: CombinedOrderAddonMerchant) => {
     setSelectedMerchant(merchant);
@@ -225,17 +250,17 @@ export function CombinedOrderAddonPanel({
       </div>
       <div className="combined-addon__copy">
         <small>
-          {confirmation ? "Объединённая доставка" : "Заказ успешно оформлен"}
+          {confirmation ? "Объединённая доставка" : "Можно добавить к этому заказу"}
         </small>
         <strong>
           {confirmation
             ? "Магазин добавлен к заказу"
-            : "Добавить к доставке? 🥤"}
+            : "Хотите что-нибудь заказать из магазина?"}
         </strong>
         <p>
           {confirmation
             ? `Оба заказа привезёт один курьер. Общая сумма ${formatPrice(confirmation.grandTotal)}.`
-            : `Напитки, снеки и другие товары из магазина по пути — всего +${formatPrice(offer.addonDeliveryFee)} к доставке.`}
+            : `Снеки, напитки и другие товары по пути. Доплата к доставке — +${formatPrice(offer.addonDeliveryFee)}.`}
         </p>
         {!confirmation && (
           <span>
@@ -244,7 +269,7 @@ export function CombinedOrderAddonPanel({
         )}
       </div>
       <button type="button" onClick={openOffer}>
-        {confirmation ? "Подробнее" : "Посмотреть"}
+        {confirmation ? "Подробнее" : "Открыть магазин"}
       </button>
 
       {isOpen && (

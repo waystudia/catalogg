@@ -2624,7 +2624,7 @@ function OrderStatusPage({
           orderId={order.id}
           catalogId={restaurant.id}
           expectedViewer="client"
-          merchantLabel={terms.place}
+          merchantLabel={order.restaurantName}
           orderStatus={order.status}
           estimatedMinutes={order.estimatedTimeMin}
         />

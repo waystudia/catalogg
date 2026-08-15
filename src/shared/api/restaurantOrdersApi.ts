@@ -8,6 +8,10 @@ import { formatPublicOrderNumber } from '../publicOrderNumber';
 import type { RestaurantCourierType } from '../../features/restaurant-billing/restaurantBillingRules';
 import { getCartItemTotal, normalizeSelectedWeight } from '../../entities/productPricing';
 import { shouldIncludeRestaurantDemoOrders } from './restaurantOrderFallback';
+import {
+  mapCombinedOrderDispatchReadiness,
+  type CombinedOrderDispatchReadiness
+} from '../../features/combined-order/dispatchReadiness';
 
 type MaybeArray<T> = T | T[];
 
@@ -35,6 +39,8 @@ export type RestaurantOrder = {
   id: string;
   orderNumber: string;
   catalogId: string;
+  orderGroupId?: string | null;
+  isAddon?: boolean;
   isTestOrder?: boolean;
   clientName: string;
   clientPhone: string;
@@ -192,6 +198,8 @@ const defaultDeliverySettings: RestaurantDeliverySettings = {
 type OrderRow = {
   id: string;
   catalog_id: string;
+  order_group_id?: string | null;
+  is_addon?: boolean | null;
   is_test_order?: boolean | null;
   customer_name: string;
   customer_phone: string;
@@ -517,6 +525,8 @@ function createFallbackRestaurantOrder(input: CreateRestaurantOrderFromCartInput
 const orderSelect = `
   id,
   catalog_id,
+  order_group_id,
+  is_addon,
   is_test_order,
   customer_name,
   customer_phone,
@@ -596,6 +606,8 @@ const mapOrder = (row: OrderRow, restaurantNameOrSlug = ''): RestaurantOrder => 
     id: row.id,
     orderNumber: formatPublicOrderNumber(row.id, restaurantNameOrSlug),
     catalogId: row.catalog_id,
+    orderGroupId: row.order_group_id ?? null,
+    isAddon: row.is_addon === true,
     isTestOrder: row.is_test_order === true,
     clientName: row.customer_name,
     clientPhone: row.customer_phone,
@@ -1233,7 +1245,16 @@ export async function updateRestaurantOrderStatus(
 
     const rpcErrorText = `${dispatchResult.error.code ?? ''} ${dispatchResult.error.message ?? ''}`.toLowerCase();
     const isMissingDispatchRpc = rpcErrorText.includes('pgrst202') || rpcErrorText.includes('could not find the function') || rpcErrorText.includes('function not found');
-    if (!isMissingDispatchRpc) throw dispatchResult.error;
+    if (!isMissingDispatchRpc) {
+      const dispatchError = errorText(dispatchResult.error).toLowerCase();
+      if (dispatchError.includes('combined_delivery_merchants_not_ready')) {
+        throw new Error('Сначала ресторан и магазин должны завершить готовку и сборку заказа.');
+      }
+      throw dispatchResult.error;
+    }
+    if (order.orderGroupId) {
+      throw new Error('Общая доставка временно недоступна. Обновите страницу и повторите попытку.');
+    }
 
     // Compatibility path for deployments where the atomic RPC has not reached PostgREST yet.
     const deliveryResult = await supabase.from('deliveries').upsert({ ...deliveryPayload, estimated_time_min: 20, estimated_time_max: 40 }, { onConflict: 'order_id' });
@@ -1287,29 +1308,27 @@ export async function assignRestaurantOrderDriver(order: RestaurantOrder, driver
 
 export async function sendRestaurantOrderToDriverPool(order: RestaurantOrder) {
   if (!supabase) return;
-  if (!order.deliveryId) {
-    await updateRestaurantOrderStatus(order, 'waiting_driver');
-    return;
+  await updateRestaurantOrderStatus(order, 'waiting_driver');
+}
+
+export async function getCombinedOrderDispatchReadiness(
+  order: Pick<RestaurantOrder, 'id' | 'catalogId' | 'orderGroupId'>
+): Promise<CombinedOrderDispatchReadiness> {
+  if (!supabase || !order.orderGroupId) {
+    return { isCombined: false, canDispatch: true, pendingMerchants: [] };
   }
 
-  const deliveryResult = await supabase
-    .from('deliveries')
-    .update({
-      driver_id: null,
-      status: 'waiting_courier',
-      delivery_provider: 'platform',
-      assigned_at: null,
-      pickup_qr_token: null,
-      pickup_qr_expires_at: null
-    })
-    .eq('id', order.deliveryId)
-    .eq('order_id', order.id);
-
-  if (deliveryResult.error) throw deliveryResult.error;
-
-  const orderResult = await supabase.from('orders').update({ status: 'waiting_driver' }).eq('id', order.id).eq('catalog_id', order.catalogId);
-
-  if (orderResult.error) throw orderResult.error;
+  const { data, error } = await supabase.rpc('get_combined_order_dispatch_readiness', {
+    target_order_id: order.id,
+    target_catalog_id: order.catalogId
+  });
+  if (error) {
+    if (relationMissing(error)) {
+      return { isCombined: true, canDispatch: false, pendingMerchants: [] };
+    }
+    throw error;
+  }
+  return mapCombinedOrderDispatchReadiness(data);
 }
 
 export async function updateRestaurantOrderPaymentStatus(order: RestaurantOrder, paymentStatus: PaymentStatus) {

@@ -51,8 +51,7 @@ export function PublicOrderStatusScreen({
   });
   const catalogIdQuery = useQuery({
     queryKey: ['public-order-catalog-id', catalogSlug],
-    queryFn: () => getCatalogIdBySlug(catalogSlug),
-    enabled: businessType === 'grocery'
+    queryFn: () => getCatalogIdBySlug(catalogSlug)
   });
 
   useEffect(() => {
@@ -159,11 +158,12 @@ export function PublicOrderStatusScreen({
           <CombinedOrderSummaryPanel primaryOrderId={orderId} />
         </>
       )}
-      {businessType === 'grocery' && catalogIdQuery.data && (
+      {catalogIdQuery.data && (
         <OrderConversationPanel
           orderId={orderId}
           catalogId={catalogIdQuery.data}
           expectedViewer="client"
+          merchantLabel={value.restaurantName}
           orderStatus={value.status}
           onChanged={() => void statusQuery.refetch()}
         />

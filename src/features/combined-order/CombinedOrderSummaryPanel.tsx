@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, Clock, MapPin, PackageCheck, Store, Truck } from "lucide-react";
-import { useEffect } from "react";
+import { Check, Clock, MapPin, MessageCircle, PackageCheck, Store, Truck } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   getCombinedOrderSummary,
   subscribeCombinedOrderSummary,
 } from "../../shared/api/combinedOrderApi";
+import { OrderConversationPanel } from "../order-conversation/OrderConversationPanel";
 
 const formatPrice = (value: number) =>
   `${new Intl.NumberFormat("ru-RU").format(Math.round(value))} ₽`;
@@ -33,6 +34,7 @@ export function CombinedOrderSummaryPanel({
 }: {
   primaryOrderId: string;
 }) {
+  const [openChatOrderId, setOpenChatOrderId] = useState<string | null>(null);
   const { data: summary, refetch } = useQuery({
     queryKey: ["combined-order-summary", primaryOrderId],
     queryFn: () => getCombinedOrderSummary(primaryOrderId),
@@ -67,27 +69,54 @@ export function CombinedOrderSummaryPanel({
       <div className="combined-summary__merchants">
         {summary.merchantOrders.map((order) => {
           const cancelled = ["cancelled", "canceled"].includes(order.status);
+          const chatOpen = openChatOrderId === order.id;
           return (
-            <article data-cancelled={cancelled || undefined} key={order.id}>
-              <span>{order.isAddon ? <Store /> : <PackageCheck />}</span>
-              <div>
-                <small>
-                  {order.isAddon ? "Дополнительный заказ" : "Основной заказ"}
-                </small>
-                <strong>{order.merchantName}</strong>
-                <em>{merchantStatusLabels[order.status] ?? order.status}</em>
-                {order.estimatedReadyAt && !cancelled && (
-                  <time dateTime={order.estimatedReadyAt}>
-                    <Clock /> Готовность около{" "}
-                    {new Date(order.estimatedReadyAt).toLocaleTimeString(
-                      "ru-RU",
-                      { hour: "2-digit", minute: "2-digit" },
-                    )}
-                  </time>
-                )}
-              </div>
-              <b>{formatPrice(order.subtotal)}</b>
-            </article>
+            <div className="combined-summary__merchant" key={order.id}>
+              <article data-cancelled={cancelled || undefined}>
+                <span>{order.isAddon ? <Store /> : <PackageCheck />}</span>
+                <div>
+                  <small>
+                    {order.isAddon ? "Дополнительный заказ" : "Основной заказ"}
+                  </small>
+                  <strong>{order.merchantName}</strong>
+                  <em>{merchantStatusLabels[order.status] ?? order.status}</em>
+                  {order.estimatedReadyAt && !cancelled && (
+                    <time dateTime={order.estimatedReadyAt}>
+                      <Clock /> Готовность около{" "}
+                      {new Date(order.estimatedReadyAt).toLocaleTimeString(
+                        "ru-RU",
+                        { hour: "2-digit", minute: "2-digit" },
+                      )}
+                    </time>
+                  )}
+                  {order.isAddon && !cancelled && (
+                    <button
+                      className="combined-summary__chat-button"
+                      type="button"
+                      aria-expanded={chatOpen}
+                      aria-controls={`combined-order-chat-${order.id}`}
+                      onClick={() => setOpenChatOrderId(chatOpen ? null : order.id)}
+                    >
+                      <MessageCircle /> {chatOpen ? "Скрыть чат" : `Чат с ${order.merchantName}`}
+                    </button>
+                  )}
+                </div>
+                <b>{formatPrice(order.subtotal)}</b>
+              </article>
+              {order.isAddon && chatOpen && (
+                <div id={`combined-order-chat-${order.id}`} className="combined-summary__chat">
+                  <OrderConversationPanel
+                    orderId={order.id}
+                    catalogId={order.merchantId}
+                    expectedViewer="client"
+                    merchantLabel={order.merchantName}
+                    orderStatus={order.status}
+                    panelId={`order-conversation-${order.id}`}
+                    onChanged={() => void refetch()}
+                  />
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
