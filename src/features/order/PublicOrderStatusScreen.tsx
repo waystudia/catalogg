@@ -12,6 +12,8 @@ import {
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
 import type { BusinessType } from '../../shared/businessTerminology';
+import { CombinedOrderAddonPanel } from '../combined-order/CombinedOrderAddonPanel';
+import { CombinedOrderSummaryPanel } from '../combined-order/CombinedOrderSummaryPanel';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
@@ -118,6 +120,19 @@ export function PublicOrderStatusScreen({
           <strong>{formatPrice(value.total)}</strong>
         </div>
       </section>
+      {businessType === 'restaurant' && value.fulfillmentType === 'delivery' && (
+        <>
+          <CombinedOrderAddonPanel
+            primaryOrderId={orderId}
+            primaryOrderNumber={value.id.slice(0, 8).toUpperCase()}
+            onCreated={() => {
+              void statusQuery.refetch();
+              void trackingQuery.refetch();
+            }}
+          />
+          <CombinedOrderSummaryPanel primaryOrderId={orderId} />
+        </>
+      )}
       {businessType === 'grocery' && catalogIdQuery.data && (
         <OrderConversationPanel
           orderId={orderId}

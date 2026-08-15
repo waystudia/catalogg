@@ -85,6 +85,8 @@ import {
   subscribeClientPlatformSnapshotRealtime
 } from '../../shared/api/clientPlatformApi';
 import { initializePostOrderAddon } from '../../shared/api/combinedOrderApi';
+import { CombinedOrderAddonPanel } from '../../features/combined-order/CombinedOrderAddonPanel';
+import { CombinedOrderSummaryPanel } from '../../features/combined-order/CombinedOrderSummaryPanel';
 import {
   buildClientAuthPath,
   getCurrentClientAddresses,
@@ -2581,6 +2583,15 @@ function OrderStatusPage({
             <small>{order.addressLine}</small>
           </span>
         </section>
+        {restaurant.businessType === 'restaurant' && order.orderType === 'delivery' && (
+          <>
+            <CombinedOrderAddonPanel
+              primaryOrderId={order.id}
+              primaryOrderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
+            />
+            <CombinedOrderSummaryPanel primaryOrderId={order.id} />
+          </>
+        )}
         {order.orderType === 'delivery' && restaurant.lat !== null && restaurant.lng !== null &&
           typeof order.deliveryLat === 'number' && Number.isFinite(order.deliveryLat) &&
           typeof order.deliveryLng === 'number' && Number.isFinite(order.deliveryLng) && (
