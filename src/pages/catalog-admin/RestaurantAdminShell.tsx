@@ -1462,6 +1462,7 @@ function OrdersPage({
           products={products}
           storeName={storeName}
           canPick={!workerMode || selectedAssignment?.state === 'accepted'}
+          canManageDelivery={!workerMode}
           onBack={() => onSelectOrder('')}
           onStatusChange={(status) => onStatusChange(selectedOrder, status)}
           onPickingChanged={onPickingChanged}
@@ -1479,6 +1480,7 @@ function OrdersPage({
         onQueryChange={onQueryChange}
         onRefresh={onRefresh}
         onSelectOrder={onSelectOrder}
+        onOpenChat={onOpenChat}
         onAcceptOrder={(order) => onStatusChange(order, 'accepted', 15)}
       />
     );

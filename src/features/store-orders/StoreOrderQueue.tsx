@@ -3,6 +3,7 @@ import {
   CircleCheck,
   Filter,
   MapPin,
+  MessageCircle,
   MessageSquareText,
   Package,
   RefreshCw,
@@ -59,10 +60,12 @@ function CompactMapPreview() {
 function IncomingOrderCard({
   order,
   onSelect,
+  onOpenChat,
   onAccept
 }: {
   order: RestaurantOrder;
   onSelect: () => void;
+  onOpenChat: () => void;
   onAccept: () => Promise<void>;
 }) {
   const [accepting, setAccepting] = useState(false);
@@ -109,6 +112,7 @@ function IncomingOrderCard({
 
       <div className="store-order-card__actions">
         <button type="button" onClick={onSelect}>Подробнее</button>
+        <button type="button" aria-label={`Чат заказа ${order.orderNumber}`} onClick={onOpenChat}><MessageCircle /> Чат</button>
         {isNew ? (
           <button type="button" disabled={accepting} aria-label={`Принять заказ ${order.orderNumber}`} onClick={() => void accept()}>
             <CircleCheck /> {accepting ? 'Принимаем…' : 'Принять заказ'}
@@ -129,6 +133,7 @@ export function StoreOrderQueue({
   onQueryChange,
   onRefresh,
   onSelectOrder,
+  onOpenChat,
   onAcceptOrder
 }: {
   orders: RestaurantOrder[];
@@ -138,6 +143,7 @@ export function StoreOrderQueue({
   onQueryChange: (query: string) => void;
   onRefresh: () => void;
   onSelectOrder: (orderId: string) => void;
+  onOpenChat?: (orderId: string) => void;
   onAcceptOrder: (order: RestaurantOrder) => Promise<void>;
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -230,6 +236,7 @@ export function StoreOrderQueue({
             key={order.id}
             order={order}
             onSelect={() => onSelectOrder(order.id)}
+            onOpenChat={() => (onOpenChat ?? onSelectOrder)(order.id)}
             onAccept={() => onAcceptOrder(order)}
           />
         ))}
