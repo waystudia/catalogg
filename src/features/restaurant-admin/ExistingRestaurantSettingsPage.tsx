@@ -9,6 +9,7 @@ import { BackupSettings, CategoriesSettings, DeliverySettingsCard, PaymentSettin
 import type { CatalogBackupPayload } from '../restaurant-settings/catalogAdminModel';
 import type { RestaurantLegalStatus } from '../restaurant-activation/restaurantActivation';
 import type { BusinessType } from '../../shared/businessTerminology';
+import type { LucideIcon } from 'lucide-react';
 
 export type ExistingRestaurantSettingsView = 'home' | 'profile' | 'design' | 'theme' | 'photo-quality' | 'categories' | 'payments' | 'backup' | 'delivery';
 
@@ -41,6 +42,7 @@ export function ExistingRestaurantSettingsPage({
   onChangePassword,
   onActivate,
   legalActivationStatus,
+  workspaceLinks,
   businessType = 'restaurant'
 }: {
   initialView?: ExistingRestaurantSettingsView;
@@ -67,6 +69,11 @@ export function ExistingRestaurantSettingsPage({
   onChangePassword?: () => void;
   onActivate?: () => void;
   legalActivationStatus?: RestaurantLegalStatus | null;
+  workspaceLinks?: Array<{
+    label: string;
+    icon: LucideIcon;
+    onClick: () => void;
+  }>;
   businessType?: BusinessType;
 }) {
   const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
@@ -105,6 +112,7 @@ export function ExistingRestaurantSettingsPage({
         onPassword={onChangePassword}
         onActivate={onActivate}
         activationStatus={legalActivationStatus}
+        workspaceLinks={workspaceLinks}
         businessType={businessType}
       />
     );

@@ -27,7 +27,6 @@ import {
   Tags,
   Truck,
   Trash2,
-  Upload,
   User,
   Users,
   UtensilsCrossed,
@@ -349,6 +348,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [orderQuery, setOrderQuery] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderReturnSection, setSelectedOrderReturnSection] = useState<'orders' | 'chats'>('orders');
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() => readJson(paymentStorageKey(access.catalog?.slug ?? 'demo'), defaultPaymentSettings));
@@ -427,6 +427,11 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
     });
     return items;
   }, [access.staffRole, isGrocery, moduleAccess.pos, moduleAccess.warehouse, terms.items, workspaceAccess.canManageTeam, workspaceAccess.canSeeFullWorkspace]);
+  const bottomNavItems = useMemo(() => {
+    if (!isGrocery || !workspaceAccess.canSeeFullWorkspace) return navItems;
+    const primarySections: AdminSection[] = ['home', 'pos', 'chats', 'dishes', 'settings'];
+    return primarySections.flatMap((primarySection) => navItems.filter((item) => item.id === primarySection));
+  }, [isGrocery, navItems, workspaceAccess.canSeeFullWorkspace]);
 
   useEffect(() => {
     const nextRoute = resolveBusinessAdminRoutePath(routePath);
@@ -1043,7 +1048,17 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               storeName={catalogData.restaurant.name || 'Магазин'}
               onQueryChange={setOrderQuery}
               onRefresh={() => void refreshData()}
-              onSelectOrder={setSelectedOrderId}
+              onSelectOrder={(orderId) => {
+                setSelectedOrderReturnSection('orders');
+                setSelectedOrderId(orderId);
+              }}
+              onBackFromOrder={() => {
+                if (selectedOrderReturnSection === 'chats') {
+                  goTo('chats');
+                  return;
+                }
+                setSelectedOrderId(null);
+              }}
               onStatusChange={updateOrderStatus}
               onPaymentStatusChange={setPaymentStatus}
               onDelete={deleteOrder}
@@ -1062,6 +1077,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               selectedOrderId={selectedOrderId}
               onSelectedOrderChange={setSelectedOrderId}
               onOpenOrder={(orderId) => {
+                setSelectedOrderReturnSection('chats');
                 setSelectedOrderId(orderId);
                 goTo('orders');
               }}
@@ -1162,6 +1178,14 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
                 onChangePassword={() => setSettingsSection('password')}
                 onActivate={() => navigate('/restaurant/activation')}
                 legalActivationStatus={access.legalActivationStatus}
+                workspaceLinks={isGrocery ? [
+                  { label: 'База товаров', icon: Database, onClick: () => goTo('shared-products') },
+                  { label: 'Поступление', icon: ClipboardPlus, onClick: () => goTo('receiving') },
+                  { label: 'Заказы', icon: ShoppingBag, onClick: () => goTo('orders') },
+                  ...(workspaceAccess.canManageTeam ? [{ label: 'Команда', icon: Users, onClick: () => goTo('team') }] : []),
+                  { label: 'Склад', icon: Package, onClick: () => goTo('warehouse') },
+                  { label: 'Витрина', icon: Store, onClick: () => goTo('catalog') }
+                ] : undefined}
                 businessType={access.catalog?.businessType}
               />
             ))}
@@ -1169,7 +1193,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
       </div>
 
       <nav className="restaurant-admin-bottom-nav">
-        {navItems.map((item) => (
+        {bottomNavItems.map((item) => (
           <SectionButton key={item.id} active={section === item.id} icon={item.icon} label={item.label} onClick={() => goTo(item.id)} />
         ))}
       </nav>
@@ -1258,10 +1282,6 @@ function DashboardPage({ products, categories, orders, todayRevenue, terms, isGr
         <button type="button" onClick={() => onNavigate('settings', 'profile')}>
           <Settings />
           Настройки {terms.placeGenitive}
-        </button>
-        <button type="button" onClick={() => onNavigate('settings', 'import')}>
-          <Upload />
-          Импорт / Экспорт
         </button>
       </section>
     </div>
@@ -1433,6 +1453,7 @@ function OrdersPage({
   onQueryChange,
   onRefresh,
   onSelectOrder,
+  onBackFromOrder,
   onStatusChange,
   onPaymentStatusChange,
   onDelete,
@@ -1457,6 +1478,7 @@ function OrdersPage({
   onQueryChange: (query: string) => void;
   onRefresh: () => void;
   onSelectOrder: (id: string) => void;
+  onBackFromOrder: () => void;
   onStatusChange: (
     order: RestaurantOrder,
     status: RestaurantOrderStatus,
@@ -1477,7 +1499,7 @@ function OrdersPage({
           storeName={storeName}
           canPick={!workerMode || selectedAssignment?.state === 'accepted'}
           canManageDelivery={!workerMode}
-          onBack={() => onSelectOrder('')}
+          onBack={onBackFromOrder}
           onStatusChange={(status) => onStatusChange(selectedOrder, status)}
           onPickingChanged={onPickingChanged}
           onOpenChat={() => onOpenChat(selectedOrder.id)}
