@@ -3,9 +3,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { buildYandexMapsRouteUrl } from './orderLifecycle';
 import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
-import { OrderConversationPanel } from '../order-conversation/OrderConversationPanel';
 import {
-  getCatalogIdBySlug,
   getPublicOrderTracking,
   getPublicRestaurantOrderStatus,
   type PublicRestaurantOrderStatus,
@@ -49,18 +47,6 @@ export function PublicOrderStatusScreen({
     refetchInterval: 10_000,
     enabled: Boolean(order)
   });
-  const catalogIdQuery = useQuery({
-    queryKey: ['public-order-catalog-id', catalogSlug],
-    queryFn: () => getCatalogIdBySlug(catalogSlug)
-  });
-
-  useEffect(() => {
-    if (!catalogIdQuery.data || !new URLSearchParams(location.search).has('conversation')) return;
-    window.requestAnimationFrame(() => {
-      document.getElementById('order-conversation')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, [catalogIdQuery.data, location.search]);
-
   useEffect(() => {
     if (!new URLSearchParams(location.search).has('addon')) return;
     setAddonOpenSignal((signal) => signal + 1);
@@ -157,16 +143,6 @@ export function PublicOrderStatusScreen({
           />
           <CombinedOrderSummaryPanel primaryOrderId={orderId} />
         </>
-      )}
-      {catalogIdQuery.data && (
-        <OrderConversationPanel
-          orderId={orderId}
-          catalogId={catalogIdQuery.data}
-          expectedViewer="client"
-          merchantLabel={value.restaurantName}
-          orderStatus={value.status}
-          onChanged={() => void statusQuery.refetch()}
-        />
       )}
       <button className="ghost-wide" type="button" onClick={() => navigate(`/${catalogSlug}`)}>
         {businessType === 'grocery' ? 'Вернуться в магазин' : 'Вернуться в ресторан'}
