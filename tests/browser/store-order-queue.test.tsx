@@ -60,6 +60,7 @@ const order = (overrides: Partial<RestaurantOrder> = {}): RestaurantOrder => ({
 test('mobile store queue keeps order decisions on compact cards without exposing coordinates', async () => {
   await page.viewport(372, 576);
   const onSelectOrder = vi.fn();
+  const onOpenChat = vi.fn();
   const onAcceptOrder = vi.fn(async () => undefined);
   const screen = await render(
     <StoreOrderQueue
@@ -73,6 +74,7 @@ test('mobile store queue keeps order decisions on compact cards without exposing
       onQueryChange={vi.fn()}
       onRefresh={vi.fn()}
       onSelectOrder={onSelectOrder}
+      onOpenChat={onOpenChat}
       onAcceptOrder={onAcceptOrder}
     />
   );
@@ -86,6 +88,9 @@ test('mobile store queue keeps order decisions on compact cards without exposing
 
   await screen.getByRole('button', { name: 'Подробнее о заказе F0231' }).click();
   expect(onSelectOrder).toHaveBeenCalledWith('order-1');
+
+  await screen.getByRole('button', { name: 'Чат заказа F0231' }).click();
+  expect(onOpenChat).toHaveBeenCalledWith('order-1');
 
   await screen.getByRole('button', { name: 'Принять заказ F0231' }).click();
   expect(onAcceptOrder).toHaveBeenCalledOnce();

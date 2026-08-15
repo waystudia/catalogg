@@ -29,12 +29,14 @@ export function GroceryPickingPanel({
   items,
   products,
   canPick,
+  showDisabledNotice = !canPick,
   onChanged,
   onContactClient
 }: {
   items: RestaurantOrderItem[];
   products: Product[];
   canPick: boolean;
+  showDisabledNotice?: boolean;
   onChanged?: () => void;
   onContactClient?: () => void;
 }) {
@@ -112,7 +114,7 @@ export function GroceryPickingPanel({
 
   return (
     <section className="grocery-picking" aria-label="Сборка продуктового заказа">
-      {!canPick && <p className="grocery-picking__notice">Сначала примите назначенный заказ в работу.</p>}
+      {showDisabledNotice && <p className="grocery-picking__notice">Сначала примите назначенный заказ в работу.</p>}
 
       <div className="grocery-picking__lines">
         {items.map((item) => {

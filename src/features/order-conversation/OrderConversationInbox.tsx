@@ -136,6 +136,7 @@ export function OrderConversationInbox({
                   merchantLabel={selectedItem.merchantLabel}
                   orderStatus={selectedItem.orderStatus}
                   estimatedMinutes={selectedItem.estimatedMinutes}
+                  presentation="messenger"
                   onChanged={onChanged}
                 />
               </>

@@ -269,7 +269,7 @@
 
 .store-order-card__actions {
   display: grid;
-  grid-template-columns: minmax(96px, 0.62fr) minmax(150px, 1.38fr);
+  grid-template-columns: minmax(0, .72fr) minmax(0, .64fr) minmax(0, 1.4fr);
   gap: 10px;
 }
 
@@ -389,6 +389,16 @@
   .store-order-card__body {
     grid-template-columns: minmax(0, 1fr) 118px;
   }
+
+  .store-order-card__actions {
+    gap: 7px;
+  }
+
+  .store-order-card__actions button {
+    gap: 5px;
+    padding-inline: 7px;
+    font-size: 11px;
+  }
 }
 
 .store-picking-page {
@@ -476,7 +486,7 @@
   min-height: 38px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   border: 1px solid #e4e7ec;
   border-radius: 12px;
@@ -498,14 +508,6 @@
   border: 2px solid #c7baff;
   border-radius: 50%;
   background: var(--store-purple);
-}
-
-.store-picking-status svg {
-  width: 15px;
-}
-
-.store-picking-status strong {
-  color: #079455;
 }
 
 .store-order-route-block {
@@ -780,6 +782,176 @@
   position: sticky;
   bottom: calc(68px + env(safe-area-inset-bottom));
   z-index: 20;
+}
+
+.store-picking-dispatch-action {
+  position: sticky;
+  bottom: calc(68px + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: grid;
+  gap: 7px;
+}
+
+.store-picking-dispatch-action .store-picking-finish {
+  position: static;
+}
+
+.store-picking-dispatch-action p {
+  margin: 0;
+  border-radius: 11px;
+  padding: 9px 11px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.store-picking-dispatch-action p[data-blocked='true'] {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.store-delivery-dispatch {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #ddd6fe;
+  border-radius: 17px;
+  padding: 13px;
+  background: #fff;
+}
+
+.store-delivery-dispatch > header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.store-delivery-dispatch > header > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #f0edff;
+  color: var(--store-purple);
+}
+
+.store-delivery-dispatch > header svg {
+  width: 19px;
+  height: 19px;
+}
+
+.store-delivery-dispatch > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.store-delivery-dispatch > header small,
+.store-delivery-dispatch > p,
+.store-delivery-dispatch__drivers small {
+  color: #667085;
+  font-size: 10px;
+}
+
+.store-delivery-dispatch > header button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #f2f4f7;
+  color: #475467;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.store-delivery-dispatch > p {
+  margin: 0;
+}
+
+.store-delivery-dispatch__drivers {
+  display: grid;
+  gap: 7px;
+}
+
+.store-delivery-dispatch__assigned {
+  display: grid;
+  gap: 4px;
+  border-radius: 12px;
+  padding: 11px;
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.store-delivery-dispatch__assigned span,
+.store-delivery-dispatch__assigned small {
+  font-size: 10px;
+}
+
+.store-delivery-dispatch__assigned a {
+  width: fit-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #027a48;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.store-delivery-dispatch__drivers > button {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  padding: 9px 11px;
+  background: #fff;
+  color: #344054;
+  font: inherit;
+  text-align: left;
+}
+
+.store-delivery-dispatch__drivers > button[data-online='true'] {
+  border-color: #abefc6;
+  background: #f6fef9;
+}
+
+.store-delivery-dispatch__drivers > button > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.store-delivery-dispatch__drivers b {
+  flex: 0 0 auto;
+  color: var(--store-purple);
+  font-size: 10px;
+}
+
+.store-delivery-dispatch__pool {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6739f6, #532be9);
+  color: #fff;
+  font: inherit;
+  font-weight: 900;
+}
+
+.store-delivery-dispatch__pool:disabled,
+.store-delivery-dispatch__drivers > button:disabled {
+  opacity: .56;
 }
 
 .store-order-chat-sheet {

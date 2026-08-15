@@ -181,7 +181,7 @@ export function OrderConversationPanel({
   };
 
   return (
-    <section id={panelId} className="order-conversation" data-presentation={presentation} aria-label="Чат заказа">
+    <section id={panelId} className="order-conversation" data-presentation={presentation} data-viewer={expectedViewer} aria-label="Чат заказа">
       {presentation === 'embedded' && <header>
         <div>
           <h3><MessageCircle /> Чат по заказу</h3>
@@ -247,14 +247,19 @@ export function OrderConversationPanel({
           const isSystem = item.senderKind === 'system';
           const deliveryState = 'deliveryState' in item ? item.deliveryState : 'saved';
           return (
-            <div className="order-conversation__message-row" data-sender={item.senderKind} key={item.id}>
+            <div
+              className="order-conversation__message-row"
+              data-sender={item.senderKind}
+              data-outgoing={!isSystem && item.senderKind === expectedViewer ? 'true' : undefined}
+              key={item.id}
+            >
               {presentation === 'messenger' && startsNewDay && <time className="order-conversation__day">{formatMessageDay(item.createdAt)}</time>}
               {isSystem && presentation === 'messenger' ? (
                 <p className="order-conversation__system-message">{item.body} · {formatMessageTime(item.createdAt)}</p>
               ) : (
                 <article data-sender={item.senderKind} data-state={deliveryState}>
                   {item.senderKind !== expectedViewer && presentation === 'messenger' && (
-                    <small>{item.senderKind === 'staff' ? merchantLabel : item.senderKind === 'driver' ? 'Курьер' : 'Система'}</small>
+                    <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? merchantLabel : item.senderKind === 'driver' ? 'Курьер' : 'Система'}</small>
                   )}
                   {presentation === 'embedded' && (
                     <small>{item.senderKind === 'client' ? 'Клиент' : item.senderKind === 'staff' ? merchantLabel : item.senderKind === 'driver' ? 'Курьер' : 'Система'}</small>

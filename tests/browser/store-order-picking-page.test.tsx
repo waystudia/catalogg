@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Product } from '../../src/entities/models';
 import type { RestaurantOrder } from '../../src/shared/api/restaurantOrdersApi';
 import { StoreOrderPickingPage } from '../../src/features/store-orders/StoreOrderPickingPage';
@@ -31,6 +32,7 @@ const order = (overrides: Partial<RestaurantOrder> = {}): RestaurantOrder => ({
 });
 
 const renderPage = (currentOrder = order()) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const callbacks = {
     onBack: vi.fn(),
     onStatusChange: vi.fn(async () => undefined),
@@ -38,13 +40,15 @@ const renderPage = (currentOrder = order()) => {
     onOpenChat: vi.fn()
   };
   return render(
-    <StoreOrderPickingPage
-      order={currentOrder}
-      products={products}
-      storeName="Финик"
-      canPick
-      {...callbacks}
-    />
+    <QueryClientProvider client={queryClient}>
+      <StoreOrderPickingPage
+        order={currentOrder}
+        products={products}
+        storeName="Финик"
+        canPick
+        {...callbacks}
+      />
+    </QueryClientProvider>
   ).then((screen) => ({ screen, callbacks }));
 };
 
@@ -101,6 +105,36 @@ test('active picking can finish after every line is resolved', async () => {
   expect(completed.callbacks.onStatusChange).toHaveBeenCalledWith('ready');
 });
 
+test('completed delivery picking has no countdown and exposes delivery only as the next action', async () => {
+  const completed = await renderPage(order({
+    status: 'ready',
+    estimatedReadyAt: '2020-08-15T09:00:00.000Z',
+    items: [{
+      ...order().items[0],
+      fulfilledQuantity: 2,
+      fulfillmentState: 'picked'
+    }]
+  }));
+
+  await expect.element(completed.screen.getByText('Сборка завершена')).toBeVisible();
+  await expect.element(completed.screen.getByText(/Осталось|Время вышло/u)).not.toBeInTheDocument();
+  await expect.element(completed.screen.getByText('Сначала примите назначенный заказ в работу.')).not.toBeInTheDocument();
+  const dispatch = completed.screen.getByRole('button', { name: 'Вызвать доставку' });
+  await expect.element(dispatch).not.toBeDisabled();
+  await dispatch.click();
+  expect(completed.callbacks.onStatusChange).toHaveBeenCalledWith('waiting_driver');
+});
+
+test('waiting driver remains a status without any expired timer', async () => {
+  const waiting = await renderPage(order({
+    status: 'waiting_driver',
+    estimatedReadyAt: '2020-08-15T09:00:00.000Z'
+  }));
+
+  await expect.element(waiting.screen.getByText('Ждёт водителя')).toBeVisible();
+  await expect.element(waiting.screen.getByText(/Осталось|Время вышло/u)).not.toBeInTheDocument();
+});
+
 test('pickup order replaces the route map with pickup information', async () => {
   const { screen } = await renderPage(order({
     fulfillmentType: 'takeaway',
@@ -126,16 +160,19 @@ test('overflow menu keeps contact, chat and problem actions reachable', async ()
 });
 
 test('order chat opens inside the picking screen when the host has no separate chat route', async () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(
-    <StoreOrderPickingPage
-      order={order()}
-      products={products}
-      storeName="Финик"
-      canPick
-      onBack={vi.fn()}
-      onStatusChange={vi.fn(async () => undefined)}
-      onPickingChanged={vi.fn()}
-    />
+    <QueryClientProvider client={queryClient}>
+      <StoreOrderPickingPage
+        order={order()}
+        products={products}
+        storeName="Финик"
+        canPick
+        onBack={vi.fn()}
+        onStatusChange={vi.fn(async () => undefined)}
+        onPickingChanged={vi.fn()}
+      />
+    </QueryClientProvider>
   );
 
   await screen.getByRole('button', { name: 'Действия с заказом' }).click();
