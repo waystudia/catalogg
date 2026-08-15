@@ -5,7 +5,7 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 test('white-label storefronts resolve through a verified domain without exposing all tenants', async () => {
-  const [migration, reservedHostMigration, clientApi, runtime, manifest, boundary, publicOrder, app] = await Promise.all([
+  const [migration, reservedHostMigration, clientApi, runtime, manifest, boundary, publicOrder, clientOrderChat, app] = await Promise.all([
     read('supabase/migrations/20260812235900_add_white_label_storefronts.sql'),
     read('supabase/migrations/20260813004827_reserve_wayyaam_github_pages_hostname.sql'),
     read('src/shared/api/storefrontApi.ts'),
@@ -13,6 +13,7 @@ test('white-label storefronts resolve through a verified domain without exposing
     read('supabase/functions/storefront-manifest/index.ts'),
     read('src/features/storefront/StorefrontBoundary.tsx'),
     read('src/features/order/PublicOrderStatusScreen.tsx'),
+    read('src/features/client-orders/ClientOrderChatPage.tsx'),
     read('src/app/App.tsx')
   ]);
 
@@ -33,7 +34,8 @@ test('white-label storefronts resolve through a verified domain without exposing
   assert.match(manifest, /powered_by_wayyaam/);
   assert.match(boundary, /storefrontMode === 'exclusive'/);
   assert.match(boundary, /getExclusiveStorefrontHomePath\(storefront\)/);
-  assert.match(publicOrder, /OrderConversationPanel/);
+  assert.doesNotMatch(publicOrder, /OrderConversationPanel/);
+  assert.match(clientOrderChat, /OrderConversationPanel/);
   assert.match(publicOrder, /businessType === 'grocery'/);
   assert.match(app, /businessType={catalog\.restaurant\.business_type}/);
 });
