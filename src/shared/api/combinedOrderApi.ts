@@ -205,8 +205,9 @@ export const subscribeCombinedOrderSummary = (
   deliveryId: string | null,
   onChange: () => void,
 ) => {
-  if (!supabase || !orderGroupId) return () => undefined;
-  const channel = supabase
+  const realtimeClient = supabase;
+  if (!realtimeClient || !orderGroupId) return () => undefined;
+  const channel = realtimeClient
     .channel(`combined-order-summary-${orderGroupId}`)
     .on(
       "postgres_changes",
@@ -242,6 +243,6 @@ export const subscribeCombinedOrderSummary = (
   }
   channel.subscribe();
   return () => {
-    void supabase.removeChannel(channel);
+    void realtimeClient.removeChannel(channel);
   };
 };

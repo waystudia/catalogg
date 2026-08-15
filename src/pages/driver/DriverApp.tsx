@@ -2295,30 +2295,27 @@ export function DriverMapScreen({
   const clientChatUrl = delivery?.clientPhone
     ? `https://wa.me/${delivery.clientPhone.replace(/\D/g, '')}`
     : '';
-  const currentRoutePoints = useMemo(
-    () => delivery
-      ? delivery.isCombined
-        ? getCombinedDeliveryRoutePoints(
-            delivery.stops,
-            currentDriverPoint ? { lat: currentDriverPoint.lat, lng: currentDriverPoint.lng } : null
-          )
-        : delivery.status === 'waiting_courier'
-        ? [
-            { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-            { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-          ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
-        : getDriverRoutePoints({
-            status: delivery.status,
-            driver: {
-              lat: currentDriverPoint?.lat ?? null,
-              lng: currentDriverPoint?.lng ?? null
-            },
-            restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-            client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-          })
-      : [],
-    [currentDriverPoint, delivery, mapData]
-  );
+  const currentRoutePoints = delivery
+    ? delivery.isCombined
+      ? getCombinedDeliveryRoutePoints(
+          delivery.stops,
+          currentDriverPoint ? { lat: currentDriverPoint.lat, lng: currentDriverPoint.lng } : null
+        )
+      : delivery.status === 'waiting_courier'
+      ? [
+          { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
+          { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
+        ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
+      : getDriverRoutePoints({
+          status: delivery.status,
+          driver: {
+            lat: currentDriverPoint?.lat ?? null,
+            lng: currentDriverPoint?.lng ?? null
+          },
+          restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
+          client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
+        })
+    : [];
   const combinedEditorPoints = useMemo(
     () => delivery?.isCombined
       ? getCombinedDeliveryRoutePoints(delivery.stops, null)

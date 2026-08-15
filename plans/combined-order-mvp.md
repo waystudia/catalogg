@@ -1,7 +1,7 @@
 # Plan: WayYaam Combined Order MVP
 
 **Branch**: `codex/combined-order-mvp-20260815`
-**Status**: Architecture audit and Slice 1 complete; Slice 2 in progress
+**Status**: MVP implementation complete; release verification in progress
 
 ## Goal
 
@@ -39,6 +39,27 @@
 - [x] Confirm idempotency has a database unique constraint.
 - [x] Existing checkout/order/delivery SQL contracts stay green.
 - [x] Migration is additive and does not rewrite existing production rows destructively.
+
+## Implemented vertical slices
+
+- [x] Primary restaurant order is attached to one token-owned `order_group` without delaying checkout.
+- [x] WhatsApp contains only the public order number and authenticated panel link.
+- [x] Restaurant and store acceptance use one tenant-scoped ready-time RPC.
+- [x] Eligibility uses a cheap geographic pre-filter followed by one bounded OSRM matrix request.
+- [x] Quote and confirm revalidate ownership, TTL, merchant, stock, price, route and courier critical point on the server.
+- [x] Confirm is idempotent and creates a separate addon merchant order inside the existing `orders` table.
+- [x] Customer sees one grouped summary with separated merchant subtotals and delivery fees.
+- [x] Courier receives one existing delivery with generic ordered `delivery_stops[]`.
+- [x] Addon cancellation leaves the primary order running; primary cancellation closes the combined delivery before pickup.
+- [x] In-app and Web Push notifications are token-owned, deduplicated, expiring and suppressed after the offer is opened.
+- [x] Realtime publications and policies reuse the current Supabase mechanism.
+- [x] Global feature flag remains disabled and test-only until pilot merchant coordinates and IDs are explicitly configured.
+
+## Verification evidence
+
+- PostgreSQL 17 accepted every migration on the production schema inside a transaction followed by `ROLLBACK`.
+- The transactional Mangal + Finik acceptance fixture proved one group, two merchant orders, one delivery, three stops, one stock reservation, idempotent confirm and isolated cancellation.
+- Node, unit, browser, lint, typecheck, Edge bundle and production build gates are required again immediately before release.
 
 ## Mandatory regression gates
 
