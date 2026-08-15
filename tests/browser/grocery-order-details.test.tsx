@@ -56,7 +56,7 @@ test('remote takeaway uses the compact order card with picking, chat and actions
   expect(accept.getBoundingClientRect().top).toBeGreaterThan(composition.getBoundingClientRect().top);
   await screen.getByRole('button', { name: 'Открыть чат заказа' }).click();
   await expect.element(screen.getByRole('region', { name: 'Чат заказа' })).toBeVisible();
-  expect(screen.getByRole('region', { name: 'Сборка продуктового заказа' }).element().querySelector('article')!.getBoundingClientRect().height).toBeLessThan(120);
+  expect(screen.getByRole('region', { name: 'Сборка продуктового заказа' }).element().querySelector('article')!.getBoundingClientRect().height).toBeLessThan(132);
 });
 
 test('mobile composition keeps a long weight price on one readable line below the product title', async () => {

@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { page } from 'vitest/browser';
 import { GroceryPickingPanel } from '../../src/features/order-picking/GroceryPickingPanel';
 import type { Product } from '../../src/entities/models';
 
@@ -29,6 +30,7 @@ const product = (id: string, title: string): Product => ({
 });
 
 test('picker sees requested weight, records actual weight, and can open replacement flow', async () => {
+  await page.viewport(372, 576);
   const changed = vi.fn();
   const screen = await render(
     <GroceryPickingPanel
@@ -45,7 +47,10 @@ test('picker sees requested weight, records actual weight, and can open replacem
         fulfilledQuantity: 0,
         fulfillmentState: 'pending'
       }]}
-      products={[product('milk', 'Бананы'), product('dates', 'Финики')]}
+      products={[
+        { ...product('milk', 'Бананы'), image_url: '/banana.png' },
+        product('dates', 'Финики')
+      ]}
       canPick
       onChanged={changed}
     />
@@ -53,7 +58,31 @@ test('picker sees requested weight, records actual weight, and can open replacem
 
   await expect.element(screen.getByText('Заказано: 400 г')).toBeVisible();
   await expect.element(screen.getByLabelText('Фактический вес, г')).toHaveValue(400);
+  await expect.element(screen.getByRole('img', { name: 'Бананы' })).toHaveAttribute('src', '/banana.png');
+  await screen.getByRole('button', { name: 'Заменить Бананы' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Товар отсутствует' })).toBeVisible();
+  await expect.element(screen.getByText('Текущий товар: Бананы')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Найти замену' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Удалить позицию' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Связаться с клиентом' })).toBeVisible();
   await expect.element(screen.getByLabelText('Предложить замену')).toHaveValue('dates');
-  await screen.getByRole('button', { name: 'Собрано' }).click();
+  await screen.getByRole('button', { name: 'Закрыть замену' }).click();
+  await screen.getByRole('button', { name: 'Собран Бананы' }).click();
   expect(changed).toHaveBeenCalledOnce();
+});
+
+test('piece line shows server-backed partial scan progress without treating it as collected', async () => {
+  const screen = await render(
+    <GroceryPickingPanel
+      items={[{
+        id: 'item-2', productId: 'milk', title: 'Молоко', quantity: 3, unitPrice: 110, lineTotal: 330,
+        saleUnit: 'piece', quantityUnit: 'piece', requestedQuantity: 3, fulfilledQuantity: 1, fulfillmentState: 'pending'
+      }]}
+      products={[{ ...product('milk', 'Молоко'), sale_unit: 'piece', quantity_unit: 'piece' }]}
+      canPick
+    />
+  );
+
+  await expect.element(screen.getByText('Сканировано 1 / 3')).toBeVisible();
+  await expect.element(screen.getByText('Собрано')).not.toBeInTheDocument();
 });

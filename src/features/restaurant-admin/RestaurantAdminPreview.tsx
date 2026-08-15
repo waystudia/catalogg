@@ -77,7 +77,7 @@ const groceryPreviewOrder: RestaurantOrder = {
   catalogId: 'finik',
   clientName: 'Марьям Исаева',
   comment: '[payment_method:cash]\nЕсли товара нет, предложить замену в чате',
-  status: 'accepted',
+  status: 'new',
   subtotal: 1_113,
   total: 1_313,
   readyAt: null,

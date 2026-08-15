@@ -1610,6 +1610,14 @@
     padding: 18px;
   }
 
+  .restaurant-admin--grocery-orders .restaurant-admin__hero {
+    display: none;
+  }
+
+  .restaurant-admin--grocery-orders .restaurant-admin__content {
+    margin-top: 0;
+  }
+
   .restaurant-admin__hero--compact {
     min-height: 96px;
     padding: 12px;
@@ -2321,12 +2329,13 @@
 }
 
 .restaurant-admin-preview-switcher {
-  position: fixed;
+  position: sticky;
   z-index: 100;
-  top: 12px;
-  right: 18px;
+  top: 8px;
+  width: max-content;
   display: flex;
   gap: 4px;
+  margin: 8px auto 10px;
   padding: 4px;
   border: 1px solid #d9d3ff;
   border-radius: 12px;
@@ -2350,6 +2359,10 @@
 .restaurant-admin-preview-switcher button[data-active="true"] {
   background: #5b3df4;
   color: #ffffff;
+}
+
+.restaurant-admin-preview-switcher + .restaurant-admin .restaurant-admin__content--store-order {
+  padding-top: 62px;
 }
 
 .admin-order-contact-actions a {

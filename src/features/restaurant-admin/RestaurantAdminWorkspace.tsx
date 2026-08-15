@@ -44,6 +44,8 @@ import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-p
 import type { RestaurantAdminModuleAccess } from '../platform-admin-modules/restaurantModuleAccess';
 import { DebtControlBanner } from '../restaurant-billing/DebtControlBanner';
 import { getCatalogAdminAccess } from '../../shared/api/catalogAdminApi';
+import { StoreOrderQueue } from '../store-orders/StoreOrderQueue';
+import { StoreOrderPickingPage } from '../store-orders/StoreOrderPickingPage';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -98,6 +100,7 @@ export function RestaurantAdminWorkspace({
   const navigate = useNavigate();
   const terms = getBusinessTerms(restaurant.business_type);
   const orderCapabilities = getBusinessOrderCapabilities(restaurant.business_type);
+  const isGrocery = restaurant.business_type === 'grocery';
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
@@ -106,6 +109,7 @@ export function RestaurantAdminWorkspace({
       : 'home'
   );
   const [filter, setFilter] = useState<AdminOrderFilter>('all');
+  const [storeOrderQuery, setStoreOrderQuery] = useState('');
   const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
@@ -271,10 +275,10 @@ export function RestaurantAdminWorkspace({
   }, [orders, routeOrderId]);
 
   useEffect(() => {
-    if (hasAutoOpenedOrderRef.current || tab !== 'orders' || filteredOrders.length === 0) return;
+    if (isGrocery || hasAutoOpenedOrderRef.current || tab !== 'orders' || filteredOrders.length === 0) return;
     hasAutoOpenedOrderRef.current = true;
     setSelectedOrder(filteredOrders[0]);
-  }, [filteredOrders, tab]);
+  }, [filteredOrders, isGrocery, tab]);
 
   useEffect(() => {
     const knownIds = knownOrderIdsRef.current;
@@ -284,7 +288,7 @@ export function RestaurantAdminWorkspace({
 
     if (newOrderIds.length > 0) {
       const newOrders = orders.filter((order) => newOrderIds.includes(order.id));
-      if (tab === 'orders' && newOrders[0]) {
+      if (!isGrocery && tab === 'orders' && newOrders[0]) {
         setFilter('new');
         setSelectedOrder(newOrders[0]);
       }
@@ -310,10 +314,14 @@ export function RestaurantAdminWorkspace({
 
     knownOrderIdsRef.current = new Set(orders.map((order) => order.id));
     hasLoadedOrdersRef.current = true;
-  }, [catalogSlug, orders, tab]);
+  }, [catalogSlug, isGrocery, orders, tab]);
 
   return (
-    <main className={tab === 'pos' ? 'restaurant-admin restaurant-admin--pos' : 'restaurant-admin'}>
+    <main className={[
+      'restaurant-admin',
+      tab === 'pos' ? 'restaurant-admin--pos' : '',
+      tab === 'orders' && isGrocery ? 'restaurant-admin--grocery-orders' : ''
+    ].filter(Boolean).join(' ')}>
       <aside className="restaurant-admin-sidebar">
         <BrandLogo compact />
         <nav aria-label="Разделы админки">
@@ -434,7 +442,40 @@ export function RestaurantAdminWorkspace({
           </section>
         )}
 
-        {tab === 'orders' && (
+        {tab === 'orders' && isGrocery && selectedVisibleOrder && (
+          <section className="restaurant-admin__content restaurant-admin__content--store-order">
+            <StoreOrderPickingPage
+              order={selectedVisibleOrder}
+              products={products}
+              storeName={restaurant.name || 'Магазин'}
+              canPick
+              onBack={closeOrderDetails}
+              onStatusChange={async (status) => {
+                await onOrderStatus(selectedVisibleOrder, status);
+                setSelectedOrder((current) => current ? { ...current, status } : current);
+              }}
+              onPickingChanged={onRefreshOrders}
+            />
+          </section>
+        )}
+
+        {tab === 'orders' && isGrocery && !selectedVisibleOrder && (
+          <section className="restaurant-admin__content restaurant-admin__content--store-orders">
+            <StoreOrderQueue
+              orders={orders}
+              query={storeOrderQuery}
+              onQueryChange={setStoreOrderQuery}
+              onRefresh={onRefreshOrders}
+              onSelectOrder={(orderId) => {
+                const order = orders.find((candidate) => candidate.id === orderId);
+                if (order) openOrderFromList(order);
+              }}
+              onAcceptOrder={(order) => onOrderStatus(order, 'accepted', '', 15)}
+            />
+          </section>
+        )}
+
+        {tab === 'orders' && !isGrocery && (
           <section className="restaurant-admin__content">
             <div className="admin-order-filters">
               {adminOrderStatusFilters.map((item) => (
