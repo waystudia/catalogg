@@ -26,6 +26,24 @@ export const getClientOrderStatusTone = (status: ClientOrderStatus) => {
   return 'primary';
 };
 
+export const getClientOrderBadgeLabel = (status: ClientOrderStatus) => {
+  const labels: Record<ClientOrderStatus, string> = {
+    new: 'Заказ создан',
+    waiting_payment_confirmation: 'Ожидает подтверждения оплаты',
+    payment_confirmed: 'Оплата подтверждена',
+    accepted: 'Заказ принят',
+    cooking: 'Готовится',
+    ready: 'Готов к выдаче',
+    waiting_driver: 'Ожидает курьера',
+    assigned_driver: 'Курьер назначен',
+    picked_up: 'Заказ у курьера',
+    on_the_way: 'Заказ у курьера',
+    completed: 'Заказ завершён',
+    canceled: 'Заказ отменён'
+  };
+  return labels[status];
+};
+
 export const formatClientOrderDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -172,7 +190,7 @@ export function ClientOrderCard({
       </header>
 
       <div className="client-order-card__badge-row">
-        <OrderStatusBadge status={order.status} label={statusLabel} />
+        <OrderStatusBadge status={order.status} label={getClientOrderBadgeLabel(order.status)} />
         {unreadCount > 0 && <span className="client-order-card__unread"><MessageCircle /> {Math.min(unreadCount, 99)}</span>}
       </div>
 
