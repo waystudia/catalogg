@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 
 const root = process.cwd();
 const migrationPath = resolve(root, 'supabase/migrations/20260815142343_client_order_chat_read_state.sql');
+const chatCssPath = resolve(root, 'src/features/client-orders/client-order-chat-page.css');
 
 describe('client order chat read-state contract', () => {
   it('counts and marks unread messages only after verifying the order customer', async () => {
@@ -25,5 +26,10 @@ describe('client order chat read-state contract', () => {
     assert.match(sql, /message\.catalog_id = order_record\.catalog_id/i);
     assert.match(sql, /is_grocery_store_pos_order/i);
     assert.match(sql, /requested_count > 200/i);
+  });
+
+  it('keeps the dedicated chat route truly full-screen', async () => {
+    const css = await readFile(chatCssPath, 'utf8');
+    assert.match(css, /\.client-order-chat-page \+ \.legal-footer\s*\{[\s\S]*display:\s*none/i);
   });
 });
