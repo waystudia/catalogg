@@ -106,6 +106,7 @@ test('staff messenger keeps merchant messages on the right and compact system me
   expect(merchantRow?.dataset.outgoing).toBe('true');
   expect(clientRow?.dataset.outgoing).toBeUndefined();
   expect(getComputedStyle(merchantRow!.querySelector('article')!).justifySelf).toBe('end');
+  expect(getComputedStyle(clientRow!.querySelector('article')!).justifySelf).toBe('start');
   expect(getComputedStyle(systemMessage).justifySelf).toBe('start');
   expect(systemMessage.getBoundingClientRect().width).toBeLessThan(screen.getByRole('region', { name: 'Чат заказа' }).element().getBoundingClientRect().width * .9);
 });
