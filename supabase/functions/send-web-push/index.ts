@@ -59,8 +59,8 @@ const appBaseUrl = () => {
 const orderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/orders?order=${encodeURIComponent(orderId)}`;
 
-const clientOrderUrl = (slug: string, orderId: string) =>
-  `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?conversation=1`;
+const clientOrderUrl = (_slug: string, orderId: string) =>
+  `${appBaseUrl()}#/profile/orders/${encodeURIComponent(orderId)}/chat`;
 
 const clientAddonOrderUrl = (slug: string, orderId: string) =>
   `${appBaseUrl()}#/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}?addon=1`;

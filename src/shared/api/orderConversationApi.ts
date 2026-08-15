@@ -32,6 +32,11 @@ export type OrderMessage = {
   createdAt: string;
 };
 
+export type ClientOrderChatUnreadCount = {
+  orderId: string;
+  unreadCount: number;
+};
+
 export type OrderPaymentAdjustment = {
   id: string;
   kind: 'additional_charge' | 'refund';
@@ -217,6 +222,30 @@ export async function sendOrderMessage(
       });
   if (error) throw new Error(error.message);
   return text(data);
+}
+
+export async function getClientOrderChatUnreadCounts(orderIds: string[]): Promise<ClientOrderChatUnreadCount[]> {
+  if (!supabase || orderIds.length === 0) return [];
+  const { data, error } = await supabase.rpc('get_client_order_chat_unread_counts', {
+    target_order_ids: Array.from(new Set(orderIds)).slice(0, 200),
+    client_session_token: getStoredClientSessionToken()
+  });
+  if (error) throw new Error(error.message);
+  return rows(data).map((row) => ({
+    orderId: text(row.order_id),
+    unreadCount: Math.max(0, Math.floor(number(row.unread_count)))
+  })).filter((item) => Boolean(item.orderId));
+}
+
+export async function markClientOrderChatRead(orderId: string, catalogId: string) {
+  if (!supabase) return 0;
+  const { data, error } = await supabase.rpc('mark_client_order_chat_read', {
+    target_order_id: orderId,
+    target_catalog_id: catalogId,
+    client_session_token: getStoredClientSessionToken()
+  });
+  if (error) throw new Error(error.message);
+  return number(data);
 }
 
 export function subscribeOrderConversation(orderId: string, onChange: () => void) {
