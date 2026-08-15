@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
+const clientOrdersSource = fs.readFileSync('src/features/client-orders/ClientOrders.tsx', 'utf8');
 const catalogAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientPlatformApi.ts', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
@@ -38,11 +39,12 @@ test('WayYaam branding and phone-specific install guide are published', () => {
 
 test('favorites, repeat checkout and reviews expose complete client actions', () => {
   assert.match(appSource, /aria-pressed=\{isFavorite\}/);
-  assert.match(appSource, /navigate\(`\$\{orderPathPrefix\}\/checkout`\)/);
+  assert.match(appSource, /prepareClientRepeatOrder\(snapshot, order\)/);
+  assert.match(appSource, /navigate\(checkoutPath\)/);
   assert.match(appSource, /useCartStore\.setState/);
   assert.match(appSource, /useOrderStore\.getState\(\)\.setOrder/);
-  assert.match(appSource, /to=\{`\$\{orderPathPrefix\}\/order\/\$\{order\.id\}`\}/);
-  assert.match(appSource, />\s*Подробнее о заказе\s*</);
+  assert.match(clientOrdersSource, /to=\{detailsPath\}>Подробнее<\/Link>/);
+  assert.match(clientOrdersSource, /Повторить заказ/);
   assert.match(appSource, /restaurant\.businessType === 'grocery'[\s\S]*`\/r\/\$\{restaurant\.slug\}\/reviews`/);
   assert.match(appSource, /function RestaurantReviewsPage/);
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);

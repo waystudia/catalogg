@@ -112,5 +112,6 @@ describe('background web push contract', () => {
     assert.match(source, /Товара нет в наличии/);
     assert.match(source, /subscriptionUrl/);
     assert.match(source, /#\/\$\{encodeURIComponent\(slug\)\}\/order\//);
+    assert.match(source, /#\/profile\/orders\/\$\{encodeURIComponent\(orderId\)\}\/chat/);
   });
 });

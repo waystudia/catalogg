@@ -18,10 +18,12 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 
 export function MarketplaceBottomNavigation({
   active,
-  cartCount
+  cartCount,
+  ordersUnreadCount = 0
 }: {
   active: MarketplaceNavigationTab;
   cartCount: number;
+  ordersUnreadCount?: number;
 }) {
   const items = [
     { id: 'home', label: 'Главная', to: '/', Icon: Home },
@@ -38,6 +40,7 @@ export function MarketplaceBottomNavigation({
           <span className="bottom-nav__icon">
             <Icon aria-hidden="true" />
             {id === 'cart' && cartCount > 0 && <b>{cartCount}</b>}
+            {id === 'orders' && ordersUnreadCount > 0 && <b>{Math.min(ordersUnreadCount, 99)}</b>}
           </span>
           <span>{label}</span>
         </Link>

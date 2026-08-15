@@ -30,7 +30,6 @@ import {
   Plus,
   QrCode,
   ReceiptText,
-  Repeat2,
   RefreshCw,
   Search,
   ShoppingCart,
@@ -73,8 +72,18 @@ import type {
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { formatPublicOrderNumber } from '../../shared/publicOrderNumber';
-import { OrderConversationPanel } from '../../features/order-conversation/OrderConversationPanel';
-import { OrderConversationInbox, type OrderConversationInboxItem } from '../../features/order-conversation/OrderConversationInbox';
+import {
+  getClientOrderChatUnreadCounts
+} from '../../shared/api/orderConversationApi';
+import {
+  ClientOrderCard,
+  ClientOrdersSkeleton,
+  OrderFilterChips,
+  orderIsCurrent,
+  type ClientOrderFilter
+} from '../../features/client-orders/ClientOrders';
+import { ClientOrderChatPage } from '../../features/client-orders/ClientOrderChatPage';
+import { prepareClientRepeatOrder } from '../../features/client-orders/repeatOrder';
 import { scopeSnapshotToStorefront } from '../../entities/storefront';
 import { useStorefrontContext } from '../../features/storefront/storefrontContext';
 import {
@@ -320,8 +329,8 @@ const restoreRestaurantCartFromOrder = (snapshot: ClientPlatformSnapshot, order:
         is_new: false,
         is_hit: false,
         is_hidden: false,
-        is_unlimited: true,
-        stock_count: dish?.stockCount ?? 999,
+        is_unlimited: dish?.isUnlimited ?? true,
+        stock_count: dish?.stockCount ?? dish?.stockQuantity ?? 999,
         category_id: categoryId,
         category_ids: categoryId ? [categoryId] : [],
         pair_ids: []
@@ -614,7 +623,14 @@ function ClientPlatformContent() {
   }
 
   if (location.pathname.startsWith('/profile')) {
-    return <ProfileArea snapshot={snapshot} />;
+    return (
+      <ProfileArea
+        snapshot={snapshot}
+        isLoading={isLoading && !data}
+        isError={isError && !data}
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (location.pathname === '/city') {
@@ -682,13 +698,24 @@ function PlatformLayout({
       )
   );
   const restaurantCartItems = useCartStore((state) => state.items);
+  const clientOrders = useClientPlatformStore((state) => state.orders);
+  const orderIds = useMemo(() => clientOrders.map((order) => order.id).sort(), [clientOrders]);
   const cartCount = platformCartCount + selectCartCount(restaurantCartItems);
+  const unreadQuery = useQuery({
+    queryKey: ['client-order-chat-unread', orderIds.join('|')],
+    queryFn: () => getClientOrderChatUnreadCounts(orderIds),
+    enabled: orderIds.length > 0,
+    staleTime: 5_000,
+    refetchInterval: 15_000,
+    retry: 1
+  });
+  const ordersUnreadCount = (unreadQuery.data ?? []).reduce((total, item) => total + item.unreadCount, 0);
 
   return (
     <div className="client-platform platform-theme">
       <div className="platform-page">{children}</div>
       {active === 'home' && <PlatformRestaurantCartDock />}
-      <MarketplaceBottomNavigation active={active} cartCount={cartCount} />
+      <MarketplaceBottomNavigation active={active} cartCount={cartCount} ordersUnreadCount={ordersUnreadCount} />
     </div>
   );
 }
@@ -2475,11 +2502,18 @@ function OrderStatusPage({
 }) {
   const terms = getBusinessTerms(restaurant.businessType);
   const orders = useClientPlatformStore((state) => state.orders);
+  const profile = useClientPlatformStore((state) => state.profile);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
+  const queryClient = useQueryClient();
   const order = selectClientOrderForStatus(orders, restaurant.slug, orderId);
   const restaurantImage = snapshot.restaurants.find((item) => item.slug === restaurant.slug)?.coverUrl;
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancellationError, setCancellationError] = useState('');
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewState, setReviewState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [reviewError, setReviewError] = useState('');
 
   useEffect(() => {
     if (!order?.id) return undefined;
@@ -2531,6 +2565,29 @@ function OrderStatusPage({
       setCancellationError(error instanceof Error ? error.message : 'Не удалось отменить заказ');
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  const submitReview = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (reviewState === 'sending') return;
+    setReviewState('sending');
+    setReviewError('');
+    try {
+      await saveClientReview({
+        orderId: order.id,
+        restaurantId: restaurant.id,
+        clientName: profile.name || order.clientName,
+        clientPhone: profile.phone || order.clientPhone,
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      await queryClient.invalidateQueries({ queryKey: ['client-platform'] });
+      setReviewState('sent');
+      setReviewOpen(false);
+    } catch (error) {
+      setReviewState('idle');
+      setReviewError(error instanceof Error ? error.message : 'Не удалось отправить отзыв');
     }
   };
 
@@ -2609,7 +2666,7 @@ function OrderStatusPage({
         {order.orderType === 'delivery' && restaurant.lat !== null && restaurant.lng !== null &&
           typeof order.deliveryLat === 'number' && Number.isFinite(order.deliveryLat) &&
           typeof order.deliveryLng === 'number' && Number.isFinite(order.deliveryLng) && (
-            <section className="delivery-tracking-section">
+            <section className="delivery-tracking-section" id="delivery-tracking">
               <h2>Карта доставки</h2>
               <DeliveryTrackingMap
                 restaurant={{ lat: restaurant.lat, lng: restaurant.lng, label: 'Ресторан', address: restaurant.addressLine }}
@@ -2620,14 +2677,33 @@ function OrderStatusPage({
               />
             </section>
           )}
-        <OrderConversationPanel
-          orderId={order.id}
-          catalogId={restaurant.id}
-          expectedViewer="client"
-          merchantLabel={order.restaurantName}
-          orderStatus={order.status}
-          estimatedMinutes={order.estimatedTimeMin}
-        />
+        <Link className="restaurant-primary-button order-chat-route-button" to={`/profile/orders/${encodeURIComponent(order.id)}/chat`}>
+          <MessageCircle /> Чат с {restaurant.businessType === 'grocery' ? 'магазином' : 'рестораном'}
+        </Link>
+        {order.status === 'completed' && reviewState !== 'sent' && (
+          <section className="order-details-review">
+            <button className="secondary-flow-button" type="button" onClick={() => setReviewOpen((value) => !value)}>
+              <Star /> Оставить отзыв
+            </button>
+            {reviewOpen && (
+              <form className="order-review-form" onSubmit={(event) => void submitReview(event)}>
+                <label>
+                  Оценка
+                  <select value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))}>
+                    <option value={5}>5</option><option value={4}>4</option><option value={3}>3</option><option value={2}>2</option><option value={1}>1</option>
+                  </select>
+                </label>
+                <label>
+                  Отзыв
+                  <textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} rows={3} />
+                </label>
+                {reviewError && <small className="form-error">{reviewError}</small>}
+                <button type="submit" disabled={reviewState === 'sending'}>{reviewState === 'sending' ? 'Отправляем...' : 'Отправить отзыв'}</button>
+              </form>
+            )}
+          </section>
+        )}
+        {reviewState === 'sent' && <p className="form-success">Спасибо! Отзыв отправлен.</p>}
         {canCancel && (
           <button
             className="secondary-flow-button order-cancel-button"
@@ -2682,13 +2758,51 @@ function OrderProgress({ status }: { status: ClientOrderStatus }) {
   );
 }
 
-function ProfileArea({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+function ProfileArea({
+  snapshot,
+  isLoading,
+  isError,
+  onRetry
+}: {
+  snapshot: ClientPlatformSnapshot;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const orders = useClientPlatformStore((state) => state.orders);
+  const chatRoute = location.pathname.match(/^\/profile\/orders\/([^/]+)\/chat\/?$/);
+
+  if (chatRoute) {
+    const orderId = decodeURIComponent(chatRoute[1]);
+    const order = orders.find((item) => item.id === orderId);
+    if (!order) {
+      return (
+        <PlatformLayout active="orders">
+          <PageHeader title="Чат заказа" backTo="/profile/orders" />
+          <EmptyState title="Заказ не найден" linkTo="/profile/orders" linkText="К моим заказам" />
+        </PlatformLayout>
+      );
+    }
+    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+    const detailsPrefix = restaurant?.businessType === 'grocery' ? `/r/${order.restaurantSlug}` : `/${order.restaurantSlug}`;
+    return (
+      <ClientOrderChatPage
+        order={order}
+        restaurant={restaurant}
+        orderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
+        statusLabel={statusLabels[order.status]}
+        detailsPath={`${detailsPrefix}/order/${order.id}`}
+        onRead={() => void queryClient.invalidateQueries({ queryKey: ['client-order-chat-unread'] })}
+      />
+    );
+  }
 
   if (location.pathname === '/profile/orders') {
     return (
       <PlatformLayout active="orders">
-        <OrdersPage snapshot={snapshot} />
+        <OrdersPage snapshot={snapshot} isLoading={isLoading} isError={isError} onRetry={onRetry} />
       </PlatformLayout>
     );
   }
@@ -2790,7 +2904,6 @@ function ProfilePage() {
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
-    { to: '/profile/orders?tab=chats', label: 'Чаты по заказам', Icon: MessageCircle },
     { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/addresses', label: 'Адреса доставки', Icon: MapPin },
     { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle }
@@ -3222,44 +3335,55 @@ function ProfilePage() {
   );
 }
 
-function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+function OrdersPage({
+  snapshot,
+  isLoading,
+  isError,
+  onRetry
+}: {
+  snapshot: ClientPlatformSnapshot;
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryClient = useQueryClient();
-  const profile = useClientPlatformStore((state) => state.profile);
   const orders = useClientPlatformStore((state) => state.orders);
   const repeatOrder = useClientPlatformStore((state) => state.repeatOrder);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
-  const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewMessage, setReviewMessage] = useState('');
-  const [reviewError, setReviewError] = useState('');
-  const [isReviewSending, setIsReviewSending] = useState(false);
-  const [selectedChatOrderId, setSelectedChatOrderId] = useState<string | null>(null);
-  const activeView = searchParams.get('tab') === 'chats' ? 'chats' : 'orders';
-  const currentOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
+  const [filter, setFilter] = useState<ClientOrderFilter>('all');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [repeatNotice, setRepeatNotice] = useState('');
+  const [repeatPreview, setRepeatPreview] = useState<{ order: ClientOrder; message: string; checkoutPath: string } | null>(null);
+  const currentOrders = orders.filter(orderIsCurrent);
   const currentOrderIds = currentOrders.map((order) => order.id).sort().join('|');
-  const finishedOrders = orders.filter((order) => order.status === 'completed');
-  const canceledOrders = orders.filter((order) => order.status === 'canceled');
-  const chatItems = useMemo<OrderConversationInboxItem[]>(() => orders.flatMap((order) => {
-    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-    const catalogId = order.catalogId || restaurant?.id;
-    if (!catalogId) return [];
-    return [{
-      orderId: order.id,
-      catalogId,
-      orderNumber: formatPublicOrderNumber(order.id, order.restaurantName),
-      merchantName: order.restaurantName,
-      merchantLabel: getBusinessTerms(restaurant?.businessType).place,
-      customerName: order.clientName,
-      statusLabel: statusLabels[order.status],
-      orderStatus: order.status,
-      estimatedMinutes: order.estimatedTimeMin,
-      createdAt: order.createdAt,
-      totalLabel: formatPrice(order.totalAmount)
-    }];
-  }).sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()), [orders, snapshot.restaurants]);
+  const allOrderIds = useMemo(() => orders.map((order) => order.id).sort(), [orders]);
+  const unreadQuery = useQuery({
+    queryKey: ['client-order-chat-unread', allOrderIds.join('|')],
+    queryFn: () => getClientOrderChatUnreadCounts(allOrderIds),
+    enabled: allOrderIds.length > 0,
+    staleTime: 5_000,
+    refetchInterval: 15_000,
+    retry: 1
+  });
+  const unreadByOrder = useMemo(() => new Map(
+    (unreadQuery.data ?? []).map((item) => [item.orderId, item.unreadCount])
+  ), [unreadQuery.data]);
+  const normalizedSearch = search.trim().toLocaleLowerCase('ru-RU');
+  const visibleOrders = useMemo(() => orders
+    .filter((order) => {
+      if (filter === 'current') return orderIsCurrent(order);
+      if (filter === 'completed') return order.status === 'completed';
+      if (filter === 'canceled') return order.status === 'canceled';
+      return true;
+    })
+    .filter((order) => !normalizedSearch || [
+      order.restaurantName,
+      formatPublicOrderNumber(order.id, order.restaurantName),
+      statusLabels[order.status],
+      order.addressLine
+    ].join(' ').toLocaleLowerCase('ru-RU').includes(normalizedSearch))
+    .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()), [filter, normalizedSearch, orders]);
 
   useEffect(() => {
     if (!currentOrderIds) return undefined;
@@ -3283,188 +3407,113 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     };
   }, [currentOrderIds, syncOrderPatch]);
 
-  const submitReview = async (event: FormEvent<HTMLFormElement>, order: ClientOrder) => {
-    event.preventDefault();
-    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-
-    setReviewError('');
-    setReviewMessage('');
-    setIsReviewSending(true);
-
-    try {
-      await saveClientReview({
-        orderId: order.id,
-        restaurantId: restaurant?.id ?? '',
-        clientName: profile.name || order.clientName,
-        clientPhone: profile.phone || order.clientPhone,
-        rating: reviewRating,
-        comment: reviewComment
-      });
-      await queryClient.invalidateQueries({ queryKey: ['client-platform'] });
-      setReviewMessage('Отзыв отправлен');
-      setReviewComment('');
-      setReviewOrderId(null);
-    } catch (error) {
-      setReviewError(error instanceof Error ? error.message : 'Не удалось отправить отзыв');
-    } finally {
-      setIsReviewSending(false);
-    }
+  const applyRepeat = (order: ClientOrder, checkoutPath: string) => {
+    repeatOrder(order);
+    restoreRestaurantCartFromOrder(snapshot, order);
+    navigate(checkoutPath);
   };
 
-  const renderOrder = (order: ClientOrder) => {
+  const requestRepeat = (order: ClientOrder) => {
     const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
     const orderPathPrefix = restaurant?.businessType === 'grocery'
       ? `/r/${order.restaurantSlug}`
       : `/${order.restaurantSlug}`;
-    const restaurantMapHref = restaurant
-      ? buildYandexMapsUrl({
-          addressLine: restaurant.addressLine,
-          lat: restaurant.lat ?? Number.NaN,
-          lng: restaurant.lng ?? Number.NaN
-        })
-      : '';
-
-    return (
-    <article className="order-card" key={order.id}>
-      <span className="order-card__summary">
-        <strong>{order.restaurantName}</strong>
-        <small>{new Date(order.createdAt).toLocaleDateString('ru-RU')} · {formatPrice(order.totalAmount)}</small>
-        <em>{statusLabels[order.status]}</em>
-        <small>{orderTypeLabels[order.orderType]} · {getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</small>
-        <small>{order.addressLine}</small>
-      </span>
-      <div className="order-card__actions">
-        <Link to={`${orderPathPrefix}/order/${order.id}`}>
-          <ReceiptText />
-          Подробнее о заказе
-        </Link>
-        {restaurantMapHref && (
-          <a href={restaurantMapHref} target="_blank" rel="noreferrer">
-            <MapPin />
-            Ресторан
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setSelectedChatOrderId(order.id);
-            setSearchParams({ tab: 'chats' });
-          }}
-        >
-          <MessageCircle />
-          Чат
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            repeatOrder(order);
-            restoreRestaurantCartFromOrder(snapshot, order);
-            navigate(`${orderPathPrefix}/checkout`);
-          }}
-        >
-          <Repeat2 />
-          Повторить
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setReviewOrderId(reviewOrderId === order.id ? null : order.id);
-            setReviewError('');
-            setReviewMessage('');
-          }}
-        >
-          <Star />
-          Отзыв
-        </button>
-      </div>
-      {order.driverName && (
-        <section className="order-card__driver">
-          <span>
-            <Bike />
-            <strong>{order.driverName}</strong>
-            {order.driverLocationAt && <small>Обновлено {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>}
-          </span>
-          {order.driverPhone && (
-            <a href={`tel:${order.driverPhone}`}>
-              <Phone />
-              {order.driverPhone}
-            </a>
-          )}
-        </section>
-      )}
-      {reviewOrderId === order.id && (
-        <form className="order-review-form" onSubmit={(event) => void submitReview(event, order)}>
-          <label>
-            Оценка
-            <select value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))}>
-              <option value={5}>5</option>
-              <option value={4}>4</option>
-              <option value={3}>3</option>
-              <option value={2}>2</option>
-              <option value={1}>1</option>
-            </select>
-          </label>
-          <label>
-            Отзыв
-            <textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} rows={3} />
-          </label>
-          {reviewError && <small className="form-error">{reviewError}</small>}
-          <button type="submit" disabled={isReviewSending}>
-            {isReviewSending ? 'Отправляем...' : 'Отправить отзыв'}
-          </button>
-        </form>
-      )}
-    </article>
-    );
+    const prepared = prepareClientRepeatOrder(snapshot, order);
+    setRepeatNotice('');
+    if (!prepared.order) {
+      setRepeatNotice(prepared.reason);
+      return;
+    }
+    const checkoutPath = `${orderPathPrefix}/checkout`;
+    if (prepared.unavailableNames.length > 0 || prepared.changedPriceNames.length > 0) {
+      setRepeatPreview({ order: prepared.order, message: prepared.reason, checkoutPath });
+      return;
+    }
+    applyRepeat(prepared.order, checkoutPath);
   };
 
   return (
     <>
-      <PageHeader title="Мои заказы" backTo="/profile" />
-      <nav className="client-order-tabs" aria-label="Заказы и чаты">
-        <button type="button" data-active={activeView === 'orders'} onClick={() => setSearchParams({})}>
-          <ReceiptText /> Заказы <b>{orders.length}</b>
-        </button>
-        <button type="button" data-active={activeView === 'chats'} onClick={() => setSearchParams({ tab: 'chats' })}>
-          <MessageCircle /> Чаты <b>{chatItems.length}</b>
-        </button>
-      </nav>
-      {activeView === 'orders' ? (
-        <>
-          <OrderGroup title="Текущие" orders={currentOrders} renderOrder={renderOrder} />
-          <OrderGroup title="Завершённые" orders={finishedOrders} renderOrder={renderOrder} />
-          <OrderGroup title="Отменённые" orders={canceledOrders} renderOrder={renderOrder} />
-          {reviewMessage && <p className="form-success">{reviewMessage}</p>}
-          {orders.length === 0 && <EmptyState title="Заказов пока нет" linkTo="/restaurants" linkText="Выбрать ресторан" />}
-        </>
+      <PageHeader
+        title="Мои заказы"
+        backTo="/profile"
+        action={(
+          <div className="client-orders-header-actions">
+            <button className="icon-button" type="button" aria-label="Поиск заказов" onClick={() => setSearchOpen((value) => !value)}>
+              <Search />
+            </button>
+            <ClientNotificationCenter />
+          </div>
+        )}
+      />
+      {searchOpen && (
+        <label className="client-orders-search">
+          <Search />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Номер заказа или заведение" autoFocus />
+        </label>
+      )}
+      <OrderFilterChips value={filter} currentCount={currentOrders.length} onChange={setFilter} />
+      {isLoading && orders.length === 0 ? (
+        <ClientOrdersSkeleton />
+      ) : isError && orders.length === 0 ? (
+        <section className="client-orders-error" role="alert">
+          <strong>Не удалось загрузить заказы</strong>
+          <p>Проверьте соединение и попробуйте снова.</p>
+          <button type="button" onClick={onRetry}>Повторить</button>
+        </section>
+      ) : visibleOrders.length > 0 ? (
+        <div className="client-orders-list">
+          {visibleOrders.map((order) => {
+            const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+            const orderPathPrefix = restaurant?.businessType === 'grocery' ? `/r/${order.restaurantSlug}` : `/${order.restaurantSlug}`;
+            const trackingHref = order.orderType === 'delivery' &&
+              typeof order.driverLat === 'number' && Number.isFinite(order.driverLat) &&
+              typeof order.driverLng === 'number' && Number.isFinite(order.driverLng) &&
+              typeof order.deliveryLat === 'number' && Number.isFinite(order.deliveryLat) &&
+              typeof order.deliveryLng === 'number' && Number.isFinite(order.deliveryLng)
+              ? buildYandexMapsRouteUrl({
+                  from: { lat: order.driverLat, lng: order.driverLng, address: 'Курьер' },
+                  to: { lat: order.deliveryLat, lng: order.deliveryLng, address: order.addressLine }
+                })
+              : undefined;
+            return (
+              <ClientOrderCard
+                order={order}
+                restaurant={restaurant}
+                orderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
+                statusLabel={statusLabels[order.status]}
+                detailsPath={`${orderPathPrefix}/order/${order.id}`}
+                chatPath={`/profile/orders/${encodeURIComponent(order.id)}/chat`}
+                trackingHref={trackingHref}
+                unreadCount={unreadByOrder.get(order.id) ?? 0}
+                onRepeat={() => requestRepeat(order)}
+                key={order.id}
+              />
+            );
+          })}
+        </div>
+      ) : orders.length === 0 ? (
+        <EmptyState title="Заказов пока нет" linkTo="/" linkText="Найти товары" />
       ) : (
-        <OrderConversationInbox
-          items={chatItems}
-          expectedViewer="client"
-          selectedOrderId={selectedChatOrderId}
-          onSelectedOrderChange={setSelectedChatOrderId}
-        />
+        <section className="client-orders-filter-empty">
+          <strong>Заказы не найдены</strong>
+          <p>Измените фильтр или поисковый запрос.</p>
+        </section>
+      )}
+      {repeatNotice && <p className="client-orders-repeat-notice" role="alert">{repeatNotice}</p>}
+      {repeatPreview && (
+        <div className="client-orders-repeat-backdrop" role="presentation">
+          <section className="client-orders-repeat-dialog" role="dialog" aria-modal="true" aria-labelledby="repeat-order-title">
+            <strong id="repeat-order-title">В заказе есть изменения</strong>
+            <p>{repeatPreview.message}</p>
+            <div>
+              <button type="button" onClick={() => setRepeatPreview(null)}>Оставить текущую корзину</button>
+              <button type="button" onClick={() => applyRepeat(repeatPreview.order, repeatPreview.checkoutPath)}>Продолжить</button>
+            </div>
+          </section>
+        </div>
       )}
     </>
-  );
-}
-
-function OrderGroup({
-  title,
-  orders,
-  renderOrder
-}: {
-  title: string;
-  orders: ClientOrder[];
-  renderOrder: (order: ClientOrder) => ReactNode;
-}) {
-  if (orders.length === 0) return null;
-
-  return (
-    <section className="plain-section">
-      <h2>{title}</h2>
-      <div className="order-list">{orders.map(renderOrder)}</div>
-    </section>
   );
 }
 
