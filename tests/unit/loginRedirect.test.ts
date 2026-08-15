@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   assertExpectedLoginRole,
   getExpectedLoginRoleForReturnTo,
@@ -9,11 +9,26 @@ import {
 import {
   buildProfileLoginPath,
   buildRoleAppUrl,
+  hasPreviousAppHistoryEntry,
+  navigateBackOrFallback,
   redirectToRoleApp,
   resolveProfileLoginTarget
 } from '../../src/shared/appNavigation';
+import type { NavigateFunction } from 'react-router-dom';
 
 describe('staff login role selection', () => {
+  it('returns to the exact previous screen and uses a fallback only for direct entries', () => {
+    const navigate = vi.fn() as unknown as NavigateFunction;
+
+    expect(hasPreviousAppHistoryEntry({ idx: 2 })).toBe(true);
+    expect(hasPreviousAppHistoryEntry({ idx: 0 })).toBe(false);
+    navigateBackOrFallback(navigate, '/profile/orders', { idx: 2 });
+    expect(navigate).toHaveBeenLastCalledWith(-1);
+
+    navigateBackOrFallback(navigate, '/profile/orders', { idx: 0 });
+    expect(navigate).toHaveBeenLastCalledWith('/profile/orders', { replace: true });
+  });
+
   it('opens every role login inside the client profile and rejects unsafe return paths', () => {
     expect(buildProfileLoginPath('/business/finik')).toBe(
       '/profile?login=1&returnTo=%2Fbusiness%2Ffinik'

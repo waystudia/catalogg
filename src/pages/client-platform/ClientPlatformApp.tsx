@@ -117,7 +117,7 @@ import {
   resolveUnifiedLogin
 } from '../../shared/api/loginRedirectApi';
 import { refreshStaleAuthClient } from '../../shared/authClientVersion';
-import { redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
+import { navigateBackOrFallback, redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
@@ -748,11 +748,17 @@ function PageHeader({
   backTo?: string;
   action?: ReactNode;
 }) {
+  const navigate = useNavigate();
   return (
     <header className="platform-header">
-      <Link className="icon-button" to={backTo} aria-label="Назад">
+      <button
+        className="icon-button"
+        type="button"
+        onClick={() => navigateBackOrFallback(navigate, backTo)}
+        aria-label="Назад"
+      >
         <ArrowLeft />
-      </Link>
+      </button>
       <h1>{title}</h1>
       <div className="platform-header__action">
         {action ?? (
@@ -2792,7 +2798,6 @@ function ProfileArea({
         order={order}
         restaurant={restaurant}
         orderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
-        statusLabel={statusLabels[order.status]}
         detailsPath={`${detailsPrefix}/order/${order.id}`}
         onRead={() => void queryClient.invalidateQueries({ queryKey: ['client-order-chat-unread'] })}
       />

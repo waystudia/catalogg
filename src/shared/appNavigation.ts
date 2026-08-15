@@ -1,3 +1,5 @@
+import type { NavigateFunction } from 'react-router-dom';
+
 export const buildClientHomeUrl = () => {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
   return `${base}#/`;
@@ -21,6 +23,23 @@ export const buildProfileLoginPath = (returnTo = '/profile') => {
     ? returnTo
     : '/profile';
   return `/profile?login=1&returnTo=${encodeURIComponent(safeReturnTo)}`;
+};
+
+export const hasPreviousAppHistoryEntry = (state: unknown) => {
+  if (!state || typeof state !== 'object' || !('idx' in state)) return false;
+  return typeof state.idx === 'number' && state.idx > 0;
+};
+
+export const navigateBackOrFallback = (
+  navigate: NavigateFunction,
+  fallback: string,
+  historyState: unknown = typeof window === 'undefined' ? null : window.history.state
+) => {
+  if (hasPreviousAppHistoryEntry(historyState)) {
+    navigate(-1);
+    return;
+  }
+  navigate(fallback, { replace: true });
 };
 
 const roleAppRoutePattern = /^\/(?:admin(?:\/|$)|driver(?:\/|$)|business\/|restaurant\/activation(?:\/|$)|[^/]+\/(?:dashboard|orders|dishes|settings|scanner|pos|payments)(?:\/|$))/;
