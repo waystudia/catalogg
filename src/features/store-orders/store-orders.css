@@ -659,6 +659,14 @@
   color: #f59e0b;
 }
 
+.store-pickup-card[data-channel='delivery'] {
+  background: #f5f3ff;
+}
+
+.store-pickup-card[data-channel='delivery'] > svg {
+  color: var(--store-purple);
+}
+
 .store-pickup-card div {
   display: grid;
   gap: 3px;
@@ -884,6 +892,31 @@
   padding: 11px;
   background: #ecfdf3;
   color: #027a48;
+}
+
+.store-delivery-dispatch__recovery {
+  display: grid;
+  gap: 8px;
+}
+
+.store-delivery-dispatch__recovery p {
+  margin: 0;
+  color: #b54708;
+  font-size: 11px;
+}
+
+.store-delivery-dispatch__recovery button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #fedf89;
+  border-radius: 12px;
+  background: #fffaeb;
+  color: #b54708;
+  font: inherit;
+  font-weight: 900;
 }
 
 .store-delivery-dispatch__assigned span,

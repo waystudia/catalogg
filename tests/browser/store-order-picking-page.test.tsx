@@ -128,11 +128,19 @@ test('completed delivery picking has no countdown and exposes delivery only as t
 test('waiting driver remains a status without any expired timer', async () => {
   const waiting = await renderPage(order({
     status: 'waiting_driver',
-    estimatedReadyAt: '2020-08-15T09:00:00.000Z'
+    estimatedReadyAt: '2020-08-15T09:00:00.000Z',
+    restaurantLat: null,
+    restaurantLng: null
   }));
 
   await expect.element(waiting.screen.getByText('Ждёт водителя')).toBeVisible();
   await expect.element(waiting.screen.getByText(/Осталось|Время вышло/u)).not.toBeInTheDocument();
+  await expect.element(waiting.screen.getByText('Доставка')).toBeVisible();
+  await expect.element(waiting.screen.getByText('Самовывоз')).not.toBeInTheDocument();
+  const retryDispatch = waiting.screen.getByRole('button', { name: 'Повторить вызов доставки' });
+  await expect.element(retryDispatch).toBeVisible();
+  await retryDispatch.click();
+  expect(waiting.callbacks.onStatusChange).toHaveBeenCalledWith('waiting_driver');
 });
 
 test('pickup order replaces the route map with pickup information', async () => {

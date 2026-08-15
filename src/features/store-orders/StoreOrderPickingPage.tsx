@@ -59,16 +59,25 @@ const getStatusLabel = (order: RestaurantOrder) => {
   return 'Новый заказ';
 };
 
-function StoreDeliveryDispatchPanel({ order, onChanged }: { order: RestaurantOrder; onChanged: () => void }) {
+function StoreDeliveryDispatchPanel({
+  order,
+  onChanged,
+  onRetryDispatch
+}: {
+  order: RestaurantOrder;
+  onChanged: () => void;
+  onRetryDispatch: () => Promise<void>;
+}) {
   const [assigningDriverId, setAssigningDriverId] = useState('');
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
+  const [isRetryingDispatch, setIsRetryingDispatch] = useState(false);
   const visible =
     order.fulfillmentType === 'delivery' &&
     ['waiting_driver', 'assigned_driver', 'driver_assigned'].includes(order.status);
   const driversQuery = useQuery({
     queryKey: ['store-dispatch-drivers', order.id, order.catalogId, order.deliveryCity, order.deliverySettlement],
     queryFn: () => getRestaurantDispatchDrivers(order),
-    enabled: visible && !order.driverName,
+    enabled: visible && Boolean(order.deliveryId) && !order.driverName,
     staleTime: 20_000
   });
   const drivers = driversQuery.data ?? [];
@@ -117,12 +126,25 @@ function StoreDeliveryDispatchPanel({ order, onChanged }: { order: RestaurantOrd
     }
   };
 
+  const retryDispatch = async () => {
+    if (isRetryingDispatch) return;
+    setIsRetryingDispatch(true);
+    try {
+      await onRetryDispatch();
+      toast.success('Задача доставки создана повторно');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось создать задачу доставки');
+    } finally {
+      setIsRetryingDispatch(false);
+    }
+  };
+
   return (
     <section className="store-delivery-dispatch" aria-label="Выбор курьера">
       <header>
         <span><Truck /></span>
         <div><strong>Курьер для доставки</strong><small>В сети: {onlineDrivers.length}</small></div>
-        <button type="button" onClick={() => void driversQuery.refetch()} disabled={driversQuery.isFetching}>Обновить</button>
+        <button type="button" onClick={() => void driversQuery.refetch()} disabled={driversQuery.isFetching || !order.deliveryId || Boolean(order.driverName)}>Обновить</button>
       </header>
       {order.driverName ? (
         <div className="store-delivery-dispatch__assigned">
@@ -133,28 +155,38 @@ function StoreDeliveryDispatchPanel({ order, onChanged }: { order: RestaurantOrd
         </div>
       ) : (
         <>
-          {!order.deliveryId && <p>Создаём задачу доставки…</p>}
-          {ownDrivers.length > 0 ? (
-            <div className="store-delivery-dispatch__drivers">
-              {ownDrivers.map((driver) => (
-                <button
-                  type="button"
-                  key={driver.id}
-                  disabled={!canAssign(driver) || Boolean(assigningDriverId)}
-                  data-online={driver.isOnline || undefined}
-                  onClick={() => void assignDriver(driver)}
-                >
-                  <span><strong>{driver.name}{driver.isPrimary ? ' · Основной' : ''}</strong><small>{driver.vehicleInfo || 'Штатный курьер'} · заказов {driver.activeDeliveries}/{driver.maxActiveDeliveries}</small></span>
-                  <b>{!driver.isOnline ? 'Не в сети' : canAssign(driver) ? 'Назначить' : 'Занят'}</b>
-                </button>
-              ))}
+          {!order.deliveryId ? (
+            <div className="store-delivery-dispatch__recovery">
+              <p>Задача доставки ещё не создана.</p>
+              <button type="button" disabled={isRetryingDispatch} onClick={() => void retryDispatch()}>
+                <Truck /> {isRetryingDispatch ? 'Создаём доставку…' : 'Повторить вызов доставки'}
+              </button>
             </div>
           ) : (
-            <p>Штатных курьеров нет в списке. Можно вызвать водителей платформы.</p>
+            <>
+              {ownDrivers.length > 0 ? (
+                <div className="store-delivery-dispatch__drivers">
+                  {ownDrivers.map((driver) => (
+                    <button
+                      type="button"
+                      key={driver.id}
+                      disabled={!canAssign(driver) || Boolean(assigningDriverId)}
+                      data-online={driver.isOnline || undefined}
+                      onClick={() => void assignDriver(driver)}
+                    >
+                      <span><strong>{driver.name}{driver.isPrimary ? ' · Основной' : ''}</strong><small>{driver.vehicleInfo || 'Штатный курьер'} · заказов {driver.activeDeliveries}/{driver.maxActiveDeliveries}</small></span>
+                      <b>{!driver.isOnline ? 'Не в сети' : canAssign(driver) ? 'Назначить' : 'Занят'}</b>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p>Штатных курьеров нет в списке. Можно вызвать водителей платформы.</p>
+              )}
+              <button className="store-delivery-dispatch__pool" type="button" disabled={isSearchingDriver} onClick={() => void searchDriverPool()}>
+                <Truck /> {isSearchingDriver ? 'Ищем водителей…' : 'Вызвать таксистов'}
+              </button>
+            </>
           )}
-          <button className="store-delivery-dispatch__pool" type="button" disabled={isSearchingDriver || !order.deliveryId} onClick={() => void searchDriverPool()}>
-            <Truck /> {isSearchingDriver ? 'Ищем водителей…' : 'Вызвать таксистов'}
-          </button>
         </>
       )}
     </section>
@@ -283,8 +315,9 @@ export function StoreOrderPickingPage({
         <span><i />{getStatusLabel(order)}</span>
       </div>
 
-      {order.fulfillmentType === 'delivery' && order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null ? (
-        <section className="store-order-route-block">
+      {order.fulfillmentType === 'delivery' ? (
+        order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null ? (
+          <section className="store-order-route-block">
           <button
             className="store-order-route-toggle"
             type="button"
@@ -314,7 +347,13 @@ export function StoreOrderPickingPage({
               </div>
             </section>
           )}
-        </section>
+          </section>
+        ) : (
+          <section className="store-pickup-card" data-channel="delivery">
+            <Truck />
+            <div><strong>Доставка</strong><span>{order.deliveryAddress || order.deliverySettlement || order.deliveryCity || 'Адрес уточняется'}</span></div>
+          </section>
+        )
       ) : (
         <section className="store-pickup-card">
           <Store />
@@ -386,7 +425,13 @@ export function StoreOrderPickingPage({
         </button>
       )}
 
-      {canManageDelivery && <StoreDeliveryDispatchPanel order={order} onChanged={onPickingChanged} />}
+      {canManageDelivery && (
+        <StoreDeliveryDispatchPanel
+          order={order}
+          onChanged={onPickingChanged}
+          onRetryDispatch={() => changeStatus('waiting_driver')}
+        />
+      )}
 
       {scannerOpen && <SharedBarcodeScanner onDetected={(barcode) => void handleBarcode(barcode)} onClose={() => setScannerOpen(false)} />}
       {chatOpen && (

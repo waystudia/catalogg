@@ -532,6 +532,7 @@
 .order-conversation[data-presentation='messenger'] .order-conversation__messages article {
   width: fit-content;
   max-width: min(82%, 560px);
+  justify-self: start;
   border-radius: 18px 18px 18px 5px;
   padding: 10px 12px 8px;
   background: #f1f3f6;
