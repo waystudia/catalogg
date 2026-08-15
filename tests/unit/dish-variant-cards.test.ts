@@ -124,6 +124,58 @@ describe('dish variant catalog cards', () => {
     expect(result.removedProductIds).toEqual(['stale-third']);
   });
 
+  it('inherits the complete dish presentation, grouping, labels, serving and modifiers', () => {
+    const source = product({
+      publish_choice_cards: true,
+      choice_options: [{ name: 'большая', price: 900 }],
+      description: 'Сочная пицца на тонком тесте',
+      ingredients: 'Томаты, сыр, базилик',
+      image_url: '/margherita.webp',
+      image_urls: ['/margherita.webp', '/margherita-side.webp'],
+      serving: 'Подаётся с фирменным соусом',
+      category_id: 'pizza',
+      category_ids: ['pizza', 'popular'],
+      pair_ids: ['cola', 'fries'],
+      spicy_level: 2,
+      is_popular: true,
+      is_new: true,
+      is_hit: true,
+      badges: ['Выбор шефа'],
+      allergens: ['глютен', 'молоко'],
+      preparation_time: '25 мин',
+      modifier_groups: [{
+        id: 'sauces',
+        name: 'Соус',
+        required: false,
+        minSelected: 0,
+        maxSelected: 1,
+        options: [{ id: 'cheese', name: 'Сырный', priceDelta: 50, isDefault: false }]
+      }]
+    });
+
+    const generated = synchronizeDishVariantCards(source, [source]).generatedProducts[0];
+
+    expect(generated).toEqual(expect.objectContaining({
+      title: 'Острые крылышки большая',
+      description: source.description,
+      ingredients: source.ingredients,
+      image_url: source.image_url,
+      image_urls: source.image_urls,
+      serving: source.serving,
+      category_id: source.category_id,
+      category_ids: source.category_ids,
+      pair_ids: source.pair_ids,
+      spicy_level: source.spicy_level,
+      is_popular: true,
+      is_new: true,
+      is_hit: true,
+      badges: source.badges,
+      allergens: source.allergens,
+      preparation_time: source.preparation_time,
+      modifier_groups: source.modifier_groups
+    }));
+  });
+
   it('removes only generated cards for this dish when publishing is disabled', () => {
     const source = product({
       publish_choice_cards: false,

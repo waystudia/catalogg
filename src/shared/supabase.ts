@@ -398,6 +398,10 @@ const applyProductModifiers = (
 
 const productConfigKeys = [
   'old_price',
+  'spicy_level',
+  'category_ids',
+  'drink_type',
+  'pair_ids',
   'pricing_type',
   'price_prefix',
   'price_tier',
@@ -415,6 +419,7 @@ const productConfigKeys = [
   'generated_from_choice',
   'generated_choice_index',
   'placeholder_kind',
+  'cost_price',
   'minimum_stock'
 ] as const satisfies ReadonlyArray<keyof Product>;
 
@@ -1010,6 +1015,9 @@ const createSlug = (value: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 63) || crypto.randomUUID();
 
+const getPlatformProductSlug = (productId: string) =>
+  productId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || crypto.randomUUID();
+
 const productToPlatformRow = (product: Product) => ({
   catalog_id: activePlatformCatalogId,
   category_id: product.category_id && uuidPattern.test(product.category_id) ? product.category_id : null,
@@ -1017,7 +1025,7 @@ const productToPlatformRow = (product: Product) => ({
   master_content_version: product.master_product_id ? product.master_content_version ?? 1 : null,
   content_source: product.master_product_id ? product.content_source ?? 'master_override' : 'local',
   title: product.title,
-  slug: product.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || crypto.randomUUID(),
+  slug: getPlatformProductSlug(product.id),
   status: product.is_hidden ? 'hidden' : product.stock_count <= 0 && !product.is_unlimited ? 'sold_out' : 'active',
   price: product.price,
   description: product.description,
@@ -1043,6 +1051,26 @@ const productToPlatformRow = (product: Product) => ({
     choice_options: normalizeProductChoiceOptions(product.choice_options, product.price)
   }
 });
+
+async function resolvePlatformProductCategoryId(product: Product) {
+  if (!supabase || !activePlatformCatalogId || !product.category_id) return null;
+  if (uuidPattern.test(product.category_id)) return product.category_id;
+  if (!activeCatalogIsLegacy) return null;
+
+  const legacyCategory = (await throwOnError(
+    supabase.from('category').select('name').eq('id', product.category_id).maybeSingle()
+  )) as { name?: string } | null;
+  if (!legacyCategory?.name) return null;
+  const platformCategory = (await throwOnError(
+    supabase
+      .from('categories')
+      .select('id')
+      .eq('catalog_id', activePlatformCatalogId)
+      .eq('slug', createSlug(legacyCategory.name))
+      .maybeSingle()
+  )) as { id?: string } | null;
+  return platformCategory?.id && uuidPattern.test(platformCategory.id) ? platformCategory.id : null;
+}
 
 async function saveProductChoices(product: Product) {
   if (!supabase || !activePlatformCatalogId) return;
@@ -1203,25 +1231,46 @@ async function syncPlatformProductImages(productId: string, imageUrls: readonly 
 export async function saveProductToSupabase(product: Product) {
   if (!supabase) return;
   if (activePlatformCatalogId) {
-    const row = productToPlatformRow(product);
+    const platformCategoryId = await resolvePlatformProductCategoryId(product);
+    const row = {
+      ...productToPlatformRow(product),
+      category_id: activeCatalogIsLegacy && !platformCategoryId ? undefined : platformCategoryId
+    };
+    if (activeCatalogIsLegacy) {
+      const legacyProduct: Record<string, unknown> = { ...product };
+      delete legacyProduct.choice_options;
+      await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
+    }
+    let platformProductId = product.id;
     if (uuidPattern.test(product.id)) {
       await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));
-      await syncPlatformProductImages(product.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
-      await saveProductChoices(product);
-      await saveProductModifiers(product);
-      await saveProductConfig(product.id, product);
-      return;
+    } else {
+      const existing = (await throwOnError(
+        supabase
+          .from('products')
+          .select('id')
+          .eq('catalog_id', activePlatformCatalogId)
+          .eq('slug', row.slug)
+          .maybeSingle()
+      )) as { id: string } | null;
+      if (existing?.id) {
+        platformProductId = existing.id;
+        await throwOnError(
+          supabase.from('products').update(row).eq('id', platformProductId).eq('catalog_id', activePlatformCatalogId)
+        );
+      } else {
+        const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
+          | { id: string }
+          | null;
+        if (!created?.id) return;
+        platformProductId = created.id;
+      }
     }
-    const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
-      | { id: string }
-      | null;
-    if (created?.id) {
-      const createdProduct = { ...product, id: String(created.id) };
-      await syncPlatformProductImages(createdProduct.id, product.image_urls?.length ? product.image_urls : [product.image_url]);
-      await saveProductChoices(createdProduct);
-      await saveProductModifiers(createdProduct);
-      await saveProductConfig(createdProduct.id, createdProduct);
-    }
+    const platformProduct = { ...product, id: platformProductId };
+    await syncPlatformProductImages(platformProductId, product.image_urls?.length ? product.image_urls : [product.image_url]);
+    await saveProductChoices(product);
+    await saveProductModifiers(platformProduct);
+    await saveProductConfig(platformProductId, product);
     return;
   }
   const legacyProduct: Record<string, unknown> = { ...product };
@@ -1248,9 +1297,26 @@ export async function updateProductInSupabase(productId: string, patch: Partial<
 export async function deleteProductFromSupabase(productId: string) {
   if (!supabase) return;
   if (activePlatformCatalogId) {
-    if (!uuidPattern.test(productId)) return;
-    await saveProductConfig(productId, {}, true);
-    await throwOnError(supabase.from('products').delete().eq('id', productId).eq('catalog_id', activePlatformCatalogId));
+    let platformProductId = productId;
+    if (activeCatalogIsLegacy) {
+      await throwOnError(supabase.from('product').delete().eq('id', productId));
+      if (!uuidPattern.test(productId)) {
+        const existing = (await throwOnError(
+          supabase
+            .from('products')
+            .select('id')
+            .eq('catalog_id', activePlatformCatalogId)
+            .eq('slug', getPlatformProductSlug(productId))
+            .maybeSingle()
+        )) as { id: string } | null;
+        platformProductId = existing?.id ?? '';
+      }
+    }
+    if (!uuidPattern.test(platformProductId)) return;
+    await saveProductConfig(platformProductId, {}, true);
+    await throwOnError(
+      supabase.from('products').delete().eq('id', platformProductId).eq('catalog_id', activePlatformCatalogId)
+    );
     return;
   }
   await throwOnError(supabase.from('product').delete().eq('id', productId));
