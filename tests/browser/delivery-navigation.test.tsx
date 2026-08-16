@@ -1,10 +1,12 @@
 import { expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import { useCallback, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
 import {
   DriverActiveScreen,
+  DriverCurrentDeliveryPanel,
   DriverMapScreen,
   DriverRouteLegProgress,
   DriverYandexNavigationActions
@@ -37,7 +39,7 @@ const navigationDelivery = (status: 'assigned' | 'arrived_to_restaurant' | 'hand
 
 const activeDelivery = (status: DeliveryOffer['status']): DeliveryOffer => ({
   businessType: 'restaurant',
-  catalogId: '',
+  catalogId: 'catalog-map-1',
   deliveryId: 'delivery-map-1',
   orderId: 'order-map-1',
   orderNumber: 'M9584',
@@ -139,6 +141,82 @@ test('shows the client rather than the restaurant after the driver has picked up
 
   await expect.element(screen.getByRole('button', { name: 'Клиент: Клиент' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Ресторан: Мангал' })).not.toBeInTheDocument();
+});
+
+test('opens the shared client chat directly over the driver map at the reported mobile viewport', async () => {
+  await page.viewport(372, 576);
+  try {
+    const screen = await render(
+      <MemoryRouter initialEntries={['/driver/map/delivery-map-1']}>
+        <main className="driver-app">
+          <section className="driver-phone driver-phone--map">
+            <DriverMapScreen
+              delivery={activeDelivery('handed_over')}
+              profile={driverProfile}
+            />
+          </section>
+        </main>
+      </MemoryRouter>
+    );
+
+    await screen.getByRole('button', { name: 'Написать клиенту' }).click();
+    const dialog = screen.getByRole('dialog', { name: 'Чат заказа M9584' });
+    await expect.element(dialog).toBeVisible();
+    await expect.element(dialog.getByRole('region', { name: 'Чат заказа' })).toBeVisible();
+    const composer = dialog.getByPlaceholder('Напишите сообщение...').element().closest('form');
+    expect(composer).not.toBeNull();
+    expect(composer!.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+    await dialog.getByRole('button', { name: 'Закрыть чат' }).click();
+    await expect.element(screen.getByRole('dialog', { name: 'Чат заказа M9584' })).not.toBeInTheDocument();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('keeps call and chat together and lets the assigned driver delete only a test order', async () => {
+  const deleteTestOrder = vi.fn(async () => true);
+  const onRefresh = vi.fn(async () => true);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  try {
+    const testDelivery = { ...activeDelivery('assigned'), isTestOrder: true };
+    const screen = await render(
+      <MemoryRouter>
+        <main className="driver-app">
+          <section className="driver-phone">
+            <DriverCurrentDeliveryPanel
+              offer={testDelivery}
+              onRefresh={onRefresh}
+              deleteTestOrder={deleteTestOrder}
+            />
+          </section>
+        </main>
+      </MemoryRouter>
+    );
+
+    await expect.element(screen.getByRole('link', { name: 'Позвонить клиенту' })).toBeVisible();
+    await screen.getByRole('button', { name: 'Чат с клиентом Клиент' }).click();
+    await expect.element(screen.getByRole('dialog', { name: 'Чат заказа M9584' })).toBeVisible();
+    await screen.getByRole('button', { name: 'Закрыть чат' }).click();
+
+    await screen.getByRole('button', { name: 'Удалить тестовый заказ M9584' }).click();
+    expect(confirm).toHaveBeenCalledWith('Удалить тестовый заказ M9584? Это действие нельзя отменить.');
+    expect(deleteTestOrder).toHaveBeenCalledWith(testDelivery);
+    expect(onRefresh).toHaveBeenCalledOnce();
+
+    await cleanup();
+    const realOrderScreen = await render(
+      <MemoryRouter>
+        <DriverCurrentDeliveryPanel
+          offer={{ ...activeDelivery('assigned'), isTestOrder: false }}
+          onRefresh={onRefresh}
+          deleteTestOrder={deleteTestOrder}
+        />
+      </MemoryRouter>
+    );
+    await expect.element(realOrderScreen.getByRole('button', { name: 'Удалить тестовый заказ M9584' })).not.toBeInTheDocument();
+  } finally {
+    confirm.mockRestore();
+  }
 });
 
 test('forces a fresh GPS reading and rebuilds the route from the map refresh button', async () => {

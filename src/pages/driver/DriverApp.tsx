@@ -25,6 +25,7 @@ import {
   Star,
   ToggleLeft,
   ToggleRight,
+  Trash2,
   User,
   WalletCards,
   X
@@ -60,6 +61,7 @@ import {
   confirmDriverPickup,
   confirmDriverRestaurantDeliveryPayout,
   confirmDriverRestaurantOrderPayment,
+  deleteDriverTestOrder,
   demoDriverId,
   getAuthenticatedDriverId,
   getDriverDashboard,
@@ -1099,6 +1101,40 @@ function DriverHeader({ title, action }: { title: string; action?: ReactNode }) 
   );
 }
 
+export function DriverOrderChatDialog({
+  delivery,
+  onClose
+}: {
+  delivery: DeliveryOffer;
+  onClose: () => void;
+}) {
+  return (
+    <div className="driver-order-chat-backdrop" role="presentation" onPointerDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section className="driver-order-chat-dialog" role="dialog" aria-modal="true" aria-labelledby="driver-order-chat-title">
+        <header>
+          <span>
+            <strong id="driver-order-chat-title">Чат заказа {delivery.orderNumber}</strong>
+            <small>{delivery.clientName ? `Клиент: ${delivery.clientName}` : 'Клиент заказа'}</small>
+          </span>
+          <button type="button" aria-label="Закрыть чат" onClick={onClose}><X /></button>
+        </header>
+        <OrderConversationPanel
+          orderId={delivery.orderId}
+          catalogId={delivery.catalogId}
+          expectedViewer="driver"
+          merchantLabel={getBusinessTerms(delivery.businessType).place}
+          orderStatus={delivery.status}
+          estimatedMinutes={delivery.routeEtaMin}
+          presentation="messenger"
+          panelId={`driver-order-chat-${delivery.orderId}`}
+        />
+      </section>
+    </div>
+  );
+}
+
 function DriverHomeScreen({
   profile,
   snapshot,
@@ -1362,12 +1398,14 @@ function DriverIncomingOrderPanel({
   );
 }
 
-function DriverCurrentDeliveryPanel({
+export function DriverCurrentDeliveryPanel({
   offer,
-  onRefresh
+  onRefresh,
+  deleteTestOrder = deleteDriverTestOrder
 }: {
   offer: DeliveryOffer;
   onRefresh: () => Promise<boolean>;
+  deleteTestOrder?: typeof deleteDriverTestOrder;
 }) {
   const terms = getBusinessTerms(offer.businessType);
   const navigate = useNavigate();
@@ -1377,6 +1415,8 @@ function DriverCurrentDeliveryPanel({
   const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
   const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [isDeletingTestOrder, setIsDeletingTestOrder] = useState(false);
   const restaurantRouteStorageKey = `driver-restaurant-route-started:${offer.deliveryId}`;
   const [restaurantRouteStarted, setRestaurantRouteStarted] = useState(
     () => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
@@ -1471,10 +1511,38 @@ function DriverCurrentDeliveryPanel({
     }
   };
 
+  const removeTestOrder = async () => {
+    if (!offer.isTestOrder || offer.isCombined || isDeletingTestOrder) return;
+    const confirmed = window.confirm(`Удалить тестовый заказ ${offer.orderNumber}? Это действие нельзя отменить.`);
+    if (!confirmed) return;
+    setIsDeletingTestOrder(true);
+    setError('');
+    try {
+      const deleted = await deleteTestOrder(offer);
+      if (!deleted) throw new Error('Заказ уже удалён или не найден');
+      await onRefresh();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Не удалось удалить тестовый заказ');
+    } finally {
+      setIsDeletingTestOrder(false);
+    }
+  };
+
   return (
+    <>
     <section className="driver-current-block">
       <div className="driver-current-block__accepted">
         <strong>✓ ЗАКАЗ ПРИНЯТ</strong>
+        {offer.isTestOrder && !offer.isCombined && (
+          <button
+            className="driver-current-block__delete-test"
+            type="button"
+            disabled={isDeletingTestOrder}
+            aria-label={`Удалить тестовый заказ ${offer.orderNumber}`}
+            title="Удалить тестовый заказ"
+            onClick={() => void removeTestOrder()}
+          ><Trash2 /></button>
+        )}
       </div>
       <header>
         <span>
@@ -1547,11 +1615,18 @@ function DriverCurrentDeliveryPanel({
             to={`/driver/map/${offer.deliveryId}`}
           ><Navigation />Карта</Link>
         )}
-        {offer.clientPhone ? (
-          <a className="driver-secondary" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
-        ) : (
-          <button className="driver-secondary" type="button" disabled><Phone />Позвонить</button>
-        )}
+        <div className="driver-current-block__contact-actions">
+          {offer.clientPhone ? (
+            <a className="driver-secondary" href={`tel:${offer.clientPhone}`} aria-label="Позвонить клиенту"><Phone /><span>Звонок</span></a>
+          ) : (
+            <button className="driver-secondary" type="button" disabled><Phone /><span>Звонок</span></button>
+          )}
+          {offer.catalogId ? (
+            <button className="driver-secondary" type="button" aria-label={`Чат с клиентом ${offer.clientName || ''}`.trim()} onClick={() => setChatOpen(true)}><MessageCircle /><span>Чат</span></button>
+          ) : (
+            <button className="driver-secondary" type="button" disabled><MessageCircle /><span>Чат</span></button>
+          )}
+        </div>
         {!offer.isCombined && nextAction && (
           <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
             {isUpdating ? 'Сохраняем...' : nextAction.label}
@@ -1559,6 +1634,8 @@ function DriverCurrentDeliveryPanel({
         )}
       </div>
     </section>
+    {chatOpen && <DriverOrderChatDialog delivery={offer} onClose={() => setChatOpen(false)} />}
+    </>
   );
 }
 
@@ -2242,6 +2319,7 @@ export function DriverMapScreen({
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
   const [locationRefreshStatus, setLocationRefreshStatus] = useState('Вы на маршруте');
   const [workflowError, setWorkflowError] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
   const sheetPointerStartRef = useRef<number | null>(null);
   const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
   const activeLeg = navigationStage?.activeLeg ?? 'restaurant';
@@ -2555,7 +2633,7 @@ export function DriverMapScreen({
                 </span>
                 <div>
                   {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`} aria-label="Позвонить клиенту"><Phone /></a>}
-                  {delivery.catalogId && <button type="button" aria-label="Написать клиенту" onClick={() => navigate(`/driver/active/${delivery.deliveryId}`)}><MessageCircle /></button>}
+                  {delivery.catalogId && <button type="button" aria-label="Написать клиенту" onClick={() => setChatOpen(true)}><MessageCircle /></button>}
                   {clientChatUrl && <a href={clientChatUrl} target="_blank" rel="noreferrer" aria-label="Открыть WhatsApp клиента"><ExternalLink /></a>}
                 </div>
               </article>
@@ -2565,6 +2643,7 @@ export function DriverMapScreen({
           <strong className="driver-map-sheet__empty">Нет активного заказа</strong>
         )}
       </section>
+      {chatOpen && delivery && <DriverOrderChatDialog delivery={delivery} onClose={() => setChatOpen(false)} />}
     </div>
   );
 }
