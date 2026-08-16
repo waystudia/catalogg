@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
-  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
+  MessageCircle, Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
@@ -48,6 +48,7 @@ import { StoreOrderQueue } from '../store-orders/StoreOrderQueue';
 import { StoreOrderPickingPage } from '../store-orders/StoreOrderPickingPage';
 import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import { navigateBackOrFallback } from '../../shared/appNavigation';
+import { OrderConversationInbox, type OrderConversationInboxItem } from '../order-conversation/OrderConversationInbox';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -106,7 +107,7 @@ export function RestaurantAdminWorkspace({
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
-      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner' || routeSection === 'pos'
+      : routeSection === 'orders' || routeSection === 'chats' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner' || routeSection === 'pos'
         ? routeSection
       : 'home'
   );
@@ -114,6 +115,9 @@ export function RestaurantAdminWorkspace({
   const [storeOrderQuery, setStoreOrderQuery] = useState('');
   const [settingsView, settingsViewHistory] = useBrowserBackedState<'home' | 'delivery'>(`restaurant:${catalogSlug}:settings-view`, 'home');
   const [selectedOrder, selectedOrderHistory] = useBrowserBackedState<RestaurantOrder | null>(`restaurant:${catalogSlug}:selected-order`, null);
+  const [selectedChatOrderId, setSelectedChatOrderId] = useState<string | null>(() =>
+    routeSection === 'chats' ? routeOrderId ?? null : null
+  );
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -176,10 +180,30 @@ export function RestaurantAdminWorkspace({
     return match ? Math.max(highest, Number(match[1])) : highest;
   }, 0) + 1, [orders]);
   const activeOrders = orders.filter((order) => !['completed', 'delivered', 'cancelled', 'canceled'].includes(order.status));
+  const chatItems = useMemo<OrderConversationInboxItem[]>(() => orders.map((order) => ({
+    orderId: order.id,
+    catalogId: order.catalogId,
+    orderNumber: order.orderNumber,
+    merchantName: restaurant.name || terms.place,
+    merchantLabel: terms.place,
+    customerName: order.clientName || 'Клиент',
+    statusLabel: getAdminOrderStatusLabel(order.status, restaurant.business_type),
+    orderStatus: order.status,
+    estimatedMinutes: (deliverySettings ?? defaultRestaurantDeliverySettings).default_preparation_minutes,
+    createdAt: order.createdAt,
+    totalLabel: formatPrice(order.total)
+  })), [deliverySettings, orders, restaurant.business_type, restaurant.name, terms.place]);
   const openTab = (nextTab: RestaurantAdminTab) => {
+    if (nextTab === 'chats') setSelectedChatOrderId(null);
     setTab(nextTab);
     if (nextTab !== 'settings') settingsViewHistory.replace('home');
     navigate(buildRestaurantAdminTabPath(catalogSlug, nextTab));
+  };
+  const openOrderChat = (orderId: string) => {
+    setSelectedChatOrderId(orderId);
+    setTab('chats');
+    settingsViewHistory.replace('home');
+    navigate(`${buildRestaurantAdminTabPath(catalogSlug, 'chats')}/${encodeURIComponent(orderId)}`);
   };
   const openOrderFromList = (order: RestaurantOrder) => {
     orderListScrollPositionRef.current = window.scrollY;
@@ -256,6 +280,11 @@ export function RestaurantAdminWorkspace({
       setTab('home');
       return;
     }
+    if (routeSection === 'chats') {
+      setSelectedChatOrderId(routeOrderId ?? null);
+      setTab('chats');
+      return;
+    }
     if (routeSection === 'pos') {
       setTab(moduleAccess.pos === 'disabled' ? 'home' : 'pos');
       return;
@@ -263,7 +292,7 @@ export function RestaurantAdminWorkspace({
     if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
       setTab(routeSection);
     }
-  }, [moduleAccess.pos, routeSection]);
+  }, [moduleAccess.pos, routeOrderId, routeSection]);
 
   useEffect(() => {
     if (!routeOrderId) return;
@@ -329,7 +358,8 @@ export function RestaurantAdminWorkspace({
     <main className={[
       'restaurant-admin',
       tab === 'pos' ? 'restaurant-admin--pos' : '',
-      tab === 'orders' && isGrocery ? 'restaurant-admin--grocery-orders' : ''
+      tab === 'orders' && isGrocery ? 'restaurant-admin--grocery-orders' : '',
+      tab === 'chats' && selectedChatOrderId ? 'restaurant-admin--chat-open' : ''
     ].filter(Boolean).join(' ')}>
       <aside className="restaurant-admin-sidebar">
         <BrandLogo compact />
@@ -418,6 +448,7 @@ export function RestaurantAdminWorkspace({
               <button type="button" onClick={onAddDish}><Plus />{terms.addItem}</button>
                 <button type="button" onClick={() => onOpenScreen('settings-stock')}><Package />Остатки</button>
                 <button type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
+                <button type="button" onClick={() => openTab('chats')}><MessageCircle />Чаты</button>
                 <button type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
                 {moduleAccess.pos !== 'disabled' && <button type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
               </section>
@@ -520,6 +551,7 @@ export function RestaurantAdminWorkspace({
                   }}
                   onRefreshOrders={onRefreshOrders}
                   onOrderChanged={onRefreshOrders}
+                  onOpenChat={openOrderChat}
                   canDeleteOrder={selectedVisibleOrder.isTestOrder || canDeletePreactivationOrders}
                   onDelete={() => deleteOrder(selectedVisibleOrder)}
                 />
@@ -589,6 +621,28 @@ export function RestaurantAdminWorkspace({
                 ))}
               </div>
             </div>
+          </section>
+        )}
+
+        {tab === 'chats' && (
+          <section className="restaurant-admin__content restaurant-admin__content--chats">
+            <OrderConversationInbox
+              items={chatItems}
+              expectedViewer="staff"
+              selectedOrderId={selectedChatOrderId}
+              onSelectedOrderChange={(orderId) => {
+                setSelectedChatOrderId(orderId);
+                const chatsPath = buildRestaurantAdminTabPath(catalogSlug, 'chats');
+                navigate(orderId ? `${chatsPath}/${encodeURIComponent(orderId)}` : chatsPath, { replace: true });
+              }}
+              onOpenOrder={(orderId) => {
+                const order = orders.find((candidate) => candidate.id === orderId);
+                if (order) selectedOrderHistory.replace(order);
+                setTab('orders');
+                navigate(buildRestaurantAdminTabPath(catalogSlug, 'orders'));
+              }}
+              onChanged={onRefreshOrders}
+            />
           </section>
         )}
 

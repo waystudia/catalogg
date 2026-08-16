@@ -13,6 +13,7 @@ describe('PWA navigation', () => {
     expect(routeIsRoleAppPath('/admin')).toBe(true);
     expect(routeIsRoleAppPath('/admin/restaurants')).toBe(true);
     expect(routeIsRoleAppPath('/mangal/dashboard')).toBe(true);
+    expect(routeIsRoleAppPath('/mangal/chats/order-chat-1')).toBe(true);
     expect(routeIsRoleAppPath('/business/finik')).toBe(true);
     expect(routeIsRoleAppPath('/mangal/settings/?tab=delivery')).toBe(true);
     expect(routeIsRoleAppPath('/profile/settings')).toBe(false);
@@ -91,6 +92,7 @@ describe('PWA navigation', () => {
   it('gives every restaurant tab a stable resumable route', () => {
     expect(buildRestaurantAdminTabPath('  mangal  ', 'home')).toBe('/mangal/dashboard');
     expect(buildRestaurantAdminTabPath('mangal', 'orders')).toBe('/mangal/orders');
+    expect(buildRestaurantAdminTabPath('mangal', 'chats')).toBe('/mangal/chats');
     expect(buildRestaurantAdminTabPath('mangal', 'dishes')).toBe('/mangal/dishes');
     expect(buildRestaurantAdminTabPath('mangal', 'scanner')).toBe('/mangal/scanner');
     expect(buildRestaurantAdminTabPath('mangal', 'pos')).toBe('/mangal/pos');

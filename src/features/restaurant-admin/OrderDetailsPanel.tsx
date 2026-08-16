@@ -69,6 +69,7 @@ export function OrderDetailsPanel({
   onStatus,
   onRefreshOrders,
   onOrderChanged,
+  onOpenChat,
   canDeleteOrder = false,
   onDelete
 }: {
@@ -81,6 +82,7 @@ export function OrderDetailsPanel({
   onStatus: (status: RestaurantOrderStatus, reason?: string, readyMinutes?: MerchantReadyMinutes) => Promise<void>;
   onRefreshOrders: () => void;
   onOrderChanged?: () => void;
+  onOpenChat?: (orderId: string) => void;
   canDeleteOrder?: boolean;
   onDelete: () => Promise<void>;
 }) {
@@ -464,14 +466,20 @@ export function OrderDetailsPanel({
         <button
           className="admin-order-chat-toggle"
           type="button"
-          aria-expanded={isChatOpen}
-          aria-controls={`admin-order-chat-${order.id}`}
-          onClick={() => setIsChatOpen((isOpen) => !isOpen)}
+          aria-expanded={onOpenChat ? undefined : isChatOpen}
+          aria-controls={onOpenChat ? undefined : `admin-order-chat-${order.id}`}
+          onClick={() => {
+            if (onOpenChat) {
+              onOpenChat(order.id);
+            } else {
+              setIsChatOpen((isOpen) => !isOpen);
+            }
+          }}
         >
           <MessageCircle />
-          {isChatOpen ? 'Скрыть чат заказа' : 'Открыть чат заказа'}
+          {!onOpenChat && isChatOpen ? 'Скрыть чат заказа' : 'Открыть чат заказа'}
         </button>
-        {isChatOpen && (
+        {!onOpenChat && isChatOpen && (
           <div id={`admin-order-chat-${order.id}`}>
             <OrderConversationPanel
               orderId={order.id}

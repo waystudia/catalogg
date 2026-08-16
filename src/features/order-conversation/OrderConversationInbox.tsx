@@ -131,6 +131,12 @@ export function OrderConversationInbox({
   }, [expectedViewer, items, refreshSummaries, summaryApi]);
 
   useEffect(() => {
+    if (selectedOrderId === undefined || conversationState.selectedOrderId === selectedOrderId) return;
+    conversationHistory.replace((current) => ({ ...current, selectedOrderId }));
+    lastReportedOrderIdRef.current = selectedOrderId;
+  }, [conversationHistory, conversationState.selectedOrderId, selectedOrderId]);
+
+  useEffect(() => {
     if (!activeOrderId || items.some((item) => item.orderId === activeOrderId)) return;
     conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
     lastReportedOrderIdRef.current = null;
@@ -150,7 +156,11 @@ export function OrderConversationInbox({
   };
 
   const closeConversation = () => {
-    conversationHistory.back();
+    conversationHistory.back(() => {
+      conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
+      lastReportedOrderIdRef.current = null;
+      onSelectedOrderChange?.(null);
+    });
   };
 
   const handleChanged = () => {
