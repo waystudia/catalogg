@@ -11,6 +11,7 @@ const choosePhoto = (input: HTMLInputElement, file: File) => {
 test('a product photo is processed automatically and the merchant chooses which version to save', async () => {
   let finishProcessing: ((file: File) => void) | undefined;
   const processed = new File(['white-background'], 'product-white.jpg', { type: 'image/jpeg' });
+  const photoPreloader = vi.fn(async () => undefined);
   const photoProcessor = vi.fn(() => new Promise<File>((resolve) => {
     finishProcessing = resolve;
   }));
@@ -20,10 +21,12 @@ test('a product photo is processed automatically and the merchant chooses which 
       catalogId="demo-store"
       demo
       photoProcessor={photoProcessor}
+      photoPreloader={photoPreloader}
     />
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  expect(photoPreloader).toHaveBeenCalledOnce();
   await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
   await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
@@ -35,7 +38,8 @@ test('a product photo is processed automatically and the merchant chooses which 
   );
 
   await expect.element(screen.getByText('Убираем фон и готовим белый вариант…')).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Отправить в общую базу' })).toBeDisabled();
+  await expect.element(screen.getByText('Оригинал уже выбран — товар можно сохранить сразу.')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Отправить в общую базу' })).toBeEnabled();
   expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
 
   finishProcessing?.(processed);

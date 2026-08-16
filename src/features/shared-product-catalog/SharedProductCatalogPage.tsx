@@ -99,12 +99,14 @@ export function SharedProductCatalogPage({
   mode,
   catalogId = null,
   demo = false,
-  photoProcessor = removeProductPhotoBackground
+  photoProcessor = removeProductPhotoBackground,
+  photoPreloader = preloadProductPhotoBackgroundRemoval
 }: {
   mode: SharedProductCatalogMode;
   catalogId?: string | null;
   demo?: boolean;
   photoProcessor?: ProductPhotoProcessor;
+  photoPreloader?: () => Promise<void>;
 }) {
   const [products, setProducts] = useState<SharedProduct[]>(demo ? demoProducts : []);
   const [categories, setCategories] = useState<MasterCategory[]>(demo ? demoCategories : []);
@@ -130,6 +132,10 @@ export function SharedProductCatalogPage({
   const photoRequestRef = useRef(0);
   const originalPhotoUrl = useObjectUrl(originalPhoto);
   const processedPhotoUrl = useObjectUrl(processedPhoto);
+
+  const warmUpPhotoProcessor = () => {
+    void photoPreloader().catch(() => undefined);
+  };
 
   const resetPhoto = () => {
     photoRequestRef.current += 1;
@@ -236,7 +242,7 @@ export function SharedProductCatalogPage({
   }, [categoryFilter, demo, products, query]);
 
   const useDetectedBarcode = (barcode: string) => {
-    void preloadProductPhotoBackgroundRemoval();
+    warmUpPhotoProcessor();
     setScannerOpen(false);
     setQuery(barcode);
     const found = findSharedProductByBarcode(products, barcode);
@@ -372,6 +378,7 @@ export function SharedProductCatalogPage({
         </div>
         <button type="button" onClick={() => {
           prepareBarcodeScanSound();
+          warmUpPhotoProcessor();
           setFormOpen(true);
           setScannerOpen(true);
         }}><Plus />Добавить товар</button>
@@ -412,7 +419,7 @@ export function SharedProductCatalogPage({
               {photoStatus === 'processing' && (
                 <div className="shared-catalog-photo-progress" aria-live="polite">
                   <LoaderCircle className="is-spinning" />
-                  <span><strong>Убираем фон и готовим белый вариант…</strong><small>Первый запуск может занять больше времени: модель загружается один раз.</small></span>
+                  <span><strong>Убираем фон и готовим белый вариант…</strong><small>Оригинал уже выбран — товар можно сохранить сразу.</small></span>
                   <progress max="100" value={photoProgress}>{photoProgress}%</progress>
                 </div>
               )}
@@ -449,7 +456,7 @@ export function SharedProductCatalogPage({
           )}
           {newCategoryOpen && <div className="shared-catalog-new-category"><Tags /><input autoFocus maxLength={80} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Название новой общей группы" /><button disabled={saving || newCategoryName.trim().length < 2} type="button" onClick={() => void addCategory()}>Добавить для всех</button></div>}
           <label className="shared-catalog-description">Описание<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Необязательно" /></label>
-          <button className="shared-catalog-save" disabled={saving || photoStatus === 'processing'} type="submit">{saving || photoStatus === 'processing' ? <LoaderCircle className="is-spinning" /> : <Plus />}{mode === 'platform' ? 'Добавить в общую базу' : 'Отправить в общую базу'}</button>
+          <button className="shared-catalog-save" disabled={saving} type="submit">{saving ? <LoaderCircle className="is-spinning" /> : <Plus />}{mode === 'platform' ? 'Добавить в общую базу' : 'Отправить в общую базу'}</button>
         </form>
       )}
 

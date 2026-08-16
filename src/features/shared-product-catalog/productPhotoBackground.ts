@@ -1,4 +1,4 @@
-const BACKGROUND_MODEL = 'Ko033/isnet-general-use-onnx';
+const BACKGROUND_MODEL = 'BritishWerewolf/U-2-Netp';
 const MAX_PROCESSED_SIDE = 1024;
 
 export type ProductPhotoProgress = (percent: number) => void;
@@ -12,6 +12,11 @@ type CutoutImage = {
 };
 
 type BackgroundSegmenter = (image: Blob) => Promise<CutoutImage[]>;
+type ModelDownloadProgress = {
+  status: string;
+  file?: string;
+  progress?: number;
+};
 
 let segmenterPromise: Promise<BackgroundSegmenter> | null = null;
 
@@ -94,19 +99,36 @@ const loadSegmenter = async (report: (percent: number) => void) => {
   if (!segmenterPromise) {
     segmenterPromise = (async () => {
       report(4);
-      const { pipeline } = await import('@huggingface/transformers');
+      const {
+        AutoImageProcessor,
+        AutoModelForImageSegmentation,
+        BackgroundRemovalPipeline
+      } = await import('@huggingface/transformers');
       report(8);
-      const loaded = await pipeline('background-removal', BACKGROUND_MODEL, {
+      const modelOptions = {
         device: 'wasm',
-        dtype: 'q8',
-        // v3 supports ISNet, while this model intentionally publishes a generic config.
-        config: { model_type: 'isnet', is_encoder_decoder: false } as never,
-        progress_callback: (progress) => {
-          if (progress.status === 'progress' && progress.file.includes('model_quantized')) {
+        dtype: 'fp32',
+        // Transformers.js uses the same generic segmentation wrapper for U²-Net and ISNet.
+        config: { model_type: 'isnet', architectures: ['PreTrainedModel'] } as never,
+        progress_callback: (progress: ModelDownloadProgress) => {
+          if (
+            progress.status === 'progress'
+            && progress.file?.endsWith('.onnx')
+            && typeof progress.progress === 'number'
+          ) {
             report(10 + progress.progress * 0.58);
           }
         }
-      });
+      } as const;
+      const [model, processor] = await Promise.all([
+        AutoModelForImageSegmentation.from_pretrained(BACKGROUND_MODEL, modelOptions),
+        AutoImageProcessor.from_pretrained(BACKGROUND_MODEL, modelOptions)
+      ]);
+      const loaded = new BackgroundRemovalPipeline({
+        task: 'background-removal',
+        model,
+        processor
+      } as never);
       return loaded as unknown as BackgroundSegmenter;
     })().catch((error) => {
       segmenterPromise = null;
