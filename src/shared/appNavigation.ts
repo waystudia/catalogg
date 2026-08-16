@@ -1,5 +1,57 @@
 import type { NavigateFunction } from 'react-router-dom';
 
+const exactRouteBackStateKey = '__wayyaamExactRouteBack';
+
+type ExactRouteBackState = {
+  scope: string;
+  fromPath: string;
+};
+
+type RouterState = Record<string, unknown> & {
+  [exactRouteBackStateKey]?: ExactRouteBackState;
+};
+
+const asRouterState = (value: unknown): RouterState =>
+  value && typeof value === 'object' ? value as RouterState : {};
+
+const pathBelongsToScope = (path: string, scope: string) => {
+  const [kind, slug] = scope.split(':');
+  if (!slug) return false;
+  const root = kind === 'business' ? `/business/${slug}` : kind === 'restaurant' ? `/${slug}` : '';
+  return Boolean(root && (path === root || path.startsWith(`${root}/`)));
+};
+
+export const buildExactRouteBackState = (state: unknown, scope: string, fromPath: string): RouterState => ({
+  ...asRouterState(state),
+  [exactRouteBackStateKey]: { scope, fromPath }
+});
+
+export const hasExactRouteBackOrigin = (state: unknown, scope: string) => {
+  const origin = asRouterState(state)[exactRouteBackStateKey];
+  return Boolean(origin && origin.scope === scope && pathBelongsToScope(origin.fromPath, scope));
+};
+
+export const navigateWithExactRouteBack = (
+  navigate: NavigateFunction,
+  target: string,
+  scope: string,
+  fromPath: string,
+  state?: unknown
+) => navigate(target, { state: buildExactRouteBackState(state, scope, fromPath) });
+
+export const navigateExactRouteBackOrFallback = (
+  navigate: NavigateFunction,
+  fallback: string,
+  scope: string,
+  state: unknown
+) => {
+  if (hasExactRouteBackOrigin(state, scope)) {
+    navigate(-1);
+    return;
+  }
+  navigate(fallback, { replace: true });
+};
+
 export const buildClientHomeUrl = () => {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
   return `${base}#/`;

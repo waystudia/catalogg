@@ -17,6 +17,33 @@ function LocationProbe() {
   return <output aria-label="Текущий маршрут">{useLocation().pathname}</output>;
 }
 
+function RoutedWorkspace({ orders }: { orders: RestaurantOrder[] }) {
+  const location = useLocation();
+  const [, routeSection, routeOrderId] = location.pathname.split('/').filter(Boolean);
+  return (
+    <RestaurantAdminWorkspace
+      catalogSlug="mangal"
+      restaurant={restaurant}
+      categories={categories}
+      cabins={cabins}
+      products={products}
+      orders={orders}
+      routeSection={routeSection}
+      routeOrderId={routeOrderId}
+      paymentSettings={defaultPaymentSettings}
+      deliverySettings={defaultRestaurantDeliverySettings}
+      moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
+      onOpenScreen={() => undefined}
+      onOpenSeating={() => undefined}
+      onOpenCatalog={() => undefined}
+      onAddDish={() => undefined}
+      onOrderStatus={async () => undefined}
+      onRefreshOrders={() => undefined}
+      onSaveDeliverySettings={() => undefined}
+    />
+  );
+}
+
 const chatOrder = (): RestaurantOrder => ({
   id: 'order-chat-1',
   orderNumber: 'M9686',
@@ -200,25 +227,7 @@ test('restaurant dashboard opens the shared business chat inbox from quick actio
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={['/mangal/dashboard']}>
         <LocationProbe />
-        <RestaurantAdminWorkspace
-          catalogSlug="mangal"
-          restaurant={restaurant}
-          categories={categories}
-          cabins={cabins}
-          products={products}
-          orders={[chatOrder()]}
-          routeSection="dashboard"
-          paymentSettings={defaultPaymentSettings}
-          deliverySettings={defaultRestaurantDeliverySettings}
-          moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
-          onOpenScreen={() => undefined}
-          onOpenSeating={() => undefined}
-          onOpenCatalog={() => undefined}
-          onAddDish={() => undefined}
-          onOrderStatus={async () => undefined}
-          onRefreshOrders={() => undefined}
-          onSaveDeliverySettings={() => undefined}
-        />
+        <RoutedWorkspace orders={[chatOrder()]} />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -229,6 +238,34 @@ test('restaurant dashboard opens the shared business chat inbox from quick actio
   await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
   await expect.element(screen.getByRole('region', { name: 'Чаты по заказам' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: /Дуквах/u })).toBeVisible();
+
+  await screen.getByLabelText('Поиск чатов').fill('Дуквах');
+  await screen.getByRole('button', { name: /Дуквах/u }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats/order-chat-1');
+  await screen.getByRole('button', { name: 'Назад к списку чатов' }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
+  await expect.element(screen.getByLabelText('Поиск чатов')).toHaveValue('Дуквах');
+
+  await screen.getByRole('button', { name: 'Назад с экрана чатов' }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/dashboard');
+});
+
+test('direct restaurant chat entry falls back safely to the chat list and then dashboard', async () => {
+  await page.viewport(372, 576);
+  const screen = await render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/mangal/chats/order-chat-1']}>
+        <LocationProbe />
+        <RoutedWorkspace orders={[chatOrder()]} />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await expect.element(screen.getByText('Заказ №M9686 · Готовится')).toBeVisible();
+  await screen.getByRole('button', { name: 'Назад к списку чатов' }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
+  await screen.getByRole('button', { name: 'Назад с экрана чатов' }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/dashboard');
 });
 
 test('order chat button opens that exact client conversation in the Finik messenger layout', async () => {
@@ -237,25 +274,7 @@ test('order chat button opens that exact client conversation in the Finik messen
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={['/mangal/orders']}>
         <LocationProbe />
-        <RestaurantAdminWorkspace
-          catalogSlug="mangal"
-          restaurant={restaurant}
-          categories={categories}
-          cabins={cabins}
-          products={products}
-          orders={[chatOrder()]}
-          routeSection="orders"
-          paymentSettings={defaultPaymentSettings}
-          deliverySettings={defaultRestaurantDeliverySettings}
-          moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
-          onOpenScreen={() => undefined}
-          onOpenSeating={() => undefined}
-          onOpenCatalog={() => undefined}
-          onAddDish={() => undefined}
-          onOrderStatus={async () => undefined}
-          onRefreshOrders={() => undefined}
-          onSaveDeliverySettings={() => undefined}
-        />
+        <RoutedWorkspace orders={[chatOrder()]} />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -275,6 +294,6 @@ test('order chat button opens that exact client conversation in the Finik messen
   expect(getComputedStyle(bottomNav!).display).toBe('none');
 
   await inbox.getByRole('button', { name: 'Назад к списку чатов' }).click();
-  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
-  await expect.element(inbox).toHaveAttribute('data-view', 'list');
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/orders');
+  await expect.element(screen.getByRole('button', { name: 'Открыть чат заказа' })).toBeVisible();
 });

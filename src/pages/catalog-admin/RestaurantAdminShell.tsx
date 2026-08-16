@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { Cabin, CatalogTag, Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { cabins as demoCabins, categories as demoCategories, products as demoProducts, restaurant as demoRestaurant, themeSettings as demoTheme } from '../../data/catalog';
@@ -88,8 +88,13 @@ import {
   type MerchantReadyMinutes
 } from '../../features/restaurant-admin/MerchantReadyEstimatePicker';
 import { getCombinedDispatchReadinessMessage } from '../../features/combined-order/dispatchReadiness';
-import { navigateBackOrFallback } from '../../shared/appNavigation';
-import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
+import {
+  hasExactRouteBackOrigin,
+  navigateBackOrFallback,
+  navigateExactRouteBackOrFallback,
+  navigateWithExactRouteBack
+} from '../../shared/appNavigation';
+import { hasBrowserBackedOrigin, useBrowserBackedState } from '../../shared/useBrowserBackedState';
 
 type AdminSection = 'home' | 'pos' | 'catalog' | 'dishes' | 'shared-products' | 'receiving' | 'orders' | 'chats' | 'warehouse' | 'stocks' | 'team' | 'settings';
 type SettingsSection =
@@ -308,12 +313,16 @@ function SectionButton({ active, icon: Icon, label, onClick }: { active: boolean
 
 export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSignOut }: { access: CatalogAdminAccess; routePath?: string; onRefresh: () => void; onSignOut: () => void }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const isGrocery = access.catalog?.businessType === 'grocery';
   const workspaceAccess = getCatalogWorkspaceAccess({
     catalogRole: access.role,
     staffRole: access.staffRole
   });
   const slug = access.catalog?.slug ?? 'demo';
+  const chatRouteScope = `business:${slug}`;
+  const orderSelectionScope = `business:${slug}:selected-order`;
+  const currentRoutePath = `${location.pathname}${location.search}${location.hash}`;
   const initialRoute = resolveBusinessAdminRoutePath(routePath);
   const [section, setSection] = useState<AdminSection>(() => (
     workspaceAccess.isOrderWorker && !workspaceAccess.canSeeFullWorkspace
@@ -351,7 +360,7 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const [dishQuery, setDishQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [orderQuery, setOrderQuery] = useState('');
-  const [orderSelection, orderSelectionHistory] = useBrowserBackedState(`business:${slug}:selected-order`, {
+  const [orderSelection, orderSelectionHistory] = useBrowserBackedState(orderSelectionScope, {
     orderId: null as string | null,
     returnSection: 'orders' as 'orders' | 'chats'
   });
@@ -669,7 +678,12 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
   const goTo = (nextSection: AdminSection, nextSettingsSection: SettingsSection = 'hub') => {
     setSection(nextSection);
     setSettingsSection(nextSettingsSection);
-    navigate(buildBusinessAdminRoutePath(slug, nextSection, nextSettingsSection));
+    const target = buildBusinessAdminRoutePath(slug, nextSection, nextSettingsSection);
+    if (nextSection === 'chats' && section !== 'chats') {
+      navigateWithExactRouteBack(navigate, target, chatRouteScope, currentRoutePath, location.state);
+    } else {
+      navigate(target);
+    }
   };
 
   const submitPosOrder = async (draft: RestaurantPosOrderDraft) => {
@@ -1086,7 +1100,34 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
               items={businessChatItems}
               expectedViewer="staff"
               selectedOrderId={selectedOrderId}
-              onSelectedOrderChange={(orderId) => orderSelectionHistory.replace((current) => ({ ...current, orderId }))}
+              onSelectedOrderChange={(orderId) => {
+                if (orderId) {
+                  orderSelectionHistory.open({ orderId, returnSection: 'chats' });
+                } else {
+                  orderSelectionHistory.replace((current) => ({ ...current, orderId: null }));
+                }
+              }}
+              onBack={() => {
+                if (hasBrowserBackedOrigin(window.history.state, orderSelectionScope)) {
+                  orderSelectionHistory.back();
+                  return;
+                }
+                if (!hasExactRouteBackOrigin(location.state, chatRouteScope)) {
+                  orderSelectionHistory.replace({ orderId: null, returnSection: 'chats' });
+                }
+                navigateExactRouteBackOrFallback(
+                  navigate,
+                  buildBusinessAdminRoutePath(slug, 'chats', 'hub'),
+                  chatRouteScope,
+                  location.state
+                );
+              }}
+              onBackFromList={() => navigateExactRouteBackOrFallback(
+                navigate,
+                buildBusinessAdminRoutePath(slug, 'home', 'hub'),
+                chatRouteScope,
+                location.state
+              )}
               onOpenOrder={(orderId) => {
                 orderSelectionHistory.replace({ orderId, returnSection: 'chats' });
                 goTo('orders');

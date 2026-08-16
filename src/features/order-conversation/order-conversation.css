@@ -130,6 +130,25 @@
   text-align: left;
   font: inherit;
   cursor: pointer;
+  touch-action: pan-y;
+}
+
+.order-inbox__screen-back {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 13px;
+  background: #f2f4f7;
+  color: #344054;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.order-inbox__screen-back svg {
+  width: 20px;
 }
 
 .order-inbox__thread:hover,

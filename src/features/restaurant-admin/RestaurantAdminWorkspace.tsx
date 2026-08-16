@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
@@ -47,7 +47,11 @@ import { getCatalogAdminAccess } from '../../shared/api/catalogAdminApi';
 import { StoreOrderQueue } from '../store-orders/StoreOrderQueue';
 import { StoreOrderPickingPage } from '../store-orders/StoreOrderPickingPage';
 import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
-import { navigateBackOrFallback } from '../../shared/appNavigation';
+import {
+  navigateBackOrFallback,
+  navigateExactRouteBackOrFallback,
+  navigateWithExactRouteBack
+} from '../../shared/appNavigation';
 import { OrderConversationInbox, type OrderConversationInboxItem } from '../order-conversation/OrderConversationInbox';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
@@ -101,9 +105,12 @@ export function RestaurantAdminWorkspace({
   onSaveDeliverySettings: (settings: RestaurantDeliverySettings) => void;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const terms = getBusinessTerms(restaurant.business_type);
   const orderCapabilities = getBusinessOrderCapabilities(restaurant.business_type);
   const isGrocery = restaurant.business_type === 'grocery';
+  const chatRouteScope = `restaurant:${catalogSlug}`;
+  const currentRoutePath = `${location.pathname}${location.search}${location.hash}`;
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
@@ -197,13 +204,24 @@ export function RestaurantAdminWorkspace({
     if (nextTab === 'chats') setSelectedChatOrderId(null);
     setTab(nextTab);
     if (nextTab !== 'settings') settingsViewHistory.replace('home');
-    navigate(buildRestaurantAdminTabPath(catalogSlug, nextTab));
+    const target = buildRestaurantAdminTabPath(catalogSlug, nextTab);
+    if (nextTab === 'chats') {
+      navigateWithExactRouteBack(navigate, target, chatRouteScope, currentRoutePath, location.state);
+    } else {
+      navigate(target);
+    }
   };
   const openOrderChat = (orderId: string) => {
     setSelectedChatOrderId(orderId);
     setTab('chats');
     settingsViewHistory.replace('home');
-    navigate(`${buildRestaurantAdminTabPath(catalogSlug, 'chats')}/${encodeURIComponent(orderId)}`);
+    navigateWithExactRouteBack(
+      navigate,
+      `${buildRestaurantAdminTabPath(catalogSlug, 'chats')}/${encodeURIComponent(orderId)}`,
+      chatRouteScope,
+      currentRoutePath,
+      location.state
+    );
   };
   const openOrderFromList = (order: RestaurantOrder) => {
     orderListScrollPositionRef.current = window.scrollY;
@@ -633,8 +651,30 @@ export function RestaurantAdminWorkspace({
               onSelectedOrderChange={(orderId) => {
                 setSelectedChatOrderId(orderId);
                 const chatsPath = buildRestaurantAdminTabPath(catalogSlug, 'chats');
-                navigate(orderId ? `${chatsPath}/${encodeURIComponent(orderId)}` : chatsPath, { replace: orderId === null });
+                if (orderId) {
+                  navigateWithExactRouteBack(
+                    navigate,
+                    `${chatsPath}/${encodeURIComponent(orderId)}`,
+                    chatRouteScope,
+                    currentRoutePath,
+                    location.state
+                  );
+                } else {
+                  navigate(chatsPath, { replace: true });
+                }
               }}
+              onBack={() => navigateExactRouteBackOrFallback(
+                navigate,
+                buildRestaurantAdminTabPath(catalogSlug, 'chats'),
+                chatRouteScope,
+                location.state
+              )}
+              onBackFromList={() => navigateExactRouteBackOrFallback(
+                navigate,
+                buildRestaurantAdminTabPath(catalogSlug, 'home'),
+                chatRouteScope,
+                location.state
+              )}
               onOpenOrder={(orderId) => {
                 const order = orders.find((candidate) => candidate.id === orderId);
                 if (order) selectedOrderHistory.replace(order);

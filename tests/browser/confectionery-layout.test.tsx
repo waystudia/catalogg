@@ -87,7 +87,28 @@ test('confectionery cards, prices and horizontal categories stay usable at every
     const placeholder = document.querySelector<HTMLElement>('.image-fallback--dessert')!;
     expect(placeholder.textContent).toContain('Фото скоро');
     expect(placeholder.getBoundingClientRect().height).toBeGreaterThan(0);
+    const singlePhoto = document.querySelector<HTMLElement>('.product-photo-carousel')!;
+    const singlePhotoTrack = document.querySelector<HTMLElement>('.product-photo-carousel__track')!;
+    expect(getComputedStyle(singlePhoto).touchAction).toBe('pan-y');
+    expect(getComputedStyle(singlePhotoTrack).touchAction).toBe('pan-y');
   } finally {
     await page.viewport(414, 896);
   }
+});
+
+test('swipeable dish photos allow both horizontal gallery swipes and vertical page scroll', async () => {
+  const screen = await render(
+    <div className="product-photo-carousel product-photo-carousel--swipeable">
+      <div className="product-photo-carousel__track">
+        <span className="product-photo-carousel__slide is-active"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Фото блюда" /></span>
+        <span className="product-photo-carousel__slide"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" alt="Второе фото блюда" /></span>
+      </div>
+    </div>
+  );
+
+  const carousel = screen.getByRole('img', { name: 'Фото блюда', exact: true }).element().closest<HTMLElement>('.product-photo-carousel')!;
+  const track = carousel.querySelector<HTMLElement>('.product-photo-carousel__track')!;
+  expect(getComputedStyle(carousel).touchAction).toBe('pan-x pan-y');
+  expect(getComputedStyle(track).touchAction).toBe('pan-x pan-y');
+  expect(getComputedStyle(track).overflowX).toBe('auto');
 });

@@ -9,6 +9,8 @@ import {
 import {
   buildProfileLoginPath,
   buildRoleAppUrl,
+  buildExactRouteBackState,
+  hasExactRouteBackOrigin,
   hasPreviousAppHistoryEntry,
   navigateBackOrFallback,
   redirectToRoleApp,
@@ -29,6 +31,14 @@ describe('staff login role selection', () => {
 
     navigateBackOrFallback(navigate, '/profile/orders', { idx: 0 });
     expect(navigate).toHaveBeenLastCalledWith('/profile/orders', { replace: true });
+  });
+
+  it('trusts exact route origins only inside the same role and tenant scope', () => {
+    const mangalOrigin = buildExactRouteBackState({ idx: 3 }, 'restaurant:mangal', '/mangal/orders?status=new');
+    expect(hasExactRouteBackOrigin(mangalOrigin, 'restaurant:mangal')).toBe(true);
+    expect(hasExactRouteBackOrigin(mangalOrigin, 'restaurant:finik')).toBe(false);
+    expect(hasExactRouteBackOrigin(buildExactRouteBackState({}, 'restaurant:mangal', '/profile'), 'restaurant:mangal')).toBe(false);
+    expect(hasExactRouteBackOrigin({}, 'restaurant:mangal')).toBe(false);
   });
 
   it('recognizes only the matching component history scope', () => {
