@@ -7,6 +7,17 @@ export type ProductPhotoProcessor = (
   onProgress: ProductPhotoProgress
 ) => Promise<File>;
 
+export type ProductPhotoStroke = {
+  kind: 'foreground' | 'background';
+  points: Array<{ x: number; y: number }>;
+};
+
+export type ProductPhotoRefiner = (
+  original: File,
+  automatic: File,
+  strokes: ProductPhotoStroke[]
+) => Promise<File>;
+
 type CutoutImage = {
   toBlob: (type?: string, quality?: number) => Promise<Blob>;
 };
@@ -146,6 +157,203 @@ export const preloadProductPhotoBackgroundRemoval = () => loadSegmenter(() => un
 export const whiteBackgroundFileName = (originalName: string) => {
   const baseName = originalName.replace(/\.[^.]+$/, '').trim() || 'product';
   return `${baseName}-white-background.jpg`;
+};
+
+export const refinedWhiteBackgroundFileName = (originalName: string) => {
+  const baseName = originalName.replace(/\.[^.]+$/, '').trim() || 'product';
+  return `${baseName}-refined-white-background.jpg`;
+};
+
+type PixelSample = {
+  x: number;
+  y: number;
+  red: number;
+  green: number;
+  blue: number;
+};
+
+const clampUnit = (value: number) => Math.max(0, Math.min(1, value));
+
+const sampleStrokePixels = (
+  strokes: ProductPhotoStroke[],
+  kind: ProductPhotoStroke['kind'],
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number
+) => strokes
+  .filter((stroke) => stroke.kind === kind)
+  .flatMap((stroke) => stroke.points)
+  .map((point): PixelSample => {
+    const x = Math.round(clampUnit(point.x) * (width - 1));
+    const y = Math.round(clampUnit(point.y) * (height - 1));
+    const offset = (y * width + x) * 4;
+    return {
+      x: width > 1 ? x / (width - 1) : 0,
+      y: height > 1 ? y / (height - 1) : 0,
+      red: pixels[offset],
+      green: pixels[offset + 1],
+      blue: pixels[offset + 2]
+    };
+  });
+
+const guidedDistance = (
+  red: number,
+  green: number,
+  blue: number,
+  x: number,
+  y: number,
+  samples: PixelSample[]
+) => samples.reduce((nearest, sample) => {
+  const redDistance = red - sample.red;
+  const greenDistance = green - sample.green;
+  const blueDistance = blue - sample.blue;
+  const colorDistance = (
+    redDistance * redDistance
+    + greenDistance * greenDistance
+    + blueDistance * blueDistance
+  ) / (255 * 255 * 3);
+  const xDistance = x - sample.x;
+  const yDistance = y - sample.y;
+  const spatialDistance = xDistance * xDistance + yDistance * yDistance;
+  return Math.min(nearest, colorDistance * 0.86 + spatialDistance * 0.14);
+}, Number.POSITIVE_INFINITY);
+
+const estimateAutomaticAlpha = (
+  original: Uint8ClampedArray,
+  automatic: Uint8ClampedArray,
+  offset: number
+) => {
+  let weightedAlpha = 0;
+  let weight = 0;
+  for (let channel = 0; channel < 3; channel += 1) {
+    const denominator = 255 - original[offset + channel];
+    if (denominator <= 8) continue;
+    weightedAlpha += clampUnit((255 - automatic[offset + channel]) / denominator) * denominator;
+    weight += denominator;
+  }
+  if (weight > 0) return weightedAlpha / weight;
+  const difference = Math.max(
+    Math.abs(original[offset] - automatic[offset]),
+    Math.abs(original[offset + 1] - automatic[offset + 1]),
+    Math.abs(original[offset + 2] - automatic[offset + 2])
+  );
+  return difference < 12 ? 1 : 0;
+};
+
+const fallbackSamples = (
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+  points: Array<{ x: number; y: number }>
+) => points.map(({ x, y }): PixelSample => {
+  const pixelX = Math.round(x * (width - 1));
+  const pixelY = Math.round(y * (height - 1));
+  const offset = (pixelY * width + pixelX) * 4;
+  return {
+    x,
+    y,
+    red: pixels[offset],
+    green: pixels[offset + 1],
+    blue: pixels[offset + 2]
+  };
+});
+
+export const refineProductPhotoBackground: ProductPhotoRefiner = async (
+  original,
+  automatic,
+  strokes
+) => {
+  const usableStrokes = strokes.filter((stroke) => stroke.points.length > 0);
+  if (usableStrokes.length === 0) throw new Error('Добавьте хотя бы один штрих кистью');
+
+  const [decodedOriginal, decodedAutomatic] = await Promise.all([
+    decodeImage(original),
+    decodeImage(automatic)
+  ]);
+  try {
+    const width = decodedAutomatic.width;
+    const height = decodedAutomatic.height;
+    const originalCanvas = document.createElement('canvas');
+    originalCanvas.width = width;
+    originalCanvas.height = height;
+    const originalContext = originalCanvas.getContext('2d', { willReadFrequently: true });
+    if (!originalContext) throw new Error('Не удалось открыть исходную фотографию');
+    originalContext.drawImage(decodedOriginal.source, 0, 0, width, height);
+    const originalPixels = originalContext.getImageData(0, 0, width, height).data;
+
+    const automaticCanvas = document.createElement('canvas');
+    automaticCanvas.width = width;
+    automaticCanvas.height = height;
+    const automaticContext = automaticCanvas.getContext('2d', { willReadFrequently: true });
+    if (!automaticContext) throw new Error('Не удалось открыть автоматическую обработку');
+    automaticContext.drawImage(decodedAutomatic.source, 0, 0, width, height);
+    const automaticPixels = automaticContext.getImageData(0, 0, width, height).data;
+
+    const foregroundSamples = sampleStrokePixels(usableStrokes, 'foreground', originalPixels, width, height);
+    const backgroundSamples = sampleStrokePixels(usableStrokes, 'background', originalPixels, width, height);
+    const effectiveForeground = foregroundSamples.length > 0
+      ? foregroundSamples
+      : fallbackSamples(originalPixels, width, height, [{ x: 0.5, y: 0.5 }]);
+    const effectiveBackground = backgroundSamples.length > 0
+      ? backgroundSamples
+      : fallbackSamples(originalPixels, width, height, [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 }
+      ]);
+
+    const output = originalContext.createImageData(width, height);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const offset = (y * width + x) * 4;
+        const normalizedX = width > 1 ? x / (width - 1) : 0;
+        const normalizedY = height > 1 ? y / (height - 1) : 0;
+        const foregroundDistance = guidedDistance(
+          originalPixels[offset],
+          originalPixels[offset + 1],
+          originalPixels[offset + 2],
+          normalizedX,
+          normalizedY,
+          effectiveForeground
+        );
+        const backgroundDistance = guidedDistance(
+          originalPixels[offset],
+          originalPixels[offset + 1],
+          originalPixels[offset + 2],
+          normalizedX,
+          normalizedY,
+          effectiveBackground
+        );
+        const guidedProbability = backgroundDistance / Math.max(
+          0.000001,
+          foregroundDistance + backgroundDistance
+        );
+        const automaticAlpha = estimateAutomaticAlpha(originalPixels, automaticPixels, offset);
+        const combinedProbability = automaticAlpha * 0.3 + guidedProbability * 0.7;
+        const alpha = clampUnit((combinedProbability - 0.44) / 0.12);
+        output.data[offset] = Math.round(originalPixels[offset] * alpha + 255 * (1 - alpha));
+        output.data[offset + 1] = Math.round(originalPixels[offset + 1] * alpha + 255 * (1 - alpha));
+        output.data[offset + 2] = Math.round(originalPixels[offset + 2] * alpha + 255 * (1 - alpha));
+        output.data[offset + 3] = 255;
+      }
+    }
+
+    const resultCanvas = document.createElement('canvas');
+    resultCanvas.width = width;
+    resultCanvas.height = height;
+    const resultContext = resultCanvas.getContext('2d');
+    if (!resultContext) throw new Error('Не удалось подготовить уточнённое фото');
+    resultContext.putImageData(output, 0, 0);
+    const blob = await canvasToBlob(resultCanvas, 'image/jpeg', 0.94);
+    return new File([blob], refinedWhiteBackgroundFileName(original.name), {
+      type: 'image/jpeg',
+      lastModified: Date.now()
+    });
+  } finally {
+    decodedOriginal.close();
+    decodedAutomatic.close();
+  }
 };
 
 export async function placeCutoutOnWhite(

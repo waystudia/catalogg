@@ -4,6 +4,7 @@ import {
   Check,
   ImagePlus,
   LoaderCircle,
+  Paintbrush,
   PackagePlus,
   Plus,
   Search,
@@ -32,8 +33,11 @@ import { prepareBarcodeScanSound } from '../grocery-operations/barcodeScanFeedba
 import {
   removeProductPhotoBackground,
   preloadProductPhotoBackgroundRemoval,
-  type ProductPhotoProcessor
+  refineProductPhotoBackground,
+  type ProductPhotoProcessor,
+  type ProductPhotoRefiner
 } from './productPhotoBackground';
+import { ProductPhotoRefinementEditor } from './ProductPhotoRefinementEditor';
 import './shared-product-catalog.css';
 
 export type SharedProductCatalogMode = 'platform' | 'merchant';
@@ -100,13 +104,15 @@ export function SharedProductCatalogPage({
   catalogId = null,
   demo = false,
   photoProcessor = removeProductPhotoBackground,
-  photoPreloader = preloadProductPhotoBackgroundRemoval
+  photoPreloader = preloadProductPhotoBackgroundRemoval,
+  photoRefiner = refineProductPhotoBackground
 }: {
   mode: SharedProductCatalogMode;
   catalogId?: string | null;
   demo?: boolean;
   photoProcessor?: ProductPhotoProcessor;
   photoPreloader?: () => Promise<void>;
+  photoRefiner?: ProductPhotoRefiner;
 }) {
   const [products, setProducts] = useState<SharedProduct[]>(demo ? demoProducts : []);
   const [categories, setCategories] = useState<MasterCategory[]>(demo ? demoCategories : []);
@@ -128,6 +134,8 @@ export function SharedProductCatalogPage({
   const [photoProgress, setPhotoProgress] = useState(0);
   const [photoChoice, setPhotoChoice] = useState<'original' | 'processed'>('original');
   const [photoError, setPhotoError] = useState('');
+  const [photoRefinementOpen, setPhotoRefinementOpen] = useState(false);
+  const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
   const originalPhotoUrl = useObjectUrl(originalPhoto);
@@ -145,6 +153,8 @@ export function SharedProductCatalogPage({
     setPhotoProgress(0);
     setPhotoChoice('original');
     setPhotoError('');
+    setPhotoRefinementOpen(false);
+    setPhotoRefinementMessage('');
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
@@ -184,6 +194,8 @@ export function SharedProductCatalogPage({
     setPhotoStatus('processing');
     setPhotoProgress(1);
     setPhotoError('');
+    setPhotoRefinementOpen(false);
+    setPhotoRefinementMessage('');
     setDraft((current) => ({ ...current, imageFile: file }));
 
     try {
@@ -442,6 +454,7 @@ export function SharedProductCatalogPage({
                   {photoError && <p className="shared-catalog-photo-error" role="alert">{photoError}</p>}
                   <div className="shared-catalog-photo-actions">
                     {processedPhoto && <button type="button" onClick={selectProcessedPhoto}><Check />Использовать белый фон</button>}
+                    {processedPhoto && originalPhoto && <button type="button" onClick={() => setPhotoRefinementOpen(true)}><Paintbrush />Подправить кистью</button>}
                     <button type="button" onClick={selectOriginalPhoto}>Оставить оригинал</button>
                     <button type="button" onClick={chooseAnotherPhoto}><ImagePlus />Выбрать другое фото</button>
                   </div>
@@ -450,9 +463,25 @@ export function SharedProductCatalogPage({
                       ? 'Будет сохранено фото на белом фоне'
                       : 'Будет сохранена оригинальная фотография'}
                   </p>
+                  {photoRefinementMessage && <p className="shared-catalog-photo-refinement-message"><Check />{photoRefinementMessage}</p>}
                 </>
               )}
             </section>
+          )}
+          {photoRefinementOpen && originalPhoto && processedPhoto && (
+            <ProductPhotoRefinementEditor
+              original={originalPhoto}
+              automatic={processedPhoto}
+              refine={photoRefiner}
+              onCancel={() => setPhotoRefinementOpen(false)}
+              onApply={(refinedPhoto) => {
+                setProcessedPhoto(refinedPhoto);
+                setPhotoChoice('processed');
+                setDraft((current) => ({ ...current, imageFile: refinedPhoto }));
+                setPhotoRefinementMessage('Граница уточнена — сохранится исправленный белый фон.');
+                setPhotoRefinementOpen(false);
+              }}
+            />
           )}
           {newCategoryOpen && <div className="shared-catalog-new-category"><Tags /><input autoFocus maxLength={80} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Название новой общей группы" /><button disabled={saving || newCategoryName.trim().length < 2} type="button" onClick={() => void addCategory()}>Добавить для всех</button></div>}
           <label className="shared-catalog-description">Описание<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Необязательно" /></label>

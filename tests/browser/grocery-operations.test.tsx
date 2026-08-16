@@ -206,6 +206,7 @@ test('new grocery product prepares a white-background photo before the name fiel
 
   await expect.element(screen.getByRole('img', { name: 'Товар на белом фоне' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: /Белый фон/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(screen.getByRole('button', { name: 'Подправить кистью' })).toBeVisible();
   expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
   const photoSection = screen.getByRole('heading', { name: 'Сначала фотография товара' }).element().closest('section')!;
   const titleField = screen.getByLabelText('Название товара').element();

@@ -95,6 +95,8 @@
 .shared-catalog-photo-actions svg { width: 16px; }
 .shared-catalog-photo-choice { display: flex; align-items: center; gap: 7px; margin: 0; color: #176441; font-size: 12px; font-weight: 800; }
 .shared-catalog-photo-choice svg { width: 17px; }
+.shared-catalog-photo-refinement-message { display: flex; align-items: center; gap: 7px; margin: 0; padding: 9px 11px; border-radius: 10px; color: #176441; background: #e7f8ee; font-size: 12px; font-weight: 800; }
+.shared-catalog-photo-refinement-message svg { width: 17px; flex: 0 0 auto; }
 .shared-catalog-new-category { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; margin-top: 13px; padding: 11px; border-radius: 13px; background: #f1f8f4; }
 .shared-catalog-new-category svg { color: var(--shared-green); }
 .shared-catalog-new-category input { min-height: 42px; padding: 0 10px; border: 1px solid #cbd8cf; border-radius: 10px; }

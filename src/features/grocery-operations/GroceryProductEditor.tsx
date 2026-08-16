@@ -2,7 +2,10 @@ import { Archive, PackagePlus, Save, ScanBarcode, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Category, Product } from '../../entities/models';
 import { GroceryProductPhotoEditor } from './GroceryProductPhotoEditor';
-import type { ProductPhotoProcessor } from '../shared-product-catalog/productPhotoBackground';
+import type {
+  ProductPhotoProcessor,
+  ProductPhotoRefiner
+} from '../shared-product-catalog/productPhotoBackground';
 import { normalizeBarcode } from './barcodeScanner';
 
 const makeDraft = (product: Product | null, barcode: string, fallbackCategory: string): Product => ({
@@ -49,7 +52,8 @@ export function GroceryProductEditor({
   onRequestScan,
   onClose,
   onSave,
-  photoProcessor
+  photoProcessor,
+  photoRefiner
 }: {
   open: boolean;
   product: Product | null;
@@ -60,6 +64,7 @@ export function GroceryProductEditor({
   onClose: () => void;
   onSave: (product: Product) => Promise<void> | void;
   photoProcessor?: ProductPhotoProcessor;
+  photoRefiner?: ProductPhotoRefiner;
 }) {
   const fallbackCategory = categories.find((category) => category.kind !== 'space')?.id ?? '';
   const [draft, setDraft] = useState(() => makeDraft(product, initialBarcode, fallbackCategory));
@@ -177,6 +182,7 @@ export function GroceryProductEditor({
               images={draft.image_urls ?? []}
               onChange={(images) => patch({ image_urls: images, image_url: images[0] ?? '' })}
               photoProcessor={photoProcessor}
+              photoRefiner={photoRefiner}
             />
 
             <section className="grocery-editor-section">

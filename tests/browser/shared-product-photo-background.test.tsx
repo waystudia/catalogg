@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { SharedProductCatalogPage } from '../../src/features/shared-product-catalog/SharedProductCatalogPage';
 import { ProductPhotoRefinementEditor } from '../../src/features/shared-product-catalog/ProductPhotoRefinementEditor';
@@ -117,6 +118,8 @@ test('rough foreground and background strokes guide the system to the real produ
 });
 
 test('the brush collects rough hints and applies a system-refined result', async () => {
+  await page.viewport(372, 576);
+  try {
   const original = await canvasFile('can.png', (context) => {
     context.fillStyle = '#d8c7ac';
     context.fillRect(0, 0, 40, 20);
@@ -141,6 +144,9 @@ test('the brush collects rough hints and applies a system-refined result', async
   await expect.element(screen.getByRole('dialog', { name: 'Уточнение границы товара' })).toBeVisible();
   await expect.element(screen.getByText('Проведите примерно внутри товара — система сама найдёт ближайшую границу.')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Уточнить автоматически' })).toBeDisabled();
+  const dialog = screen.getByRole('dialog', { name: 'Уточнение границы товара' }).element();
+  expect(dialog.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+  expect(dialog.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
 
   const canvas = screen.getByLabelText('Кисть уточнения фотографии').element() as HTMLCanvasElement;
   const rect = canvas.getBoundingClientRect();
@@ -160,6 +166,9 @@ test('the brush collects rough hints and applies a system-refined result', async
     expect.objectContaining({ kind: 'background' })
   ]);
   expect(onApply).toHaveBeenCalledWith(refined);
+  } finally {
+    await page.viewport(414, 896);
+  }
 });
 
 test('failed background removal keeps the original photo available for saving', async () => {
