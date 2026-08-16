@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
-import { useEffect, useState } from 'react';
+import { HashRouter, Link, Route, Routes } from 'react-router-dom';
 import { useBrowserBackedState } from '../../src/shared/useBrowserBackedState';
 import { ExactScrollRestoration } from '../../src/shared/ExactScrollRestoration';
 
@@ -50,7 +50,7 @@ function ExactBackHarness({ scope }: { scope: string }) {
 test('visible and browser Back restore nested screens, filters and drafts in LIFO order', async () => {
   await page.viewport(372, 576);
   window.history.replaceState({}, '', window.location.href);
-  const screen = await render(<><ExactScrollRestoration /><ExactBackHarness scope="test:exact-back:lifo" /></>);
+  const screen = await render(<HashRouter><ExactScrollRestoration /><ExactBackHarness scope="test:exact-back:lifo" /></HashRouter>);
 
   await screen.getByLabelText('Поиск').fill('молоко');
   window.scrollTo(0, 500);
@@ -99,19 +99,15 @@ test('hash routes start at the top and Back survives late browser scroll restora
   await page.viewport(372, 576);
   window.history.replaceState({}, '', '#/source');
 
-  function HashRouteHarness() {
-    const [hash, setHash] = useState(window.location.hash);
-    useEffect(() => {
-      const update = () => setHash(window.location.hash);
-      window.addEventListener('hashchange', update);
-      return () => window.removeEventListener('hashchange', update);
-    }, []);
-    return hash === '#/next'
-      ? <main style={{ minHeight: 2200 }}><h1>Новый экран</h1></main>
-      : <main style={{ minHeight: 2200 }}><h1>Исходный экран</h1><a href="#/next" style={{ position: 'fixed', bottom: 0 }}>Открыть</a></main>;
-  }
-
-  const screen = await render(<><ExactScrollRestoration /><HashRouteHarness /></>);
+  const screen = await render(
+    <HashRouter>
+      <ExactScrollRestoration />
+      <Routes>
+        <Route path="/source" element={<main style={{ minHeight: 2200 }}><h1>Исходный экран</h1><Link to="/next" style={{ position: 'fixed', bottom: 0 }}>Открыть</Link></main>} />
+        <Route path="/next" element={<main style={{ minHeight: 2200 }}><h1>Новый экран</h1></main>} />
+      </Routes>
+    </HashRouter>
+  );
   window.scrollTo(0, 500);
   await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
   await screen.getByRole('link', { name: 'Открыть' }).click();
