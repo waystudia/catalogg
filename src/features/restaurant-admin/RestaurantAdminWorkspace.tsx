@@ -633,7 +633,7 @@ export function RestaurantAdminWorkspace({
               onSelectedOrderChange={(orderId) => {
                 setSelectedChatOrderId(orderId);
                 const chatsPath = buildRestaurantAdminTabPath(catalogSlug, 'chats');
-                navigate(orderId ? `${chatsPath}/${encodeURIComponent(orderId)}` : chatsPath, { replace: true });
+                navigate(orderId ? `${chatsPath}/${encodeURIComponent(orderId)}` : chatsPath, { replace: orderId === null });
               }}
               onOpenOrder={(orderId) => {
                 const order = orders.find((candidate) => candidate.id === orderId);
