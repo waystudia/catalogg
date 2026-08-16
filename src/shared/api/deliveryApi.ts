@@ -69,6 +69,7 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly orderGroupId: string | null;
   readonly isCombined: boolean;
   readonly stops: readonly DriverDeliveryStop[];
+  readonly isTestOrder?: boolean;
 };
 
 export type DriverEarning = {
@@ -231,6 +232,7 @@ type MaybeArray<T> = T | T[];
 
 type OrderContactRow = {
   id: string;
+  is_test_order?: boolean | null;
   catalog_id?: string | null;
   restaurant_id?: string | null;
   customer_name?: string | null;
@@ -386,7 +388,8 @@ const demoOffers: readonly DeliveryOffer[] = [
     pickupQrConfirmed: false,
     orderGroupId: null,
     isCombined: false,
-    stops: []
+    stops: [],
+    isTestOrder: true
   },
   {
     ...buildDriverDeliveryView({
@@ -423,7 +426,8 @@ const demoOffers: readonly DeliveryOffer[] = [
     pickupQrConfirmed: false,
     orderGroupId: null,
     isCombined: false,
-    stops: []
+    stops: [],
+    isTestOrder: true
   }
 ];
 
@@ -848,7 +852,7 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
     const contactsResult = await withDriverRequestTimeout(
       supabase
         .from('orders')
-        .select('id, catalog_id, restaurant_id, customer_name, customer_phone, client_name, client_phone, delivery_comment, delivery_comment_snapshot, client_address_comment, comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot')
+        .select('id, catalog_id, restaurant_id, is_test_order, customer_name, customer_phone, client_name, client_phone, delivery_comment, delivery_comment_snapshot, client_address_comment, comment, restaurant_address_snapshot, restaurant_lat_snapshot, restaurant_lng_snapshot')
         .in('id', assignedOrderIds),
       'Не удалось загрузить контакты заказа.',
       6_000
@@ -924,6 +928,7 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
         return {
           ...offer,
           catalogId: order.catalog_id ?? offer.catalogId,
+          isTestOrder: order.is_test_order === true,
           clientName: resolveOrderContactName(order) || offer.clientName,
           clientPhone: resolveOrderContactPhone(order) || offer.clientPhone,
           deliveryComment: resolveOrderDeliveryComment(order) || offer.deliveryComment,
@@ -957,6 +962,41 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
       earningsMonth: earningsToday
     }
   };
+}
+
+export async function deleteDriverTestOrder(order: Pick<
+  DeliveryOffer,
+  'orderId' | 'catalogId' | 'isTestOrder' | 'isCombined'
+>) {
+  if (order.isTestOrder !== true) {
+    throw new DriverActionError('Удалять можно только тестовые заказы.', 'unavailable');
+  }
+  if (order.isCombined) {
+    throw new DriverActionError('Сначала разъедините объединённый заказ.', 'unavailable');
+  }
+  if (!order.catalogId) {
+    throw new DriverActionError('Не удалось определить магазин тестового заказа.', 'unavailable');
+  }
+  if (!supabase) return true;
+
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('delete_restaurant_test_order', {
+      target_order_id: order.orderId,
+      target_catalog_id: order.catalogId
+    }),
+    'Не удалось удалить тестовый заказ. Проверьте связь и повторите.',
+    8_000
+  );
+
+  if (error) {
+    throw new DriverActionError(
+      /access|required|assigned|test order/i.test(error.message)
+        ? 'Можно удалить только назначенный вам тестовый заказ.'
+        : 'Не удалось удалить тестовый заказ. Повторите ещё раз.',
+      /access|required|assigned|test order/i.test(error.message) ? 'unavailable' : 'network'
+    );
+  }
+  return data === true;
 }
 
 export async function setDriverAvailability(isOnline: boolean) {

@@ -956,6 +956,30 @@
   letter-spacing: 0.025em;
 }
 
+.driver-current-block__delete-test {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  padding: 0;
+  background: #fff1f2;
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.driver-current-block__delete-test:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.driver-current-block__delete-test svg {
+  width: 17px;
+  height: 17px;
+}
+
 .driver-current-block > header,
 .driver-urgent-offer__headline,
 .driver-urgent-offer > .driver-urgent-offer__content > header {
@@ -1430,6 +1454,26 @@
   gap: 6px;
 }
 
+.driver-current-block__contact-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.driver-current-block__contact-actions > * {
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.driver-current-block__contact-actions span {
+  font-size: 9px;
+}
+
 .driver-current-block__actions > .driver-primary:last-child {
   grid-column: 1 / -1;
 }
@@ -1445,6 +1489,87 @@
 
 .driver-current-block--details .driver-action-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.driver-order-chat-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 16000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 8px;
+  background: rgba(15, 23, 42, .72);
+}
+
+.driver-order-chat-dialog {
+  width: min(520px, 100%);
+  height: min(720px, calc(100dvh - 16px));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .32);
+}
+
+.driver-order-chat-dialog > header {
+  min-height: 64px;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 12px;
+}
+
+.driver-order-chat-dialog > header span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.driver-order-chat-dialog > header strong,
+.driver-order-chat-dialog > header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driver-order-chat-dialog > header strong {
+  color: #111827;
+  font-size: 16px;
+}
+
+.driver-order-chat-dialog > header small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.driver-order-chat-dialog > header button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: #f1efff;
+  color: #5b3df4;
+}
+
+.driver-order-chat-dialog > header svg {
+  width: 20px;
+  height: 20px;
+}
+
+.driver-order-chat-dialog > .order-conversation {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .driver-secondary--map-hint {
