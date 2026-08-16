@@ -1,6 +1,7 @@
 import {
   Archive,
   Barcode,
+  Camera,
   Check,
   CheckCircle2,
   ClipboardPaste,
@@ -58,6 +59,7 @@ import {
   readBarcodeTable,
   type ImportedTable,
 } from "./barcodeFiles";
+import { PlatformBarcodeCameraScanner } from "./PlatformBarcodeCameraScanner";
 import "./platform-product-database.css";
 
 type ProductDatabaseTab = "catalog" | "collect" | "import" | "review";
@@ -175,6 +177,7 @@ export function BarcodeCollectionWorkspace({
   const [sessionName, setSessionName] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [bulkValue, setBulkValue] = useState("");
   const [tableImport, setTableImport] = useState<ImportedTable | null>(null);
   const [tableColumn, setTableColumn] = useState(0);
@@ -249,10 +252,23 @@ export function BarcodeCollectionWorkspace({
   }, [store]);
 
   useEffect(() => {
-    if (section !== "collect" || newSessionOpen || bulkOpen || tableImport)
+    if (
+      section !== "collect" ||
+      newSessionOpen ||
+      bulkOpen ||
+      cameraOpen ||
+      tableImport
+    )
       return;
     scanInputRef.current?.focus();
-  }, [activeSessionId, bulkOpen, newSessionOpen, section, tableImport]);
+  }, [
+    activeSessionId,
+    bulkOpen,
+    cameraOpen,
+    newSessionOpen,
+    section,
+    tableImport,
+  ]);
 
   useEffect(
     () => () => {
@@ -795,17 +811,27 @@ export function BarcodeCollectionWorkspace({
               />
               <p id="barcode-scanner-help">
                 <span />
-                Сканер активен · Enter добавляет код автоматически
+                USB/Bluetooth‑сканер готов · Enter добавляет код автоматически
               </p>
             </form>
-            <button
-              type="button"
-              className="barcode-refocus"
-              onClick={() => scanInputRef.current?.focus()}
-            >
-              <Play />
-              Продолжить сканирование
-            </button>
+            <div className="barcode-scanner-buttons">
+              <button
+                type="button"
+                className="barcode-camera-button"
+                onClick={() => setCameraOpen(true)}
+              >
+                <Camera />
+                Сканировать камерой
+              </button>
+              <button
+                type="button"
+                className="barcode-refocus"
+                onClick={() => scanInputRef.current?.focus()}
+              >
+                <Play />
+                Внешний сканер
+              </button>
+            </div>
             {scanResult && (
               <div
                 className={`barcode-scan-result barcode-scan-result--${scanResult.kind}`}
@@ -832,6 +858,13 @@ export function BarcodeCollectionWorkspace({
               </div>
             )}
           </section>
+
+          {cameraOpen && (
+            <PlatformBarcodeCameraScanner
+              onDetected={(barcode) => addBarcode(barcode)}
+              onClose={() => setCameraOpen(false)}
+            />
+          )}
 
           <div className="barcode-actions">
             <button type="button" onClick={() => setBulkOpen(true)}>
