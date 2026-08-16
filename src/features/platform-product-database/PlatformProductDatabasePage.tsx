@@ -296,50 +296,6 @@ export function BarcodeCollectionWorkspace({
     );
   };
 
-  const updateEntryAfterLookup = async (
-    sessionId: string,
-    normalizedBarcode: string,
-    barcode: string,
-  ) => {
-    try {
-      const product = await lookupProduct(barcode);
-      const source = sessionsRef.current.find(
-        (session) => session.id === sessionId,
-      );
-      if (!source) return;
-      const next: BarcodeSession = {
-        ...source,
-        updatedAt: new Date().toISOString(),
-        entries: source.entries.map((entry) =>
-          entry.normalizedBarcode === normalizedBarcode
-            ? {
-                ...entry,
-                status: product ? "known" : "new",
-                knownProduct: product,
-              }
-            : entry,
-        ),
-      };
-      await persistSession(next);
-      if (product)
-        showScanResult({ kind: "known", barcode, title: product.title });
-    } catch {
-      const source = sessionsRef.current.find(
-        (session) => session.id === sessionId,
-      );
-      if (!source) return;
-      await persistSession({
-        ...source,
-        updatedAt: new Date().toISOString(),
-        entries: source.entries.map((entry) =>
-          entry.normalizedBarcode === normalizedBarcode
-            ? { ...entry, status: "unchecked" }
-            : entry,
-        ),
-      });
-    }
-  };
-
   const addBarcode = async (rawBarcode: string, runLookup = true) => {
     const sourceSession =
       sessionsRef.current.find((session) => session.id === activeSessionId) ??
@@ -354,28 +310,32 @@ export function BarcodeCollectionWorkspace({
     const existing = sourceSession.entries.find(
       (entry) => entry.normalizedBarcode === normalizedBarcode,
     );
-    const now = new Date().toISOString();
     if (existing) {
-      const next = {
-        ...sourceSession,
-        updatedAt: now,
-        entries: sourceSession.entries.map((entry) =>
-          entry.normalizedBarcode === normalizedBarcode
-            ? { ...entry, scanCount: entry.scanCount + 1, lastScannedAt: now }
-            : entry,
-        ),
-      };
-      await persistSession(next);
       showScanResult({ kind: "duplicate", barcode });
       return false;
     }
+
+    let status: BarcodeEntry["status"] = runLookup ? "new" : "unchecked";
+    if (runLookup) {
+      try {
+        const product = await lookupProduct(barcode);
+        if (product) {
+          showScanResult({ kind: "known", barcode, title: product.title });
+          return false;
+        }
+      } catch {
+        status = "unchecked";
+      }
+    }
+
+    const now = new Date().toISOString();
     const entry: BarcodeEntry = {
       barcode,
       normalizedBarcode,
       firstScannedAt: now,
       lastScannedAt: now,
       scanCount: 1,
-      status: runLookup ? "checking" : "unchecked",
+      status,
       knownProduct: null,
     };
     const next = {
@@ -385,8 +345,6 @@ export function BarcodeCollectionWorkspace({
     };
     await persistSession(next);
     showScanResult({ kind: "added", barcode });
-    if (runLookup)
-      void updateEntryAfterLookup(next.id, normalizedBarcode, barcode);
     return true;
   };
 
@@ -404,23 +362,19 @@ export function BarcodeCollectionWorkspace({
       activeSession;
     if (!sourceSession) return;
     const now = new Date().toISOString();
-    const byBarcode = new Map(
-      sourceSession.entries.map((entry) => [entry.normalizedBarcode, entry]),
+    const knownBarcodes = new Set(
+      sourceSession.entries.map((entry) => entry.normalizedBarcode),
     );
+    const newEntries: BarcodeEntry[] = [];
     let repeats = 0;
     for (const barcode of barcodes) {
       const normalized = normalizeGlobalBarcode(barcode);
       if (!normalized) continue;
-      const current = byBarcode.get(normalized);
-      if (current) {
-        byBarcode.set(normalized, {
-          ...current,
-          scanCount: current.scanCount + 1,
-          lastScannedAt: now,
-        });
+      if (knownBarcodes.has(normalized)) {
         repeats += 1;
       } else {
-        byBarcode.set(normalized, {
+        knownBarcodes.add(normalized);
+        newEntries.push({
           barcode,
           normalizedBarcode: normalized,
           firstScannedAt: now,
@@ -431,11 +385,12 @@ export function BarcodeCollectionWorkspace({
         });
       }
     }
-    await persistSession({
-      ...sourceSession,
-      updatedAt: now,
-      entries: Array.from(byBarcode.values()).reverse(),
-    });
+    if (newEntries.length > 0)
+      await persistSession({
+        ...sourceSession,
+        updatedAt: now,
+        entries: [...newEntries.reverse(), ...sourceSession.entries],
+      });
     showScanResult({
       kind: repeats > 0 ? "duplicate" : "added",
       barcode: `${barcodes.length} кодов`,
@@ -709,6 +664,7 @@ export function BarcodeCollectionWorkspace({
 
   const stats = barcodeSessionStats(activeSession);
   const filteredEntries = activeSession.entries.filter((entry) => {
+    if (entry.status === "known") return false;
     const value = search.toLocaleLowerCase("ru");
     return (
       !value ||
@@ -945,10 +901,7 @@ export function BarcodeCollectionWorkspace({
                   role="row"
                   key={entry.normalizedBarcode}
                 >
-                  <code>
-                    {entry.barcode}
-                    {entry.scanCount > 1 && <small>×{entry.scanCount}</small>}
-                  </code>
+                  <code>{entry.barcode}</code>
                   <span
                     className={`barcode-status barcode-status--${entry.status}`}
                   >
