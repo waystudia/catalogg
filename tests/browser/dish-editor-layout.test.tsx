@@ -283,6 +283,7 @@ test('adds optional spicy and original card variants after enabling separate car
     publishVariantsLabel.element().scrollIntoView({ block: 'center' });
     await publishVariantsLabel.click();
 
+    await expect.element(publishVariants).toBeChecked();
     await expect.element(screen.getByRole('heading', { name: 'Дополнительные варианты карточек' })).toBeVisible();
     await expect.element(screen.getByRole('textbox', { name: 'Дополнительный вариант 1' })).toHaveValue('');
     await screen.getByRole('textbox', { name: 'Дополнительный вариант 1' }).fill('острая');
