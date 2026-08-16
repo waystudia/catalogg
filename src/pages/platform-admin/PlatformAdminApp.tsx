@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import {
   createClient,
@@ -228,6 +228,12 @@ const navItems: Array<{ route: PlatformRoute; label: string; detail: string; Ico
 ];
 
 const mobilePrimaryRoutes: PlatformRoute[] = ['dashboard', 'clients', 'catalogs', 'templates'];
+const mobileMoreGroups: Array<{ label: string; routes: PlatformRoute[] }> = [
+  { label: 'Бизнес и каталоги', routes: ['activations', 'reviews', 'shared-products', 'import-export'] },
+  { label: 'Доставка', routes: ['settlements', 'roads', 'drivers'] },
+  { label: 'Статистика и деньги', routes: ['analytics', 'subscriptions', 'audit-log'] },
+  { label: 'Платформа', routes: ['client-signups', 'contests', 'settings'] }
+];
 
 const statusLabels: Record<PlatformClient['status'], string> = {
   active: 'Активен',
@@ -312,8 +318,7 @@ const readRouteFromLocation = (): PlatformRoute => {
 
 const routeToPath = (route: PlatformRoute) => {
   const segment = route === 'dashboard' ? 'dashboard' : route;
-  const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-  return `${base}#/admin/${segment}`;
+  return `/admin/${segment}`;
 };
 
 const privacyPolicyPath = () => {
@@ -340,8 +345,12 @@ function getInitials(name: string) {
   return letters || 'C';
 }
 
-function navigateToRoute(route: PlatformRoute, setRoute: (route: PlatformRoute) => void) {
-  window.history.pushState(null, '', routeToPath(route));
+function navigateToRoute(
+  route: PlatformRoute,
+  setRoute: (route: PlatformRoute) => void,
+  navigate: ReturnType<typeof useNavigate>
+) {
+  navigate(routeToPath(route));
   setRoute(route);
 }
 
@@ -381,7 +390,7 @@ function PlatformSidebar({
   );
 }
 
-function PlatformMobileNav({
+export function PlatformMobileNav({
   route,
   onNavigate
 }: {
@@ -389,7 +398,6 @@ function PlatformMobileNav({
   onNavigate: (route: PlatformRoute) => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const moreItems = navItems.filter((item) => !mobilePrimaryRoutes.includes(item.route));
   const activePrimaryRoute = route === 'client-signups' ? 'clients' : route;
   const isMoreActive = !mobilePrimaryRoutes.includes(route) && route !== 'client-signups';
 
@@ -404,18 +412,30 @@ function PlatformMobileNav({
                 <X />
               </button>
             </div>
-            {moreItems.map(({ route: itemRoute, label, Icon }) => (
-              <button
-                type="button"
-                key={itemRoute}
-                onClick={() => {
-                  onNavigate(itemRoute);
-                  setMoreOpen(false);
-                }}
-              >
-                <Icon />
-                {label}
-              </button>
+            {mobileMoreGroups.map((group) => (
+              <section className="platform-more-group" key={group.label} aria-label={group.label}>
+                <h2>{group.label}</h2>
+                <div>
+                  {group.routes.map((itemRoute) => {
+                    const item = navItems.find((candidate) => candidate.route === itemRoute);
+                    if (!item) return null;
+                    const Icon = item.Icon;
+                    return (
+                      <button
+                        type="button"
+                        key={itemRoute}
+                        onClick={() => {
+                          onNavigate(itemRoute);
+                          setMoreOpen(false);
+                        }}
+                      >
+                        <Icon />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
             ))}
           </div>
         </div>
@@ -3634,6 +3654,7 @@ function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut:
 }
 
 function PlatformAdminContent() {
+  const navigate = useNavigate();
   const [route, setRoute] = useState<PlatformRoute>(() => readRouteFromLocation());
   const [createOpen, setCreateOpen] = useState(window.location.pathname.includes('/admin/clients/new'));
   const [editingClient, setEditingClient] = useState<PlatformClient | null>(null);
@@ -3780,7 +3801,7 @@ function PlatformAdminContent() {
       <Toaster richColors position="top-center" />
       <PlatformSidebar
         route={route}
-        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
+        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute, navigate)}
       />
       <section className="platform-workspace">
         <header className="platform-topbar">
@@ -3800,7 +3821,7 @@ function PlatformAdminContent() {
             >
               <Bell />
             </button>
-            <button type="button" aria-label="Настройки" onClick={() => navigateToRoute('settings', setRoute)}>
+            <button type="button" aria-label="Настройки" onClick={() => navigateToRoute('settings', setRoute, navigate)}>
               <Settings />
             </button>
           </div>
@@ -3809,7 +3830,7 @@ function PlatformAdminContent() {
       </section>
       <PlatformMobileNav
         route={route}
-        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
+        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute, navigate)}
       />
       {(createOpen || editingClient) && (
         <div

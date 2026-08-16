@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { page } from 'vitest/browser';
 import { RestaurantActivationsAdminPage } from '../../src/features/platform-admin-activations/RestaurantActivationsAdminPage';
 import type {
   RestaurantActivationAdminRow,
@@ -195,4 +196,25 @@ test('manual code is revealed to the super administrator only for an owner reque
   await expect.element(screen.getByText('654321')).toBeVisible();
   await expect.element(screen.getByText(/код показывается только сейчас/i)).toBeVisible();
   expect(service.issueManualCode).toHaveBeenCalledWith('request-1');
+});
+
+test('lays out activation actions and filters without clipping at the annotated mobile viewport', async () => {
+  await page.viewport(372, 576);
+  try {
+    const screen = await render(<RestaurantActivationsAdminPage service={adminService()} />);
+    await expect.element(screen.getByRole('heading', { name: 'Договоры и активации' })).toBeVisible();
+
+    const actions = document.querySelector<HTMLElement>('.activation-admin-head-actions')!;
+    const actionRects = Array.from(actions.children, (child) => child.getBoundingClientRect());
+    expect(Math.abs((actionRects[0]?.top ?? 0) - (actionRects[1]?.top ?? 0))).toBeLessThanOrEqual(1);
+
+    const filters = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.activation-admin-filters button'),
+      (button) => button.getBoundingClientRect()
+    );
+    expect(filters.every((rect) => rect.left >= 0 && rect.right <= window.innerWidth)).toBe(true);
+    expect(document.documentElement.scrollWidth).toBe(document.documentElement.clientWidth);
+  } finally {
+    await page.viewport(414, 896);
+  }
 });

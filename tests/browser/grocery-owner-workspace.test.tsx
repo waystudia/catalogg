@@ -42,7 +42,8 @@ const groceryOwnerAccess = (): CatalogAdminAccess => ({
     logoUrl: '',
     templateName: 'Продуктовый магазин',
     templateVersion: 1,
-    businessType: 'grocery'
+    businessType: 'grocery',
+    isTemplate: false
   }
 });
 

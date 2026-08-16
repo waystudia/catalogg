@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { captureCurrentScroll, exactHistoryPushEvent, withExactScroll } from './exactScrollState';
 
 const exactBackStateKey = '__wayyaamExactBack';
 
@@ -83,17 +84,19 @@ export function useBrowserBackedState<T>(scope: string, initialValue: T) {
   const open = useCallback((updater: StateUpdater<T>) => {
     setValue((currentValue) => {
       const nextValue = resolveUpdater(updater, currentValue);
+      captureCurrentScroll();
       const sourceState = writeSnapshot(window.history.state, scope, currentValue);
       window.history.replaceState(sourceState, '', window.location.href);
       window.history.pushState(
         {
-          ...writeSnapshot(sourceState, scope, nextValue, scope),
+          ...withExactScroll(writeSnapshot(sourceState, scope, nextValue, scope), { x: 0, y: 0 }),
           idx: typeof sourceState.idx === 'number' ? sourceState.idx + 1 : sourceState.idx,
           key: createHistoryKey()
         },
         '',
         window.location.href
       );
+      window.dispatchEvent(new Event(exactHistoryPushEvent));
       return nextValue;
     });
   }, [scope]);

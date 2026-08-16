@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  copySupabaseSessionBetweenScopes,
   getSupabaseAuthFallbackStorageKeys,
   getSupabaseAuthScope,
   getSupabaseAuthStorage,
@@ -82,6 +83,35 @@ describe('Supabase auth scopes', () => {
     assert.equal(values.get('waycatalog-auth-platform-admin'), 'fresh-superadmin-session');
     assert.equal(values.has('waycatalog-auth-login'), false);
     assert.equal(values.get('waycatalog-auth-driver'), 'independent-driver-session');
+  });
+
+  it('copies a platform admin session into a template admin tab without removing the source role', () => {
+    const values = new Map<string, string>([
+      ['waycatalog-auth-platform-admin', 'platform-admin-session']
+    ]);
+    const previousWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => values.get(key) ?? null,
+          removeItem: (key: string) => values.delete(key),
+          setItem: (key: string, value: string) => values.set(key, value)
+        }
+      }
+    });
+
+    try {
+      copySupabaseSessionBetweenScopes('platform-admin', 'restaurant-admin');
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: previousWindow
+      });
+    }
+
+    assert.equal(values.get('waycatalog-auth-platform-admin'), 'platform-admin-session');
+    assert.equal(values.get('waycatalog-auth-restaurant-admin'), 'platform-admin-session');
   });
 
   it('moves an inline profile login out of the client scope into the destination role', () => {

@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { useBrowserBackedState } from '../../src/shared/useBrowserBackedState';
+import { ExactScrollRestoration } from '../../src/shared/ExactScrollRestoration';
 
 type FlowState = {
   view: 'list' | 'details' | 'nested';
@@ -18,7 +19,7 @@ function ExactBackHarness({ scope }: { scope: string }) {
 
   if (state.view === 'list') {
     return (
-      <main>
+      <main style={{ minHeight: 1800 }}>
         <h1>Список</h1>
         <label>Поиск<input aria-label="Поиск" value={state.query} onChange={(event) => history.replace((current) => ({ ...current, query: event.target.value }))} /></label>
         <button type="button" onClick={() => history.open((current) => ({ ...current, view: 'details' }))}>Открыть карточку</button>
@@ -28,7 +29,7 @@ function ExactBackHarness({ scope }: { scope: string }) {
 
   if (state.view === 'details') {
     return (
-      <main>
+      <main style={{ minHeight: 1800 }}>
         <button type="button" aria-label="Назад" onClick={() => history.back()}>Назад</button>
         <h1>Карточка</h1>
         <label>Черновик<input aria-label="Черновик" value={state.draft} onChange={(event) => history.replace((current) => ({ ...current, draft: event.target.value }))} /></label>
@@ -38,7 +39,7 @@ function ExactBackHarness({ scope }: { scope: string }) {
   }
 
   return (
-    <main>
+    <main style={{ minHeight: 1800 }}>
       <button type="button" aria-label="Назад" onClick={() => history.back()}>Назад</button>
       <h1>Вложенный экран</h1>
     </main>
@@ -48,21 +49,29 @@ function ExactBackHarness({ scope }: { scope: string }) {
 test('visible and browser Back restore nested screens, filters and drafts in LIFO order', async () => {
   await page.viewport(372, 576);
   window.history.replaceState({}, '', window.location.href);
-  const screen = await render(<ExactBackHarness scope="test:exact-back:lifo" />);
+  const screen = await render(<><ExactScrollRestoration /><ExactBackHarness scope="test:exact-back:lifo" /></>);
 
   await screen.getByLabelText('Поиск').fill('молоко');
-  await screen.getByRole('button', { name: 'Открыть карточку' }).click();
+  window.scrollTo(0, 500);
+  await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  (screen.getByRole('button', { name: 'Открыть карточку' }).element() as HTMLButtonElement).click();
+  await expect.poll(() => window.scrollY).toBe(0);
   await screen.getByLabelText('Черновик').fill('не заменять товар');
-  await screen.getByRole('button', { name: 'Открыть вложенный экран' }).click();
+  window.scrollTo(0, 300);
+  await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  (screen.getByRole('button', { name: 'Открыть вложенный экран' }).element() as HTMLButtonElement).click();
+  await expect.poll(() => window.scrollY).toBe(0);
 
   await expect.element(screen.getByRole('heading', { name: 'Вложенный экран' })).toBeVisible();
   await screen.getByRole('button', { name: 'Назад' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Карточка' })).toBeVisible();
   await expect.element(screen.getByLabelText('Черновик')).toHaveValue('не заменять товар');
+  await expect.poll(() => window.scrollY).toBe(300);
 
   window.history.back();
   await expect.element(screen.getByRole('heading', { name: 'Список' })).toBeVisible();
   await expect.element(screen.getByLabelText('Поиск')).toHaveValue('молоко');
+  await expect.poll(() => window.scrollY).toBe(500);
   expect(document.documentElement.scrollWidth).toBe(document.documentElement.clientWidth);
   const openButton = screen.getByRole('button', { name: 'Открыть карточку' }).element().getBoundingClientRect();
   expect(openButton.bottom).toBeLessThanOrEqual(window.innerHeight);
