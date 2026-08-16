@@ -3,6 +3,7 @@ import { cabins, categories, products, restaurant, themeSettings } from '../data
 import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, ProductModifierGroup, Restaurant, ThemeSettings } from '../entities/models';
 import { normalizeProductChoiceOptions } from '../entities/productVariants';
 import { resolvePlatformProductWrite } from './catalogProductPersistence';
+import { toLegacyProductPatch, toLegacyProductRow } from './legacyProductPersistence';
 import { normalizeProductModifierGroups } from '../entities/productModifiers';
 import { confectioneryTemplate } from '../templates/confectionery';
 import { normalizeBusinessType } from './businessTerminology';
@@ -1239,9 +1240,7 @@ export async function saveProductToSupabase(product: Product) {
       category_id: activeCatalogIsLegacy && !platformCategoryId ? undefined : platformCategoryId
     };
     if (activeCatalogIsLegacy) {
-      const legacyProduct: Record<string, unknown> = { ...product };
-      delete legacyProduct.choice_options;
-      await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
+      await throwOnError(supabase.from('product').upsert(toLegacyProductRow(product), { onConflict: 'id' }));
     }
     const existing = (await throwOnError(
       supabase
@@ -1273,9 +1272,7 @@ export async function saveProductToSupabase(product: Product) {
     await saveProductConfig(platformProductId, product);
     return;
   }
-  const legacyProduct: Record<string, unknown> = { ...product };
-  delete legacyProduct.choice_options;
-  await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
+  await throwOnError(supabase.from('product').upsert(toLegacyProductRow(product), { onConflict: 'id' }));
   await saveProductChoices(product);
 }
 
@@ -1290,8 +1287,7 @@ export async function updateProductInSupabase(productId: string, patch: Partial<
     await saveProductConfig(productId, patch);
     return;
   }
-  const legacyPatch = { ...patch };
-  await throwOnError(supabase.from('product').update(legacyPatch).eq('id', productId));
+  await throwOnError(supabase.from('product').update(toLegacyProductPatch(patch)).eq('id', productId));
 }
 
 export async function deleteProductFromSupabase(productId: string) {
