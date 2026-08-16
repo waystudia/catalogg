@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
+import { useEffect, useState } from 'react';
 import { useBrowserBackedState } from '../../src/shared/useBrowserBackedState';
 import { ExactScrollRestoration } from '../../src/shared/ExactScrollRestoration';
 
@@ -57,6 +58,7 @@ test('visible and browser Back restore nested screens, filters and drafts in LIF
   (screen.getByRole('button', { name: 'Открыть карточку' }).element() as HTMLButtonElement).click();
   await expect.poll(() => window.scrollY).toBe(0);
   await screen.getByLabelText('Черновик').fill('не заменять товар');
+  window.dispatchEvent(new WheelEvent('wheel'));
   window.scrollTo(0, 300);
   await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
   (screen.getByRole('button', { name: 'Открыть вложенный экран' }).element() as HTMLButtonElement).click();
@@ -91,4 +93,33 @@ test('a nested direct entry without an origin falls back locally instead of leav
   const screen = await render(<DirectEntryHarness />);
   await screen.getByRole('button', { name: 'Назад' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Безопасный список' })).toBeVisible();
+});
+
+test('hash routes start at the top and Back survives late browser scroll restoration', async () => {
+  await page.viewport(372, 576);
+  window.history.replaceState({}, '', '#/source');
+
+  function HashRouteHarness() {
+    const [hash, setHash] = useState(window.location.hash);
+    useEffect(() => {
+      const update = () => setHash(window.location.hash);
+      window.addEventListener('hashchange', update);
+      return () => window.removeEventListener('hashchange', update);
+    }, []);
+    return hash === '#/next'
+      ? <main style={{ minHeight: 2200 }}><h1>Новый экран</h1></main>
+      : <main style={{ minHeight: 2200 }}><h1>Исходный экран</h1><a href="#/next" style={{ position: 'fixed', bottom: 0 }}>Открыть</a></main>;
+  }
+
+  const screen = await render(<><ExactScrollRestoration /><HashRouteHarness /></>);
+  window.scrollTo(0, 500);
+  await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  await screen.getByRole('link', { name: 'Открыть' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Новый экран' })).toBeVisible();
+  await expect.poll(() => window.scrollY).toBe(0);
+
+  window.history.back();
+  window.setTimeout(() => window.scrollTo(0, 900), 50);
+  await expect.element(screen.getByRole('heading', { name: 'Исходный экран' })).toBeVisible();
+  await expect.poll(() => window.scrollY, { timeout: 2_000 }).toBe(500);
 });
