@@ -264,3 +264,45 @@ test('optionally synchronizes dish variants into separate catalog cards without 
     useAdminStore.setState({ editor: null, isPanelOpen: false });
   }
 });
+
+test('adds optional spicy and original card variants after enabling separate cards', async () => {
+  const onSaveProduct = vi.fn();
+  const sourceProduct: Product = {
+    ...product,
+    title: 'Пицца Маргарита',
+    choice_options: [
+      { name: 'средняя', price: 600 },
+      { name: 'большая', price: 800 }
+    ]
+  };
+
+  try {
+    const screen = await renderDishEditorWithProducts(sourceProduct, [sourceProduct], onSaveProduct);
+    const publishVariants = screen.getByRole('checkbox', { name: 'Добавить варианты в каталог отдельными карточками' });
+    const publishVariantsLabel = screen.getByText('Отдельные карточки');
+    publishVariantsLabel.element().scrollIntoView({ block: 'center' });
+    await publishVariantsLabel.click();
+
+    await expect.element(publishVariants).toBeChecked();
+    await expect.element(screen.getByRole('heading', { name: 'Дополнительные варианты карточек' })).toBeVisible();
+    await expect.element(screen.getByRole('textbox', { name: 'Дополнительный вариант 1' })).toHaveValue('');
+    await screen.getByRole('textbox', { name: 'Дополнительный вариант 1' }).fill('острая');
+    await screen.getByRole('button', { name: 'Добавить дополнительный вариант' }).click();
+    await screen.getByRole('textbox', { name: 'Дополнительный вариант 2' }).fill('оригинальная');
+    await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
+
+    await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
+    expect(onSaveProduct.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
+      publish_choice_cards: true,
+      choice_card_options: ['острая', 'оригинальная']
+    }));
+    expect(onSaveProduct.mock.calls[0]?.[1]).toEqual([
+      expect.objectContaining({ title: 'Пицца Маргарита средняя острая', price: 600 }),
+      expect.objectContaining({ title: 'Пицца Маргарита средняя оригинальная', price: 600 }),
+      expect.objectContaining({ title: 'Пицца Маргарита большая острая', price: 800 }),
+      expect.objectContaining({ title: 'Пицца Маргарита большая оригинальная', price: 800 })
+    ]);
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});

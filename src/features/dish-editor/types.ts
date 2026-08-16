@@ -16,6 +16,7 @@ export type Dish = {
   images: string[];
   pairIds: string[];
   choiceOptions: ProductChoiceOption[];
+  choiceCardOptions: string[];
   modifierGroups: ProductModifierGroup[];
   pricingType: PricingType;
   priceTier: PriceTier;
@@ -61,6 +62,9 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     images: product?.image_urls?.length ? product.image_urls : product?.image_url ? [product.image_url] : [],
     pairIds: product?.pair_ids ?? [],
     choiceOptions: normalizeProductChoiceOptions(product?.choice_options, product?.price ?? 0),
+    choiceCardOptions: Array.isArray(product?.choice_card_options)
+      ? product.choice_card_options.filter((value): value is string => typeof value === 'string')
+      : [],
     modifierGroups: product?.modifier_groups ?? [],
     pricingType: product?.sale_unit === 'weight' ? 'per_kg' : product?.pricing_type ?? 'fixed',
     priceTier: product?.price_tier ?? 'standard',
@@ -117,6 +121,11 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     drink_type: current?.drink_type,
     pair_ids: dish.pairIds,
     choice_options: dish.choiceOptions,
+    choice_card_options: dish.choiceCardOptions
+      .map((value) => value.trim())
+      .filter((value, index, values) => value && values.findIndex(
+        (candidate) => candidate.toLocaleLowerCase('ru') === value.toLocaleLowerCase('ru')
+      ) === index),
     modifier_groups: dish.modifierGroups,
     pricing_type: isWeighted ? 'per_kg' : dish.pricingType,
     price_tier: dish.priceTier,

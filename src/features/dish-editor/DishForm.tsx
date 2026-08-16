@@ -546,10 +546,60 @@ export function DishForm({
             type="checkbox"
             checked={dish.publishChoiceCards}
             disabled={dish.choiceOptions.length === 0}
-            onChange={(event) => onChange({ publishChoiceCards: event.target.checked })}
+            onChange={(event) => onChange({
+              publishChoiceCards: event.target.checked,
+              choiceCardOptions: event.target.checked && dish.choiceCardOptions.length === 0
+                ? ['']
+                : dish.choiceCardOptions
+            })}
           />
           <span aria-hidden="true" />
         </label>
+        {dish.publishChoiceCards && (
+          <div className="dish-choice-card-options">
+            <div>
+              <h4>Дополнительные варианты карточек</h4>
+              <small>Например: «острая» и «оригинальная». Каждая комбинация появится отдельной карточкой.</small>
+            </div>
+            {dish.choiceCardOptions.map((option, index) => (
+              <div className="dish-choice-card-options__row" key={index}>
+                <label>
+                  <span>Вариант</span>
+                  <input
+                    aria-label={`Дополнительный вариант ${index + 1}`}
+                    maxLength={40}
+                    value={option}
+                    onChange={(event) => {
+                      const next = [...dish.choiceCardOptions];
+                      next[index] = event.target.value.slice(0, 40);
+                      onChange({ choiceCardOptions: next });
+                    }}
+                    placeholder={index === 0 ? 'Острая' : 'Оригинальная'}
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label={`Удалить дополнительный вариант ${option || index + 1}`}
+                  onClick={() => onChange({
+                    choiceCardOptions: dish.choiceCardOptions.filter((_, itemIndex) => itemIndex !== index)
+                  })}
+                >
+                  Удалить
+                </button>
+              </div>
+            ))}
+            {dish.choiceCardOptions.length < 6 && (
+              <button
+                className="dish-choice-editor__add"
+                type="button"
+                aria-label="Добавить дополнительный вариант"
+                onClick={() => onChange({ choiceCardOptions: [...dish.choiceCardOptions, ''] })}
+              >
+                + Добавить вариант карточки
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="dish-section">

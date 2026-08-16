@@ -463,6 +463,56 @@
   opacity: 0.45;
 }
 
+.dish-choice-card-options {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  padding-top: 12px;
+}
+
+.dish-choice-card-options h4 {
+  margin: 0 0 3px;
+  font-size: 14px;
+}
+
+.dish-choice-card-options small {
+  line-height: 1.35;
+}
+
+.dish-choice-card-options__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.dish-choice-card-options__row label {
+  min-width: 0;
+}
+
+.dish-choice-card-options__row label > span {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dish-choice-card-options__row button {
+  min-width: 42px;
+  min-height: 42px;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0;
+}
+
+.dish-choice-card-options__row button::before {
+  content: '×';
+  font-size: 24px;
+  font-weight: 800;
+}
+
 .dish-pair-option {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) auto;

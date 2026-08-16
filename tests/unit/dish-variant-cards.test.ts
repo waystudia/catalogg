@@ -124,6 +124,58 @@ describe('dish variant catalog cards', () => {
     expect(result.removedProductIds).toEqual(['stale-third']);
   });
 
+  it('creates one separate card for every size and additional variant combination', () => {
+    const source = product({
+      title: 'Пицца Маргарита',
+      publish_choice_cards: true,
+      choice_options: [
+        { name: 'средняя', price: 600 },
+        { name: 'большая', price: 800 }
+      ],
+      choice_card_options: ['острая', 'оригинальная']
+    });
+
+    const generated = synchronizeDishVariantCards(source, [source]).generatedProducts;
+
+    expect(generated).toEqual([
+      expect.objectContaining({
+        title: 'Пицца Маргарита средняя острая',
+        price: 600,
+        generated_choice_index: 0,
+        choice_options: [],
+        choice_card_options: []
+      }),
+      expect.objectContaining({
+        title: 'Пицца Маргарита средняя оригинальная',
+        price: 600,
+        generated_choice_index: 1
+      }),
+      expect.objectContaining({
+        title: 'Пицца Маргарита большая острая',
+        price: 800,
+        generated_choice_index: 2
+      }),
+      expect.objectContaining({
+        title: 'Пицца Маргарита большая оригинальная',
+        price: 800,
+        generated_choice_index: 3
+      })
+    ]);
+  });
+
+  it('ignores empty and duplicate additional variants', () => {
+    const source = product({
+      publish_choice_cards: true,
+      choice_options: [{ name: '6 шт', price: 790 }],
+      choice_card_options: [' острая ', '', 'ОСТРАЯ', 'оригинальная']
+    });
+
+    expect(synchronizeDishVariantCards(source, [source]).generatedProducts.map((item) => item.title)).toEqual([
+      'Острые крылышки, 6 шт острая',
+      'Острые крылышки, 6 шт оригинальная'
+    ]);
+  });
+
   it('inherits the complete dish presentation, grouping, labels, serving and modifiers', () => {
     const source = product({
       publish_choice_cards: true,

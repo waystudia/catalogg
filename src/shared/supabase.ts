@@ -2,6 +2,7 @@ import { createClient, type Session, type SupabaseClient } from '@supabase/supab
 import { cabins, categories, products, restaurant, themeSettings } from '../data/catalog';
 import type { Cabin, CatalogTag, Category, Product, ProductChoiceOptionInput, ProductModifierGroup, Restaurant, ThemeSettings } from '../entities/models';
 import { normalizeProductChoiceOptions } from '../entities/productVariants';
+import { resolvePlatformProductWrite } from './catalogProductPersistence';
 import { normalizeProductModifierGroups } from '../entities/productModifiers';
 import { confectioneryTemplate } from '../templates/confectionery';
 import { normalizeBusinessType } from './businessTerminology';
@@ -416,6 +417,7 @@ const productConfigKeys = [
   'allow_decoration_comment',
   'allow_production_schedule',
   'publish_choice_cards',
+  'choice_card_options',
   'generated_from_choice',
   'generated_choice_index',
   'placeholder_kind',
@@ -1241,34 +1243,32 @@ export async function saveProductToSupabase(product: Product) {
       delete legacyProduct.choice_options;
       await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
     }
-    let platformProductId = product.id;
-    if (uuidPattern.test(product.id)) {
-      await throwOnError(supabase.from('products').upsert({ id: product.id, ...row }, { onConflict: 'id' }));
+    const existing = (await throwOnError(
+      supabase
+        .from('products')
+        .select('id')
+        .eq('catalog_id', activePlatformCatalogId)
+        .eq('slug', row.slug)
+        .maybeSingle()
+    )) as { id: string } | null;
+    const write = resolvePlatformProductWrite(product.id, existing?.id ?? null);
+    let platformProductId = write.kind === 'insert' ? product.id : write.productId;
+    if (write.kind === 'update') {
+      await throwOnError(
+        supabase.from('products').update(row).eq('id', write.productId).eq('catalog_id', activePlatformCatalogId)
+      );
+    } else if (write.kind === 'upsert') {
+      await throwOnError(supabase.from('products').upsert({ id: write.productId, ...row }, { onConflict: 'id' }));
     } else {
-      const existing = (await throwOnError(
-        supabase
-          .from('products')
-          .select('id')
-          .eq('catalog_id', activePlatformCatalogId)
-          .eq('slug', row.slug)
-          .maybeSingle()
-      )) as { id: string } | null;
-      if (existing?.id) {
-        platformProductId = existing.id;
-        await throwOnError(
-          supabase.from('products').update(row).eq('id', platformProductId).eq('catalog_id', activePlatformCatalogId)
-        );
-      } else {
-        const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
-          | { id: string }
-          | null;
-        if (!created?.id) return;
-        platformProductId = created.id;
-      }
+      const created = (await throwOnError(supabase.from('products').insert(row).select('id').single())) as
+        | { id: string }
+        | null;
+      if (!created?.id) return;
+      platformProductId = created.id;
     }
     const platformProduct = { ...product, id: platformProductId };
     await syncPlatformProductImages(platformProductId, product.image_urls?.length ? product.image_urls : [product.image_url]);
-    await saveProductChoices(product);
+    await saveProductChoices(platformProduct);
     await saveProductModifiers(platformProduct);
     await saveProductConfig(platformProductId, product);
     return;
