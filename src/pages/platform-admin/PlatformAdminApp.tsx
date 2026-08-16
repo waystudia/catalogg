@@ -131,6 +131,7 @@ import { PlatformUsersPage } from '../../features/platform-admin-users/PlatformU
 import { PlatformDriversPage } from '../../features/platform-admin-drivers/PlatformDriversPage';
 import { PlatformContestsPage } from '../../features/platform-admin-contests/PlatformContestsPage';
 import { PlatformTemplatesPage } from '../../features/platform-admin-templates/PlatformTemplatesPage';
+import { PlatformProductDatabasePage } from '../../features/platform-product-database/PlatformProductDatabasePage';
 import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 import { PlatformAsphaltRoadsPage } from '../../features/platform-admin-roads/PlatformAsphaltRoadsPage';
 import { PlatformReviewsRoute } from '../../features/platform-admin-reviews/PlatformReviewsPage';
@@ -3738,7 +3739,7 @@ function PlatformAdminContent() {
       return <PlatformTemplatesPage templates={templatesQuery.data ?? []} />;
     }
     if (route === 'shared-products') {
-      return <SharedProductCatalogPage mode="platform" />;
+      return <PlatformProductDatabasePage catalog={<SharedProductCatalogPage mode="platform" />} />;
     }
     if (route === 'client-signups') {
       return <PlatformUsersPage />;
