@@ -106,6 +106,8 @@ export class DriverActionError extends Error {
 type DeliveryRow = {
   id: string;
   order_id: string;
+  catalog_id?: string | null;
+  is_test_order?: boolean | null;
   driver_id: string | null;
   status: DeliveryStatus | 'waiting_driver' | 'assigned';
   delivery_provider: string;
@@ -630,7 +632,7 @@ const rowToOffer = (
   return {
     ...buildDriverDeliveryView({ order: lifecycleOrder, assignment, viewerDriverId }),
     businessType,
-    catalogId: order.catalog_id ?? '',
+    catalogId: order.catalog_id ?? row.catalog_id ?? '',
     deliveryId: row.id,
     orderNumber: formatPublicOrderNumber(row.order_id, restaurant?.name),
     createdAt: order.created_at,
@@ -654,6 +656,7 @@ const rowToOffer = (
     pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined,
     orderGroupId: row.order_group_id ?? null,
     isCombined: Boolean(row.is_combined),
+    isTestOrder: row.is_test_order === true,
     stops: (row.delivery_stops ?? [])
       .map(rowToDeliveryStop)
       .filter((stop): stop is DriverDeliveryStop => stop !== null)
