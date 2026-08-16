@@ -1293,6 +1293,12 @@
   color: #b91c1c;
 }
 
+.platform-template-card__actions .is-preview {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #111827;
+}
+
 .platform-template-list {
   display: grid;
   gap: 12px;
@@ -2976,7 +2982,7 @@
 
   .platform-more-sheet__panel {
     display: grid;
-    gap: 8px;
+    gap: 14px;
     max-height: calc(100dvh - 20px);
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -2986,15 +2992,48 @@
     scrollbar-gutter: stable;
   }
 
-  .platform-more-sheet__panel > button {
+  .platform-more-group {
+    display: grid;
+    gap: 7px;
+  }
+
+  .platform-more-group h2 {
+    margin: 0;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .platform-more-group > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .platform-more-group button {
     display: flex;
-    min-height: 48px;
+    min-width: 0;
+    min-height: 46px;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     border-radius: 10px;
     background: #f8fafc;
     color: #111827;
+    padding: 7px 9px;
+    text-align: left;
     font-weight: 800;
+  }
+
+  .platform-more-group button svg {
+    width: 19px;
+    min-width: 19px;
+  }
+
+  .platform-more-group button span {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 }
 

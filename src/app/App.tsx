@@ -62,6 +62,7 @@ import {
 import type { Cabin, CartItem, CatalogTag, Category, Product, Restaurant, SelectedProductModifier, ThemeSettings } from '../entities/models';
 import { buildCartLineId, getCartLineId, getMissingRequiredModifierGroup, getSelectedModifierDetails } from '../entities/productModifiers';
 import { isPublicMenuCategory } from '../entities/publicCategoryVisibility';
+import { getCustomerCatalogProducts } from '../entities/customerCatalogProducts';
 import {
   getCartItemPrice,
   getProductChoiceOptions,
@@ -825,7 +826,7 @@ function HomeScreen({
 }) {
   const [active, setActive] = useState('all');
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const visibleProducts = isAdmin ? products : getCustomerCatalogProducts(products);
   const featuredCategories = categories.filter((category) => category.showOnHome !== false && isPublicMenuCategory(category));
   const popular = visibleProducts.filter((product) => product.is_popular).slice(0, 6);
   const whatsapp = restaurant.whatsapp.replace(/[^\d]/g, '');
@@ -1065,7 +1066,7 @@ export function CatalogScreen({
   const categoryRailRef = useRef<HTMLDivElement | null>(null);
   const navSentinelRef = useRef<HTMLSpanElement | null>(null);
   const initialScrollDoneRef = useRef(false);
-  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const visibleProducts = isAdmin ? products : getCustomerCatalogProducts(products);
   const normalizedQuery = query.trim().toLocaleLowerCase('ru');
   const queryMatches = useCallback(
     (product: Product) =>
@@ -1375,7 +1376,7 @@ function DrinksScreen({
 }) {
   const [active, setActive] = useState(initialCategory);
   const isAdmin = useAuthStore((state) => state.isAdmin);
-  const visibleProducts = isAdmin ? products : products.filter((product) => !product.is_hidden);
+  const visibleProducts = isAdmin ? products : getCustomerCatalogProducts(products);
   const drinkCategories = categories.filter((category) => category.kind === 'drink');
   const drinkCategoryIds = new Set(drinkCategories.map((category) => category.id));
   const drinks = visibleProducts.filter((product) => {

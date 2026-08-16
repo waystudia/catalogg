@@ -166,6 +166,12 @@ export const copySupabaseSessionToScope = (scope: SupabaseAuthScope, serializedS
   }
 };
 
+export const copySupabaseSessionBetweenScopes = (source: SupabaseAuthScope, target: SupabaseAuthScope) => {
+  if (typeof window === 'undefined') return;
+  const storage = getSupabaseAuthStorage();
+  copySupabaseSessionToScope(target, storage.getItem(getSupabaseAuthStorageKey(source)));
+};
+
 export const handoffSupabaseSessionToScope = (
   scope: SupabaseAuthScope,
   serializedSession?: string | null,

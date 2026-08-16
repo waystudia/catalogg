@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { LayoutTemplate, Plus, Settings, Trash2, Upload } from 'lucide-react';
+import { Eye, LayoutTemplate, Plus, Settings, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
@@ -8,7 +8,8 @@ import {
   publishCoffeeTemplateAssets
 } from '../../shared/api/templatesApi';
 import type { PlatformTemplateOption } from '../../shared/api/platformTypes';
-import { getCatalogAdminUrl } from '../../shared/platformUrls';
+import { getCatalogAdminUrl, getCatalogPublicUrl } from '../../shared/platformUrls';
+import { copySupabaseSessionBetweenScopes } from '../../shared/supabaseAuthScope';
 import { createSlug, normalizeSlugInput } from '../../shared/validation/clientCredentials';
 
 export function PlatformTemplatesPage({ templates }: { templates: PlatformTemplateOption[] }) {
@@ -122,10 +123,24 @@ export function PlatformTemplatesPage({ templates }: { templates: PlatformTempla
                 </button>
               )}
               {template.templateCatalogSlug && (
-                <a href={getCatalogAdminUrl(template.templateCatalogSlug)}>
-                  <Settings />
-                  Настроить
-                </a>
+                <>
+                  <a
+                    className="is-preview"
+                    href={getCatalogPublicUrl(template.templateCatalogSlug)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Eye />
+                    Просмотреть
+                  </a>
+                  <a
+                    href={getCatalogAdminUrl(template.templateCatalogSlug)}
+                    onClick={() => copySupabaseSessionBetweenScopes('platform-admin', 'restaurant-admin')}
+                  >
+                    <Settings />
+                    Настроить
+                  </a>
+                </>
               )}
               {template.isCatalogTemplate && (
                 <button

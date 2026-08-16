@@ -6,6 +6,7 @@ import { CatalogLoadingScreen } from './shared/CatalogLoadingScreen';
 import { LegalSurface } from './shared/LegalSurface';
 import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker';
 import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
+import { ExactScrollRestoration } from './shared/ExactScrollRestoration';
 import {
   BusinessAdminRoute,
   CatalogAdminRoute,
@@ -97,6 +98,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={appQueryClient}>
       <HashRouter>
+        <ExactScrollRestoration />
         <PwaResumeTracker />
         <Suspense fallback={<CatalogLoadingScreen />}>
           <StorefrontBoundary>

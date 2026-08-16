@@ -39,6 +39,7 @@ export type CatalogAdminAccess = {
     templateName: string;
     templateVersion: number;
     businessType: BusinessType;
+    isTemplate: boolean;
   } | null;
 };
 
@@ -50,6 +51,7 @@ type CatalogRow = {
   description: string | null;
   logo_url: string | null;
   business_type: string | null;
+  is_template?: boolean;
   template_versions?: {
     version?: number;
     templates?: {
@@ -70,7 +72,8 @@ const mapCatalog = (row: CatalogRow): NonNullable<CatalogAdminAccess['catalog']>
   logoUrl: row.logo_url ?? '',
   templateName: row.template_versions?.templates?.name ?? 'Template',
   templateVersion: row.template_versions?.version ?? 1,
-  businessType: normalizeBusinessType(row.business_type ?? row.template_versions?.templates?.business_type)
+  businessType: normalizeBusinessType(row.business_type ?? row.template_versions?.templates?.business_type),
+  isTemplate: row.is_template ?? false
 });
 
 async function loadCatalogBySlug(slug: string) {
@@ -85,13 +88,14 @@ async function loadCatalogBySlug(slug: string) {
       logoUrl: '',
       templateName: isGroceryDemo ? 'Grocery Universal' : 'Restaurant Modern',
       templateVersion: 1,
-      businessType: normalizeBusinessType(isGroceryDemo ? 'grocery' : 'restaurant')
+      businessType: normalizeBusinessType(isGroceryDemo ? 'grocery' : 'restaurant'),
+      isTemplate: false
     };
   }
 
   const { data, error } = await supabase
     .from('catalogs')
-    .select('id, name, slug, status, description, logo_url, business_type, template_versions(version, templates(name, business_type))')
+    .select('id, name, slug, status, description, logo_url, business_type, is_template, template_versions(version, templates(name, business_type))')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -161,7 +165,7 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
     };
   }
 
-  const [memberResult, clientResult, staffResult] = await Promise.all([
+  const [memberResult, clientResult, staffResult, platformAdminResult] = await Promise.all([
     supabase
       .from('catalog_members')
       .select('role')
@@ -178,12 +182,14 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
       .select('role_code, is_active')
       .eq('catalog_id', catalog.id)
       .eq('user_id', session.user.id)
-      .maybeSingle()
+      .maybeSingle(),
+    supabase.rpc('is_platform_admin')
   ]);
 
   const { data: member, error } = memberResult;
   const { data: client, error: clientError } = clientResult;
   const { data: staff, error: staffError } = staffResult;
+  const isTemplatePlatformAdmin = catalog.isTemplate && !platformAdminResult.error && Boolean(platformAdminResult.data);
   if (error) throw new Error(error.message);
 
   if (clientError) throw new Error(clientError.message);
@@ -196,10 +202,10 @@ export async function getCatalogAdminAccess(slug: string, knownSession?: Session
 
   return {
     hasSession: true,
-    isMember: Boolean(member) || clientOwnsCatalog || Boolean(staffRole),
+    isMember: Boolean(member) || clientOwnsCatalog || Boolean(staffRole) || isTemplatePlatformAdmin,
     userId: session.user.id,
     email: session.user.email ?? null,
-    role: (member?.role as CatalogRole | undefined) ?? (clientOwnsCatalog ? 'owner' : null),
+    role: (member?.role as CatalogRole | undefined) ?? (clientOwnsCatalog || isTemplatePlatformAdmin ? 'owner' : null),
     staffRole,
     firstLogin: client?.first_login ?? false,
     consentGiven: client?.consent_given ?? true,
