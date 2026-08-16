@@ -6,7 +6,16 @@ const migration = readFileSync(
   new URL('../../supabase/migrations/20260816020000_add_legacy_dish_variant_cards.sql', import.meta.url),
   'utf8'
 );
+const editorFieldsMigration = readFileSync(
+  new URL('../../supabase/migrations/20260816105133_expand_legacy_product_editor_fields.sql', import.meta.url),
+  'utf8'
+);
 const catalogAdapter = readFileSync(new URL('../../src/shared/supabase.ts', import.meta.url), 'utf8');
+const legacyProductAdapter = readFileSync(
+  new URL('../../src/shared/legacyProductPersistence.ts', import.meta.url),
+  'utf8'
+);
+const baselineSchema = readFileSync(new URL('../../supabase/schema.sql', import.meta.url), 'utf8');
 
 test('dish variant card metadata persists in legacy and universal catalogs', () => {
   assert.match(migration, /add column if not exists publish_choice_cards boolean not null default false/);
@@ -18,7 +27,7 @@ test('dish variant card metadata persists in legacy and universal catalogs', () 
   assert.match(catalogAdapter, /'generated_choice_index'/);
   assert.match(
     catalogAdapter,
-    /if \(activeCatalogIsLegacy\)[\s\S]*from\('product'\)\.upsert\(legacyProduct, \{ onConflict: 'id' \}\)/
+    /if \(activeCatalogIsLegacy\)[\s\S]*from\('product'\)\.upsert\(toLegacyProductRow\(product\), \{ onConflict: 'id' \}\)/
   );
   assert.match(
     catalogAdapter,
@@ -37,4 +46,19 @@ test('dish variant card metadata persists in legacy and universal catalogs', () 
     catalogAdapter,
     /resolvePlatformProductCategoryId[\s\S]*from\('category'\)[\s\S]*from\('categories'\)[\s\S]*\.eq\('slug', createSlug\(legacyCategory\.name\)\)/
   );
+  for (const column of [
+    'modifier_groups',
+    'allergens',
+    'badges',
+    'sale_unit',
+    'quantity_unit',
+    'stock_quantity',
+    'allow_substitution'
+  ]) {
+    assert.match(editorFieldsMigration, new RegExp(`add column if not exists ${column}`));
+    assert.match(legacyProductAdapter, new RegExp(`'${column}'`));
+    assert.match(baselineSchema, new RegExp(`add column if not exists ${column}`));
+  }
+  assert.match(editorFieldsMigration, /notify pgrst, 'reload schema'/);
+  assert.match(legacyProductAdapter, /product\[column\] === undefined \? \[\] : \[\[column, product\[column\]\]\]/);
 });
