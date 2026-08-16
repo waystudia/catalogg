@@ -17,6 +17,41 @@ import type {
 } from "../../src/features/platform-product-database/barcodeSessions";
 import { SharedProductCatalogPage } from "../../src/features/shared-product-catalog/SharedProductCatalogPage";
 
+const cameraDecoder = vi.hoisted(() => ({
+  detectedValue: "",
+  stop: vi.fn(),
+  preload: vi.fn().mockResolvedValue(undefined),
+  start: vi.fn(),
+}));
+
+vi.mock(
+  "../../src/features/grocery-operations/browserBarcodeDecoder",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("../../src/features/grocery-operations/browserBarcodeDecoder")
+      >();
+    return {
+      ...actual,
+      preloadBrowserBarcodeDecoder: cameraDecoder.preload,
+      startBrowserBarcodeDecoder: cameraDecoder.start.mockImplementation(
+        async (
+          _video: HTMLVideoElement,
+          onDetected: (barcode: string) => boolean,
+        ) => {
+          const controls = { stop: cameraDecoder.stop };
+          if (
+            cameraDecoder.detectedValue &&
+            onDetected(cameraDecoder.detectedValue)
+          )
+            controls.stop();
+          return controls;
+        },
+      ),
+    };
+  },
+);
+
 const knownProduct: SharedProduct = {
   id: "cola",
   title: "Coca-Cola Original 1 л",
@@ -141,6 +176,121 @@ test("bulk paste keeps only valid unique codes and the mobile scanner remains re
     );
   } finally {
     await page.viewport(414, 896);
+  }
+});
+
+test("the phone camera opens on demand and adds a decoded EAN to the active session", async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(
+    navigator,
+    "mediaDevices",
+  );
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const stopTrack = vi.fn();
+  const stream = new MediaStream();
+  vi.spyOn(stream, "getTracks").mockReturnValue([
+    { stop: stopTrack } as unknown as MediaStreamTrack,
+  ]);
+  const getUserMedia = vi.fn().mockResolvedValue(stream);
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia },
+  });
+  cameraDecoder.detectedValue = "4600494600012";
+  cameraDecoder.preload.mockClear();
+  cameraDecoder.start.mockClear();
+  cameraDecoder.stop.mockClear();
+  await page.viewport(390, 844);
+
+  try {
+    const store = createMemoryStore();
+    const screen = await render(
+      <BarcodeCollectionWorkspace
+        section="collect"
+        onSectionChange={() => undefined}
+        store={store}
+        lookupProduct={async () => null}
+      />,
+    );
+
+    await expect
+      .element(screen.getByText(/USB\/Bluetooth‑сканер готов/))
+      .toBeVisible();
+    await screen.getByRole("button", { name: "Сканировать камерой" }).click();
+
+    await expect.poll(() => getUserMedia.mock.calls.length).toBe(1);
+    await expect.poll(() => cameraDecoder.start.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("4600494600012")).toBeVisible();
+    await expect
+      .element(screen.getByText(/За этот запуск распознано: 1/))
+      .toBeVisible();
+    expect(getUserMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        video: expect.objectContaining({
+          facingMode: { ideal: "environment" },
+        }),
+      }),
+    );
+    const dialog = screen
+      .getByRole("dialog", {
+        name: "Сканирование камерой",
+      })
+      .element();
+    expect(dialog.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      window.innerHeight,
+    );
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      window.innerWidth,
+    );
+
+    await screen.getByRole("button", { name: "Закрыть камеру" }).click();
+    expect(stopTrack.mock.calls.length).toBeGreaterThan(0);
+  } finally {
+    cameraDecoder.detectedValue = "";
+    await page.viewport(414, 896);
+    play.mockRestore();
+    if (originalMediaDevices)
+      Object.defineProperty(navigator, "mediaDevices", originalMediaDevices);
+    else Reflect.deleteProperty(navigator, "mediaDevices");
+  }
+});
+
+test("a denied phone camera shows actionable permission guidance without hiding HID input", async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(
+    navigator,
+    "mediaDevices",
+  );
+  const getUserMedia = vi
+    .fn()
+    .mockRejectedValue(
+      new DOMException("Permission denied", "NotAllowedError"),
+    );
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia },
+  });
+  cameraDecoder.detectedValue = "";
+
+  try {
+    const screen = await render(
+      <BarcodeCollectionWorkspace
+        section="collect"
+        onSectionChange={() => undefined}
+        store={createMemoryStore()}
+        lookupProduct={async () => null}
+      />,
+    );
+    await screen.getByRole("button", { name: "Сканировать камерой" }).click();
+    await expect
+      .element(screen.getByText(/Доступ к камере запрещён/))
+      .toBeVisible();
+    await screen.getByRole("button", { name: "Готово" }).click();
+    await expect
+      .element(screen.getByLabelText("Сканируйте следующий товар"))
+      .toBeVisible();
+  } finally {
+    if (originalMediaDevices)
+      Object.defineProperty(navigator, "mediaDevices", originalMediaDevices);
+    else Reflect.deleteProperty(navigator, "mediaDevices");
   }
 });
 
