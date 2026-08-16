@@ -6,6 +6,12 @@ const choiceCardTitle = (dishTitle: string, choiceName: string) =>
     ? `${dishTitle.trim()}, ${choiceName}`
     : `${dishTitle.trim()} ${choiceName}`;
 
+const normalizeCardOptions = (values: readonly string[] | undefined) => (values ?? [])
+  .map((value) => value.trim())
+  .filter((value, index, options) => value && options.findIndex(
+    (candidate) => candidate.toLocaleLowerCase('ru') === value.toLocaleLowerCase('ru')
+  ) === index);
+
 export function synchronizeDishVariantCards(source: Product, products: readonly Product[]) {
   const existingCards = products.filter((product) => product.generated_from_choice === source.id);
   if (!source.publish_choice_cards) {
@@ -15,15 +21,23 @@ export function synchronizeDishVariantCards(source: Product, products: readonly 
     };
   }
 
-  const generatedProducts = getProductChoiceOptions(source).map((choice, index): Product => {
+  const additionalOptions = normalizeCardOptions(source.choice_card_options);
+  const cardChoices = getProductChoiceOptions(source).flatMap((choice) =>
+    additionalOptions.length > 0
+      ? additionalOptions.map((additionalOption) => ({ choice, additionalOption }))
+      : [{ choice, additionalOption: '' }]
+  );
+  const generatedProducts = cardChoices.map(({ choice, additionalOption }, index): Product => {
     const existing = existingCards.find((product) => product.generated_choice_index === index);
+    const primaryTitle = choiceCardTitle(source.title, choice.name);
     return {
       ...source,
       id: existing?.id ?? crypto.randomUUID(),
-      title: choiceCardTitle(source.title, choice.name),
+      title: additionalOption ? `${primaryTitle} ${additionalOption}` : primaryTitle,
       price: choice.price,
       old_price: choice.old_price,
       choice_options: [],
+      choice_card_options: [],
       publish_choice_cards: false,
       generated_from_choice: source.id,
       generated_choice_index: index

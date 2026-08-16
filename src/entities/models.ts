@@ -131,6 +131,7 @@ export type Product = {
   drink_type?: string;
   pair_ids: string[];
   choice_options?: ProductChoiceOptionInput[];
+  choice_card_options?: string[];
   modifier_groups?: ProductModifierGroup[];
   pricing_type?: PricingType;
   price_prefix?: 'от';

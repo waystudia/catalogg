@@ -279,8 +279,9 @@ test('adds optional spicy and original card variants after enabling separate car
   try {
     const screen = await renderDishEditorWithProducts(sourceProduct, [sourceProduct], onSaveProduct);
     const publishVariants = screen.getByRole('checkbox', { name: 'Добавить варианты в каталог отдельными карточками' });
-    publishVariants.element().scrollIntoView({ block: 'center' });
-    await publishVariants.click();
+    const publishVariantsLabel = screen.getByText('Отдельные карточки');
+    publishVariantsLabel.element().scrollIntoView({ block: 'center' });
+    await publishVariantsLabel.click();
 
     await expect.element(screen.getByRole('heading', { name: 'Дополнительные варианты карточек' })).toBeVisible();
     await expect.element(screen.getByRole('textbox', { name: 'Дополнительный вариант 1' })).toHaveValue('');

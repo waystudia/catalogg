@@ -15,5 +15,7 @@ describe('catalog product persistence target', () => {
       productId: '2030a738-0c9d-44d8-b6a2-ae7198386168'
     });
     expect(resolvePlatformProductWrite('dish-large-spicy', null)).toEqual({ kind: 'insert' });
+    expect(resolvePlatformProductWrite('prefix-2030a738-0c9d-44d8-b6a2-ae7198386168', null)).toEqual({ kind: 'insert' });
+    expect(resolvePlatformProductWrite('2030a738-0c9d-44d8-b6a2-ae7198386168-suffix', null)).toEqual({ kind: 'insert' });
   });
 });
