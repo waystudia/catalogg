@@ -46,6 +46,20 @@ test('restaurant and driver tariffs support percent and fixed commission modes',
   assert.match(subscriptionsSource, /driver_tariff_fixed:\s*input\.driverFixedFee/);
 });
 
+test('super admin exposes reusable restaurant commission plans and explicit assignment', () => {
+  assert.match(appSource, /view: 'commission-plans'/);
+  assert.match(appSource, /Тарифные планы/);
+  assert.match(appSource, /Назначить тариф/);
+  assert.match(subscriptionsSource, /restaurant_commission_plans/);
+  assert.match(subscriptionsSource, /restaurant_commission_plan_assignments/);
+  assert.match(subscriptionsSource, /assignRestaurantCommissionPlan/);
+  assert.match(migrationSql, /restaurant-percent-2-min-30-max-150/);
+  assert.match(migrationSql, /restaurant-fixed-30/);
+  assert.match(migrationSql, /target_plan\.code is not null/);
+  assert.match(migrationSql, /coalesce\(new\.total_amount, new\.total::numeric, 0\)/);
+  assert.match(migrationSql, /commission_plan_code/);
+});
+
 test('mobile subscription metric labels wrap inside their cards', () => {
   assert.match(adminCss, /\.platform-overview-metrics small\s*\{[\s\S]*overflow-wrap:\s*anywhere/);
   assert.match(adminCss, /\.platform-overview-metrics article\s*\{[\s\S]*min-width:\s*0/);

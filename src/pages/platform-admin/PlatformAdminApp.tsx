@@ -81,8 +81,11 @@ import {
   saveDeliveryPricingRule
 } from '../../shared/api/deliveryPricingApi';
 import {
+  assignRestaurantCommissionPlan,
   getPlatformBillingSettings,
   getPlatformCustomTariffs,
+  getRestaurantCommissionPlanAssignments,
+  getRestaurantCommissionPlans,
   getSubscriptions,
   savePlatformBillingSettings,
   savePlatformCustomTariff
@@ -2277,6 +2280,7 @@ const readBillingDraft = (): BillingDraft => {
 
 type SubscriptionView =
   | 'overview'
+  | 'commission-plans'
   | 'commissions'
   | 'limits'
   | 'custom-tariff'
@@ -2324,6 +2328,8 @@ function SubscriptionsPage() {
   const subscriptionsQuery = useQuery({ queryKey: ['platform-subscriptions'], queryFn: getSubscriptions });
   const billingSettingsQuery = useQuery({ queryKey: ['platform-billing-settings'], queryFn: getPlatformBillingSettings });
   const customTariffsQuery = useQuery({ queryKey: ['platform-custom-tariffs'], queryFn: getPlatformCustomTariffs });
+  const commissionPlansQuery = useQuery({ queryKey: ['restaurant-commission-plans'], queryFn: getRestaurantCommissionPlans });
+  const commissionPlanAssignmentsQuery = useQuery({ queryKey: ['restaurant-commission-plan-assignments'], queryFn: getRestaurantCommissionPlanAssignments });
   const pricingRulesQuery = useQuery({ queryKey: ['delivery-pricing-rules'], queryFn: getDeliveryPricingRules });
   const priceRequestsQuery = useQuery({ queryKey: ['delivery-price-requests'], queryFn: getDeliveryPriceRequests });
   const clientsQuery = useQuery({ queryKey: ['platform-clients-for-billing'], queryFn: () => getClients({ page: 1, pageSize: 1000, status: 'all', payment: 'all', templateId: 'all' }) });
@@ -2333,6 +2339,8 @@ function SubscriptionsPage() {
   const [fromSettlement, setFromSettlement] = useState('');
   const [toSettlement, setToSettlement] = useState('');
   const [amount, setAmount] = useState(200);
+  const [commissionPlanClientId, setCommissionPlanClientId] = useState('');
+  const [commissionPlanCode, setCommissionPlanCode] = useState('');
   const [view, viewHistory] = useBrowserBackedState<SubscriptionView>('platform:subscriptions:view', 'overview');
 
   useEffect(() => {
@@ -2413,6 +2421,17 @@ function SubscriptionsPage() {
     }
   };
 
+  const saveCommissionPlanAssignment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      await assignRestaurantCommissionPlan({ clientId: commissionPlanClientId, planCode: commissionPlanCode });
+      toast.success('Тарифный план назначен');
+      void queryClient.invalidateQueries({ queryKey: ['restaurant-commission-plan-assignments'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось назначить тарифный план');
+    }
+  };
+
   const subscriptions = subscriptionsQuery.data ?? [];
   const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === 'active');
   const heldPayments = subscriptions.filter((subscription) => subscription.status === 'past_due');
@@ -2449,6 +2468,54 @@ function SubscriptionsPage() {
 
   if (view !== 'overview') {
     const onBack = viewHistory.back;
+    if (view === 'commission-plans') {
+      const plans = commissionPlansQuery.data ?? [];
+      const assignments = commissionPlanAssignmentsQuery.data ?? [];
+      const clients = clientsQuery.data?.data ?? [];
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Тарифные планы" description="Комиссия платформы с принятого заказа" onBack={onBack} />
+          <section className="platform-payment-list platform-commission-plan-list">
+            {plans.map((plan) => (
+              <article key={plan.code}>
+                <span className="platform-payment-list__icon"><BadgePercent /></span>
+                <span><strong>{plan.name}</strong><small>{plan.description}</small></span>
+                <em className="is-active">Активен</em>
+              </article>
+            ))}
+            {!commissionPlansQuery.isLoading && plans.length === 0 && <p className="platform-empty-copy">Тарифных планов пока нет</p>}
+          </section>
+          <form className="platform-detail-form" onSubmit={(event) => void saveCommissionPlanAssignment(event)}>
+            <label>Ресторан
+              <select value={commissionPlanClientId} onChange={(event) => setCommissionPlanClientId(event.target.value)} required>
+                <option value="">Выберите ресторан</option>
+                {clients.map((client) => <option value={client.id} key={client.id}>{client.companyName}</option>)}
+              </select>
+            </label>
+            <label>Тарифный план
+              <select value={commissionPlanCode} onChange={(event) => setCommissionPlanCode(event.target.value)} required>
+                <option value="">Выберите тариф</option>
+                {plans.map((plan) => <option value={plan.code} key={plan.code}>{plan.name}</option>)}
+              </select>
+            </label>
+            <button type="submit"><Save />Назначить тариф</button>
+          </form>
+          <section className="platform-payment-list">
+            {assignments.map((assignment) => {
+              const client = clients.find((item) => item.id === assignment.clientId);
+              const plan = plans.find((item) => item.code === assignment.planCode);
+              return (
+                <article key={assignment.clientId}>
+                  <span className="platform-payment-list__icon"><WalletCards /></span>
+                  <span><strong>{client?.companyName ?? 'Ресторан'}</strong><small>{plan?.name ?? assignment.planCode}</small></span>
+                  <em className="is-active">Назначен</em>
+                </article>
+              );
+            })}
+          </section>
+        </main>
+      );
+    }
     if (view === 'modules') {
       return <PlatformRestaurantModulesPage onBack={onBack} />;
     }
@@ -2588,6 +2655,7 @@ function SubscriptionsPage() {
     tone: string;
   }> = [
     { view: 'modules', title: 'Модули ресторанов', description: 'POS, склад, финансы и функции по подписке', summary: <>Безопасное включение</>, Icon: Boxes, tone: 'purple' },
+    { view: 'commission-plans', title: 'Тарифные планы', description: 'Комиссия с принятого заказа', summary: <>{formatCount(commissionPlansQuery.data?.length ?? 0, ['тариф', 'тарифа', 'тарифов'])}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {formatTariff(billing.restaurantTariffType, billing.restaurantCommission, billing.restaurantFixedFee)} · Водитель {formatTariff(billing.driverTariffType, billing.driverTariff, billing.driverFixedFee)}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'limits', title: 'Лимиты', description: 'Лимиты и предупреждения', summary: <>Ресторан {formatMoney(billing.restaurantLimit)} · Водитель {formatMoney(billing.driverLimit)} · {billing.warningPercent}%</>, Icon: ShieldAlert, tone: 'violet' },
     { view: 'custom-tariff', title: 'Индивидуальный тариф', description: 'Установить тариф для ресторана или водителя', summary: <>{customTariffsQuery.data?.length ?? 0} настроено</>, Icon: UserRound, tone: 'purple' },
