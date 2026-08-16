@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
@@ -104,4 +105,31 @@ test('browser Back returns to the exact filtered chat list', async () => {
   await expect.element(screen.getByLabelText('Поиск чатов')).toHaveValue('Мангал');
   await expect.element(screen.getByRole('button', { name: /Мангал/ })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: /Финик/ })).not.toBeInTheDocument();
+});
+
+test('an explicit order route always switches the inbox to that exact conversation', async () => {
+  await page.viewport(1000, 760);
+  window.history.replaceState({}, '', window.location.href);
+
+  function RoutedInbox() {
+    const [selectedOrderId, setSelectedOrderId] = useState('order-finik');
+    return (
+      <>
+        <button type="button" onClick={() => setSelectedOrderId('order-mangal')}>Открыть чат Магомеда по ссылке</button>
+        <OrderConversationInbox
+          items={chats}
+          expectedViewer="staff"
+          selectedOrderId={selectedOrderId}
+          summaryApi={summaryApi}
+        />
+      </>
+    );
+  }
+
+  const screen = await render(<RoutedInbox />);
+  await expect.element(screen.getByText('Заказ №1024 · Собирается')).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Открыть чат Магомеда по ссылке' }).click();
+
+  await expect.element(screen.getByText('Заказ №2048 · Готовится')).toBeVisible();
 });

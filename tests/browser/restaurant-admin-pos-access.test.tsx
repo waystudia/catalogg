@@ -8,6 +8,7 @@ import { RestaurantAdminWorkspace } from '../../src/features/restaurant-admin/Re
 import { defaultRestaurantDeliverySettings } from '../../src/features/restaurant-settings';
 import { useAuthStore } from '../../src/features/stores';
 import { defaultPaymentSettings } from '../../src/shared/paymentSettings';
+import type { RestaurantOrder } from '../../src/shared/api/restaurantOrdersApi';
 import '../../src/app/styles.css';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -15,6 +16,55 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false 
 function LocationProbe() {
   return <output aria-label="Текущий маршрут">{useLocation().pathname}</output>;
 }
+
+const chatOrder = (): RestaurantOrder => ({
+  id: 'order-chat-1',
+  orderNumber: 'M9686',
+  catalogId: 'mangal',
+  clientName: 'Дуквах',
+  clientPhone: '+7 963 880-85-00',
+  fulfillmentType: 'delivery',
+  cabinLabel: '',
+  deliveryAddress: 'Лоци-Юрт',
+  deliveryLat: null,
+  deliveryLng: null,
+  clientAccuracyM: null,
+  deliveryCity: '',
+  deliverySettlement: '',
+  restaurantAddress: '',
+  restaurantCity: '',
+  restaurantLat: null,
+  restaurantLng: null,
+  comment: '',
+  status: 'preparing',
+  paymentStatus: 'unpaid',
+  deliveryStatus: 'waiting_courier',
+  deliveryId: null,
+  deliveryUpdatedAt: null,
+  driverName: null,
+  driverPhone: null,
+  driverVehicleInfo: null,
+  driverCarNumber: null,
+  driverPhotoUrl: null,
+  driverLat: null,
+  driverLng: null,
+  driverLocationAt: null,
+  restaurantPaymentConfirmedAt: null,
+  pickupQrConfirmedAt: null,
+  subtotal: 1390,
+  deliveryFee: 0,
+  courierPayout: 0,
+  total: 1390,
+  createdAt: '2026-08-16T09:21:00.000Z',
+  acceptedAt: null,
+  readyAt: null,
+  completedAt: null,
+  cancellationReason: '',
+  qrToken: null,
+  qrExpiresAt: null,
+  verificationCode: null,
+  items: [{ id: 'item-chat-1', title: 'Стейк на косточке', quantity: 1, unitPrice: 1390, lineTotal: 1390 }]
+});
 
 test('enabled restaurant opens POS from the dashboard quick action under orders and scanner', async () => {
   await page.viewport(1280, 900);
@@ -142,4 +192,89 @@ test('restaurant settings exit confirms and invokes the active auth logout', asy
     confirm.mockRestore();
     useAuthStore.setState({ logout: originalLogout });
   }
+});
+
+test('restaurant dashboard opens the shared business chat inbox from quick actions', async () => {
+  await page.viewport(372, 576);
+  const screen = await render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/mangal/dashboard']}>
+        <LocationProbe />
+        <RestaurantAdminWorkspace
+          catalogSlug="mangal"
+          restaurant={restaurant}
+          categories={categories}
+          cabins={cabins}
+          products={products}
+          orders={[chatOrder()]}
+          routeSection="dashboard"
+          paymentSettings={defaultPaymentSettings}
+          deliverySettings={defaultRestaurantDeliverySettings}
+          moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
+          onOpenScreen={() => undefined}
+          onOpenSeating={() => undefined}
+          onOpenCatalog={() => undefined}
+          onAddDish={() => undefined}
+          onOrderStatus={async () => undefined}
+          onRefreshOrders={() => undefined}
+          onSaveDeliverySettings={() => undefined}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  const quickActions = screen.getByRole('region', { name: 'Быстрые действия' });
+  await quickActions.getByRole('button', { name: 'Чаты' }).click();
+
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
+  await expect.element(screen.getByRole('region', { name: 'Чаты по заказам' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Дуквах/u })).toBeVisible();
+});
+
+test('order chat button opens that exact client conversation in the Finik messenger layout', async () => {
+  await page.viewport(372, 576);
+  const screen = await render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/mangal/orders']}>
+        <LocationProbe />
+        <RestaurantAdminWorkspace
+          catalogSlug="mangal"
+          restaurant={restaurant}
+          categories={categories}
+          cabins={cabins}
+          products={products}
+          orders={[chatOrder()]}
+          routeSection="orders"
+          paymentSettings={defaultPaymentSettings}
+          deliverySettings={defaultRestaurantDeliverySettings}
+          moduleAccess={{ pos: 'active', warehouse: 'disabled' }}
+          onOpenScreen={() => undefined}
+          onOpenSeating={() => undefined}
+          onOpenCatalog={() => undefined}
+          onAddDish={() => undefined}
+          onOrderStatus={async () => undefined}
+          onRefreshOrders={() => undefined}
+          onSaveDeliverySettings={() => undefined}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+
+  await screen.getByRole('button', { name: 'Открыть чат заказа' }).click();
+
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats/order-chat-1');
+  const inbox = screen.getByRole('region', { name: 'Чаты по заказам' });
+  await expect.element(inbox).toHaveAttribute('data-view', 'conversation');
+  await expect.element(inbox.getByText('Заказ №M9686 · Готовится')).toBeVisible();
+  const conversation = inbox.element().querySelector<HTMLElement>('.order-inbox__conversation');
+  const bottomNav = inbox.element().closest('.restaurant-admin')!.querySelector<HTMLElement>('.restaurant-admin-nav');
+  expect(conversation).not.toBeNull();
+  expect(bottomNav).not.toBeNull();
+  expect(conversation!.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+  expect(conversation!.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+  expect(getComputedStyle(bottomNav!).display).toBe('none');
+
+  await inbox.getByRole('button', { name: 'Назад к списку чатов' }).click();
+  await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent('/mangal/chats');
+  await expect.element(inbox).toHaveAttribute('data-view', 'list');
 });

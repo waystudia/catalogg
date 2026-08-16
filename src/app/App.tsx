@@ -2182,7 +2182,7 @@ function AppContent({
       setScreen('catalog');
       return;
     }
-    if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
+    if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'chats' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
       setScreen('admin-home');
     }
     if (routeSection === 'payments') {
@@ -3081,7 +3081,7 @@ export function App() {
   const location = useLocation();
   const pathParts = location.pathname.split('/').filter(Boolean);
   const routeSection = pathParts[1];
-  const routeOrderId = routeSection === 'order' ? pathParts[2] : undefined;
+  const routeOrderId = routeSection === 'order' || routeSection === 'chats' ? pathParts[2] : undefined;
 
   if (!slug) {
     return null;

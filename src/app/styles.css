@@ -1687,6 +1687,10 @@
     left: 16px;
     display: grid;
   }
+
+  .restaurant-admin--chat-open .restaurant-admin-nav {
+    display: none;
+  }
 }
 
 .admin-detail-header {
