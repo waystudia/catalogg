@@ -1,5 +1,11 @@
 import { supabase } from '../supabase';
-import type { PlatformBillingSettings, PlatformCustomTariff, SubscriptionRow } from './platformTypes';
+import type {
+  PlatformBillingSettings,
+  PlatformCustomTariff,
+  RestaurantCommissionPlan,
+  RestaurantCommissionPlanAssignment,
+  SubscriptionRow
+} from './platformTypes';
 
 type SubscriptionQueryRow = {
   id: string;
@@ -33,6 +39,24 @@ type PlatformCustomTariffRow = {
   tariff_percent: number | string | null;
   tariff_fixed: number | string | null;
   is_active: boolean;
+};
+
+type RestaurantCommissionPlanRow = {
+  code: string;
+  name: string;
+  calculation_type: RestaurantCommissionPlan['calculationType'];
+  percent_rate: number | string;
+  minimum_amount: number | string;
+  maximum_amount: number | string | null;
+  fixed_amount: number | string;
+  description: string;
+  is_active: boolean;
+};
+
+type RestaurantCommissionPlanAssignmentRow = {
+  client_id: string;
+  plan_code: string;
+  updated_at: string;
 };
 
 const defaultBillingSettings: PlatformBillingSettings = {
@@ -202,4 +226,57 @@ export async function savePlatformCustomTariff(input: {
 
   if (error) return false;
   return true;
+}
+
+export async function getRestaurantCommissionPlans(): Promise<RestaurantCommissionPlan[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('restaurant_commission_plans')
+    .select('code, name, calculation_type, percent_rate, minimum_amount, maximum_amount, fixed_amount, description, is_active')
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return ((data ?? []) as RestaurantCommissionPlanRow[]).map((row) => ({
+    code: row.code,
+    name: row.name,
+    calculationType: row.calculation_type,
+    percentRate: Number(row.percent_rate),
+    minimumAmount: Number(row.minimum_amount),
+    maximumAmount: row.maximum_amount === null ? null : Number(row.maximum_amount),
+    fixedAmount: Number(row.fixed_amount),
+    description: row.description,
+    isActive: row.is_active
+  }));
+}
+
+export async function getRestaurantCommissionPlanAssignments(): Promise<RestaurantCommissionPlanAssignment[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('restaurant_commission_plan_assignments')
+    .select('client_id, plan_code, updated_at')
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as RestaurantCommissionPlanAssignmentRow[]).map((row) => ({
+    clientId: row.client_id,
+    planCode: row.plan_code,
+    updatedAt: row.updated_at
+  }));
+}
+
+export async function assignRestaurantCommissionPlan(input: { clientId: string; planCode: string }): Promise<void> {
+  if (!supabase) throw new Error('Supabase не настроен.');
+  if (!input.clientId || !input.planCode) throw new Error('Выберите ресторан и тарифный план.');
+
+  const { error } = await supabase.from('restaurant_commission_plan_assignments').upsert({
+    client_id: input.clientId,
+    plan_code: input.planCode,
+    assigned_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'client_id' });
+
+  if (error) throw error;
 }

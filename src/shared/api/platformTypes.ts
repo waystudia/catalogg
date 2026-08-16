@@ -329,6 +329,24 @@ export type PlatformCustomTariff = {
   isActive: boolean;
 };
 
+export type RestaurantCommissionPlan = {
+  code: string;
+  name: string;
+  calculationType: 'capped_percent' | 'fixed';
+  percentRate: number;
+  minimumAmount: number;
+  maximumAmount: number | null;
+  fixedAmount: number;
+  description: string;
+  isActive: boolean;
+};
+
+export type RestaurantCommissionPlanAssignment = {
+  clientId: string;
+  planCode: string;
+  updatedAt: string;
+};
+
 export type CreateDriverPayload = {
   name: string;
   email: string;
