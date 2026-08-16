@@ -96,7 +96,7 @@ const submitScanner = async (
   (input.element() as HTMLInputElement).form?.requestSubmit();
 };
 
-test("HID scans are saved once, duplicates increment the counter, and known products are identified", async () => {
+test("HID scans keep only the first new barcode and never list known or repeated products", async () => {
   const store = createMemoryStore();
   const lookup = vi.fn(async (barcode: string) =>
     barcode === knownProduct.barcode ? knownProduct : null,
@@ -116,17 +116,78 @@ test("HID scans are saved once, duplicates increment the counter, and known prod
     )
     .toBeVisible();
   await submitScanner(screen, knownProduct.barcode);
-  await expect
-    .element(screen.getByText("Coca-Cola Original 1 л"))
-    .toBeVisible();
   await expect.element(screen.getByText("Уже есть в WayYaam")).toBeVisible();
-  await submitScanner(screen, knownProduct.barcode);
-  await expect.element(screen.getByText("×2")).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Собранные штрих-коды" })
+        .getByText("Coca-Cola Original 1 л"),
+    )
+    .not.toBeInTheDocument();
+
+  const newBarcode = "4006381333931";
+  await submitScanner(screen, newBarcode);
+  await expect.element(screen.getByText(newBarcode)).toBeVisible();
+  await submitScanner(screen, newBarcode);
+  await expect.element(screen.getByText("Уже отсканирован")).toBeVisible();
+  await expect.element(screen.getByText("×2")).not.toBeInTheDocument();
 
   const saved = Array.from(store.values.values())[0];
   expect(saved.entries).toHaveLength(1);
-  expect(saved.entries[0].scanCount).toBe(2);
-  expect(lookup).toHaveBeenCalledTimes(1);
+  expect(saved.entries[0]).toMatchObject({
+    barcode: newBarcode,
+    scanCount: 1,
+    status: "new",
+  });
+  expect(lookup).toHaveBeenCalledTimes(2);
+});
+
+test("known rows left by an older local session stay hidden from the scan list", async () => {
+  const store = createMemoryStore();
+  const session: BarcodeSession = {
+    id: "legacy-session",
+    name: "Старая сессия",
+    merchant: "",
+    createdAt: "2026-08-16T12:00:00.000Z",
+    updatedAt: "2026-08-16T12:00:00.000Z",
+    status: "draft",
+    entries: [
+      {
+        barcode: knownProduct.barcode,
+        normalizedBarcode: knownProduct.normalizedBarcode,
+        firstScannedAt: "2026-08-16T12:00:00.000Z",
+        lastScannedAt: "2026-08-16T12:00:00.000Z",
+        scanCount: 2,
+        status: "known",
+        knownProduct,
+      },
+      {
+        barcode: "4006381333931",
+        normalizedBarcode: "04006381333931",
+        firstScannedAt: "2026-08-16T12:01:00.000Z",
+        lastScannedAt: "2026-08-16T12:01:00.000Z",
+        scanCount: 1,
+        status: "new",
+        knownProduct: null,
+      },
+    ],
+  };
+  store.values.set(session.id, session);
+
+  const screen = await render(
+    <BarcodeCollectionWorkspace
+      section="collect"
+      onSectionChange={() => undefined}
+      store={store}
+      lookupProduct={async () => null}
+    />,
+  );
+  const table = screen.getByRole("table", { name: "Собранные штрих-коды" });
+  await expect.element(table.getByText("4006381333931")).toBeVisible();
+  await expect
+    .element(table.getByText(knownProduct.barcode))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByText("×2")).not.toBeInTheDocument();
 });
 
 test("the existing master catalog remains available with its add-product action", async () => {
