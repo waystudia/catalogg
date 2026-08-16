@@ -71,6 +71,8 @@ export function OrderConversationInbox({
   expectedViewer,
   selectedOrderId,
   onSelectedOrderChange,
+  onBack,
+  onBackFromList,
   onOpenOrder,
   onChanged,
   summaryApi = defaultSummaryApi
@@ -79,6 +81,8 @@ export function OrderConversationInbox({
   expectedViewer: OrderConversationViewer;
   selectedOrderId?: string | null;
   onSelectedOrderChange?: (orderId: string | null) => void;
+  onBack?: () => void;
+  onBackFromList?: () => void;
   onOpenOrder?: (orderId: string) => void;
   onChanged?: () => void;
   summaryApi?: ConversationSummaryApi;
@@ -91,7 +95,8 @@ export function OrderConversationInbox({
   const { query } = conversationState;
   const [summaries, setSummaries] = useState<OrderConversationSummary[]>([]);
   const lastReportedOrderIdRef = useRef<string | null>(selectedOrderId ?? null);
-  const activeOrderId = conversationState.selectedOrderId;
+  const controlled = selectedOrderId !== undefined;
+  const activeOrderId = controlled ? selectedOrderId : conversationState.selectedOrderId;
   const summaryByOrder = useMemo(() => new Map(summaries.map((summary) => [summary.orderId, summary])), [summaries]);
   const orderedItems = useMemo(() => [...items].sort((left, right) => {
     const leftDate = summaryByOrder.get(left.orderId)?.createdAt ?? left.createdAt;
@@ -131,27 +136,21 @@ export function OrderConversationInbox({
   }, [expectedViewer, items, refreshSummaries, summaryApi]);
 
   useEffect(() => {
-    if (selectedOrderId === undefined || conversationState.selectedOrderId === selectedOrderId) return;
-    conversationHistory.replace((current) => ({ ...current, selectedOrderId }));
-    lastReportedOrderIdRef.current = selectedOrderId;
-  }, [conversationHistory, conversationState.selectedOrderId, selectedOrderId]);
-
-  useEffect(() => {
     if (!activeOrderId || items.some((item) => item.orderId === activeOrderId)) return;
-    conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
+    if (!controlled) conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
     lastReportedOrderIdRef.current = null;
     onSelectedOrderChange?.(null);
-  }, [activeOrderId, conversationHistory, items, onSelectedOrderChange]);
+  }, [activeOrderId, controlled, conversationHistory, items, onSelectedOrderChange]);
 
   useEffect(() => {
+    if (controlled) return;
     if (lastReportedOrderIdRef.current === conversationState.selectedOrderId) return;
     lastReportedOrderIdRef.current = conversationState.selectedOrderId;
     onSelectedOrderChange?.(conversationState.selectedOrderId);
-  }, [conversationState.selectedOrderId, onSelectedOrderChange]);
+  }, [controlled, conversationState.selectedOrderId, onSelectedOrderChange]);
 
   const selectConversation = (orderId: string) => {
-    if (selectedOrderId !== undefined) {
-      conversationHistory.replace((current) => ({ ...current, selectedOrderId: orderId }));
+    if (controlled) {
       lastReportedOrderIdRef.current = orderId;
       onSelectedOrderChange?.(orderId);
       return;
@@ -162,10 +161,9 @@ export function OrderConversationInbox({
   };
 
   const closeConversation = () => {
-    if (selectedOrderId !== undefined) {
-      conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
-      lastReportedOrderIdRef.current = null;
-      onSelectedOrderChange?.(null);
+    if (controlled) {
+      if (onBack) onBack();
+      else onSelectedOrderChange?.(null);
       return;
     }
     conversationHistory.back(() => {
@@ -183,6 +181,11 @@ export function OrderConversationInbox({
   return (
     <section className="order-inbox" data-view={selectedItem ? 'conversation' : 'list'} aria-label="Чаты по заказам">
       <header className="order-inbox__header">
+        {!selectedItem && onBackFromList && (
+          <button type="button" className="order-inbox__screen-back" aria-label="Назад с экрана чатов" onClick={onBackFromList}>
+            <ArrowLeft />
+          </button>
+        )}
         <span className="order-inbox__title-icon"><MessageCircle /></span>
         <div>
           <h2>Чаты</h2>

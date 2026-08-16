@@ -65,7 +65,44 @@ test('mobile opens with a vertical latest-first chat list and no conversation se
 
   const threadList = screen.getByLabelText('Список чатов').element().querySelector<HTMLElement>('.order-inbox__threads')!;
   expect(getComputedStyle(threadList).overflowY).toBe('auto');
+  expect(getComputedStyle(threadList.querySelector<HTMLElement>('.order-inbox__thread')!).touchAction).toBe('pan-y');
   expect(document.documentElement.scrollWidth).toBe(document.documentElement.clientWidth);
+});
+
+test('mobile chat list exposes Back and keeps search and scroll when a conversation closes', async () => {
+  await page.viewport(372, 576);
+  window.history.replaceState({}, '', window.location.href);
+  const longChats = Array.from({ length: 12 }, (_, index) => ({
+    ...chats[index % chats.length],
+    orderId: `order-${index}`,
+    orderNumber: `${2000 + index}`,
+    customerName: `Клиент ${index}`,
+    createdAt: `2026-08-15T${String(index).padStart(2, '0')}:00:00.000Z`
+  }));
+  let listBackCount = 0;
+  const screen = await render(
+    <OrderConversationInbox
+      items={longChats}
+      expectedViewer="client"
+      summaryApi={{ load: async () => [], subscribe: () => () => undefined }}
+      onBackFromList={() => { listBackCount += 1; }}
+    />
+  );
+
+  await expect.element(screen.getByRole('button', { name: 'Назад с экрана чатов' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Назад с экрана чатов' }).click();
+  expect(listBackCount).toBe(1);
+
+  await screen.getByLabelText('Поиск чатов').fill('Клиент');
+  const threadList = screen.getByLabelText('Список чатов').element().querySelector<HTMLElement>('.order-inbox__threads')!;
+  threadList.style.maxHeight = '220px';
+  threadList.scrollTop = 240;
+  const savedScrollTop = threadList.scrollTop;
+  threadList.querySelectorAll<HTMLButtonElement>('.order-inbox__thread')[2].click();
+  await screen.getByRole('button', { name: 'Назад к списку чатов' }).click();
+
+  await expect.element(screen.getByLabelText('Поиск чатов')).toHaveValue('Клиент');
+  expect(threadList.scrollTop).toBe(savedScrollTop);
 });
 
 test('mobile opens a full conversation and back returns to the chat list', async () => {

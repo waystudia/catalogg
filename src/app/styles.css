@@ -4449,7 +4449,7 @@ a {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
 }
 
@@ -4459,7 +4459,7 @@ a {
   height: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: contain;
-  touch-action: none;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
@@ -4467,12 +4467,12 @@ a {
 }
 
 .product-photo-carousel--swipeable {
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
 }
 
 .product-photo-carousel--swipeable .product-photo-carousel__track {
   overflow-x: auto;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
 }
 
 .product-photo-carousel__track::-webkit-scrollbar { display: none; }

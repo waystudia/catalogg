@@ -51,7 +51,7 @@ test('product photos repeat at both edges and normalize after scrolling', () => 
   assert.match(appSource, /scrollBehavior\s*=\s*'auto'/);
 });
 
-test('mobile gestures lock single photos and enable only horizontal gallery swipes', () => {
+test('mobile gestures keep vertical page scroll on photos while swipeable galleries retain horizontal movement', () => {
   assert.match(
     indexSource,
     /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no"/
@@ -62,19 +62,19 @@ test('mobile gestures lock single photos and enable only horizontal gallery swip
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*none;/
+    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*none;/
+    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-x;/
+    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-x pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x;/
+    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x pan-y;/
   );
 });
 
