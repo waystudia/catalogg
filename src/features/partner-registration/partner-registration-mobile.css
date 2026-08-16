@@ -1,0 +1,58 @@
+.partner-registration > header button {
+  color: #344054;
+}
+
+.partner-registration__role {
+  color: #101828;
+  box-shadow: 0 6px 18px rgb(16 24 40 / 5%);
+}
+
+.partner-registration__role b {
+  color: #101828;
+}
+
+.partner-registration__transport button {
+  min-height: 84px;
+  gap: 5px;
+  color: #344054;
+  font-weight: 750;
+}
+
+.partner-registration input::placeholder {
+  color: #98a2b3;
+  opacity: 1;
+}
+
+.partner-registration__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -2px 0 16px;
+}
+
+.partner-registration__colors button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d8dee9;
+  border-radius: 999px;
+  padding: 0 11px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.partner-registration__colors button.is-active {
+  border-color: #5b3fff;
+  background: #f0edff;
+  color: #5b3fff;
+}
+
+.partner-registration__colors i {
+  width: 17px;
+  height: 17px;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+}

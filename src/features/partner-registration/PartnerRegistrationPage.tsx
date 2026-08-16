@@ -1,13 +1,26 @@
-import { ArrowLeft, CheckCircle2, Store, Truck } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { ArrowLeft, Bike, CarFront, CheckCircle2, Store, Truck } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateBackOrFallback } from '../../shared/appNavigation';
+import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import { legalDocuments } from '../../shared/legalDocuments';
 import { useBrowserBackedState } from '../../shared/useBrowserBackedState';
 import { registerPartner, type PartnerRole } from './partnerRegistrationApi';
+import { normalizeVehiclePlate } from './partnerRegistrationFields';
 import './partner-registration.css';
+import './partner-registration-mobile.css';
 
-const settlements = ['Грозный', 'Аргун', 'Шали', 'Урус-Мартан', 'Гудермес'];
+const fallbackSettlements = ['Грозный', 'Аргун', 'Шали', 'Урус-Мартан', 'Гудермес'];
+const transportOptions = [
+  { value: 'car', label: 'Легковой', Icon: CarFront },
+  { value: 'van', label: 'Фургон', Icon: Truck },
+  { value: 'motorcycle', label: 'Мото', Icon: Bike }
+] as const;
+const vehicleColors = [
+  { name: 'Белый', value: '#f8fafc' }, { name: 'Чёрный', value: '#111827' },
+  { name: 'Серый', value: '#9ca3af' }, { name: 'Серебристый', value: '#d1d5db' },
+  { name: 'Красный', value: '#dc2626' }, { name: 'Синий', value: '#2563eb' }
+] as const;
 const initialRegistrationFlow: { role: PartnerRole | null; step: number } = { role: null, step: 1 };
 
 export function PartnerRegistrationPage() {
@@ -33,6 +46,17 @@ export function PartnerRegistrationPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ role: PartnerRole; slug?: string } | null>(null);
+  const [settlements, setSettlements] = useState(fallbackSettlements);
+
+  useEffect(() => {
+    let active = true;
+    void getDeliverySettlements().then((items) => {
+      if (!active || items.length === 0) return;
+      const names = items.flatMap((item) => [item.cityName, item.settlementName]).filter(Boolean);
+      setSettlements(Array.from(new Set([...fallbackSettlements, ...names])).sort((left, right) => left.localeCompare(right, 'ru')));
+    });
+    return () => { active = false; };
+  }, []);
 
   const maxStep = role === 'driver' ? 3 : 2;
   const title = useMemo(() => role === 'driver' ? 'Регистрация курьера' : 'Регистрация продавца', [role]);
@@ -99,38 +123,41 @@ export function PartnerRegistrationPage() {
 
       {step === 1 && <form onSubmit={next}>
         <small>АККАУНТ</small><h1>Расскажите о себе</h1><p>Телефон сохраняется без проверки кода. Вход выполняется по почте и паролю.</p>
-        <label>Имя и фамилия<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required minLength={2} /></label>
+        <label>Имя и фамилия<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" placeholder="Например, Ахмед Исаев" required minLength={2} /></label>
         <label>Телефон<input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" autoComplete="tel" placeholder="+7 928 000-00-00" required /></label>
-        <label>Почта<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required /></label>
-        <label>Пароль<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" minLength={8} maxLength={72} required /></label>
-        <label>Повторите пароль<input value={passwordRepeat} onChange={(event) => setPasswordRepeat(event.target.value)} type="password" autoComplete="new-password" required /></label>
+        <label>Почта<input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" inputMode="email" placeholder="Например, ahmed@example.ru" required /></label>
+        <label>Пароль<input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="Минимум 8 символов" minLength={8} maxLength={72} required /></label>
+        <label>Повторите пароль<input value={passwordRepeat} onChange={(event) => setPasswordRepeat(event.target.value)} type="password" autoComplete="new-password" placeholder="Повторите пароль" required /></label>
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary">Продолжить</button>
       </form>}
 
       {role === 'seller' && step === 2 && <form onSubmit={submit}>
         <small>БИЗНЕС</small><h1>Добавьте бизнес</h1><p>Создадим закрытый кабинет настройки на 48 часов.</p>
         <label>Тип бизнеса<select value={businessType} onChange={(event) => setBusinessType(event.target.value)}><option value="restaurant">Ресторан</option><option value="coffee_shop">Кофейня или кафе</option><option value="confectionery">Кондитерская</option><option value="grocery">Продуктовый магазин</option></select></label>
-        <label>Название<input value={businessName} onChange={(event) => setBusinessName(event.target.value)} placeholder="Название ресторана или магазина" required /></label>
-        <label>Основной город<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} required /></label>
-        <fieldset><legend>Где принимаете заказы</legend><div className="partner-registration__chips">{settlements.map((item) => <button className={serviceSettlements.includes(item) ? 'is-active' : ''} type="button" onClick={() => toggleSettlement(item)} key={item}>{item}</button>)}</div></fieldset>
+        <label>Название<input value={businessName} onChange={(event) => setBusinessName(event.target.value)} placeholder="Например, кафе «Беркат»" required /></label>
+        <label>Основной город<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} list="partner-settlements" placeholder="Выберите или введите свой" required /></label>
+        <datalist id="partner-settlements">{settlements.map((item) => <option value={item} key={item} />)}</datalist>
+        <fieldset><legend>Где принимаете заказы</legend><div className="partner-registration__chips">{fallbackSettlements.map((item) => <button className={serviceSettlements.includes(item) ? 'is-active' : ''} type="button" onClick={() => toggleSettlement(item)} key={item}>{item}</button>)}</div></fieldset>
         <label className="partner-registration__consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /><span>Принимаю <a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">условия для продавцов</a> и <a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a>.</span></label>
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary" disabled={saving}>{saving ? 'Создаём кабинет…' : 'Создать заявку'}</button>
       </form>}
 
       {role === 'driver' && step === 2 && <form onSubmit={(event) => { event.preventDefault(); flowHistory.open({ role: 'driver', step: 3 }); }}>
         <small>ГЕОГРАФИЯ</small><h1>Где будете работать?</h1><p>Выберите место проживания и районы доставки.</p>
-        <label>Где проживаете<input value={residencePlace} onChange={(event) => setResidencePlace(event.target.value)} required /></label>
-        <label>Основной город работы<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} required /></label>
-        <fieldset><legend>Районы работы</legend><div className="partner-registration__chips">{settlements.map((item) => <button className={serviceSettlements.includes(item) ? 'is-active' : ''} type="button" onClick={() => toggleSettlement(item)} key={item}>{item}</button>)}</div></fieldset>
+        <datalist id="partner-settlements">{settlements.map((item) => <option value={item} key={item} />)}</datalist>
+        <label>Где проживаете<input value={residencePlace} onChange={(event) => setResidencePlace(event.target.value)} list="partner-settlements" placeholder="Выберите село или введите своё" required /></label>
+        <label>Основной город работы<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} list="partner-settlements" placeholder="Например, Грозный" required /></label>
+        <fieldset><legend>Районы работы</legend><div className="partner-registration__chips">{fallbackSettlements.map((item) => <button className={serviceSettlements.includes(item) ? 'is-active' : ''} type="button" onClick={() => toggleSettlement(item)} key={item}>{item}</button>)}</div></fieldset>
         <button className="partner-registration__primary">Выбрать транспорт</button>
       </form>}
 
       {role === 'driver' && step === 3 && <form onSubmit={submit}>
         <small>ТРАНСПОРТ</small><h1>Ваш транспорт</h1><p>Эти данные увидит администратор при проверке заявки.</p>
-        <fieldset><legend>Как доставляете</legend><div className="partner-registration__transport">{[['car','Легковой'],['van','Фургон'],['motorcycle','Мото']].map(([value,label]) => <button className={transportType === value ? 'is-active' : ''} type="button" onClick={() => setTransportType(value as typeof transportType)} key={value}><Truck />{label}</button>)}</div></fieldset>
-        <div className="partner-registration__columns"><label>Марка<input value={vehicleMake} onChange={(event) => setVehicleMake(event.target.value)} required /></label><label>Модель<input value={vehicleModel} onChange={(event) => setVehicleModel(event.target.value)} required /></label></div>
-        <label>Госномер<input value={carNumber} onChange={(event) => setCarNumber(event.target.value.toUpperCase())} placeholder="А123ВС 95" required /></label>
-        <label>Цвет<input value={vehicleColor} onChange={(event) => setVehicleColor(event.target.value)} required /></label>
+        <fieldset><legend>Как доставляете</legend><div className="partner-registration__transport">{transportOptions.map(({ value, label, Icon }) => <button className={transportType === value ? 'is-active' : ''} type="button" onClick={() => setTransportType(value)} key={value}><Icon aria-hidden="true" />{label}</button>)}</div></fieldset>
+        <div className="partner-registration__columns"><label>Марка<input value={vehicleMake} onChange={(event) => setVehicleMake(event.target.value)} placeholder="Например, Lada" required /></label><label>Модель<input value={vehicleModel} onChange={(event) => setVehicleModel(event.target.value)} placeholder="Например, Granta" required /></label></div>
+        <label>Госномер<input value={carNumber} onChange={(event) => setCarNumber(normalizeVehiclePlate(event.target.value))} placeholder="A123BC 95" lang="en" inputMode="text" autoCapitalize="characters" autoCorrect="off" spellCheck={false} required /></label>
+        <label>Цвет<input value={vehicleColor} onChange={(event) => setVehicleColor(event.target.value)} placeholder="Выберите или введите свой цвет" required /></label>
+        <div className="partner-registration__colors" aria-label="Популярные цвета">{vehicleColors.map((color) => <button className={vehicleColor === color.name ? 'is-active' : ''} type="button" aria-pressed={vehicleColor === color.name} onClick={() => setVehicleColor(color.name)} key={color.name}><i style={{ backgroundColor: color.value }} />{color.name}</button>)}</div>
         <label className="partner-registration__consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /><span>Принимаю <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">условия курьера</a> и <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a>.</span></label>
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary" disabled={saving}>{saving ? 'Отправляем…' : 'Отправить заявку'}</button>
       </form>}

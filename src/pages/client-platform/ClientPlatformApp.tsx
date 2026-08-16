@@ -3122,6 +3122,11 @@ function ProfilePage() {
         <ChevronRight />
       </section>
 
+      <button className="profile-partner-registration" type="button" onClick={() => navigate('/partner-registration')}>
+        <Building2 />
+        Зарегистрировать бизнес или курьера
+      </button>
+
       <button
         className={`profile-cabinet-button${accountOpen ? ' is-open' : ''}`}
         type="button"
@@ -3309,12 +3314,6 @@ function ProfilePage() {
               <small className="form-muted">
                 Регистрация создаёт аккаунт покупателя.
               </small>
-            )}
-            {clientAuthMode === 'register' && (
-              <button className="profile-partner-registration" type="button" onClick={() => navigate('/partner-registration')}>
-                <Building2 />
-                Зарегистрировать бизнес или курьера
-              </button>
             )}
           </form>
         </section>

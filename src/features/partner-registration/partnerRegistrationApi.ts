@@ -1,4 +1,5 @@
 import { supabase } from '../../shared/supabase';
+import { getPartnerRegistrationErrorMessage } from './partnerRegistrationErrors';
 
 export type PartnerRole = 'seller' | 'driver';
 
@@ -31,21 +32,12 @@ export type PartnerRegistrationResult = {
   session: { access_token: string; refresh_token: string };
 };
 
-const errorMessage = (message: string) => {
-  if (/already|registered|exists|duplicate/i.test(message)) return 'Аккаунт с таким телефоном или почтой уже существует.';
-  if (message.includes('phone_invalid')) return 'Введите корректный номер телефона.';
-  if (message.includes('email_invalid')) return 'Введите корректную почту.';
-  if (message.includes('password_invalid')) return 'Пароль должен содержать от 8 до 72 символов.';
-  if (message.includes('business_template_unavailable')) return 'Для этого типа бизнеса пока не настроен шаблон.';
-  return 'Не удалось отправить заявку. Проверьте данные и попробуйте ещё раз.';
-};
-
 export async function registerPartner(payload: PartnerRegistrationPayload): Promise<PartnerRegistrationResult> {
   if (!supabase) throw new Error('Сервис регистрации не настроен.');
   const { data, error } = await supabase.functions.invoke<PartnerRegistrationResult>('register-partner', {
     body: payload
   });
-  if (error || !data) throw new Error(errorMessage(error?.message ?? 'registration_failed'));
+  if (error || !data) throw new Error(await getPartnerRegistrationErrorMessage(error));
   const sessionResult = await supabase.auth.setSession(data.session);
   if (sessionResult.error) throw new Error('Заявка создана, но не удалось выполнить вход. Войдите через почту и пароль.');
   return data;
