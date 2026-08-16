@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import {
   captureCurrentScroll,
   exactHistoryPushEvent,
@@ -8,6 +9,19 @@ import {
 } from './exactScrollState';
 
 export function ExactScrollRestoration() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+
+  useLayoutEffect(() => {
+    if (navigationType !== 'PUSH') return;
+    window.history.replaceState(
+      withExactScroll(window.history.state, { x: 0, y: 0 }),
+      '',
+      window.location.href
+    );
+    window.dispatchEvent(new Event(exactHistoryPushEvent));
+  }, [location.key, navigationType]);
+
   useEffect(() => {
     const previousRestoration = window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
