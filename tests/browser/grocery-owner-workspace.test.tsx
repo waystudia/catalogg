@@ -8,7 +8,8 @@ import '../../src/pages/catalog-admin/catalog-admin.css';
 import type { CatalogAdminAccess } from '../../src/shared/api/catalogAdminApi';
 import type { RestaurantOrder } from '../../src/shared/api/restaurantOrdersApi';
 
-vi.mock('../../src/features/shared-product-catalog/productPhotoBackground', () => ({
+vi.mock('../../src/features/shared-product-catalog/productPhotoBackground', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/features/shared-product-catalog/productPhotoBackground')>()),
   preloadProductPhotoBackgroundRemoval: vi.fn().mockResolvedValue(undefined),
   removeProductPhotoBackground: vi.fn(async (file: File) => file)
 }));

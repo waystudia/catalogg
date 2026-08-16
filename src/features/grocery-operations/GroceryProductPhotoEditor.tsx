@@ -1,25 +1,32 @@
-import { Check, ImagePlus, LoaderCircle, Plus, X } from 'lucide-react';
+import { Check, ImagePlus, LoaderCircle, Paintbrush, Plus, X } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { imageFileToDataUrl } from '../../shared/images';
 import {
   removeProductPhotoBackground,
-  type ProductPhotoProcessor
+  refineProductPhotoBackground,
+  type ProductPhotoProcessor,
+  type ProductPhotoRefiner
 } from '../shared-product-catalog/productPhotoBackground';
+import { ProductPhotoRefinementEditor } from '../shared-product-catalog/ProductPhotoRefinementEditor';
 
 type PhotoVersion = {
   index: number;
   original: string;
   processed: string;
+  originalFile: File;
+  processedFile: File;
 };
 
 export function GroceryProductPhotoEditor({
   images,
   onChange,
-  photoProcessor = removeProductPhotoBackground
+  photoProcessor = removeProductPhotoBackground,
+  photoRefiner = refineProductPhotoBackground
 }: {
   images: string[];
   onChange: (images: string[]) => void;
   photoProcessor?: ProductPhotoProcessor;
+  photoRefiner?: ProductPhotoRefiner;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const requestRef = useRef(0);
@@ -28,6 +35,7 @@ export function GroceryProductPhotoEditor({
   const [version, setVersion] = useState<PhotoVersion | null>(null);
   const [choice, setChoice] = useState<'original' | 'processed'>('original');
   const [error, setError] = useState('');
+  const [refinementOpen, setRefinementOpen] = useState(false);
 
   const replacePhoto = (index: number, value: string) => {
     onChange(images.map((image, imageIndex) => imageIndex === index ? value : image));
@@ -63,7 +71,7 @@ export function GroceryProductPhotoEditor({
       });
       const processed = await imageFileToDataUrl(processedFile);
       if (requestRef.current !== requestId) return;
-      setVersion({ index, original, processed });
+      setVersion({ index, original, processed, originalFile: file, processedFile });
       setChoice('processed');
       setProgress(100);
       setProcessing(false);
@@ -90,6 +98,7 @@ export function GroceryProductPhotoEditor({
             <button type="button" aria-label={`Удалить фото ${index + 1}`} onClick={() => {
               requestRef.current += 1;
               setVersion(null);
+              setRefinementOpen(false);
               setProcessing(false);
               onChange(images.filter((_, imageIndex) => imageIndex !== index));
             }}><X /></button>
@@ -122,8 +131,28 @@ export function GroceryProductPhotoEditor({
             setChoice('processed');
             replacePhoto(version.index, version.processed);
           }}><img src={version.processed} alt="Товар на белом фоне" /><span><Check />Белый фон</span></button>
+          <button type="button" onClick={() => setRefinementOpen(true)}><Paintbrush />Подправить кистью</button>
           <button type="button" onClick={() => inputRef.current?.click()}><ImagePlus />Другое фото</button>
         </div>
+      )}
+      {refinementOpen && version && (
+        <ProductPhotoRefinementEditor
+          original={version.originalFile}
+          automatic={version.processedFile}
+          refine={photoRefiner}
+          onCancel={() => setRefinementOpen(false)}
+          onApply={async (refinedFile) => {
+            const refined = await imageFileToDataUrl(refinedFile);
+            setVersion((current) => current ? {
+              ...current,
+              processed: refined,
+              processedFile: refinedFile
+            } : current);
+            setChoice('processed');
+            replacePhoto(version.index, refined);
+            setRefinementOpen(false);
+          }}
+        />
       )}
       {error && <p className="grocery-form-error" role="alert">{error}</p>}
     </section>
