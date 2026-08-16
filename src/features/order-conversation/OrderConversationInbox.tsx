@@ -150,12 +150,24 @@ export function OrderConversationInbox({
   }, [conversationState.selectedOrderId, onSelectedOrderChange]);
 
   const selectConversation = (orderId: string) => {
+    if (selectedOrderId !== undefined) {
+      conversationHistory.replace((current) => ({ ...current, selectedOrderId: orderId }));
+      lastReportedOrderIdRef.current = orderId;
+      onSelectedOrderChange?.(orderId);
+      return;
+    }
     conversationHistory.open((current) => ({ ...current, selectedOrderId: orderId }));
     lastReportedOrderIdRef.current = orderId;
     onSelectedOrderChange?.(orderId);
   };
 
   const closeConversation = () => {
+    if (selectedOrderId !== undefined) {
+      conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
+      lastReportedOrderIdRef.current = null;
+      onSelectedOrderChange?.(null);
+      return;
+    }
     conversationHistory.back(() => {
       conversationHistory.replace((current) => ({ ...current, selectedOrderId: null }));
       lastReportedOrderIdRef.current = null;
