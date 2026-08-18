@@ -9,7 +9,7 @@ export const restaurant: Restaurant = {
   logo_url: '',
   banner_url: mangalAsset('cover.webp'),
   whatsapp: '79990000000',
-  instagram_url: 'https://instagram.com/',
+  instagram_url: '',
   address: 'ул. Центральная, 12',
   mapLink: 'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm',
   lat: 43.3178,

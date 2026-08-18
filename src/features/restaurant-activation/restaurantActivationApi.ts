@@ -196,7 +196,7 @@ export const restaurantActivationApi: RestaurantActivationService = {
     ]);
     rpcError(error);
     rpcError(detailsError);
-    if (!data) throw new Error('Данные ресторана для активации не найдены.');
+    if (!data) throw new Error('Данные бизнеса для активации не найдены.');
     const activation = data as ActivationRpcRow;
     const { data: catalog } = await client
       .from('catalogs')

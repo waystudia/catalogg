@@ -17,7 +17,6 @@ import {
   Ham,
   Home,
   IceCreamBowl,
-  Instagram,
   MapPin,
   MessageCircle,
   Milk,
@@ -904,13 +903,10 @@ function HomeScreen({
 
       <section className="social-section">
         <div>
-          <h2>Наши соцсети</h2>
+          <h2>Связаться с нами</h2>
           <p>Свяжитесь с нами удобным способом</p>
         </div>
         <div className="social-actions">
-          <a href={restaurant.instagram_url || 'https://instagram.com/'} target="_blank" rel="noreferrer">
-            <Instagram /> Instagram
-          </a>
           <a href={`https://wa.me/${whatsapp || '79990000000'}`} target="_blank" rel="noreferrer">
             <MessageCircle /> WhatsApp
           </a>

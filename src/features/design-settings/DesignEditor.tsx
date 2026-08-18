@@ -125,10 +125,6 @@ export function DesignEditor({
               <input value={restaurant.whatsapp} onChange={(event) => onUpdateRestaurant({ whatsapp: event.target.value.replace(/\D/g, '') })} placeholder="79990000000" />
             </label>
             <label>
-              Instagram
-              <input value={restaurant.instagram_url} onChange={(event) => onUpdateRestaurant({ instagram_url: event.target.value })} placeholder="https://instagram.com/..." />
-            </label>
-            <label>
               Адрес
               <input value={restaurant.address} onChange={(event) => onUpdateRestaurant({ address: event.target.value })} />
             </label>
