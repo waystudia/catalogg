@@ -468,6 +468,62 @@
   animation: marketplace-skeleton 1.2s ease-in-out infinite;
 }
 
+@media (max-width: 719px) {
+  .marketplace-feed-grid {
+    gap: 8px;
+  }
+
+  .marketplace-product-card {
+    border-radius: 16px;
+  }
+
+  .marketplace-product-card__media {
+    aspect-ratio: 4 / 3;
+  }
+
+  .marketplace-product-card__body {
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .marketplace-product-card__body > strong {
+    font-size: 14px;
+  }
+
+  .marketplace-product-card__body > small {
+    font-size: 11px;
+  }
+
+  .marketplace-product-card__meta {
+    gap: 5px;
+    font-size: 9px;
+  }
+
+  .marketplace-product-card__bottom {
+    min-height: 36px;
+    margin-top: 0;
+  }
+
+  .marketplace-product-card__price b {
+    font-size: 15px;
+  }
+
+  .marketplace-product-card__action {
+    width: 36px;
+    height: 36px;
+  }
+
+  .marketplace-product-card__action svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .marketplace-product-skeleton {
+    aspect-ratio: 0.77;
+    border-radius: 16px;
+  }
+}
+
 @keyframes marketplace-skeleton {
   from { background-position: 100% 0; }
   to { background-position: -100% 0; }

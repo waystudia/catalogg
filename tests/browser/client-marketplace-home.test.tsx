@@ -79,6 +79,45 @@ test('marketplace home keeps exactly two real product cards across a phone viewp
   }
 });
 
+test('marketplace home fits a two-by-three product grid above the mobile navigation', async () => {
+  await page.viewport(390, 844);
+  try {
+    const items = Array.from({ length: 6 }, (_, index) => getMarketplaceItem({
+      id: `product-${index + 1}`,
+      title: `Товар ${index + 1}`,
+      oldPrice: null,
+      discountPercent: null
+    }));
+    const screen = await render(
+      <MemoryRouter>
+        <MarketplaceProductGrid
+          items={items}
+          favoriteIds={[]}
+          onToggleFavorite={() => undefined}
+        />
+        <MarketplaceBottomNavigation active="home" cartCount={0} />
+      </MemoryRouter>
+    );
+
+    const grid = screen.getByRole('list', { name: 'Товары рядом' }).element();
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>('.marketplace-product-card'));
+    const firstRowTop = cards[0].getBoundingClientRect().top;
+    const thirdRowTop = cards[4].getBoundingClientRect().top;
+    const thirdRowBottom = cards[5].getBoundingClientRect().bottom;
+    const navigationTop = screen.getByRole('navigation', { name: 'Основная навигация' }).element().getBoundingClientRect().top;
+
+    expect(cards).toHaveLength(6);
+    expect(Math.abs(cards[0].getBoundingClientRect().top - cards[1].getBoundingClientRect().top)).toBeLessThanOrEqual(1);
+    expect(thirdRowTop).toBeGreaterThan(firstRowTop);
+    expect(Math.abs(cards[4].getBoundingClientRect().top - cards[5].getBoundingClientRect().top)).toBeLessThanOrEqual(1);
+    expect(thirdRowBottom).toBeLessThanOrEqual(navigationTop);
+    await expect.element(screen.getByRole('link', { name: 'Открыть Товар 6 в Мангал' })).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Добавить Товар 6 в избранное' })).toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
 test('permanent client navigation opens Categories from the second tab', async () => {
   const screen = await render(
     <MemoryRouter>
