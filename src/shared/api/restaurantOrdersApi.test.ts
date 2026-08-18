@@ -125,7 +125,7 @@ describe('public restaurant order payload', () => {
   it('uses the legacy public order RPC when cart products have old text ids', () => {
     const items: CartItem[] = [{ product: product({ id: 'zhizhig-galnash' }), quantity: 1 }];
 
-    assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_legacy_restaurant_order');
+    assert.equal(resolvePublicOrderRpcName(items), 'create_secure_client_platform_order');
   });
 
   it('uses the platform public order RPC when cart products have uuid ids', () => {
@@ -136,7 +136,7 @@ describe('public restaurant order payload', () => {
       }
     ];
 
-    assert.equal(resolvePublicOrderRpcName(items), 'create_client_platform_restaurant_order');
+    assert.equal(resolvePublicOrderRpcName(items), 'create_secure_client_platform_order');
   });
 
   it('uses the grocery RPC and sends exact grams for a weighted catalog product', () => {
@@ -154,7 +154,7 @@ describe('public restaurant order payload', () => {
       }
     ];
 
-    assert.equal(resolvePublicOrderRpcName(items, 'grocery'), 'create_client_platform_catalog_order');
+    assert.equal(resolvePublicOrderRpcName(items, 'grocery'), 'create_secure_client_platform_order');
     assert.deepEqual(buildPublicRestaurantOrderItems(items), [
       {
         product_id: '11111111-1111-4111-8111-111111111111',
@@ -189,7 +189,7 @@ describe('public restaurant order payload', () => {
     const client: PublicRestaurantOrderClient = {
       async rpc(_name, args) {
         rpcArgs = args;
-        return { data: 'order-123', error: null };
+        return { data: { order_id: 'order-123' }, error: null };
       },
       from() {
         return {
@@ -214,7 +214,7 @@ describe('public restaurant order payload', () => {
     const client: PublicRestaurantOrderClient = {
       async rpc(_name, args) {
         rpcArgs = args;
-        return { data: 'order-choice', error: null };
+        return { data: { order_id: 'order-choice' }, error: null };
       },
       from() {
         return {
@@ -251,7 +251,7 @@ describe('public restaurant order payload', () => {
             }
           };
         }
-        return { data: 'order-retried', error: null };
+        return { data: { order_id: 'order-retried' }, error: null };
       },
       from() {
         return {
@@ -277,7 +277,7 @@ describe('public restaurant order payload', () => {
   it('does not attempt an RLS-filtered browser update after the protected creation RPC', async () => {
     const client: PublicRestaurantOrderClient = {
       async rpc() {
-        return { data: 'order-123', error: null };
+        return { data: { order_id: 'order-123' }, error: null };
       },
       from() {
         throw new Error('orders must be finalized by the creation RPC');
@@ -307,7 +307,7 @@ describe('public restaurant order payload', () => {
     const client: PublicRestaurantOrderClient = {
       async rpc(_name, args) {
         rpcArgs = args;
-        return { data: 'order-123', error: null };
+        return { data: { order_id: 'order-123' }, error: null };
       },
       from() {
         return {
@@ -327,18 +327,15 @@ describe('public restaurant order payload', () => {
     assert.equal(rpcArgs.comment, 'Позвонить заранее\nКоординаты клиента: 43.3181235, 45.6987654 (точность 18 м)');
   });
 
-  it('falls back to the legacy public order RPC when the restaurant RPC is missing in Supabase', async () => {
+  it('fails closed when the secure order RPC is missing in Supabase', async () => {
     const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
     const client: PublicRestaurantOrderClient = {
       async rpc(name, args) {
         calls.push({ name, args });
-        if (name === 'create_client_platform_restaurant_order') {
-          return {
-            data: null,
-            error: { code: 'PGRST202', message: 'Could not find the function' }
-          };
-        }
-        return { data: 'order-fallback', error: null };
+        return {
+          data: null,
+          error: { code: 'PGRST202', message: 'Could not find the function' }
+        };
       },
       from() {
         return {
@@ -353,15 +350,11 @@ describe('public restaurant order payload', () => {
       }
     };
 
-    const orderId = await createRestaurantOrderWithClient(client, 'catalog-1', orderInput());
-
-    assert.equal(orderId, 'order-fallback');
-    assert.deepEqual(
-      calls.map((call) => call.name),
-      ['create_client_platform_restaurant_order', 'create_public_order']
+    await assert.rejects(
+      () => createRestaurantOrderWithClient(client, 'catalog-1', orderInput()),
+      /Supabase request failed/
     );
-    assert.equal(calls[1].args.table_label, '');
-    assert.equal(calls[1].args.comment, 'Координаты клиента: 43.3181235, 45.6987654 (точность 18 м)');
+    assert.deepEqual(calls.map((call) => call.name), ['create_secure_client_platform_order']);
   });
 
   it('builds a WhatsApp-safe link to the already-created order status page', () => {

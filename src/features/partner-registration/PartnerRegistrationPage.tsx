@@ -42,7 +42,6 @@ export function PartnerRegistrationPage() {
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
   const [carNumber, setCarNumber] = useState('');
-  const [accepted, setAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ role: PartnerRole; slug?: string } | null>(null);
@@ -75,7 +74,7 @@ export function PartnerRegistrationPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!role || !accepted) return;
+    if (!role) return;
     setSaving(true);
     setError('');
     try {
@@ -138,7 +137,7 @@ export function PartnerRegistrationPage() {
         <label>Основной город<input value={primaryCity} onChange={(event) => setPrimaryCity(event.target.value)} list="partner-settlements" placeholder="Выберите или введите свой" required /></label>
         <datalist id="partner-settlements">{settlements.map((item) => <option value={item} key={item} />)}</datalist>
         <fieldset><legend>Где принимаете заказы</legend><div className="partner-registration__chips">{fallbackSettlements.map((item) => <button className={serviceSettlements.includes(item) ? 'is-active' : ''} type="button" onClick={() => toggleSettlement(item)} key={item}>{item}</button>)}</div></fieldset>
-        <label className="partner-registration__consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /><span>Принимаю <a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">условия для продавцов</a> и <a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a>.</span></label>
+        <p className="partner-registration__consent">Это предварительная заявка. <a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">Оферта</a> и <a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">согласие представителя</a> подтверждаются отдельно самим представителем при юридической активации.</p>
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary" disabled={saving}>{saving ? 'Создаём кабинет…' : 'Создать заявку'}</button>
       </form>}
 
@@ -158,7 +157,7 @@ export function PartnerRegistrationPage() {
         <label>Госномер<input value={carNumber} onChange={(event) => setCarNumber(normalizeVehiclePlate(event.target.value))} placeholder="A123BC 95" lang="en" inputMode="text" autoCapitalize="characters" autoCorrect="off" spellCheck={false} required /></label>
         <label>Цвет<input value={vehicleColor} onChange={(event) => setVehicleColor(event.target.value)} placeholder="Выберите или введите свой цвет" required /></label>
         <div className="partner-registration__colors" aria-label="Популярные цвета">{vehicleColors.map((color) => <button className={vehicleColor === color.name ? 'is-active' : ''} type="button" aria-pressed={vehicleColor === color.name} onClick={() => setVehicleColor(color.name)} key={color.name}><i style={{ backgroundColor: color.value }} />{color.name}</button>)}</div>
-        <label className="partner-registration__consent"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} required /><span>Принимаю <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">условия курьера</a> и <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a>.</span></label>
+        <p className="partner-registration__consent">Это предварительная заявка. <a href={legalDocuments.driverOffer} target="_blank" rel="noreferrer">Оферта водителя</a> и <a href={legalDocuments.driverConsent} target="_blank" rel="noreferrer">согласие водителя</a> подтверждаются отдельно самим водителем после одобрения.</p>
         {error && <strong role="alert">{error}</strong>}<button className="partner-registration__primary" disabled={saving}>{saving ? 'Отправляем…' : 'Отправить заявку'}</button>
       </form>}
     </main>

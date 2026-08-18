@@ -12,9 +12,11 @@ const restaurantActivationSource = read('src/features/restaurant-activation/Rest
 const driverActivationSource = read('src/pages/driver/DriverApp.tsx');
 
 const releaseDocuments = [
-  ['02-user-agreement', '2.0', '6 августа 2026 года', 'a6d0e28e0abb186ee879339a4a2b624eb6d99a5ca2fc8d3362b5ca12b9cca8b0'],
+  ['01-personal-data-policy', '3.0', '18 августа 2026 года', 'f4af642654e6cdcd48205e35d1e8506a5552b34c2ea18a25f250fc79238288f8'],
+  ['02-user-agreement', '3.0', '18 августа 2026 года', '3759c66b510a52c0acab71d7924ce3a7572b5ad33a4c098c62d805ae83093972'],
+  ['03-cookie-policy', '3.0', '18 августа 2026 года', '57ccf19c8531654868a2982a024ed722f90ef80d1f7d66cce8914c8b3d971fd2'],
   ['09-restaurant-offer', '3.0', '18 августа 2026 года', '6a43ac2c59af2526dbdf1e3668ab0c2d75d768fefb0d0adbc17c482f1ed7f43c'],
-  ['10-driver-offer', '2.0', '6 августа 2026 года', '0c0f5c662c5d4b72b09776a380c9f59dca73c9a53a79252d07cc6d2fcaab223f']
+  ['10-driver-offer', '3.0', '18 августа 2026 года', 'b64b00570e8c52cafa76b531f97637d121d8db22770d6e01261139906a104e2f']
 ];
 
 test('published legal documents match their reviewed release metadata and evidence hashes', () => {
@@ -27,11 +29,13 @@ test('published legal documents match their reviewed release metadata and eviden
 });
 
 test('registration records each accepted document with its own version and SHA-256', () => {
-  assert.match(releasesSource, /user_agreement:[\s\S]*version: '2\.0'[\s\S]*a6d0e28e/);
+  assert.match(releasesSource, /user_agreement:[\s\S]*version: '3\.0'[\s\S]*3759c66b/);
   assert.match(releasesSource, /restaurant_offer:[\s\S]*version: '3\.0'[\s\S]*6a43ac2c/);
-  assert.match(releasesSource, /driver_offer:[\s\S]*version: '2\.0'[\s\S]*0c0f5c66/);
-  assert.match(releasesSource, /driver_consent:[\s\S]*version: '1\.0'[\s\S]*d69209f4/);
-  assert.match(releasesSource, /client_consent:[\s\S]*version: '1\.0'[\s\S]*582d9449/);
+  assert.match(releasesSource, /driver_offer:[\s\S]*version: '3\.0'[\s\S]*b64b0057/);
+  assert.match(releasesSource, /driver_consent:[\s\S]*version: '3\.0'[\s\S]*b2b3a117/);
+  assert.match(releasesSource, /client_consent:[\s\S]*version: '3\.0'[\s\S]*feb54a97/);
+  assert.match(releasesSource, /advertising_consent:[\s\S]*version: '3\.0'[\s\S]*749116fa/);
+  assert.match(releasesSource, /order_transfer_consent:[\s\S]*version: '3\.0'[\s\S]*b8526c81/);
   assert.match(clientAccountSource, /legalDocumentReleases\[code\]/);
   assert.match(clientAccountSource, /target_document_version:\s*release\.version/);
   assert.match(clientAccountSource, /target_document_sha256:\s*release\.sha256/);
@@ -42,5 +46,5 @@ test('restaurant and driver activation screens name their linked document releas
   assert.match(restaurantActivationSource, /Версия \{document\.version\} · SHA-256 сохранён/);
   assert.match(driverActivationSource, /legalDocumentReleases\.driver_offer\.version/);
   assert.match(driverActivationSource, /legalDocumentReleases\.driver_consent\.version/);
-  assert.equal(sha256('public/legal/06-driver-consent.html'), 'd69209f4c9829694f512d4da6c0947d6a5bbaf0d5c15b84068d42360d9bdbb39');
+  assert.equal(sha256('public/legal/06-driver-consent.html'), 'b2b3a117ac0ed8aed794db4f4cb3b7555a7fced40109d07d3f36f790b48c4fd6');
 });

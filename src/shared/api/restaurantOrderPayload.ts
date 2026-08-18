@@ -3,14 +3,17 @@ import type { BusinessType } from '../businessTerminology';
 import { getSelectedModifierDetails } from '../../entities/productModifiers';
 import { normalizeSelectedWeight } from '../../entities/productPricing';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
+import { legalDocumentReleases } from '../legalDocuments';
+import {
+  getStoredClientSessionToken,
+  saveGuestOrderTrackingToken
+} from './clientOrderCredentials';
 
 type DeliverySettingsForSave = {
   service_settlements: string[];
   delivery_hours_start: string | null | undefined;
   delivery_hours_end: string | null | undefined;
 };
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type CreateRestaurantOrderFromCartInput = {
   slug: string;
@@ -28,6 +31,8 @@ export type CreateRestaurantOrderFromCartInput = {
   comment?: string;
   customerName?: string;
   customerPhone?: string;
+  generalConsentConfirmed?: boolean;
+  orderTransferConfirmed?: boolean;
 };
 
 type SupabaseResult<T> = PromiseLike<{ data: T | null; error: unknown }>;
@@ -157,12 +162,11 @@ const formatSelectedChoices = (items: CartItem[]) => {
   return lines.length > 0 ? `Выбранные варианты:\n${lines.join('\n')}` : '';
 };
 
-export const resolvePublicOrderRpcName = (items: CartItem[], businessType?: BusinessType) =>
-  items.every((item) => uuidPattern.test(item.product.id))
-    ? businessType === 'grocery' || items.some((item) => item.product.sale_unit === 'weight')
-      ? 'create_client_platform_catalog_order'
-      : 'create_client_platform_restaurant_order'
-    : 'create_client_platform_legacy_restaurant_order';
+export const resolvePublicOrderRpcName = (items: CartItem[], businessType?: BusinessType) => {
+  void items;
+  void businessType;
+  return 'create_secure_client_platform_order';
+};
 
 export const normalizeRestaurantDeliverySettingsForSave = <T extends DeliverySettingsForSave>(settings: T) => ({
   ...settings,
@@ -280,7 +284,9 @@ export async function createRestaurantOrderWithClient(
     comment = '',
     customerName = 'Гость',
     customerPhone = '',
-    idempotencyKey
+    idempotencyKey,
+    generalConsentConfirmed = false,
+    orderTransferConfirmed = false
   }: CreateRestaurantOrderFromCartInput
 ) {
   const locationNote =
@@ -300,7 +306,16 @@ export async function createRestaurantOrderWithClient(
     comment: joinCommentParts(comment, formatSelectedChoices(items), locationNote),
     idempotency_key: idempotencyKey?.trim() || null,
     payment_method: /\[payment_method:bank_transfer\]/i.test(comment) ? 'bank_transfer' : 'cash',
-    items: buildPublicRestaurantOrderItems(items)
+    items: buildPublicRestaurantOrderItems(items),
+    client_session_token: getStoredClientSessionToken() || null,
+    target_general_consent_confirmed: generalConsentConfirmed,
+    target_user_agreement_version: legalDocumentReleases.user_agreement.version,
+    target_user_agreement_sha256: legalDocumentReleases.user_agreement.sha256,
+    target_client_consent_version: legalDocumentReleases.client_consent.version,
+    target_client_consent_sha256: legalDocumentReleases.client_consent.sha256,
+    target_order_transfer_confirmed: orderTransferConfirmed,
+    target_order_transfer_version: legalDocumentReleases.order_transfer_consent.version,
+    target_order_transfer_sha256: legalDocumentReleases.order_transfer_consent.sha256
   };
   const rpcName = resolvePublicOrderRpcName(items, businessType);
   let { data, error } = await client.rpc(rpcName, restaurantRpcArgs);
@@ -313,20 +328,13 @@ export async function createRestaurantOrderWithClient(
     error = retryResult.error;
   }
 
-  if (error && rpcIsMissing(error)) {
-    const fallbackArgs = {
-      target_catalog_id: catalogId,
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      comment: restaurantRpcArgs.comment,
-      table_label: fulfillmentType === 'hall' ? cabinLabel ?? '' : '',
-      items: restaurantRpcArgs.items
-    };
-    const fallbackResult = await client.rpc('create_public_order', fallbackArgs);
-    data = fallbackResult.data;
-    error = fallbackResult.error;
-  }
-
   if (error) throwSupabaseError(error);
-  return String(data);
+  if (!data || typeof data !== 'object') throw new Error('Secure order response is invalid');
+  const result = data as { order_id?: unknown; guest_tracking_token?: unknown };
+  const orderId = typeof result.order_id === 'string' ? result.order_id : '';
+  if (!orderId) throw new Error('Secure order response does not contain an order id');
+  if (typeof result.guest_tracking_token === 'string' && result.guest_tracking_token) {
+    saveGuestOrderTrackingToken(orderId, result.guest_tracking_token);
+  }
+  return orderId;
 }

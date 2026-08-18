@@ -46,19 +46,22 @@ test('client account session is restored from the server', () => {
   assert.match(apiSource, /waycatalog-client-session/);
 });
 
-test('checkout records legal choices after either registration or existing-account login before creating the order', () => {
+test('registration and checkout persist separate legal evidence before creating the order', () => {
   assert.match(apiSource, /export const recordClientRegistrationLegalChoices/);
+  assert.match(apiSource, /register_client_account_with_legal/);
   assert.doesNotMatch(apiSource, /Аккаунт создан, но юридическое подтверждение не записано/);
   assert.match(legacyCheckoutSource, /await recordClientRegistrationLegalChoices\(sessionToken, \{/);
-  assert.match(legacyCheckoutSource, /acceptedAgreement: acceptedOrderData/);
-  assert.match(legacyCheckoutSource, /acceptedPersonalData: acceptedOrderData/);
+  assert.match(legacyCheckoutSource, /acceptedAgreement,/);
+  assert.match(legacyCheckoutSource, /acceptedPersonalData,/);
+  assert.match(legacyCheckoutSource, /generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData/);
+  assert.match(legacyCheckoutSource, /orderTransferConfirmed: acceptedOrderTransfer/);
 
   const loginIndex = legacyCheckoutSource.indexOf('session = await loginClientAccount');
   const legalIndex = legacyCheckoutSource.indexOf('await recordClientRegistrationLegalChoices(sessionToken');
   const orderIndex = legacyCheckoutSource.indexOf('void createRestaurantOrderFromCart');
 
   assert.ok(loginIndex > 0 && legalIndex > loginIndex, 'existing accounts must record legal choices after login');
-  assert.ok(orderIndex > legalIndex, 'the order must be created only after legal choices are persisted');
+  assert.ok(orderIndex > legalIndex, 'the order must be created only after login-time legal choices are persisted');
 });
 
 test('password account migration hashes passwords and isolates private tables', () => {

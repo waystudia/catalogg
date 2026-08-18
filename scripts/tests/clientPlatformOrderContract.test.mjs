@@ -49,7 +49,7 @@ describe('client platform restaurant order contract', () => {
       /value\.sale_unit === 'weight'[\s\S]*pricing_type: 'per_kg'/
     );
     assert.match(orderSource, /requested_quantity:[\s\S]*normalizeSelectedWeight/);
-    assert.match(orderSource, /businessType === 'grocery'[\s\S]*create_client_platform_catalog_order/);
+    assert.match(orderSource, /create_secure_client_platform_order/);
   });
 
   it('shows a newly submitted order as waiting for restaurant acceptance', () => {
@@ -69,9 +69,8 @@ describe('client platform restaurant order contract', () => {
       'utf8'
     );
 
-    assert.match(orderPayloadSource, /create_client_platform_restaurant_order/);
-    assert.match(orderPayloadSource, /create_client_platform_catalog_order/);
-    assert.match(orderPayloadSource, /create_client_platform_legacy_restaurant_order/);
+    assert.match(orderPayloadSource, /create_secure_client_platform_order/);
+    assert.match(apiSource, /create_secure_client_platform_order/);
     assert.match(apiSource, /payment_method:\s*input\.draft\.paymentMethod/);
     assert.doesNotMatch(apiSource, /\.from\('orders'\)[\s\S]{0,80}\.update\(/);
     assert.match(migration, /resolved_delivery_fee := case[\s\S]*else 120/i);

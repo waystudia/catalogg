@@ -12,9 +12,9 @@ describe('restaurant legal activation', () => {
   it('keeps every required legal confirmation separate and unchecked initially', () => {
     const confirmations = createEmptyActivationConfirmations();
 
-    expect(REQUIRED_ACTIVATION_CONFIRMATIONS).toHaveLength(7);
+    expect(REQUIRED_ACTIVATION_CONFIRMATIONS).toHaveLength(8);
     expect(Object.keys(confirmations)).toEqual(REQUIRED_ACTIVATION_CONFIRMATIONS.map(({ key }) => key));
-    expect(Object.values(confirmations)).toEqual([false, false, false, false, false, false, false]);
+    expect(Object.values(confirmations)).toEqual([false, false, false, false, false, false, false, false]);
     expect(getMissingActivationConfirmations(confirmations)).toEqual(
       REQUIRED_ACTIVATION_CONFIRMATIONS.map(({ key }) => key)
     );
