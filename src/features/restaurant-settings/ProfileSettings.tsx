@@ -79,17 +79,6 @@ export function ProfileSettings({
       setError('WhatsApp должен быть в формате +79990000000.');
       return;
     }
-    if (draft.instagram_url) {
-      try {
-        const url = new URL(draft.instagram_url);
-        if (!['http:', 'https:'].includes(url.protocol)) {
-          throw new Error('invalid');
-        }
-      } catch {
-        setError('Instagram должен быть корректной ссылкой.');
-        return;
-      }
-    }
     const coordinatesFromFields = makeRestaurantCoordinates(draft.lat, draft.lng);
     const coordinatesFromLink = parseRestaurantCoordinatesFromMapLink(draft.mapLink);
     if ((draft.lat !== null || draft.lng !== null) && !coordinatesFromFields && !coordinatesFromLink) {
@@ -220,15 +209,6 @@ export function ProfileSettings({
             value={draft.whatsapp}
             placeholder="+79990000000"
             onChange={(event) => setDraft({ ...draft, whatsapp: event.target.value.replace(/[^\d+]/g, '') })}
-          />
-        </label>
-        <label>
-          Instagram
-          <input
-            type="url"
-            value={draft.instagram_url}
-            placeholder="https://instagram.com/restaurant"
-            onChange={(event) => setDraft({ ...draft, instagram_url: event.target.value })}
           />
         </label>
         <label>

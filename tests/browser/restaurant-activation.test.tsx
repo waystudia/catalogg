@@ -40,25 +40,25 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
     individualTerms: 'Первые 14 дней без абонентской платы'
   },
   bundleId: 'bundle-1',
-  bundleVersion: '1.0',
+  bundleVersion: '3.0',
   documents: [
     {
       id: 'document-contract',
       type: 'restaurant_contract',
-      title: 'Договор подключения ресторана',
-      version: '1.0',
+      title: 'Универсальный договор-оферта для бизнес-партнёров',
+      version: '3.0',
       effectiveFrom: '2026-08-05',
       pdfUrl: '/legal/restaurant-contract-v1.pdf',
       fileHash: 'a'.repeat(64),
       opened: false
     },
     {
-      id: 'document-tariff',
-      type: 'tariff',
-      title: 'Тарифы',
+      id: 'document-privacy',
+      type: 'privacy_policy',
+      title: 'Политика обработки персональных данных',
       version: '1.0',
       effectiveFrom: '2026-08-05',
-      pdfUrl: '/legal/tariff-v1.pdf',
+      pdfUrl: '/legal/01-personal-data-policy.html',
       fileHash: 'b'.repeat(64),
       opened: false
     }
@@ -75,7 +75,7 @@ const activationService = (view = activationView()): RestaurantActivationService
   signOut: vi.fn(async () => undefined)
 });
 
-test('owner reviews separate documents and confirmations before activating with a code', async () => {
+test('owner reviews every document and confirmation before activating with a code', async () => {
   const service = activationService();
   const screen = await render(<RestaurantActivationPage service={service} />);
 
@@ -91,7 +91,7 @@ test('owner reviews separate documents and confirmations before activating with 
   await expect.element(checkboxes.nth(0)).not.toBeChecked();
   await expect.element(checkboxes.nth(6)).not.toBeChecked();
 
-  await screen.getByRole('button', { name: 'Открыть Договор подключения ресторана' }).click();
+  await screen.getByRole('button', { name: 'Открыть Универсальный договор-оферта для бизнес-партнёров' }).click();
   await expect.element(screen.getByText('Открыт', { exact: true })).toBeVisible();
   expect(service.markDocumentOpened).toHaveBeenCalledWith('document-contract');
 
@@ -99,6 +99,8 @@ test('owner reviews separate documents and confirmations before activating with 
     await checkboxes.nth(index).click();
   }
 
+  await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
+  await screen.getByRole('button', { name: 'Открыть Политика обработки персональных данных' }).click();
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeEnabled();
   await screen.getByRole('button', { name: 'Запросить код подтверждения' }).click();
   await expect.element(screen.getByText('4 из 5')).toBeVisible();
@@ -185,6 +187,9 @@ test('a retry after a lost response reuses the same activation idempotency key',
   for (let index = 0; index < 7; index += 1) {
     await checkboxes.nth(index).click();
   }
+
+  await screen.getByRole('button', { name: 'Открыть Универсальный договор-оферта для бизнес-партнёров' }).click();
+  await screen.getByRole('button', { name: 'Открыть Политика обработки персональных данных' }).click();
 
   await screen.getByRole('button', { name: 'Запросить код подтверждения' }).click();
   await expect.element(screen.getByText('Сеть временно недоступна.')).toBeVisible();

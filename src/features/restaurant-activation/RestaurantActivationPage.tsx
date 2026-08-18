@@ -104,6 +104,7 @@ export function RestaurantActivationPage({
     view.legalStatus === 'awaiting_acceptance' &&
     view.canAcceptLegalDocuments &&
     confirmationsComplete &&
+    openedDocumentIds.length === view.documents.length &&
     !requestId &&
     !activated
   );
@@ -245,7 +246,7 @@ export function RestaurantActivationPage({
             {view.tariff && (
               <div className="restaurant-activation-tariff">
                 <strong>{view.tariff.name} · версия {view.tariff.version}</strong>
-                <span>{view.tariff.restaurantCommissionAmount} ₽ с заказа · {view.tariff.driverCommissionAmount} ₽ с доставки</span>
+                <span>{view.tariff.restaurantCommissionAmount} ₽ с заказа · {view.tariff.driverCommissionAmount} ₽ с доставки · снимок будет сохранён с SHA-256</span>
                 {(view.tariff.commissionRules || view.tariff.freePeriodTerms || view.tariff.individualTerms) && (
                   <ul>
                     {view.tariff.commissionRules && <li>{view.tariff.commissionRules}</li>}

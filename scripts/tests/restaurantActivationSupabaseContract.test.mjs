@@ -31,6 +31,10 @@ const dualRoleOwnerMigrationName = readdirSync(new URL('../../supabase/migration
 const dualRoleOwnerMigration = dualRoleOwnerMigrationName
   ? readFileSync(new URL(`../../supabase/migrations/${dualRoleOwnerMigrationName}`, import.meta.url), 'utf8')
   : '';
+const partnerV3Migration = readFileSync(
+  new URL('../../supabase/migrations/20260818060323_publish_universal_partner_offer_v3.sql', import.meta.url),
+  'utf8'
+);
 const createClientFunction = readFileSync(
   new URL('../../supabase/functions/create-client/index.ts', import.meta.url),
   'utf8'
@@ -60,6 +64,7 @@ const restaurantWorkspaceSource = readFileSync(
   new URL('../../src/features/restaurant-admin/RestaurantAdminWorkspace.tsx', import.meta.url),
   'utf8'
 );
+
 
 test('restaurant activation migration is additive and puts every existing restaurant under review', () => {
   assert.ok(migrationName, 'restaurant activation migration must exist');
@@ -209,4 +214,14 @@ test('a dual-role platform administrator may activate only a restaurant they act
     assert.match(dualRoleOwnerMigration, new RegExp(`revoke all on function public\\.${signature} from public, anon`, 'i'));
     assert.match(dualRoleOwnerMigration, new RegExp(`grant execute on function public\\.${signature} to authenticated`, 'i'));
   }
+});
+
+test('partner offer 3.0 is published without blocking active clients and hashes individual terms', () => {
+  assert.match(partnerV3Migration, /Универсальный договор-оферта для бизнес-партнёров/);
+  assert.match(partnerV3Migration, /'restaurant_contract'[\s\S]*'3\.0'/i);
+  assert.match(partnerV3Migration, /tariff_snapshot_hash/i);
+  assert.match(partnerV3Migration, /digest\(convert_to\(new\.tariff_snapshot_json::text/i);
+  assert.match(partnerV3Migration, /alter column restaurant_commission_amount drop default/i);
+  assert.match(partnerV3Migration, /alter column driver_commission_amount drop default/i);
+  assert.doesNotMatch(partnerV3Migration, /update public\.clients[\s\S]*legal_activation_status/i);
 });
