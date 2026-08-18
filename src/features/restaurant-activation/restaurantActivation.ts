@@ -15,7 +15,7 @@ export type RestaurantLegalStatus = (typeof RESTAURANT_LEGAL_STATUSES)[number];
 export const REQUIRED_ACTIVATION_CONFIRMATIONS = [
   {
     key: 'contract',
-    label: 'Я ознакомился и принимаю договор подключения к платформе WayYaam.'
+    label: 'Я ознакомился и принимаю универсальный договор-оферту для бизнес-партнёров WayYaam.'
   },
   {
     key: 'tariff',
@@ -27,11 +27,11 @@ export const REQUIRED_ACTIVATION_CONFIRMATIONS = [
   },
   {
     key: 'restaurant_data',
-    label: 'Я подтверждаю достоверность предоставленных сведений о ресторане.'
+    label: 'Я подтверждаю достоверность предоставленных сведений о бизнесе.'
   },
   {
     key: 'authority',
-    label: 'Я подтверждаю, что являюсь владельцем, руководителем или имею достаточные полномочия действовать от имени ресторана.'
+    label: 'Я подтверждаю, что являюсь владельцем, руководителем или имею достаточные полномочия действовать от имени бизнес-партнёра.'
   },
   {
     key: 'content_license',

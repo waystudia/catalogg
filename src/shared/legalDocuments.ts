@@ -5,9 +5,9 @@ export const legalDocumentReleases = {
     sha256: 'a6d0e28e0abb186ee879339a4a2b624eb6d99a5ca2fc8d3362b5ca12b9cca8b0'
   },
   restaurant_offer: {
-    version: '2.0',
-    publishedAt: '2026-08-06',
-    sha256: '2f130f153776feb1127823776bb3b9c9dd953d3257745e48a0987a9c15d36eac'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: '6a43ac2c59af2526dbdf1e3668ab0c2d75d768fefb0d0adbc17c482f1ed7f43c'
   },
   driver_offer: {
     version: '2.0',
@@ -47,6 +47,7 @@ export const legalDocuments = {
   advertisingConsent: legalDocumentUrl('07-advertising-consent'),
   orderTransferConsent: legalDocumentUrl('08-order-data-transfer-consent'),
   restaurantOffer: legalDocumentUrl('09-restaurant-offer'),
+  partnerOffer: legalDocumentUrl('09-restaurant-offer'),
   driverOffer: legalDocumentUrl('10-driver-offer'),
   index: legalDocumentUrl('index')
 } as const;

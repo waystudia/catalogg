@@ -1467,7 +1467,6 @@ function RestaurantCatalogPage({
         </section>
 
         <section className="restaurant-info-band">
-          <a href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a>
           <a href="https://wa.me/79280000000" target="_blank" rel="noreferrer">WhatsApp</a>
           <a href="https://yandex.ru/maps/" target="_blank" rel="noreferrer">Местоположение</a>
         </section>

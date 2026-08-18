@@ -161,7 +161,7 @@ export const restaurantActivationApi: RestaurantActivationService = {
     const client = requireSupabase();
     const { data, error } = await client.rpc('get_current_restaurant_activation');
     rpcError(error);
-    if (!data) throw new Error('Данные ресторана для активации не найдены.');
+    if (!data) throw new Error('Данные бизнеса для активации не найдены.');
     return mapActivationView(data as ActivationRpcRow);
   },
 

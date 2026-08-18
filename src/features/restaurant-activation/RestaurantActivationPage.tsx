@@ -87,12 +87,13 @@ export function RestaurantActivationPage({
     view?.bundleId &&
     view.canAcceptLegalDocuments &&
     confirmationsComplete &&
+    openedDocumentIds.length === view.documents.length &&
     !requestId &&
     !activated
   );
 
   const details = useMemo(() => view ? [
-    ['Ресторан', view.restaurant.name],
+    ['Бизнес', view.restaurant.name],
     ['Юридическое наименование', view.restaurant.legalName],
     ['ИНН', view.restaurant.inn],
     ['Адрес', view.restaurant.actualAddress],
@@ -147,7 +148,7 @@ export function RestaurantActivationPage({
       }
       setActivated(true);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Не удалось активировать ресторан.');
+      setError(nextError instanceof Error ? nextError.message : 'Не удалось активировать бизнес.');
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +162,7 @@ export function RestaurantActivationPage({
     return (
       <main className="restaurant-activation-state">
         <h1>Активация недоступна</h1>
-        <p>{error || 'Ресторан не найден.'}</p>
+        <p>{error || 'Бизнес не найден.'}</p>
       </main>
     );
   }
@@ -175,8 +176,8 @@ export function RestaurantActivationPage({
 
       <section className="restaurant-activation-hero">
         <span className="restaurant-activation-kicker"><ShieldCheck /> Юридическое подключение</span>
-        <h1>Активация ресторана в WayYaam</h1>
-        <p>Проверьте данные ресторана, ознакомьтесь с условиями подключения и подтвердите активацию.</p>
+        <h1>Активация бизнес-партнёра в WayYaam</h1>
+        <p>Проверьте данные бизнеса, ознакомьтесь с условиями подключения и подтвердите активацию.</p>
         <div className="restaurant-activation-progress" aria-label={`Этап ${progress} из 5`}>
           <strong>{progress} из 5</strong>
           <span>{['Проверка данных', 'Документы', 'Полномочия', 'Код', 'Активация'][progress - 1]}</span>
@@ -187,7 +188,7 @@ export function RestaurantActivationPage({
       {activated ? (
         <section className="restaurant-activation-success">
           <span><Check /></span>
-          <h2>Ресторан активирован</h2>
+          <h2>Бизнес-партнёр активирован</h2>
           <p>Договор зафиксирован. Рабочие функции и приём реальных заказов теперь доступны.</p>
           <a href={`#/${view.catalogSlug}/dashboard`}>Перейти в кабинет <ChevronRight /></a>
         </section>
@@ -203,7 +204,7 @@ export function RestaurantActivationPage({
             {view.tariff && (
               <div className="restaurant-activation-tariff">
                 <strong>{view.tariff.name} · версия {view.tariff.version}</strong>
-                <span>{view.tariff.restaurantCommissionAmount} ₽ с заказа · {view.tariff.driverCommissionAmount} ₽ с доставки</span>
+                <span>{view.tariff.restaurantCommissionAmount} ₽ с заказа · {view.tariff.driverCommissionAmount} ₽ с доставки · снимок будет сохранён с SHA-256</span>
               </div>
             )}
           </section>
@@ -284,7 +285,7 @@ export function RestaurantActivationPage({
                 <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
               </label>
               <button className="restaurant-activation-primary" type="button" disabled={!/^\d{6}$/.test(code) || submitting} onClick={() => void confirmActivation()}>
-                {submitting ? 'Проверяем...' : 'Активировать ресторан'}
+                {submitting ? 'Проверяем...' : 'Активировать бизнес'}
               </button>
             </section>
           )}

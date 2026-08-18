@@ -239,7 +239,7 @@ values (
   '',
   '/assets/mangal-demo/cover.webp',
   '79990000000',
-  'https://instagram.com/',
+  '',
   'ул. Центральная, 12',
   'https://yandex.ru/maps/?ll=45.6986,43.3178&z=16&pt=45.6986,43.3178,pm2rdm'
 )

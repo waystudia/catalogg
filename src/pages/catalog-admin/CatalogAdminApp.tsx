@@ -137,18 +137,18 @@ function ConsentModal({
         </span>
         <h2 id="consent-title">Обработка персональных данных</h2>
         <p>
-          Для использования WayYaam представитель заведения отдельно принимает оферту и согласие на обработку данных.
+          Для использования WayYaam представитель бизнеса-партнёра отдельно принимает оферту и согласие на обработку данных.
         </p>
         <p>Пожалуйста, ознакомьтесь с политикой ниже:</p>
 
         <div className="consent-modal__scroll" ref={scrollRef} onScroll={onScroll} tabIndex={0}>
-          <h3>Документы для заведения</h3>
-          <p>Оферта определяет условия кабинета, заказов, контента, расчётов, защиты клиентских данных и удаления ресторана.</p>
+          <h3>Документы для бизнеса-партнёра</h3>
+          <p>Оферта определяет условия кабинета, заказов, контента, расчётов, защиты клиентских данных и прекращения работы Партнёра.</p>
           <p>Отдельное согласие представителя охватывает его ФИО, телефон, email, полномочия, договорные и платёжные сведения.</p>
-          <p><a href={legalDocuments.restaurantOffer} target="_blank" rel="noreferrer">Открыть оферту для ресторанов</a></p>
-          <p><a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">Открыть согласие представителя ресторана</a></p>
+          <p><a href={legalDocuments.partnerOffer} target="_blank" rel="noreferrer">Открыть универсальную оферту для бизнес-партнёров</a></p>
+          <p><a href={legalDocuments.restaurantConsent} target="_blank" rel="noreferrer">Открыть согласие представителя бизнеса-партнёра</a></p>
           <p><a href={legalDocuments.policy} target="_blank" rel="noreferrer">Открыть политику обработки персональных данных</a></p>
-          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Оферта для ресторанов представлена в редакции {legalDocumentReleases.restaurant_offer.version} от 6 августа 2026 года.</p>
+          <p>Прокрутите этот блок до конца, затем подтвердите документы раздельно. Универсальная оферта для бизнес-партнёров представлена в редакции {legalDocumentReleases.restaurant_offer.version} от 18 августа 2026 года. Индивидуальная цена начинает действовать только после её письменного или электронного подтверждения.</p>
         </div>
 
         <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
@@ -158,7 +158,7 @@ function ConsentModal({
             disabled={!scrolledToBottom}
             onChange={(event) => setAccepted(event.target.checked)}
           />
-          <span>Даю отдельное согласие представителя ресторана на обработку персональных данных</span>
+          <span>Даю отдельное согласие представителя бизнеса-партнёра на обработку персональных данных</span>
         </label>
 
         <label className="consent-modal__checkbox" aria-disabled={!scrolledToBottom}>
@@ -168,7 +168,7 @@ function ConsentModal({
             disabled={!scrolledToBottom}
             onChange={(event) => setAcceptedOffer(event.target.checked)}
           />
-          <span>Принимаю оферту для ресторанов и подтверждаю права на загружаемые материалы</span>
+          <span>Принимаю универсальную оферту для бизнес-партнёров и подтверждаю права на загружаемые материалы</span>
         </label>
 
         <button type="button" disabled={!accepted || !acceptedOffer || !scrolledToBottom || isSubmitting} onClick={onConfirm}>

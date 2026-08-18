@@ -10,6 +10,10 @@ const migrationName = readdirSync(new URL('../../supabase/migrations/', import.m
 const migration = migrationName
   ? readFileSync(new URL(`../../supabase/migrations/${migrationName}`, import.meta.url), 'utf8')
   : '';
+const partnerV3Migration = readFileSync(
+  new URL('../../supabase/migrations/20260818060323_publish_universal_partner_offer_v3.sql', import.meta.url),
+  'utf8'
+);
 const createClientFunction = readFileSync(
   new URL('../../supabase/functions/create-client/index.ts', import.meta.url),
   'utf8'
@@ -106,4 +110,14 @@ test('new restaurants and both application shells enter the activation workflow'
   assert.match(catalogAdminApiSource, /legalActivationStatus/i);
   assert.match(catalogAdminApiSource, /legal_activation_status/i);
   assert.match(catalogAdminSource, /legalActivationStatus[\s\S]*restaurant\/activation/i);
+});
+
+test('partner offer 3.0 is published without blocking active clients and hashes individual terms', () => {
+  assert.match(partnerV3Migration, /Универсальный договор-оферта для бизнес-партнёров/);
+  assert.match(partnerV3Migration, /'restaurant_contract'[\s\S]*'3\.0'/i);
+  assert.match(partnerV3Migration, /tariff_snapshot_hash/i);
+  assert.match(partnerV3Migration, /digest\(convert_to\(new\.tariff_snapshot_json::text/i);
+  assert.match(partnerV3Migration, /alter column restaurant_commission_amount drop default/i);
+  assert.match(partnerV3Migration, /alter column driver_commission_amount drop default/i);
+  assert.doesNotMatch(partnerV3Migration, /update public\.clients[\s\S]*legal_activation_status/i);
 });
