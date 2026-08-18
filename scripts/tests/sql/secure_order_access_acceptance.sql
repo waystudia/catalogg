@@ -1,3 +1,5 @@
+begin;
+
 do $$
 declare
   target_order_id uuid;
@@ -189,3 +191,5 @@ begin
   end if;
 end
 $$;
+
+rollback;
