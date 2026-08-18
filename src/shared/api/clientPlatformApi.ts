@@ -29,8 +29,13 @@ import { isPublicMenuCategory } from '../../entities/publicCategoryVisibility';
 import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
-import { buildClientOrderItems, resolveClientOrderRpcName } from './clientPlatformOrderPayload';
-import { getStoredClientSessionToken } from './clientAccountApi';
+import { legalDocumentReleases } from '../legalDocuments';
+import { buildClientOrderItems } from './clientPlatformOrderPayload';
+import {
+  getGuestOrderTrackingToken,
+  getStoredClientSessionToken,
+  saveGuestOrderTrackingToken
+} from './clientOrderCredentials';
 
 type CatalogRow = {
   id: string;
@@ -416,6 +421,8 @@ type ClientPlatformOrderInput = {
   deliveryFee: number;
   total: number;
   idempotencyKey?: string;
+  generalConsentConfirmed: boolean;
+  orderTransferConfirmed: boolean;
 };
 
 const fulfillmentTypeByOrderType: Record<ClientOrderType, 'hall' | 'takeaway' | 'delivery'> = {
@@ -478,7 +485,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
     accuracyM: input.draft.deliveryAccuracyM
   });
 
-  const rpcName = resolveClientOrderRpcName(items, input.restaurant.businessType);
+  const rpcName = 'create_secure_client_platform_order';
   const rpcArgs = {
     target_catalog_id: catalogId,
     customer_name: clientName,
@@ -492,7 +499,16 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
     comment: deliveryComment,
     idempotency_key: input.idempotencyKey?.trim() || null,
     payment_method: input.draft.paymentMethod,
-    items
+    items,
+    client_session_token: getStoredClientSessionToken() || null,
+    target_general_consent_confirmed: input.generalConsentConfirmed,
+    target_user_agreement_version: legalDocumentReleases.user_agreement.version,
+    target_user_agreement_sha256: legalDocumentReleases.user_agreement.sha256,
+    target_client_consent_version: legalDocumentReleases.client_consent.version,
+    target_client_consent_sha256: legalDocumentReleases.client_consent.sha256,
+    target_order_transfer_confirmed: input.orderTransferConfirmed,
+    target_order_transfer_version: legalDocumentReleases.order_transfer_consent.version,
+    target_order_transfer_sha256: legalDocumentReleases.order_transfer_consent.sha256
   };
   let { data, error } = await supabase.rpc(rpcName, rpcArgs);
 
@@ -505,7 +521,13 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
   }
 
   if (error) throw error;
-  const orderId = String(data);
+  if (!data || typeof data !== 'object') throw new Error('Secure order response is invalid');
+  const result = data as { order_id?: unknown; guest_tracking_token?: unknown };
+  const orderId = typeof result.order_id === 'string' ? result.order_id : '';
+  if (!orderId) throw new Error('Secure order response does not contain an order id');
+  if (typeof result.guest_tracking_token === 'string' && result.guest_tracking_token) {
+    saveGuestOrderTrackingToken(orderId, result.guest_tracking_token);
+  }
   return orderId;
 }
 
@@ -526,8 +548,10 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
   if (!client) return () => undefined;
 
   const fetchOrder = async () => {
-    const { data: statusData, error: statusError } = await client.rpc('get_public_restaurant_order_status', {
-      target_order_id: orderId
+    const { data: statusData, error: statusError } = await client.rpc('get_order_participant_status', {
+      target_order_id: orderId,
+      client_session_token: getStoredClientSessionToken() || null,
+      guest_tracking_token: getGuestOrderTrackingToken(orderId) || null
     });
     if (statusError || !statusData || typeof statusData !== 'object') return;
     const status = statusData as {
@@ -538,11 +562,8 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       driver_name?: unknown;
       driver_phone?: unknown;
     };
-    const { data: trackingData } = await client.rpc('get_public_order_tracking', {
-      target_order_id: orderId
-    });
-    const tracking = trackingData && typeof trackingData === 'object'
-      ? trackingData as {
+    const tracking = statusData && typeof statusData === 'object'
+      ? statusData as {
           driver_lat?: number | null;
           driver_lng?: number | null;
           driver_location_at?: string | null;
@@ -564,15 +585,10 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
 
   void fetchOrder();
 
-  const channel = client
-    .channel(`client-order-${orderId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, fetchOrder)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `order_id=eq.${orderId}` }, fetchOrder)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, fetchOrder)
-    .subscribe();
+  const intervalId = window.setInterval(() => void fetchOrder(), 10_000);
 
   return () => {
-    void client.removeChannel(channel);
+    window.clearInterval(intervalId);
   };
 }
 

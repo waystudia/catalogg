@@ -1,8 +1,8 @@
 export const legalDocumentReleases = {
   user_agreement: {
-    version: '2.0',
-    publishedAt: '2026-08-06',
-    sha256: 'a6d0e28e0abb186ee879339a4a2b624eb6d99a5ca2fc8d3362b5ca12b9cca8b0'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: '3759c66b510a52c0acab71d7924ce3a7572b5ad33a4c098c62d805ae83093972'
   },
   restaurant_offer: {
     version: '3.0',
@@ -10,35 +10,47 @@ export const legalDocumentReleases = {
     sha256: '6a43ac2c59af2526dbdf1e3668ab0c2d75d768fefb0d0adbc17c482f1ed7f43c'
   },
   driver_offer: {
-    version: '2.0',
-    publishedAt: '2026-08-06',
-    sha256: '0c0f5c662c5d4b72b09776a380c9f59dca73c9a53a79252d07cc6d2fcaab223f'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: 'b64b00570e8c52cafa76b531f97637d121d8db22770d6e01261139906a104e2f'
   },
   driver_consent: {
-    version: '1.0',
-    publishedAt: '2026-07-31',
-    sha256: 'd69209f4c9829694f512d4da6c0947d6a5bbaf0d5c15b84068d42360d9bdbb39'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: 'b2b3a117ac0ed8aed794db4f4cb3b7555a7fced40109d07d3f36f790b48c4fd6'
   },
   client_consent: {
-    version: '1.0',
-    publishedAt: '2026-07-31',
-    sha256: '582d9449295f5b3dfb786d00cd5fa9781057b31fc99e9fdf24c491129640b4de'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: 'feb54a971da7e60ecce4e3881beedcdfe41964b6c04a79bff7ee632a5a0e7b5e'
   },
   advertising_consent: {
-    version: '1.0',
-    publishedAt: '2026-07-31',
-    sha256: '8b9026b9d5f2c9598c16f7785efb714face8862108e1e58f6a778ad202d7487e'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: '749116fa765a5cc8d040d4157ccfa0e52cdedf8cb9680cd7b6cae4266a80bd97'
+  },
+  order_transfer_consent: {
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: 'b8526c815a6919a1b5df1f7bd7d7182de46fe9ff0d245026fd5262828f8645e7'
+  },
+  restaurant_consent: {
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: 'e811cadaf55734e20135ef28f3975d15a109dbb0d0a2929ad0a1320b0f70a8fd'
   },
   cookie_policy: {
-    version: '1.0',
-    publishedAt: '2026-07-31'
+    version: '3.0',
+    publishedAt: '2026-08-18',
+    sha256: '57ccf19c8531654868a2982a024ed722f90ef80d1f7d66cce8914c8b3d971fd2'
   }
 } as const;
 
 export const LEGAL_VERSION = legalDocumentReleases.user_agreement.version;
 
 export const legalDocumentUrl = (fileName: string) => {
-  const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+  const configuredBase = import.meta.env?.BASE_URL ?? '/';
+  const base = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`;
   return `${base}legal/${fileName}.html`;
 };
 

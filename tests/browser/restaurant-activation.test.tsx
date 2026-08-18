@@ -40,7 +40,7 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
     individualTerms: 'Первые 14 дней без абонентской платы'
   },
   bundleId: 'bundle-1',
-  bundleVersion: '3.0',
+  bundleVersion: '3.1',
   documents: [
     {
       id: 'document-contract',
@@ -50,6 +50,16 @@ const activationView = (overrides: Partial<RestaurantActivationView> = {}): Rest
       effectiveFrom: '2026-08-05',
       pdfUrl: '/legal/restaurant-contract-v1.pdf',
       fileHash: 'a'.repeat(64),
+      opened: false
+    },
+    {
+      id: 'document-representative-consent',
+      type: 'restaurant_consent',
+      title: 'Согласие представителя бизнес-партнёра',
+      version: '3.0',
+      effectiveFrom: '2026-08-18',
+      pdfUrl: '/legal/05-restaurant-consent.html',
+      fileHash: 'c'.repeat(64),
       opened: false
     },
     {
@@ -89,16 +99,18 @@ test('owner reviews every document and confirmation before activating with a cod
 
   const checkboxes = screen.getByRole('checkbox');
   await expect.element(checkboxes.nth(0)).not.toBeChecked();
-  await expect.element(checkboxes.nth(6)).not.toBeChecked();
+  await expect.element(checkboxes.nth(7)).not.toBeChecked();
 
   await screen.getByRole('button', { name: 'Открыть Универсальный договор-оферта для бизнес-партнёров' }).click();
   await expect.element(screen.getByText('Открыт', { exact: true })).toBeVisible();
   expect(service.markDocumentOpened).toHaveBeenCalledWith('document-contract');
 
-  for (let index = 0; index < 7; index += 1) {
+  for (let index = 0; index < 8; index += 1) {
     await checkboxes.nth(index).click();
   }
 
+  await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
+  await screen.getByRole('button', { name: 'Открыть Согласие представителя бизнес-партнёра' }).click();
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeDisabled();
   await screen.getByRole('button', { name: 'Открыть Политика обработки персональных данных' }).click();
   await expect.element(screen.getByRole('button', { name: 'Запросить код подтверждения' })).toBeEnabled();
@@ -184,11 +196,12 @@ test('a retry after a lost response reuses the same activation idempotency key',
   const screen = await render(<RestaurantActivationPage service={service} />);
   const checkboxes = screen.getByRole('checkbox');
 
-  for (let index = 0; index < 7; index += 1) {
+  for (let index = 0; index < 8; index += 1) {
     await checkboxes.nth(index).click();
   }
 
   await screen.getByRole('button', { name: 'Открыть Универсальный договор-оферта для бизнес-партнёров' }).click();
+  await screen.getByRole('button', { name: 'Открыть Согласие представителя бизнес-партнёра' }).click();
   await screen.getByRole('button', { name: 'Открыть Политика обработки персональных данных' }).click();
 
   await screen.getByRole('button', { name: 'Запросить код подтверждения' }).click();

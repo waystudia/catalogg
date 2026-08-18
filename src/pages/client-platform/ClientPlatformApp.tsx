@@ -48,7 +48,6 @@ import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSup
 import { buildCityPickerPath, getRestaurantClientBackFallback, resolveCityPickerReturnTo } from '../../features/client-platform/clientPlatformNavigation';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
-  CLIENT_ORDER_CONSENT_VERSION,
   selectCheckoutDraft,
   selectRestaurantCart,
   useClientPlatformStore
@@ -99,6 +98,7 @@ import { CombinedOrderSummaryPanel } from '../../features/combined-order/Combine
 import { ClientNotificationCenter } from '../../features/client-notifications/ClientNotificationCenter';
 import {
   buildClientAuthPath,
+  getCurrentClientLegalState,
   getCurrentClientAddresses,
   hasStoredClientSession,
   logoutClientAccount,
@@ -2360,17 +2360,16 @@ function PaymentConfirmPage({
   const drafts = useClientPlatformStore((state) => state.checkoutDrafts);
   const profile = useClientPlatformStore((state) => state.profile);
   const submitOrder = useClientPlatformStore((state) => state.submitOrder);
-  const orderConsent = useClientPlatformStore((state) => state.orderConsent);
-  const recordOrderConsent = useClientPlatformStore((state) => state.recordOrderConsent);
   const draft = selectCheckoutDraft(drafts, restaurant.slug);
   const paymentSettings = getPaymentSettings(snapshot, restaurant.slug);
   const lines = useClientPlatformStore((state) => selectRestaurantCart(state.carts, restaurant.slug));
   const dishes = getRestaurantDishes(snapshot, restaurant.slug);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
-  const hasCurrentOrderConsent = orderConsent?.version === CLIENT_ORDER_CONSENT_VERSION;
-  const [acceptedOrderData, setAcceptedOrderData] = useState(hasCurrentOrderConsent);
-  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(hasCurrentOrderConsent);
+  const [generalLegalCurrent, setGeneralLegalCurrent] = useState(false);
+  const [acceptedAgreement, setAcceptedAgreement] = useState(false);
+  const [acceptedPersonalData, setAcceptedPersonalData] = useState(false);
+  const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
   const submitLockRef = useRef(false);
   const orderAttemptRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
   const summaryWithoutDelivery = calculateCartSummary(lines, dishes, 0);
@@ -2388,6 +2387,13 @@ function PaymentConfirmPage({
       priceBasisQuantity: dish.priceBasisQuantity
     }] : [];
   });
+  useEffect(() => {
+    let active = true;
+    void getCurrentClientLegalState().then((state) => {
+      if (active) setGeneralLegalCurrent(state.userAgreementCurrent && state.clientConsentCurrent);
+    });
+    return () => { active = false; };
+  }, []);
   const getOrderIdempotencyKey = () => {
     const fingerprint = JSON.stringify({
       restaurantSlug: restaurant.slug,
@@ -2413,8 +2419,8 @@ function PaymentConfirmPage({
   };
 
   const confirmPayment = async () => {
-    if (!acceptedOrderData || !acceptedOrderTransfer) {
-      setOrderError('Подтвердите оба обязательных согласия перед оформлением заказа.');
+    if ((!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)) || !acceptedOrderTransfer) {
+      setOrderError('Подтвердите обязательные документы отдельно перед оформлением заказа.');
       return;
     }
     if (submitLockRef.current) return;
@@ -2433,7 +2439,9 @@ function PaymentConfirmPage({
         subtotal: summary.subtotal,
         deliveryFee: summary.deliveryFee,
         total: summary.total,
-        idempotencyKey: getOrderIdempotencyKey()
+        idempotencyKey: getOrderIdempotencyKey(),
+        generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData,
+        orderTransferConfirmed: acceptedOrderTransfer
       });
       orderId = requireSavedRestaurantOrderId(remoteOrderId);
     } catch (error) {
@@ -2464,7 +2472,6 @@ function PaymentConfirmPage({
       estimatedTimeMax: restaurant.deliveryTimeTo
     });
 
-    recordOrderConsent();
     submitOrder(order);
     void initializePostOrderAddon(orderId).catch((error) => {
       console.warn('Post-order addon initialization failed', error);
@@ -2488,17 +2495,25 @@ function PaymentConfirmPage({
           </section>
         )}
         <section className="legal-checkboxes" aria-label="Согласия для заказа">
-          <label className="legal-checkbox">
-            <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
-            <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
-          </label>
+          {!generalLegalCurrent && (
+            <>
+              <label className="legal-checkbox">
+                <input type="checkbox" checked={acceptedAgreement} onChange={(event) => setAcceptedAgreement(event.target.checked)} />
+                <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span>
+              </label>
+              <label className="legal-checkbox">
+                <input type="checkbox" checked={acceptedPersonalData} onChange={(event) => setAcceptedPersonalData(event.target.checked)} />
+                <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
+              </label>
+            </>
+          )}
           <label className="legal-checkbox">
             <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
             <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные выбранному ресторану и назначенному водителю</a> для исполнения заказа.</span>
           </label>
         </section>
         {orderError && <small className="form-error">{orderError}</small>}
-        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting || !acceptedOrderData || !acceptedOrderTransfer}>
+        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting || (!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)) || !acceptedOrderTransfer}>
           {isSubmitting ? 'Отправляем заказ...' : draft.paymentMethod === 'cash' ? 'Подтвердить заказ' : 'Я оплатил(а) заказ'}
         </button>
       </main>

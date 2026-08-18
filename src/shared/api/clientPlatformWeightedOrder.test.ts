@@ -39,7 +39,7 @@ describe('client platform weighted order payload', () => {
       quantity: 2,
       options: []
     }]);
-    assert.equal(resolveClientOrderRpcName(items), 'create_client_platform_restaurant_order');
+    assert.equal(resolveClientOrderRpcName(items), 'create_secure_client_platform_order');
   });
 
   it('routes a piece-only grocery cart through authoritative grocery stock', () => {
@@ -48,7 +48,7 @@ describe('client platform weighted order payload', () => {
       [product({})]
     );
 
-    assert.equal(resolveClientOrderRpcName(items, 'grocery'), 'create_client_platform_catalog_order');
+    assert.equal(resolveClientOrderRpcName(items, 'grocery'), 'create_secure_client_platform_order');
   });
 
   it('sends exact grams through the isolated catalog-order RPC', () => {
@@ -71,6 +71,6 @@ describe('client platform weighted order payload', () => {
       requested_quantity: 750,
       options: []
     }]);
-    assert.equal(resolveClientOrderRpcName(items), 'create_client_platform_catalog_order');
+    assert.equal(resolveClientOrderRpcName(items), 'create_secure_client_platform_order');
   });
 });

@@ -1,9 +1,17 @@
 import type { ClientAddress, ClientProfile } from '../../features/client-platform/types';
 import { supabase } from '../supabase';
 import { legalDocumentReleases } from '../legalDocuments';
+import {
+  clientOrderCredentialKeys,
+  getGuestOrderTrackingToken,
+  getStoredClientSessionToken,
+  saveGuestOrderTrackingToken
+} from './clientOrderCredentials';
 
-const clientSessionStorageKey = 'waycatalog-client-session';
+const clientSessionStorageKey = clientOrderCredentialKeys.session;
 const clientSessionSnapshotStorageKey = 'waycatalog-client-session-profile';
+
+export { getGuestOrderTrackingToken, getStoredClientSessionToken, saveGuestOrderTrackingToken };
 
 export class ClientSessionRestorationUnavailableError extends Error {
   constructor() {
@@ -56,18 +64,42 @@ const getRpcErrorMessage = (error: { message?: string } | null) => {
   if (message.includes('client_name_invalid')) return 'Введите имя — минимум 2 символа.';
   if (message.includes('client_phone_invalid')) return 'Введите корректный номер телефона.';
   if (message.includes('client_password_invalid')) return 'Пароль должен содержать от 6 до 72 символов.';
+  if (message.includes('required_client_legal_acceptance_missing')) return 'Подтвердите пользовательское соглашение и согласие на обработку данных отдельно.';
   if (message.includes('client_session_invalid')) return 'Вход в PWA больше не действует. Войдите снова.';
   if (message.includes('client_account_not_linked')) return 'Этот ключ Face ID не относится к аккаунту клиента.';
   if (message.includes('client_pairing_code_invalid')) return 'Код неверный, уже использован или истёк. Создайте новый код в PWA.';
   return 'Не удалось связаться с сервисом аккаунтов. Попробуйте ещё раз.';
 };
 
-export const getStoredClientSessionToken = () => {
-  if (typeof window === 'undefined') return '';
-  return window.localStorage.getItem(clientSessionStorageKey) ?? '';
+export const hasStoredClientSession = () => Boolean(getStoredClientSessionToken());
+
+export type CurrentClientLegalState = {
+  registered: boolean;
+  userAgreementCurrent: boolean;
+  clientConsentCurrent: boolean;
 };
 
-export const hasStoredClientSession = () => Boolean(getStoredClientSessionToken());
+export async function getCurrentClientLegalState(): Promise<CurrentClientLegalState> {
+  if (!supabase) return { registered: false, userAgreementCurrent: false, clientConsentCurrent: false };
+  const agreement = legalDocumentReleases.user_agreement;
+  const consent = legalDocumentReleases.client_consent;
+  const { data, error } = await supabase.rpc('get_current_client_legal_state', {
+    client_session_token: getStoredClientSessionToken() || null,
+    target_user_agreement_version: agreement.version,
+    target_user_agreement_sha256: agreement.sha256,
+    target_client_consent_version: consent.version,
+    target_client_consent_sha256: consent.sha256
+  });
+  if (error || !data || typeof data !== 'object') {
+    return { registered: false, userAgreementCurrent: false, clientConsentCurrent: false };
+  }
+  const row = data as Record<string, unknown>;
+  return {
+    registered: row.registered === true,
+    userAgreementCurrent: row.user_agreement_current === true,
+    clientConsentCurrent: row.client_consent_current === true
+  };
+}
 
 const readClientSessionSnapshot = (): ClientAccountSession | null => {
   if (typeof window === 'undefined') return null;
@@ -137,17 +169,25 @@ export const recordClientRegistrationLegalChoices = async (token: string, choice
 
 export async function registerClientAccount(input: ClientProfile & { password: string } & ClientRegistrationLegalChoices) {
   if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
-  const { data, error } = await supabase.rpc('register_client_account', {
+  const { data, error } = await supabase.rpc('register_client_account_with_legal', {
     client_name: input.name.trim(),
     client_phone: input.phone.trim(),
-    client_password: input.password
+    client_password: input.password,
+    accepted_user_agreement: input.acceptedAgreement,
+    user_agreement_version: legalDocumentReleases.user_agreement.version,
+    user_agreement_sha256: legalDocumentReleases.user_agreement.sha256,
+    accepted_client_consent: input.acceptedPersonalData,
+    client_consent_version: legalDocumentReleases.client_consent.version,
+    client_consent_sha256: legalDocumentReleases.client_consent.sha256,
+    accepted_advertising: input.acceptedAdvertising,
+    advertising_version: legalDocumentReleases.advertising_consent.version,
+    advertising_sha256: legalDocumentReleases.advertising_consent.sha256
   });
   if (error) throw new Error(getRpcErrorMessage(error));
   const session = mapSession(data);
   const token = (data as ClientAccountRpcRow | null)?.session_token;
   if (!session || typeof token !== 'string') throw new Error('Не удалось создать клиентскую сессию.');
   saveClientSession(token, session);
-  await recordClientRegistrationLegalChoices(token, input);
   return session;
 }
 
