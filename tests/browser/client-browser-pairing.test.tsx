@@ -20,10 +20,11 @@ test('offers Face ID after the first checkout account is ready and then continue
     />
   );
 
-  await expect.element(screen.getByText('Сохраните скидки')).toBeVisible();
-  await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).toBeVisible();
-  await expect.element(screen.getByText('Скидки, акции и история заказов')).toBeVisible();
-  await screen.getByRole('button', { name: 'Face ID и оформить' }).click();
+  await expect.element(screen.getByText('Сохранить вход на этом iPhone?')).toBeVisible();
+  await expect.element(screen.getByText('Face ID нужен только для быстрого входа. Заказ оформится в любом случае.')).toBeVisible();
+  await expect.element(screen.getByText('В следующий раз имя, телефон и скидки подставятся автоматически.')).toBeVisible();
+  await expect.element(screen.getByText('Заказ оформится сейчас, но вход не сохранится.')).toBeVisible();
+  await screen.getByRole('button', { name: 'Сохранить вход и оформить' }).click();
 
   expect(registered).toBe(1);
   expect(continued).toBe(true);
@@ -38,7 +39,7 @@ test('keeps checkout available when the client skips biometric setup', async () 
     />
   );
 
-  await screen.getByRole('button', { name: 'Оформить без Face ID' }).click();
+  await screen.getByRole('button', { name: 'Только оформить заказ' }).click();
   expect(continued).toBe(false);
 });
 
@@ -150,9 +151,12 @@ test('offers Face ID first when a WhatsApp link opens in Safari', async () => {
     />
   );
 
-  await expect.element(screen.getByText('Войдите в профиль')).toBeVisible();
-  await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).toBeVisible();
-  await expect.element(screen.getByText('Скидки, акции и история заказов')).toBeVisible();
+  await expect.element(screen.getByText('Войти в WayYaam')).toBeVisible();
+  await expect.element(screen.getByText('Имя, телефон и скидки подставятся в заказ.')).toBeVisible();
+  await expect.element(screen.getByText('Вход без пароля')).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Другой способ' })).toBeVisible();
+  await expect.element(screen.getByText('Открыть приложение')).toBeVisible();
+  await expect.element(screen.getByRole('group', { name: 'Ваш профиль WayYaam' })).not.toBeInTheDocument();
   await screen.getByRole('button', { name: 'Войти по Face ID' }).click();
   await expect.element(screen.getByText('Вы вошли как Адам. Имя и телефон будут подставлены в заказ.')).toBeVisible();
   expect(reloads).toBe(0);

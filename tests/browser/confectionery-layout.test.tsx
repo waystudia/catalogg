@@ -96,7 +96,7 @@ test('confectionery cards, prices and horizontal categories stay usable at every
   }
 });
 
-test('swipeable dish photos allow both horizontal gallery swipes and vertical page scroll', async () => {
+test('swipeable dish photos reserve vertical gestures for page scroll', async () => {
   const screen = await render(
     <div className="product-photo-carousel product-photo-carousel--swipeable">
       <div className="product-photo-carousel__track">
@@ -108,7 +108,7 @@ test('swipeable dish photos allow both horizontal gallery swipes and vertical pa
 
   const carousel = screen.getByRole('img', { name: 'Фото блюда', exact: true }).element().closest<HTMLElement>('.product-photo-carousel')!;
   const track = carousel.querySelector<HTMLElement>('.product-photo-carousel__track')!;
-  expect(getComputedStyle(carousel).touchAction).toBe('pan-x pan-y');
-  expect(getComputedStyle(track).touchAction).toBe('pan-x pan-y');
+  expect(getComputedStyle(carousel).touchAction).toBe('pan-y');
+  expect(getComputedStyle(track).touchAction).toBe('pan-y');
   expect(getComputedStyle(track).overflowX).toBe('auto');
 });

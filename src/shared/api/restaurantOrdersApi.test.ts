@@ -209,6 +209,31 @@ describe('public restaurant order payload', () => {
     assert.equal(rpcArgs.idempotency_key, 'checkout-attempt-1');
   });
 
+  it('retries a lost mobile response with the same idempotency key', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const client: PublicRestaurantOrderClient = {
+      async rpc(_name, args) {
+        calls.push(args);
+        if (calls.length === 1) throw new TypeError('Load failed');
+        return { data: { order_id: 'order-after-reconnect' }, error: null };
+      },
+      from() {
+        throw new Error('orders must be finalized by the creation RPC');
+      }
+    };
+
+    const orderId = await createRestaurantOrderWithClient(
+      client,
+      'catalog-1',
+      orderInput({ idempotencyKey: 'checkout-attempt-lte' })
+    );
+
+    assert.equal(orderId, 'order-after-reconnect');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].idempotency_key, 'checkout-attempt-lte');
+    assert.equal(calls[1].idempotency_key, 'checkout-attempt-lte');
+  });
+
   it('keeps the selected dish variant in the restaurant-visible order comment', async () => {
     let rpcArgs: Record<string, unknown> = {};
     const client: PublicRestaurantOrderClient = {

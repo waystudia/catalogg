@@ -173,11 +173,13 @@
 .client-browser-pairing {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   width: 100%;
-  margin: 12px 0 18px;
-  padding: 15px;
+  margin: 10px 0 14px;
+  padding: 14px;
+  background: #fbfaff;
+  box-shadow: 0 10px 24px rgb(52 35 128 / 8%);
 }
 
 .client-browser-pairing__close {
@@ -203,19 +205,30 @@
   padding-right: 25px;
 }
 
-.client-browser-pairing > .client-pairing-primary,
-.client-browser-pairing > .client-pairing-secondary {
+.client-browser-pairing__intro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding-right: 30px;
+}
+
+.client-browser-pairing > .client-pairing-primary {
+  min-height: 48px;
   font-size: 13px;
 }
 
 .client-browser-pairing__copy {
-  grid-column: 1 / -1;
-  padding-right: 27px;
+  padding-right: 0;
 }
 
 .client-browser-pairing__copy strong {
-  margin-top: 2px;
-  font-size: 18px;
+  font-size: 17px;
+}
+
+.client-browser-pairing__copy p {
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .client-browser-pairing__benefits {
@@ -226,11 +239,43 @@
 }
 
 .client-browser-pairing__form,
-.client-browser-pairing__help,
+.client-browser-pairing__actions,
 .client-passkey-sign-in,
 .client-pairing-error,
 .client-pairing-success {
   grid-column: 1 / -1;
+}
+
+.client-browser-pairing__actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.client-browser-pairing__actions > button,
+.client-browser-pairing__help > summary {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0 5px;
+  background: transparent;
+  color: #4b32d0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.client-browser-pairing__actions > button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.client-browser-pairing__help {
+  min-width: 0;
+  text-align: right;
 }
 
 .client-passkey-sign-in {
@@ -300,13 +345,25 @@
 
 .client-browser-pairing__help summary {
   cursor: pointer;
-  color: #4b32d0;
-  font-size: 13px;
-  font-weight: 900;
+  justify-content: flex-end;
+  list-style: none;
+}
+
+.client-browser-pairing__help summary::-webkit-details-marker {
+  display: none;
 }
 
 .client-browser-pairing__help p {
+  position: absolute;
+  z-index: 1;
+  right: 14px;
+  left: 14px;
   padding-top: 7px;
+  border-radius: 12px;
+  padding: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(52 35 128 / 14%);
+  text-align: left;
 }
 
 .client-pairing-error,
@@ -491,6 +548,34 @@
   gap: 7px;
 }
 
+.client-passkey-dialog__intro {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #4b32d0;
+}
+
+.client-passkey-dialog__intro > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #eeeaff;
+}
+
+.client-passkey-dialog__intro svg {
+  width: 21px;
+  height: 21px;
+}
+
+.client-passkey-dialog__intro small {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
 .client-passkey-dialog__copy h2,
 .client-passkey-dialog__copy p,
 .client-passkey-return__copy h3,
@@ -512,6 +597,42 @@
 
 .client-passkey-dialog > .client-pairing-primary,
 .client-passkey-dialog > .client-pairing-secondary {
+  grid-column: auto;
+  width: 100%;
+}
+
+.client-passkey-dialog__choice {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #ddd7ff;
+  border-radius: 17px;
+  padding: 12px;
+  background: #f7f5ff;
+}
+
+.client-passkey-dialog__choice--plain {
+  border-color: #e6e3ec;
+  background: #ffffff;
+}
+
+.client-passkey-dialog__choice > div {
+  display: grid;
+  gap: 3px;
+}
+
+.client-passkey-dialog__choice strong {
+  font-size: 14px;
+}
+
+.client-passkey-dialog__choice span {
+  color: #625d73;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.client-passkey-dialog__choice .client-pairing-primary,
+.client-passkey-dialog__choice .client-pairing-secondary {
   grid-column: auto;
   width: 100%;
 }

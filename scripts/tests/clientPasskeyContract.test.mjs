@@ -63,8 +63,8 @@ test('first checkout pauses once for an optional Passkey and then resumes the sa
   assert.match(checkout, /pendingOrderContinuationRef\.current = submitRestaurantOrder/);
   assert.match(checkout, /setIsPasskeyCheckoutPromptOpen\(true\);\s*return;/);
   assert.match(checkout, /<ClientPasskeyRegistrationDialog[\s\S]*onContinue=\{continuePendingOrder\}/);
-  assert.match(presentation, /Face ID и оформить/);
-  assert.match(presentation, /Оформить без Face ID/);
+  assert.match(presentation, /Сохранить вход и оформить/);
+  assert.match(presentation, /Только оформить заказ/);
 
   assert.ok(
     checkout.indexOf('pendingOrderContinuationRef.current = submitRestaurantOrder')
