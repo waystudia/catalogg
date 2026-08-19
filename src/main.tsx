@@ -8,6 +8,12 @@ import { ensurePushServiceWorkerRegistration } from './shared/pushServiceWorker'
 import { StorefrontBoundary } from './features/storefront/StorefrontBoundary';
 import { ExactScrollRestoration } from './shared/ExactScrollRestoration';
 import {
+  COOKIE_CHOICE_EVENT,
+  startConsentGatedAnalytics,
+  type CookieChoice
+} from './shared/analyticsConsent';
+import { deletePublicAnalyticsSession, recordPublicAnalyticsEvent } from './shared/publicAnalytics';
+import {
   BusinessAdminRoute,
   CatalogAdminRoute,
   LegacyLoginRedirect,
@@ -93,6 +99,30 @@ const restoreGitHubPagesRedirect = () => {
 
 restoreGitHubPagesRedirect();
 void ensurePushServiceWorkerRegistration();
+
+startConsentGatedAnalytics({
+  storage: window.localStorage,
+  createSessionId: () => window.crypto.randomUUID(),
+  getRoute: () => window.location.hash || window.location.pathname,
+  record: recordPublicAnalyticsEvent,
+  withdraw: deletePublicAnalyticsSession,
+  onChoice: (listener) => {
+    const handleChoice = (event: Event) => {
+      const choice = (event as CustomEvent<CookieChoice>).detail;
+      if (choice === 'analytics' || choice === 'necessary') listener(choice);
+    };
+    window.addEventListener(COOKIE_CHOICE_EVENT, handleChoice);
+    return () => window.removeEventListener(COOKIE_CHOICE_EVENT, handleChoice);
+  },
+  onNavigation: (listener) => {
+    window.addEventListener('hashchange', listener);
+    window.addEventListener('popstate', listener);
+    return () => {
+      window.removeEventListener('hashchange', listener);
+      window.removeEventListener('popstate', listener);
+    };
+  }
+});
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
