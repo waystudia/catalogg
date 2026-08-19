@@ -70,12 +70,14 @@ test('mobile gestures keep vertical page scroll on photos while swipeable galler
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-x pan-y;/
+    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x pan-y;/
+    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-y;/
   );
+  assert.match(appSource, /onPointerMove=\{\(event\) => \{/);
+  assert.match(appSource, /event\.currentTarget\.scrollLeft = gesture\.startScrollLeft - deltaX/);
 });
 
 test('a clicked catalog category stays active while smooth scrolling reaches its section', () => {

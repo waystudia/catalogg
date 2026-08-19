@@ -22,10 +22,16 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
   const [displayedIndex, setDisplayedIndex] = useState(images.length > 1 ? 1 : 0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
-  const touchStartX = useRef<number | null>(null);
   const didSwipe = useRef(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const scrollEndRef = useRef<number | null>(null);
+  const pointerGestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    horizontal: boolean;
+  } | null>(null);
   const displayedImages = images.length > 1
     ? [images[images.length - 1], ...images, images[0]]
     : (images.length ? images : ['']);
@@ -79,21 +85,70 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
             setIsViewerOpen(true);
           }
         }}
-        onTouchStart={(event) => {
-          if (images.length < 2) return;
-          touchStartX.current = event.touches[0]?.clientX ?? null;
-          didSwipe.current = false;
-        }}
-        onTouchEnd={(event) => {
-          if (images.length < 2 || touchStartX.current === null) return;
-          const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-          touchStartX.current = null;
-          didSwipe.current = Math.abs(delta) >= 12;
-        }}
       >
         <div
           className="product-photo-carousel__track"
           ref={trackRef}
+          onPointerDown={(event) => {
+            if (images.length < 2 || !event.isPrimary || event.button !== 0) return;
+            pointerGestureRef.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              startScrollLeft: event.currentTarget.scrollLeft,
+              horizontal: false
+            };
+            didSwipe.current = false;
+          }}
+          onPointerMove={(event) => {
+            const gesture = pointerGestureRef.current;
+            if (!gesture || gesture.pointerId !== event.pointerId) return;
+            const deltaX = event.clientX - gesture.startX;
+            const deltaY = event.clientY - gesture.startY;
+
+            if (!gesture.horizontal) {
+              if (Math.abs(deltaY) > 6 && Math.abs(deltaY) >= Math.abs(deltaX)) {
+                pointerGestureRef.current = null;
+                return;
+              }
+              if (Math.abs(deltaX) <= 6 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+              gesture.horizontal = true;
+              event.currentTarget.style.scrollSnapType = 'none';
+              event.currentTarget.style.scrollBehavior = 'auto';
+              try {
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+              } catch {
+                // Synthetic events and older WebViews can expose the API without an active pointer.
+              }
+            }
+
+            event.preventDefault();
+            didSwipe.current = Math.abs(deltaX) >= 12;
+            event.currentTarget.scrollLeft = gesture.startScrollLeft - deltaX;
+          }}
+          onPointerUp={(event) => {
+            const gesture = pointerGestureRef.current;
+            if (!gesture || gesture.pointerId !== event.pointerId) return;
+            pointerGestureRef.current = null;
+            if (!gesture.horizontal) return;
+            event.preventDefault();
+            const track = event.currentTarget;
+            const targetIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+            track.scrollTo({ left: targetIndex * track.clientWidth });
+            track.style.scrollSnapType = '';
+            track.style.scrollBehavior = '';
+            try {
+              if (track.hasPointerCapture?.(event.pointerId)) track.releasePointerCapture(event.pointerId);
+            } catch {
+              // The pointer may already have been released by the browser.
+            }
+          }}
+          onPointerCancel={(event) => {
+            if (pointerGestureRef.current?.pointerId !== event.pointerId) return;
+            pointerGestureRef.current = null;
+            event.currentTarget.style.scrollSnapType = '';
+            event.currentTarget.style.scrollBehavior = '';
+          }}
           onScroll={(event) => {
             const track = event.currentTarget;
             const width = track.clientWidth;

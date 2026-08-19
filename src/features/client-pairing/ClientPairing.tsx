@@ -207,34 +207,43 @@ export function ClientPasskeyRegistrationDialog({
         aria-modal="true"
         aria-labelledby="client-passkey-checkout-title"
       >
-        <ClientPasskeyProfilePreview context="checkout" />
+        <div className="client-passkey-dialog__intro" aria-hidden="true">
+          <span><Fingerprint /></span>
+          <small>Перед оформлением</small>
+        </div>
         <div className="client-passkey-dialog__copy">
-          <h2 id="client-passkey-checkout-title">Сохраните скидки</h2>
-          <p>Face ID сохранит профиль для следующих заказов.</p>
+          <h2 id="client-passkey-checkout-title">Сохранить вход на этом iPhone?</h2>
+          <p>Face ID нужен только для быстрого входа. Заказ оформится в любом случае.</p>
         </div>
         {error && (
           <small className="client-pairing-error" role="alert">
             {error} Корзина и заказ сохранены.
           </small>
         )}
-        <button
-          className="client-pairing-primary"
-          type="button"
-          onClick={() => void enableAndContinue()}
-          disabled={isRegistering}
-          autoFocus
-        >
-          {isRegistering ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
-          {isRegistering ? 'Подтвердите на устройстве…' : 'Face ID и оформить'}
-        </button>
-        <button
-          className="client-pairing-secondary"
-          type="button"
-          onClick={() => onContinue(false)}
-          disabled={isRegistering}
-        >
-          Оформить без Face ID
-        </button>
+        <div className="client-passkey-dialog__choice">
+          <div><strong>С Face ID</strong><span>В следующий раз имя, телефон и скидки подставятся автоматически.</span></div>
+          <button
+            className="client-pairing-primary"
+            type="button"
+            onClick={() => void enableAndContinue()}
+            disabled={isRegistering}
+            autoFocus
+          >
+            {isRegistering ? <LoaderCircle className="is-spinning" aria-hidden="true" /> : <Fingerprint aria-hidden="true" />}
+            {isRegistering ? 'Подтвердите на устройстве…' : 'Сохранить вход и оформить'}
+          </button>
+        </div>
+        <div className="client-passkey-dialog__choice client-passkey-dialog__choice--plain">
+          <div><strong>Без Face ID</strong><span>Заказ оформится сейчас, но вход не сохранится.</span></div>
+          <button
+            className="client-pairing-secondary"
+            type="button"
+            onClick={() => onContinue(false)}
+            disabled={isRegistering}
+          >
+            Только оформить заказ
+          </button>
+        </div>
       </section>
     </div>
   );
@@ -456,11 +465,12 @@ export function ClientBrowserPairingBanner({
       <button className="client-browser-pairing__close" type="button" onClick={dismiss} aria-label="Закрыть подсказку">
         <X aria-hidden="true" />
       </button>
-      <ClientPasskeyProfilePreview context="safari" />
-      <div className="client-browser-pairing__copy">
-        <span className="client-passkey-eyebrow">Ваши скидки здесь</span>
-        <strong>Войдите в профиль</strong>
-        <p>Face ID вернёт акции, скидки и данные для заказа.</p>
+      <div className="client-browser-pairing__intro">
+        <span className="client-browser-pairing__icon"><Fingerprint aria-hidden="true" /></span>
+        <div className="client-browser-pairing__copy">
+          <strong>Войти в WayYaam</strong>
+          <p>Имя, телефон и скидки подставятся в заказ.</p>
+        </div>
       </div>
 
       {passkeySupported && (
@@ -490,16 +500,17 @@ export function ClientBrowserPairingBanner({
           </button>
         </form>
       ) : (
-        <button className="client-pairing-secondary" type="button" onClick={() => setIsOpen(true)}>
-          <Link2 aria-hidden="true" />
-          Другой способ
-        </button>
+        <div className="client-browser-pairing__actions">
+          <button type="button" onClick={() => setIsOpen(true)}>
+            <Link2 aria-hidden="true" />
+            Другой способ
+          </button>
+          <details className="client-browser-pairing__help">
+            <summary>Открыть приложение</summary>
+            <p>Закройте браузер и нажмите значок WayYaam на экране «Домой». iPhone не позволяет сайту надёжно открыть этот значок автоматически.</p>
+          </details>
+        </div>
       )}
-
-      <details className="client-browser-pairing__help">
-        <summary>Открыть приложение WayYaam</summary>
-        <p>Закройте браузер и нажмите значок WayYaam на экране «Домой». iPhone не позволяет сайту надёжно открыть этот значок автоматически.</p>
-      </details>
       {message && <small className="client-pairing-success" role="status">{message}</small>}
       {error && <small className="client-pairing-error" role="alert">{error}</small>}
     </aside>

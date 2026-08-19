@@ -267,6 +267,31 @@ const rpcShouldRetryWithoutIdempotencyKey = (error: unknown) => {
   return rpcIsMissing(error) || (text.includes('42702') && text.includes('idempotency_key') && text.includes('ambiguous'));
 };
 
+const rpcFailureIsTransient = (error: unknown) => {
+  const text = errorText(error).toLowerCase();
+  return [
+    'load failed',
+    'failed to fetch',
+    'fetch failed',
+    'networkerror',
+    'network request failed',
+    'connection reset',
+    'connection closed',
+    'timed out',
+    'timeout',
+    'pgrst000',
+    'pgrst001',
+    'pgrst002',
+    'pgrst003',
+    '502',
+    '503',
+    '504'
+  ].some((part) => text.includes(part));
+};
+
+const waitForOrderRetry = (attempt: number) =>
+  new Promise((resolve) => globalThis.setTimeout(resolve, attempt === 0 ? 350 : 900));
+
 export async function createRestaurantOrderWithClient(
   client: PublicRestaurantOrderClient,
   catalogId: string,
@@ -318,7 +343,24 @@ export async function createRestaurantOrderWithClient(
     target_order_transfer_sha256: legalDocumentReleases.order_transfer_consent.sha256
   };
   const rpcName = resolvePublicOrderRpcName(items, businessType);
-  let { data, error } = await client.rpc(rpcName, restaurantRpcArgs);
+  let data: unknown = null;
+  let error: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const result = await client.rpc(rpcName, restaurantRpcArgs);
+      data = result.data;
+      error = result.error;
+    } catch (cause) {
+      data = null;
+      error = cause;
+    }
+
+    const canRetry = Boolean(restaurantRpcArgs.idempotency_key)
+      && attempt < 2
+      && rpcFailureIsTransient(error);
+    if (!canRetry) break;
+    await waitForOrderRetry(attempt);
+  }
 
   if (error && restaurantRpcArgs.idempotency_key && rpcShouldRetryWithoutIdempotencyKey(error)) {
     const argsWithoutIdempotencyKey: Record<string, unknown> = { ...restaurantRpcArgs };
