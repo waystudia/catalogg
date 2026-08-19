@@ -14,7 +14,7 @@ const driverActivationSource = read('src/pages/driver/DriverApp.tsx');
 const releaseDocuments = [
   ['01-personal-data-policy', '3.0', '18 августа 2026 года', 'f4af642654e6cdcd48205e35d1e8506a5552b34c2ea18a25f250fc79238288f8'],
   ['02-user-agreement', '3.0', '18 августа 2026 года', '3759c66b510a52c0acab71d7924ce3a7572b5ad33a4c098c62d805ae83093972'],
-  ['03-cookie-policy', '3.0', '18 августа 2026 года', '57ccf19c8531654868a2982a024ed722f90ef80d1f7d66cce8914c8b3d971fd2'],
+  ['03-cookie-policy', '3.1', '19 августа 2026 года', '7f3022a64a308cf0b4829ac362b827e67c209e00a22a4592d06420552872a2b6'],
   ['09-restaurant-offer', '3.0', '18 августа 2026 года', '6a43ac2c59af2526dbdf1e3668ab0c2d75d768fefb0d0adbc17c482f1ed7f43c'],
   ['10-driver-offer', '3.0', '18 августа 2026 года', 'b64b00570e8c52cafa76b531f97637d121d8db22770d6e01261139906a104e2f']
 ];

@@ -40,9 +40,9 @@ export const legalDocumentReleases = {
     sha256: 'e811cadaf55734e20135ef28f3975d15a109dbb0d0a2929ad0a1320b0f70a8fd'
   },
   cookie_policy: {
-    version: '3.0',
-    publishedAt: '2026-08-18',
-    sha256: '57ccf19c8531654868a2982a024ed722f90ef80d1f7d66cce8914c8b3d971fd2'
+    version: '3.1',
+    publishedAt: '2026-08-19',
+    sha256: '7f3022a64a308cf0b4829ac362b827e67c209e00a22a4592d06420552872a2b6'
   }
 } as const;
 
