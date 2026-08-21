@@ -1,4 +1,4 @@
-const BACKGROUND_MODEL = 'u2netp-7112208';
+const BACKGROUND_MODEL = 'isnet-general-use-onnx-5349b617';
 const MAX_PROCESSED_SIDE = 1024;
 const ortWasmModuleUrl = new URL(
   '../../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs',
@@ -132,6 +132,7 @@ const loadSegmenter = async (report: (percent: number) => void) => {
       env.allowRemoteModels = false;
       env.allowLocalModels = true;
       env.localModelPath = localModelPath;
+      env.backends.onnx.logLevel = 'error';
       if (!env.backends.onnx.wasm) throw new Error('Локальный модуль обработки недоступен');
       env.backends.onnx.wasm.wasmPaths = {
         mjs: new URL(ortWasmModuleUrl, window.location.origin).href,
@@ -139,8 +140,9 @@ const loadSegmenter = async (report: (percent: number) => void) => {
       };
       const modelOptions = {
         device: 'wasm',
-        dtype: 'fp32',
+        dtype: 'q8',
         local_files_only: true,
+        session_options: { logSeverityLevel: 3 },
         // Transformers.js uses the same generic segmentation wrapper for U²-Net and ISNet.
         config: { model_type: 'isnet', architectures: ['PreTrainedModel'] } as never,
         progress_callback: (progress: ModelDownloadProgress) => {
@@ -381,27 +383,257 @@ export const refineProductPhotoBackground: ProductPhotoRefiner = async (
 export async function placeCutoutOnWhite(
   cutout: Blob,
   originalName: string,
-  maxSide = MAX_PROCESSED_SIDE
+  maxSide = MAX_PROCESSED_SIDE,
+  originalSource?: Blob
 ) {
   const decoded = await decodeImage(cutout);
+  const decodedOriginal = originalSource ? await decodeImage(originalSource) : null;
   try {
-    const size = scaledSize(decoded.width, decoded.height, maxSide);
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = decoded.width;
+    sourceCanvas.height = decoded.height;
+    const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently: true });
+    if (!sourceContext) throw new Error('Не удалось подготовить маску товара');
+    sourceContext.clearRect(0, 0, decoded.width, decoded.height);
+    sourceContext.drawImage(decoded.source, 0, 0);
+    const sourcePixels = sourceContext.getImageData(0, 0, decoded.width, decoded.height);
+    const pixelCount = decoded.width * decoded.height;
+    const thresholded = new Uint8Array(pixelCount);
+    const alphaThreshold = 150;
+    for (let index = 0; index < pixelCount; index += 1) {
+      thresholded[index] = sourcePixels.data[index * 4 + 3] >= alphaThreshold ? 1 : 0;
+    }
+    if (decodedOriginal) {
+      const originalCanvas = document.createElement('canvas');
+      originalCanvas.width = decoded.width;
+      originalCanvas.height = decoded.height;
+      const originalContext = originalCanvas.getContext('2d', { willReadFrequently: true });
+      if (!originalContext) throw new Error('Не удалось проверить край товара');
+      originalContext.drawImage(decodedOriginal.source, 0, 0, decoded.width, decoded.height);
+      const originalPixels = originalContext.getImageData(0, 0, decoded.width, decoded.height).data;
+      const borderSamples: Array<[number, number, number]> = [];
+      const sampleStep = Math.max(1, Math.floor(Math.min(decoded.width, decoded.height) / 18));
+      for (let x = 0; x < decoded.width; x += sampleStep) {
+        for (const y of [0, decoded.height - 1]) {
+          const offset = (y * decoded.width + x) * 4;
+          borderSamples.push([originalPixels[offset], originalPixels[offset + 1], originalPixels[offset + 2]]);
+        }
+      }
+      for (let y = 0; y < decoded.height; y += sampleStep) {
+        for (const x of [0, decoded.width - 1]) {
+          const offset = (y * decoded.width + x) * 4;
+          borderSamples.push([originalPixels[offset], originalPixels[offset + 1], originalPixels[offset + 2]]);
+        }
+      }
+      const backgroundLike = new Uint8Array(pixelCount);
+      const maximumBackgroundDistance = 52 * 52 * 3;
+      for (let index = 0; index < pixelCount; index += 1) {
+        if (!thresholded[index]) continue;
+        const offset = index * 4;
+        const similarToBorder = borderSamples.some(([red, green, blue]) => {
+          const redDistance = originalPixels[offset] - red;
+          const greenDistance = originalPixels[offset + 1] - green;
+          const blueDistance = originalPixels[offset + 2] - blue;
+          return redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
+            <= maximumBackgroundDistance;
+        });
+        if (similarToBorder) backgroundLike[index] = 1;
+      }
+      const removable = new Uint8Array(pixelCount);
+      const backgroundQueue = new Int32Array(pixelCount);
+      let backgroundRead = 0;
+      let backgroundWrite = 0;
+      for (let y = 0; y < decoded.height; y += 1) {
+        for (let x = 0; x < decoded.width; x += 1) {
+          const index = y * decoded.width + x;
+          if (!backgroundLike[index]) continue;
+          const touchesImageEdge = x === 0 || y === 0 || x === decoded.width - 1 || y === decoded.height - 1;
+          const touchesTransparent = !touchesImageEdge && (
+            !thresholded[index - 1]
+            || !thresholded[index + 1]
+            || !thresholded[index - decoded.width]
+            || !thresholded[index + decoded.width]
+          );
+          if (!touchesImageEdge && !touchesTransparent) continue;
+          removable[index] = 1;
+          backgroundQueue[backgroundWrite++] = index;
+        }
+      }
+      while (backgroundRead < backgroundWrite) {
+        const current = backgroundQueue[backgroundRead++];
+        const x = current % decoded.width;
+        const y = Math.floor(current / decoded.width);
+        const neighbors = [
+          x > 0 ? current - 1 : -1,
+          x + 1 < decoded.width ? current + 1 : -1,
+          y > 0 ? current - decoded.width : -1,
+          y + 1 < decoded.height ? current + decoded.width : -1
+        ];
+        for (const next of neighbors) {
+          if (next < 0 || removable[next] || !backgroundLike[next]) continue;
+          removable[next] = 1;
+          backgroundQueue[backgroundWrite++] = next;
+        }
+      }
+      for (let index = 0; index < pixelCount; index += 1) {
+        if (removable[index]) thresholded[index] = 0;
+      }
+    }
+    const eroded = new Uint8Array(pixelCount);
+    for (let y = 0; y < decoded.height; y += 1) {
+      for (let x = 0; x < decoded.width; x += 1) {
+        const index = y * decoded.width + x;
+        if (!thresholded[index]) continue;
+        let nearbyForeground = 0;
+        for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+          for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+            const nextX = x + offsetX;
+            const nextY = y + offsetY;
+            if (
+              nextX >= 0 && nextX < decoded.width
+              && nextY >= 0 && nextY < decoded.height
+              && thresholded[nextY * decoded.width + nextX]
+            ) nearbyForeground += 1;
+          }
+        }
+        if (nearbyForeground >= 6) eroded[index] = 1;
+      }
+    }
+    const foreground = new Uint8Array(pixelCount);
+    for (let y = 0; y < decoded.height; y += 1) {
+      for (let x = 0; x < decoded.width; x += 1) {
+        const index = y * decoded.width + x;
+        for (let offsetY = -1; offsetY <= 1 && !foreground[index]; offsetY += 1) {
+          for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+            const nextX = x + offsetX;
+            const nextY = y + offsetY;
+            if (
+              nextX >= 0 && nextX < decoded.width
+              && nextY >= 0 && nextY < decoded.height
+              && eroded[nextY * decoded.width + nextX]
+            ) {
+              foreground[index] = 1;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    const visited = new Uint8Array(pixelCount);
+    const queue = new Int32Array(pixelCount);
+    let selected: number[] = [];
+    let selectedScore = -1;
+    const centerX = (decoded.width - 1) / 2;
+    const centerY = (decoded.height - 1) / 2;
+    const maxCenterDistance = Math.max(1, Math.hypot(centerX, centerY));
+
+    for (let start = 0; start < pixelCount; start += 1) {
+      if (!foreground[start] || visited[start]) continue;
+      let read = 0;
+      let write = 0;
+      let xTotal = 0;
+      let yTotal = 0;
+      const component: number[] = [];
+      queue[write++] = start;
+      visited[start] = 1;
+      while (read < write) {
+        const current = queue[read++];
+        component.push(current);
+        const x = current % decoded.width;
+        const y = Math.floor(current / decoded.width);
+        xTotal += x;
+        yTotal += y;
+        const neighbors = [
+          x > 0 ? current - 1 : -1,
+          x + 1 < decoded.width ? current + 1 : -1,
+          y > 0 ? current - decoded.width : -1,
+          y + 1 < decoded.height ? current + decoded.width : -1
+        ];
+        for (const next of neighbors) {
+          if (next < 0 || visited[next] || !foreground[next]) continue;
+          visited[next] = 1;
+          queue[write++] = next;
+        }
+      }
+      const componentX = xTotal / component.length;
+      const componentY = yTotal / component.length;
+      const centerWeight = 1.35 - 0.35 * Math.min(
+        1,
+        Math.hypot(componentX - centerX, componentY - centerY) / maxCenterDistance
+      );
+      const score = component.length * centerWeight;
+      if (score > selectedScore) {
+        selectedScore = score;
+        selected = component;
+      }
+    }
+
+    if (selected.length === 0) throw new Error('Модель не смогла отделить товар от фона');
+    const selectedMask = new Uint8Array(pixelCount);
+    let minX = decoded.width;
+    let minY = decoded.height;
+    let maxX = 0;
+    let maxY = 0;
+    for (const index of selected) {
+      selectedMask[index] = 1;
+      const x = index % decoded.width;
+      const y = Math.floor(index / decoded.width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    for (let index = 0; index < pixelCount; index += 1) {
+      const alphaOffset = index * 4 + 3;
+      if (!selectedMask[index]) {
+        sourcePixels.data[alphaOffset] = 0;
+        continue;
+      }
+      const originalAlpha = sourcePixels.data[alphaOffset];
+      sourcePixels.data[alphaOffset] = Math.round(
+        clampUnit((originalAlpha - alphaThreshold) / (255 - alphaThreshold)) * 255
+      );
+    }
+    sourceContext.clearRect(0, 0, decoded.width, decoded.height);
+    sourceContext.putImageData(sourcePixels, 0, 0);
+
+    const productWidth = maxX - minX + 1;
+    const productHeight = maxY - minY + 1;
+    const contentSide = Math.round(maxSide * 0.8);
+    const scale = Math.min(contentSide / productWidth, contentSide / productHeight);
+    const outputWidth = Math.max(1, Math.round(productWidth * scale));
+    const outputHeight = Math.max(1, Math.round(productHeight * scale));
+    const outputX = Math.round((maxSide - outputWidth) / 2);
+    const outputY = Math.round((maxSide - outputHeight) / 2);
     const canvas = document.createElement('canvas');
-    canvas.width = size.width;
-    canvas.height = size.height;
+    canvas.width = maxSide;
+    canvas.height = maxSide;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Не удалось подготовить белый фон');
 
     context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, size.width, size.height);
-    context.drawImage(decoded.source, 0, 0, size.width, size.height);
-    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.94);
+    context.fillRect(0, 0, maxSide, maxSide);
+    context.drawImage(
+      sourceCanvas,
+      minX,
+      minY,
+      productWidth,
+      productHeight,
+      outputX,
+      outputY,
+      outputWidth,
+      outputHeight
+    );
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
     return new File([blob], whiteBackgroundFileName(originalName), {
       type: 'image/jpeg',
       lastModified: Date.now()
     });
   } finally {
     decoded.close();
+    decodedOriginal?.close();
   }
 }
 
@@ -418,7 +650,7 @@ export const removeProductPhotoBackground: ProductPhotoProcessor = async (file, 
   const cutout = result[0];
   if (!cutout) throw new Error('Модель не смогла выделить товар');
   const transparentImage = await cutout.toBlob('image/png');
-  const whiteImage = await placeCutoutOnWhite(transparentImage, file.name);
+  const whiteImage = await placeCutoutOnWhite(transparentImage, file.name, MAX_PROCESSED_SIDE, preparedImage);
   report(100);
   return whiteImage;
 };

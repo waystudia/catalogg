@@ -1,0 +1,6 @@
+WayYaam includes the quantized ONNX build of isnet-general-use from
+Ko033/isnet-general-use-onnx, revision 5349b617911fd60c619b52f32e2b593517b78df3.
+
+The model card attributes the architecture and original weights to the
+xuebinqin/DIS project. The model and architecture are distributed under the
+Apache License 2.0. The local copy is used only for browser-side inference.

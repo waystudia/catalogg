@@ -38,6 +38,7 @@ import {
   type ProductPhotoRefiner
 } from './productPhotoBackground';
 import { ProductPhotoRefinementEditor } from './ProductPhotoRefinementEditor';
+import { ProductPhotoCamera } from './ProductPhotoCamera';
 import './shared-product-catalog.css';
 
 export type SharedProductCatalogMode = 'platform' | 'merchant';
@@ -135,6 +136,7 @@ export function SharedProductCatalogPage({
   const [photoChoice, setPhotoChoice] = useState<'original' | 'processed'>('original');
   const [photoError, setPhotoError] = useState('');
   const [photoRefinementOpen, setPhotoRefinementOpen] = useState(false);
+  const [photoCameraOpen, setPhotoCameraOpen] = useState(false);
   const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
@@ -154,6 +156,7 @@ export function SharedProductCatalogPage({
     setPhotoChoice('original');
     setPhotoError('');
     setPhotoRefinementOpen(false);
+    setPhotoCameraOpen(false);
     setPhotoRefinementMessage('');
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
@@ -176,8 +179,7 @@ export function SharedProductCatalogPage({
     photoInputRef.current.click();
   };
 
-  const processSelectedPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
+  const processPhotoFile = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setPhotoError('Выберите фотографию товара в формате изображения.');
@@ -215,6 +217,10 @@ export function SharedProductCatalogPage({
       setPhotoError('Не удалось автоматически убрать фон. Оригинал сохранён — можно продолжить или выбрать другое фото.');
       setDraft((current) => ({ ...current, imageFile: file }));
     }
+  };
+
+  const processSelectedPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    await processPhotoFile(event.target.files?.[0] ?? null);
   };
 
   const load = useCallback(async () => {
@@ -422,7 +428,7 @@ export function SharedProductCatalogPage({
               prepareBarcodeScanSound();
               setScannerOpen(true);
             }}><Camera />Сканировать</button></span></label>
-            <label>Фотография<span className="shared-catalog-file"><ImagePlus /><input ref={photoInputRef} type="file" accept="image/*" capture="environment" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /><small>{originalPhoto?.name ?? 'Сфотографировать или выбрать файл'}</small></span></label>
+            <fieldset className="shared-catalog-photo-field"><legend>Фотография</legend><span className="shared-catalog-photo-source"><button type="button" onClick={() => setPhotoCameraOpen(true)}><Camera />Сфотографировать товар</button><span className="shared-catalog-file"><ImagePlus /><input ref={photoInputRef} type="file" accept="image/*" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /><small>{originalPhoto?.name ?? 'Выбрать из галереи'}</small></span></span></fieldset>
             <label>Название<input required maxLength={120} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Название с упаковки" /></label>
             <label>Общая группа<span className="shared-catalog-category-row"><select required value={draft.categoryId} onChange={(event) => setDraft((current) => ({ ...current, categoryId: event.target.value }))}><option value="">Выберите группу</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><button type="button" onClick={() => setNewCategoryOpen(true)}><Plus />Новая</button></span></label>
           </div>
@@ -480,6 +486,19 @@ export function SharedProductCatalogPage({
                 setDraft((current) => ({ ...current, imageFile: refinedPhoto }));
                 setPhotoRefinementMessage('Граница уточнена — сохранится исправленный белый фон.');
                 setPhotoRefinementOpen(false);
+              }}
+            />
+          )}
+          {photoCameraOpen && (
+            <ProductPhotoCamera
+              onClose={() => setPhotoCameraOpen(false)}
+              onChooseFile={() => {
+                setPhotoCameraOpen(false);
+                chooseAnotherPhoto();
+              }}
+              onCapture={async (file) => {
+                setPhotoCameraOpen(false);
+                await processPhotoFile(file);
               }}
             />
           )}

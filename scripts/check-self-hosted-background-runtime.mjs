@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { basename, extname } from 'node:path';
 import { chromium } from 'playwright';
 
 const baseUrl = (process.env.BACKGROUND_MODEL_BASE_URL || 'http://127.0.0.1:4178').replace(/\/$/, '');
@@ -22,10 +23,12 @@ try {
     .getByRole('button', { name: 'Закрыть' })
     .click();
 
-  const productPng = readFileSync('public/assets/logo/wayyaam-icon-192.png');
+  const productPath = process.env.BACKGROUND_MODEL_TEST_IMAGE || 'public/assets/logo/wayyaam-icon-192.png';
+  const productPng = readFileSync(productPath);
+  const productExtension = extname(productPath).toLowerCase();
   await page.getByLabel('Сфотографировать или выбрать фото').setInputFiles({
-    name: 'test-product.png',
-    mimeType: 'image/png',
+    name: basename(productPath),
+    mimeType: productExtension === '.jpg' || productExtension === '.jpeg' ? 'image/jpeg' : 'image/png',
     buffer: productPng
   });
   try {
@@ -38,6 +41,10 @@ try {
         .then(() => 'failed')
     ]);
     assert.equal(outcome, 'processed');
+    if (process.env.BACKGROUND_MODEL_OUTPUT_SCREENSHOT) {
+      await page.getByRole('region', { name: 'Проверка фотографии товара' })
+        .screenshot({ path: process.env.BACKGROUND_MODEL_OUTPUT_SCREENSHOT });
+    }
   } catch (error) {
     const alerts = await page.getByRole('alert').allTextContents();
     throw new Error([
@@ -56,7 +63,7 @@ try {
       : false;
   });
   assert.deepEqual(externalRequests, []);
-  assert.ok(requests.some((url) => url.includes('/assets/models/u2netp-7112208/onnx/model.onnx')));
+  assert.ok(requests.some((url) => url.includes('/assets/models/isnet-general-use-onnx-5349b617/onnx/model_quantized.onnx')));
   assert.ok(requests.some((url) => url.includes('ort-wasm-simd-threaded.jsep')));
   assert.deepEqual(browserErrors, []);
   assert.deepEqual(failedRequests, []);
