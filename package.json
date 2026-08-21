@@ -17,6 +17,8 @@
     "check": "npm run lint && npm run typecheck && npm run build",
     "validate-env": "node ./scripts/validate-env.mjs",
     "check-build": "node ./scripts/check-build.mjs",
+    "check-background-model-build": "node ./scripts/check-self-hosted-background-build.mjs",
+    "check-background-model-runtime": "node ./scripts/check-self-hosted-background-runtime.mjs",
     "e2e:visual": "node ./e2e/visual/visual-runner.mjs --mode=manual",
     "e2e:visual:auto": "node ./e2e/visual/visual-runner.mjs --mode=auto",
     "e2e:visual:prod": "E2E_BASE_URL=https://wayyaam.ru node ./e2e/visual/visual-runner.mjs --mode=manual",

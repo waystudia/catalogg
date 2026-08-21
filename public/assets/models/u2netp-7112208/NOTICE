@@ -1,0 +1,9 @@
+WayYaam includes an unmodified ONNX copy of U-2-Netp from
+BritishWerewolf/U-2-Netp, revision 7112208dbac3a3642496c8d54e2f0f9bb3dc1dc8.
+
+The model card credits rembg and the authors of the original U-2-Net project:
+https://github.com/xuebinqin/U-2-Net
+
+The model is distributed under the Apache License, Version 2.0. The complete
+license text is included in the adjacent LICENSE file. Source and cryptographic
+hashes are recorded in MODEL_PROVENANCE.json.

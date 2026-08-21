@@ -1,5 +1,13 @@
-const BACKGROUND_MODEL = 'BritishWerewolf/U-2-Netp';
+const BACKGROUND_MODEL = 'u2netp-7112208';
 const MAX_PROCESSED_SIDE = 1024;
+const ortWasmModuleUrl = new URL(
+  '../../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs',
+  import.meta.url
+).href;
+const ortWasmBinaryUrl = new URL(
+  '../../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.wasm',
+  import.meta.url
+).href;
 
 export type ProductPhotoProgress = (percent: number) => void;
 export type ProductPhotoProcessor = (
@@ -113,12 +121,26 @@ const loadSegmenter = async (report: (percent: number) => void) => {
       const {
         AutoImageProcessor,
         AutoModelForImageSegmentation,
-        BackgroundRemovalPipeline
+        BackgroundRemovalPipeline,
+        env
       } = await import('@huggingface/transformers');
       report(8);
+      const localModelPath = new URL(
+        `${import.meta.env.BASE_URL}assets/models/`,
+        window.location.origin
+      ).href;
+      env.allowRemoteModels = false;
+      env.allowLocalModels = true;
+      env.localModelPath = localModelPath;
+      if (!env.backends.onnx.wasm) throw new Error('Локальный модуль обработки недоступен');
+      env.backends.onnx.wasm.wasmPaths = {
+        mjs: new URL(ortWasmModuleUrl, window.location.origin).href,
+        wasm: new URL(ortWasmBinaryUrl, window.location.origin).href
+      };
       const modelOptions = {
         device: 'wasm',
         dtype: 'fp32',
+        local_files_only: true,
         // Transformers.js uses the same generic segmentation wrapper for U²-Net and ISNet.
         config: { model_type: 'isnet', architectures: ['PreTrainedModel'] } as never,
         progress_callback: (progress: ModelDownloadProgress) => {
