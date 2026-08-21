@@ -180,6 +180,7 @@ test('failed background removal keeps the original photo available for saving', 
       mode="platform"
       demo
       photoProcessor={photoProcessor}
+      photoPreloader={async () => undefined}
     />
   );
 

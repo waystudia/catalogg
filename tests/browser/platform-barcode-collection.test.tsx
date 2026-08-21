@@ -193,7 +193,7 @@ test("known rows left by an older local session stay hidden from the scan list",
 test("the existing master catalog remains available with its add-product action", async () => {
   const screen = await render(
     <PlatformProductDatabasePage
-      catalog={<SharedProductCatalogPage mode="platform" demo />}
+      catalog={<SharedProductCatalogPage mode="platform" demo photoPreloader={async () => undefined} />}
     />,
   );
   await screen.getByRole("button", { name: "Все товары" }).click();

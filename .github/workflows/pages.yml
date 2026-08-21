@@ -44,6 +44,9 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_WEB_PUSH_PUBLIC_KEY: ${{ secrets.VITE_WEB_PUSH_PUBLIC_KEY }}
 
+      - name: Verify self-hosted background model bundle
+        run: npm run check-background-model-build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

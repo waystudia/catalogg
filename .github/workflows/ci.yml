@@ -71,3 +71,6 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify self-hosted background model bundle
+        run: npm run check-background-model-build

@@ -4,7 +4,12 @@ import { SharedProductCatalogPage } from '../../src/features/shared-product-cata
 
 test('a merchant cannot create another product with an existing barcode', async () => {
   const screen = await render(
-    <SharedProductCatalogPage mode="merchant" catalogId="demo-store" demo />
+    <SharedProductCatalogPage
+      mode="merchant"
+      catalogId="demo-store"
+      demo
+      photoPreloader={async () => undefined}
+    />
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
