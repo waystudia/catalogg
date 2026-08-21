@@ -2,6 +2,7 @@ import { expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
 import { SharedProductCatalogPage } from '../../src/features/shared-product-catalog/SharedProductCatalogPage';
+import { ProductPhotoCamera } from '../../src/features/shared-product-catalog/ProductPhotoCamera';
 import { ProductPhotoRefinementEditor } from '../../src/features/shared-product-catalog/ProductPhotoRefinementEditor';
 import {
   placeCutoutOnWhite,
@@ -52,6 +53,12 @@ test('a product photo is processed automatically and the merchant chooses which 
   await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
   await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Сфотографировать товар' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Сфотографировать товар' }).click();
+  const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
+  await expect.element(cameraDialog).toBeVisible();
+  await expect.element(cameraDialog.getByText('Поместите товар в рамку')).toBeVisible();
+  await cameraDialog.getByRole('button', { name: 'Закрыть' }).first().click();
 
   const original = new File(['original'], 'product.jpg', { type: 'image/jpeg' });
   choosePhoto(
@@ -229,8 +236,78 @@ test('a transparent cutout is exported as a compact image with a real white back
   const redPixel = outputContext.getImageData(37, 10, 1, 1).data;
 
   expect([...whitePixel]).toEqual([255, 255, 255, 255]);
-  expect(redPixel[0]).toBeGreaterThan(220);
-  expect(redPixel[1]).toBeLessThan(60);
-  expect(redPixel[2]).toBeLessThan(60);
+  expect(output.width).toBe(output.height);
+  const centerPixel = outputContext.getImageData(output.width / 2, output.height / 2, 1, 1).data;
+  expect(centerPixel[0]).toBeGreaterThan(220);
+  expect(centerPixel[1]).toBeLessThan(60);
+  expect(centerPixel[2]).toBeLessThan(60);
   expect(redPixel[3]).toBe(255);
+});
+
+test('soft background residue is removed before the product is centered on pure white', async () => {
+  const source = document.createElement('canvas');
+  source.width = 80;
+  source.height = 60;
+  const sourceContext = source.getContext('2d');
+  if (!sourceContext) throw new Error('Canvas is unavailable');
+  sourceContext.clearRect(0, 0, source.width, source.height);
+  sourceContext.fillStyle = '#5a5856';
+  sourceContext.fillRect(4, 35, 36, 14);
+  sourceContext.fillStyle = '#ef1b1b';
+  sourceContext.fillRect(34, 10, 12, 40);
+
+  const cutout = await new Promise<Blob>((resolve, reject) => source.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Could not create test image')),
+    'image/png'
+  ));
+  const originalSource = document.createElement('canvas');
+  originalSource.width = source.width;
+  originalSource.height = source.height;
+  const originalContext = originalSource.getContext('2d');
+  if (!originalContext) throw new Error('Canvas is unavailable');
+  originalContext.fillStyle = '#5a5856';
+  originalContext.fillRect(0, 0, originalSource.width, originalSource.height);
+  originalContext.fillStyle = '#ef1b1b';
+  originalContext.fillRect(34, 10, 12, 40);
+  const originalBlob = await new Promise<Blob>((resolve, reject) => originalSource.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Could not create original test image')),
+    'image/png'
+  ));
+  const result = await placeCutoutOnWhite(cutout, 'pepper.png', 200, originalBlob);
+  const bitmap = await createImageBitmap(result);
+  const output = document.createElement('canvas');
+  output.width = bitmap.width;
+  output.height = bitmap.height;
+  const outputContext = output.getContext('2d');
+  if (!outputContext) throw new Error('Canvas is unavailable');
+  outputContext.drawImage(bitmap, 0, 0);
+
+  expect(output.width).toBe(200);
+  expect(output.height).toBe(200);
+  const leftResidue = outputContext.getImageData(35, 130, 1, 1).data;
+  const centeredProduct = outputContext.getImageData(100, 100, 1, 1).data;
+  expect(leftResidue[0]).toBeGreaterThan(248);
+  expect(leftResidue[1]).toBeGreaterThan(248);
+  expect(leftResidue[2]).toBeGreaterThan(248);
+  expect(centeredProduct[0]).toBeGreaterThan(220);
+  expect(centeredProduct[1]).toBeLessThan(70);
+  expect(centeredProduct[2]).toBeLessThan(70);
+});
+
+test('product camera shows a square guide and captures the centered frame', async () => {
+  const onCapture = vi.fn();
+  const onClose = vi.fn();
+  const screen = await render(
+    <ProductPhotoCamera
+      onCapture={onCapture}
+      onClose={onClose}
+      cameraStreamFactory={async () => new MediaStream()}
+    />
+  );
+
+  await expect.element(screen.getByRole('dialog', { name: 'Фотографирование товара' })).toBeVisible();
+  await expect.element(screen.getByText('Поместите товар в рамку')).toBeVisible();
+  await expect.element(screen.getByText('Оставьте немного воздуха по краям')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Сделать снимок' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Выбрать из галереи' })).toBeVisible();
 });

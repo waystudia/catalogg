@@ -55,6 +55,8 @@
 .shared-catalog-form__head > button { border: 0; color: var(--shared-muted); background: transparent; }
 .shared-catalog-form__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 .shared-catalog-form label { display: grid; gap: 6px; color: #48544c; font-size: 13px; font-weight: 750; }
+.shared-catalog-photo-field { min-width: 0; display: grid; gap: 6px; margin: 0; padding: 0; border: 0; color: #48544c; font-size: 13px; font-weight: 750; }
+.shared-catalog-photo-field legend { padding: 0; }
 .shared-catalog-form label > input,
 .shared-catalog-form label > select,
 .shared-catalog-form textarea,
@@ -75,6 +77,9 @@
 .shared-catalog-file svg { width: 19px; flex: 0 0 auto; }
 .shared-catalog-file input { max-width: 120px; color: transparent; }
 .shared-catalog-file small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shared-catalog-photo-source { min-height: 0 !important; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; padding: 0 !important; border: 0 !important; }
+.shared-catalog-photo-source > button { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 10px; border: 1px solid #91c6a9; border-radius: 12px; color: #fff; background: var(--shared-green); font-size: 12px; font-weight: 800; }
+.shared-catalog-photo-source > button svg { width: 18px; }
 .shared-catalog-photo-review { display: grid; gap: 12px; margin-top: 14px; padding: 14px; border: 1px solid #cfe3d7; border-radius: 15px; background: #f7fbf8; }
 .shared-catalog-photo-progress { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px 12px; color: #315d48; }
 .shared-catalog-photo-progress > svg { width: 22px; }
@@ -134,6 +139,32 @@
 .shared-catalog-scanner__camera > span { position: absolute; top: 50%; left: 50%; width: min(64%, 230px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; gap: 7px; border: 2px solid #5df0a5; border-radius: 18px; color: #fff; background: rgba(0,0,0,.08); box-shadow: 0 0 0 999px rgba(0,0,0,.05); font-weight: 800; pointer-events: none; transform: translate(-50%, -50%); }
 .shared-catalog-scanner__panel small { color: var(--shared-muted); }
 .shared-catalog-scanner__panel > button:last-child { min-height: 44px; display: flex; justify-content: center; align-items: center; gap: 7px; border: 0; border-radius: 12px; color: #fff; background: var(--shared-green); font-weight: 800; }
+.product-photo-camera { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: rgba(7, 14, 10, .88); }
+.product-photo-camera__panel { width: min(460px, 100%); max-height: 100%; display: grid; gap: 12px; padding: 14px; border-radius: 22px; background: #fff; overflow: auto; }
+.product-photo-camera__panel > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.product-photo-camera__panel > header > span { display: flex; align-items: center; gap: 8px; }
+.product-photo-camera__panel > header svg { width: 20px; color: var(--shared-green); }
+.product-photo-camera__panel > header > button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #324239; background: #edf3ef; }
+.product-photo-camera__viewfinder { position: relative; width: 100%; aspect-ratio: 1; border-radius: 18px; background: #101812; overflow: hidden; }
+.product-photo-camera__viewfinder video { width: 100%; height: 100%; object-fit: cover; }
+.product-photo-camera__viewfinder > p { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #fff; font-weight: 750; }
+.product-photo-camera__shade { position: absolute; inset: 0; box-shadow: inset 0 0 0 clamp(24px, 8vw, 42px) rgba(0, 0, 0, .34); pointer-events: none; }
+.product-photo-camera__guide { position: absolute; inset: clamp(24px, 8vw, 42px); pointer-events: none; }
+.product-photo-camera__guide > i { position: absolute; width: 34px; height: 34px; border-color: #4aee9b; border-style: solid; }
+.product-photo-camera__guide > i:nth-child(1) { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 10px 0 0; }
+.product-photo-camera__guide > i:nth-child(2) { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 10px 0 0; }
+.product-photo-camera__guide > i:nth-child(3) { right: 0; bottom: 0; border-width: 0 3px 3px 0; border-radius: 0 0 10px; }
+.product-photo-camera__guide > i:nth-child(4) { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 10px; }
+.product-photo-camera__guide > span { position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed rgba(255,255,255,.55); }
+.product-photo-camera__instructions { display: grid; gap: 2px; text-align: center; }
+.product-photo-camera__instructions small { color: var(--shared-muted); }
+.product-photo-camera__error { margin: 0; padding: 9px 11px; border-radius: 10px; color: #8e3030; background: #fff0f0; font-size: 12px; font-weight: 700; }
+.product-photo-camera__panel > footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.product-photo-camera__panel > footer > button:not(.product-photo-camera__shutter) { min-height: 52px; display: grid; place-items: center; gap: 3px; padding: 4px; border: 0; color: #315d48; background: transparent; font-size: 11px; font-weight: 800; }
+.product-photo-camera__panel > footer > button svg { width: 21px; }
+.product-photo-camera__shutter { width: 70px; height: 70px; padding: 5px; border: 3px solid #0b8b5a; border-radius: 50%; background: #fff; }
+.product-photo-camera__shutter > span { display: block; width: 100%; height: 100%; border-radius: 50%; background: #0b8b5a; }
+.product-photo-camera__shutter:disabled { opacity: .45; }
 .is-spinning { animation: shared-catalog-spin .8s linear infinite; }
 @keyframes shared-catalog-spin { to { transform: rotate(360deg); } }
 
@@ -154,4 +185,5 @@
   .shared-catalog-photo-options img { width: 76px; height: 76px; }
   .shared-catalog-photo-actions { display: grid; grid-template-columns: 1fr; }
   .shared-catalog-photo-actions button { width: 100%; }
+  .shared-catalog-photo-source { grid-template-columns: 1fr; }
 }
