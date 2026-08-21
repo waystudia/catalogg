@@ -53,11 +53,11 @@ test('a product photo is processed automatically and the merchant chooses which 
   await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
   await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
-  await expect.element(screen.getByRole('button', { name: 'Сфотографировать товар' })).toBeVisible();
-  await screen.getByRole('button', { name: 'Сфотографировать товар' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Открыть камеру с рамкой' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Открыть камеру с рамкой' }).click();
   const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
   await expect.element(cameraDialog).toBeVisible();
-  await expect.element(cameraDialog.getByText('Поместите товар в рамку')).toBeVisible();
+  await expect.element(cameraDialog.getByText('Поместите весь товар в рамку')).toBeVisible();
   await cameraDialog.getByRole('button', { name: 'Закрыть' }).first().click();
 
   const original = new File(['original'], 'product.jpg', { type: 'image/jpeg' });
@@ -236,6 +236,7 @@ test('a transparent cutout is exported as a compact image with a real white back
   const redPixel = outputContext.getImageData(37, 10, 1, 1).data;
 
   expect([...whitePixel]).toEqual([255, 255, 255, 255]);
+  expect(output.width).toBe(1600);
   expect(output.width).toBe(output.height);
   const centerPixel = outputContext.getImageData(output.width / 2, output.height / 2, 1, 1).data;
   expect(centerPixel[0]).toBeGreaterThan(220);
@@ -294,6 +295,49 @@ test('soft background residue is removed before the product is centered on pure 
   expect(centeredProduct[2]).toBeLessThan(70);
 });
 
+test('a centered product keeps a disconnected thin cap and rejects a larger off-center pattern', async () => {
+  const source = document.createElement('canvas');
+  source.width = 120;
+  source.height = 120;
+  const sourceContext = source.getContext('2d');
+  if (!sourceContext) throw new Error('Canvas is unavailable');
+  sourceContext.clearRect(0, 0, source.width, source.height);
+  sourceContext.fillStyle = '#c5a23f';
+  sourceContext.fillRect(52, 18, 16, 10);
+  sourceContext.fillStyle = '#143846';
+  sourceContext.fillRect(44, 31, 32, 62);
+  sourceContext.fillStyle = '#d3a62d';
+  sourceContext.fillRect(51, 48, 18, 25);
+  sourceContext.fillStyle = '#d9c36e';
+  sourceContext.beginPath();
+  sourceContext.moveTo(0, 0);
+  sourceContext.lineTo(46, 0);
+  sourceContext.lineTo(0, 46);
+  sourceContext.fill();
+
+  const cutout = await new Promise<Blob>((resolve, reject) => source.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Could not create test image')),
+    'image/png'
+  ));
+  const result = await placeCutoutOnWhite(cutout, 'perfume.png', 240);
+  const bitmap = await createImageBitmap(result);
+  const output = document.createElement('canvas');
+  output.width = bitmap.width;
+  output.height = bitmap.height;
+  const outputContext = output.getContext('2d');
+  if (!outputContext) throw new Error('Canvas is unavailable');
+  outputContext.drawImage(bitmap, 0, 0);
+
+  const cap = outputContext.getImageData(120, 28, 1, 1).data;
+  const bottle = outputContext.getImageData(120, 130, 1, 1).data;
+  const rejectedPattern = outputContext.getImageData(20, 20, 1, 1).data;
+  expect(cap[0]).toBeGreaterThan(120);
+  expect(bottle[2]).toBeGreaterThan(40);
+  expect(rejectedPattern[0]).toBeGreaterThan(248);
+  expect(rejectedPattern[1]).toBeGreaterThan(248);
+  expect(rejectedPattern[2]).toBeGreaterThan(248);
+});
+
 test('product camera shows a square guide and captures the centered frame', async () => {
   const onCapture = vi.fn();
   const onClose = vi.fn();
@@ -306,8 +350,10 @@ test('product camera shows a square guide and captures the centered frame', asyn
   );
 
   await expect.element(screen.getByRole('dialog', { name: 'Фотографирование товара' })).toBeVisible();
-  await expect.element(screen.getByText('Поместите товар в рамку')).toBeVisible();
-  await expect.element(screen.getByText('Оставьте немного воздуха по краям')).toBeVisible();
+  await expect.element(screen.getByText('Поместите весь товар в рамку')).toBeVisible();
+  await expect.element(screen.getByText('Не обрезайте крышку и края. Держите телефон неподвижно.')).toBeVisible();
+  await expect.element(screen.getByRole('img', { name: 'Квадратная рамка товара' })).toBeVisible();
+  await expect.element(screen.getByText('Камера готова')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сделать снимок' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Выбрать из галереи' })).toBeVisible();
 });
