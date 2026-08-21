@@ -53,7 +53,7 @@ export function ProductPhotoCamera({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => undefined);
+          void videoRef.current.play().catch(() => undefined);
         }
         setReady(true);
       } catch {
@@ -114,21 +114,23 @@ export function ProductPhotoCamera({
     <div className="product-photo-camera" role="dialog" aria-modal="true" aria-label="Фотографирование товара">
       <section className="product-photo-camera__panel">
         <header>
-          <span><Camera /><strong>Фотографирование товара</strong></span>
+          <span><Camera /><strong>Фото товара</strong></span>
           <button type="button" onClick={onClose} aria-label="Закрыть"><X /></button>
         </header>
+        {ready && <p className="product-photo-camera__ready"><span aria-hidden="true">✓</span>Камера готова</p>}
         <div className="product-photo-camera__viewfinder">
           <video ref={videoRef} playsInline muted />
           <div className="product-photo-camera__shade" aria-hidden="true" />
-          <div className="product-photo-camera__guide" aria-hidden="true">
-            <i /><i /><i /><i />
-            <span />
+          <div className="product-photo-camera__guide" role="img" aria-label="Квадратная рамка товара">
+            <i aria-hidden="true" /><i aria-hidden="true" /><i aria-hidden="true" /><i aria-hidden="true" />
+            <span className="product-photo-camera__guide-vertical" aria-hidden="true" />
+            <span className="product-photo-camera__guide-horizontal" aria-hidden="true" />
           </div>
           {!ready && !error && <p>Запускаем камеру…</p>}
         </div>
         <div className="product-photo-camera__instructions">
-          <strong>Поместите товар в рамку</strong>
-          <small>Оставьте немного воздуха по краям</small>
+          <strong>Поместите весь товар в рамку</strong>
+          <small>Не обрезайте крышку и края. Держите телефон неподвижно.</small>
         </div>
         {error && <p className="product-photo-camera__error" role="alert">{error}</p>}
         <footer>

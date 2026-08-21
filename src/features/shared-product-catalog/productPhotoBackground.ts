@@ -1,5 +1,5 @@
 const BACKGROUND_MODEL = 'isnet-general-use-onnx-5349b617';
-const MAX_PROCESSED_SIDE = 1024;
+const MAX_PROCESSED_SIDE = 1600;
 const ortWasmModuleUrl = new URL(
   '../../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs',
   import.meta.url
@@ -108,7 +108,7 @@ const resizeForSegmentation = async (file: File) => {
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, size.width, size.height);
     context.drawImage(decoded.source, 0, 0, size.width, size.height);
-    return await canvasToBlob(canvas, 'image/jpeg', 0.94);
+    return await canvasToBlob(canvas, 'image/jpeg', 0.97);
   } finally {
     decoded.close();
   }
@@ -399,7 +399,9 @@ export async function placeCutoutOnWhite(
     const sourcePixels = sourceContext.getImageData(0, 0, decoded.width, decoded.height);
     const pixelCount = decoded.width * decoded.height;
     const thresholded = new Uint8Array(pixelCount);
-    const alphaThreshold = 150;
+    // Keep thin product details (caps, handles, transparent rims) in the candidate mask.
+    // The previous 150 threshold plus an opening pass could erase these parts entirely.
+    const alphaThreshold = 96;
     for (let index = 0; index < pixelCount; index += 1) {
       thresholded[index] = sourcePixels.data[index * 4 + 3] >= alphaThreshold ? 1 : 0;
     }
@@ -425,19 +427,23 @@ export async function placeCutoutOnWhite(
           borderSamples.push([originalPixels[offset], originalPixels[offset + 1], originalPixels[offset + 2]]);
         }
       }
+      const channelMedian = (channel: 0 | 1 | 2) => {
+        const values = borderSamples.map((sample) => sample[channel]).sort((left, right) => left - right);
+        return values[Math.floor(values.length / 2)] ?? 255;
+      };
+      const backgroundColor = [channelMedian(0), channelMedian(1), channelMedian(2)] as const;
       const backgroundLike = new Uint8Array(pixelCount);
-      const maximumBackgroundDistance = 52 * 52 * 3;
+      const maximumBackgroundDistance = 44 * 44 * 3;
       for (let index = 0; index < pixelCount; index += 1) {
         if (!thresholded[index]) continue;
         const offset = index * 4;
-        const similarToBorder = borderSamples.some(([red, green, blue]) => {
-          const redDistance = originalPixels[offset] - red;
-          const greenDistance = originalPixels[offset + 1] - green;
-          const blueDistance = originalPixels[offset + 2] - blue;
-          return redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
-            <= maximumBackgroundDistance;
-        });
-        if (similarToBorder) backgroundLike[index] = 1;
+        const redDistance = originalPixels[offset] - backgroundColor[0];
+        const greenDistance = originalPixels[offset + 1] - backgroundColor[1];
+        const blueDistance = originalPixels[offset + 2] - backgroundColor[2];
+        if (
+          redDistance * redDistance + greenDistance * greenDistance + blueDistance * blueDistance
+          <= maximumBackgroundDistance
+        ) backgroundLike[index] = 1;
       }
       const removable = new Uint8Array(pixelCount);
       const backgroundQueue = new Int32Array(pixelCount);
@@ -479,11 +485,31 @@ export async function placeCutoutOnWhite(
         if (removable[index]) thresholded[index] = 0;
       }
     }
-    const eroded = new Uint8Array(pixelCount);
+    // A closing pass joins tiny gaps without shaving off thin product details.
+    const dilated = new Uint8Array(pixelCount);
     for (let y = 0; y < decoded.height; y += 1) {
       for (let x = 0; x < decoded.width; x += 1) {
         const index = y * decoded.width + x;
-        if (!thresholded[index]) continue;
+        for (let offsetY = -1; offsetY <= 1 && !dilated[index]; offsetY += 1) {
+          for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+            const nextX = x + offsetX;
+            const nextY = y + offsetY;
+            if (
+              nextX >= 0 && nextX < decoded.width
+              && nextY >= 0 && nextY < decoded.height
+              && thresholded[nextY * decoded.width + nextX]
+            ) {
+              dilated[index] = 1;
+              break;
+            }
+          }
+        }
+      }
+    }
+    const foreground = new Uint8Array(pixelCount);
+    for (let y = 0; y < decoded.height; y += 1) {
+      for (let x = 0; x < decoded.width; x += 1) {
+        const index = y * decoded.width + x;
         let nearbyForeground = 0;
         for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
           for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
@@ -492,41 +518,27 @@ export async function placeCutoutOnWhite(
             if (
               nextX >= 0 && nextX < decoded.width
               && nextY >= 0 && nextY < decoded.height
-              && thresholded[nextY * decoded.width + nextX]
+              && dilated[nextY * decoded.width + nextX]
             ) nearbyForeground += 1;
           }
         }
-        if (nearbyForeground >= 6) eroded[index] = 1;
-      }
-    }
-    const foreground = new Uint8Array(pixelCount);
-    for (let y = 0; y < decoded.height; y += 1) {
-      for (let x = 0; x < decoded.width; x += 1) {
-        const index = y * decoded.width + x;
-        for (let offsetY = -1; offsetY <= 1 && !foreground[index]; offsetY += 1) {
-          for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-            const nextX = x + offsetX;
-            const nextY = y + offsetY;
-            if (
-              nextX >= 0 && nextX < decoded.width
-              && nextY >= 0 && nextY < decoded.height
-              && eroded[nextY * decoded.width + nextX]
-            ) {
-              foreground[index] = 1;
-              break;
-            }
-          }
-        }
+        if (nearbyForeground >= 7) foreground[index] = 1;
       }
     }
 
     const visited = new Uint8Array(pixelCount);
     const queue = new Int32Array(pixelCount);
-    let selected: number[] = [];
-    let selectedScore = -1;
+    const components: Array<{
+      pixels: number[];
+      minX: number;
+      minY: number;
+      maxX: number;
+      maxY: number;
+      centerX: number;
+      centerY: number;
+    }> = [];
     const centerX = (decoded.width - 1) / 2;
     const centerY = (decoded.height - 1) / 2;
-    const maxCenterDistance = Math.max(1, Math.hypot(centerX, centerY));
 
     for (let start = 0; start < pixelCount; start += 1) {
       if (!foreground[start] || visited[start]) continue;
@@ -534,6 +546,10 @@ export async function placeCutoutOnWhite(
       let write = 0;
       let xTotal = 0;
       let yTotal = 0;
+      let componentMinX = decoded.width;
+      let componentMinY = decoded.height;
+      let componentMaxX = 0;
+      let componentMaxY = 0;
       const component: number[] = [];
       queue[write++] = start;
       visited[start] = 1;
@@ -544,6 +560,10 @@ export async function placeCutoutOnWhite(
         const y = Math.floor(current / decoded.width);
         xTotal += x;
         yTotal += y;
+        componentMinX = Math.min(componentMinX, x);
+        componentMinY = Math.min(componentMinY, y);
+        componentMaxX = Math.max(componentMaxX, x);
+        componentMaxY = Math.max(componentMaxY, y);
         const neighbors = [
           x > 0 ? current - 1 : -1,
           x + 1 < decoded.width ? current + 1 : -1,
@@ -556,33 +576,66 @@ export async function placeCutoutOnWhite(
           queue[write++] = next;
         }
       }
-      const componentX = xTotal / component.length;
-      const componentY = yTotal / component.length;
-      const centerWeight = 1.35 - 0.35 * Math.min(
-        1,
-        Math.hypot(componentX - centerX, componentY - centerY) / maxCenterDistance
-      );
-      const score = component.length * centerWeight;
-      if (score > selectedScore) {
-        selectedScore = score;
-        selected = component;
-      }
+      components.push({
+        pixels: component,
+        minX: componentMinX,
+        minY: componentMinY,
+        maxX: componentMaxX,
+        maxY: componentMaxY,
+        centerX: xTotal / component.length,
+        centerY: yTotal / component.length
+      });
     }
 
-    if (selected.length === 0) throw new Error('Модель не смогла отделить товар от фона');
+    const minimumComponentPixels = Math.max(4, Math.floor(pixelCount * 0.00025));
+    const maximumAnchorDistance = Math.max(decoded.width, decoded.height) * 0.35;
+    const primary = components
+      .filter((component) => (
+        component.pixels.length >= minimumComponentPixels
+        && Math.hypot(component.centerX - centerX, component.centerY - centerY) <= maximumAnchorDistance
+      ))
+      .sort((left, right) => {
+        const leftDistance = Math.hypot(left.centerX - centerX, left.centerY - centerY);
+        const rightDistance = Math.hypot(right.centerX - centerX, right.centerY - centerY);
+        const leftScore = left.pixels.length / (1 + leftDistance * 8 / Math.min(decoded.width, decoded.height));
+        const rightScore = right.pixels.length / (1 + rightDistance * 8 / Math.min(decoded.width, decoded.height));
+        return rightScore - leftScore;
+      })[0];
+
+    if (!primary) {
+      throw new Error('Товар не найден в центре кадра. Поместите весь товар в рамку и снимите ещё раз.');
+    }
+
+    const connectionMargin = Math.max(3, Math.round(Math.min(decoded.width, decoded.height) * 0.08));
+    const primaryWidth = primary.maxX - primary.minX + 1;
+    const primaryHeight = primary.maxY - primary.minY + 1;
+    const selectedComponents = components.filter((component) => {
+      if (component === primary) return true;
+      if (component.pixels.length < minimumComponentPixels) return false;
+      const gapX = Math.max(primary.minX - component.maxX - 1, component.minX - primary.maxX - 1, 0);
+      const gapY = Math.max(primary.minY - component.maxY - 1, component.minY - primary.maxY - 1, 0);
+      const alignedWithProduct = component.centerX >= primary.minX - primaryWidth * 0.35
+        && component.centerX <= primary.maxX + primaryWidth * 0.35
+        && component.centerY >= primary.minY - primaryHeight * 0.35
+        && component.centerY <= primary.maxY + primaryHeight * 0.35;
+      return alignedWithProduct && Math.hypot(gapX, gapY) <= connectionMargin;
+    });
+
     const selectedMask = new Uint8Array(pixelCount);
     let minX = decoded.width;
     let minY = decoded.height;
     let maxX = 0;
     let maxY = 0;
-    for (const index of selected) {
-      selectedMask[index] = 1;
-      const x = index % decoded.width;
-      const y = Math.floor(index / decoded.width);
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
+    for (const component of selectedComponents) {
+      for (const index of component.pixels) {
+        selectedMask[index] = 1;
+        const x = index % decoded.width;
+        const y = Math.floor(index / decoded.width);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
     }
 
     for (let index = 0; index < pixelCount; index += 1) {
@@ -593,7 +646,7 @@ export async function placeCutoutOnWhite(
       }
       const originalAlpha = sourcePixels.data[alphaOffset];
       sourcePixels.data[alphaOffset] = Math.round(
-        clampUnit((originalAlpha - alphaThreshold) / (255 - alphaThreshold)) * 255
+        clampUnit((originalAlpha - 48) / (255 - 48)) * 255
       );
     }
     sourceContext.clearRect(0, 0, decoded.width, decoded.height);
@@ -626,7 +679,7 @@ export async function placeCutoutOnWhite(
       outputWidth,
       outputHeight
     );
-    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.97);
     return new File([blob], whiteBackgroundFileName(originalName), {
       type: 'image/jpeg',
       lastModified: Date.now()
