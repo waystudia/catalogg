@@ -7,6 +7,7 @@ import {
   MapPin,
   Plus,
   Search,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Trash2,
@@ -19,14 +20,42 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { createClientSignup, getClients, getPlatformUserDirectory } from '../../shared/api/clientsApi';
 import { getDrivers } from '../../shared/api/driversApi';
-import { deletePlatformUser, type PlatformUserDeletionTarget } from '../../shared/api/platformUsersApi';
+import {
+  deletePlatformUser,
+  getPlatformLegalConsentHistory,
+  type PlatformLegalConsentRecord,
+  type PlatformLegalConsentSubject,
+  type PlatformUserDeletionTarget
+} from '../../shared/api/platformUsersApi';
 import type { PlatformClient, PlatformDriver, PlatformUserDirectoryItem } from '../../shared/api/platformTypes';
 import { downloadCsv, downloadXlsx, type ExportCell } from '../../shared/exportTable';
 import './platform-users.css';
 
 const formatMoney = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleDateString('ru-RU') : 'Нет заказов';
+const formatDateTime = (value: string | null) => value
+  ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })
+  : 'Не зафиксировано';
 type UserGroup = 'restaurants' | 'drivers' | 'clients';
+
+const legalDocumentLabels: Record<string, string> = {
+  user_agreement: 'Пользовательское соглашение',
+  client_consent: 'Согласие на обработку персональных данных',
+  advertising_consent: 'Согласие на рекламные сообщения',
+  order_transfer_consent: 'Передача данных бизнесу и водителю',
+  restaurant_consent: 'Согласие представителя бизнеса',
+  restaurant_offer: 'Оферта для бизнеса',
+  driver_consent: 'Согласие водителя',
+  driver_offer: 'Оферта для водителя'
+};
+
+const legalSourceLabels: Record<string, string> = {
+  client_registration: 'Регистрация',
+  checkout_current_version: 'Оформление заказа',
+  order_checkout: 'Первое оформление заказа',
+  restaurant_activation: 'Активация бизнеса',
+  driver_activation: 'Активация водителя'
+};
 
 const exportHeaders = [
   'Имя',
@@ -58,6 +87,7 @@ const makeExportRows = (users: PlatformUserDirectoryItem[]): ExportCell[][] => u
 
 type PlatformAccountListItem = {
   id: string;
+  legalSubjectId: string;
   kind: 'restaurant' | 'driver';
   name: string;
   contact: string;
@@ -68,6 +98,7 @@ type PlatformAccountListItem = {
 
 const mapRestaurantAccount = (restaurant: PlatformClient): PlatformAccountListItem => ({
   id: restaurant.id,
+  legalSubjectId: restaurant.catalogId,
   kind: 'restaurant',
   name: restaurant.companyName,
   contact: restaurant.phone || restaurant.email || 'Контакт не указан',
@@ -78,6 +109,7 @@ const mapRestaurantAccount = (restaurant: PlatformClient): PlatformAccountListIt
 
 const mapDriverAccount = (driver: PlatformDriver): PlatformAccountListItem => ({
   id: driver.id,
+  legalSubjectId: driver.id,
   kind: 'driver',
   name: driver.name,
   contact: driver.phone || driver.email || 'Контакт не указан',
@@ -86,12 +118,79 @@ const mapDriverAccount = (driver: PlatformDriver): PlatformAccountListItem => ({
   createdAt: driver.createdAt
 });
 
+function LegalConsentHistory({
+  subject,
+  getHistory
+}: {
+  subject: PlatformLegalConsentSubject;
+  getHistory: (subject: PlatformLegalConsentSubject) => Promise<PlatformLegalConsentRecord[]>;
+}) {
+  const historyQuery = useQuery({
+    queryKey: ['platform-legal-consent-history', subject],
+    queryFn: () => getHistory(subject),
+    staleTime: 15_000
+  });
+
+  return (
+    <article className="platform-user-history platform-user-legal-history">
+      <h3><ShieldCheck /> История согласий</h3>
+      {historyQuery.isLoading && <p>Загружаем историю…</p>}
+      {historyQuery.isError && <p>Не удалось загрузить историю согласий.</p>}
+      {!historyQuery.isLoading && !historyQuery.isError && (historyQuery.data?.length ?? 0) === 0 && (
+        <p>Серверные подтверждения для этого пользователя не зафиксированы.</p>
+      )}
+      {historyQuery.data?.map((record) => (
+        <div key={record.id}>
+          <span>
+            <b>{legalDocumentLabels[record.documentCode] ?? record.documentCode}</b>
+            <small>
+              Версия {record.documentVersion} · {legalSourceLabels[record.source] ?? record.source}
+              {record.orderId ? ` · заказ ${record.orderId.slice(0, 8)}` : ''}
+            </small>
+            <small>SHA-256: {record.documentSha256.slice(0, 12)}…</small>
+          </span>
+          <strong className={record.granted && !record.revokedAt ? 'is-current' : 'is-revoked'}>
+            {record.revokedAt ? `Отозвано ${formatDateTime(record.revokedAt)}` : record.granted ? `Принято ${formatDateTime(record.grantedAt ?? record.createdAt)}` : `Отклонено ${formatDateTime(record.createdAt)}`}
+          </strong>
+        </div>
+      ))}
+    </article>
+  );
+}
+
+function LegalConsentHistoryDialog({
+  title,
+  subject,
+  getHistory,
+  onClose
+}: {
+  title: string;
+  subject: PlatformLegalConsentSubject;
+  getHistory: (subject: PlatformLegalConsentSubject) => Promise<PlatformLegalConsentRecord[]>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="platform-user-modal" role="dialog" aria-modal="true" aria-labelledby="platform-legal-history-title">
+      <button type="button" className="platform-user-modal__backdrop" onClick={onClose} aria-label="Закрыть историю согласий" />
+      <section>
+        <header>
+          <div><small>Юридические подтверждения</small><h2 id="platform-legal-history-title">{title}</h2></div>
+          <button type="button" onClick={onClose} aria-label="Закрыть"><X /></button>
+        </header>
+        <LegalConsentHistory subject={subject} getHistory={getHistory} />
+      </section>
+    </div>
+  );
+}
+
 function PlatformAccountList({
   accounts,
-  onDelete
+  onDelete,
+  onOpenLegal
 }: {
   accounts: PlatformAccountListItem[];
   onDelete: (account: PlatformAccountListItem) => void;
+  onOpenLegal: (account: PlatformAccountListItem) => void;
 }) {
   return (
     <section className="platform-user-list platform-account-list">
@@ -105,7 +204,10 @@ function PlatformAccountList({
           <span>{account.location || 'Не указано'}</span>
           <strong>{account.status}</strong>
           <span>{formatDate(account.createdAt)}</span>
-          <button type="button" onClick={() => onDelete(account)} aria-label={`Удалить пользователя ${account.name}`}><Trash2 /></button>
+          <span className="platform-account-list__actions">
+            <button type="button" onClick={() => onOpenLegal(account)} aria-label={`История согласий ${account.name}`}><ShieldCheck /></button>
+            <button type="button" onClick={() => onDelete(account)} aria-label={`Удалить пользователя ${account.name}`}><Trash2 /></button>
+          </span>
         </article>
       ))}
       {accounts.length === 0 && <p>В этой группе пользователи не найдены.</p>}
@@ -115,10 +217,12 @@ function PlatformAccountList({
 
 function PlatformUserDetails({
   user,
+  getHistory,
   onClose,
   onDelete
 }: {
   user: PlatformUserDirectoryItem;
+  getHistory: (subject: PlatformLegalConsentSubject) => Promise<PlatformLegalConsentRecord[]>;
   onClose: () => void;
   onDelete: () => void;
 }) {
@@ -171,6 +275,7 @@ function PlatformUserDetails({
             ))
           )}
         </article>
+        <LegalConsentHistory subject={{ kind: 'client', phone: user.phone }} getHistory={getHistory} />
       </section>
     </div>
   );
@@ -217,9 +322,11 @@ function DeleteUserDialog({
 }
 
 export function PlatformUsersPage({
-  deleteUser = deletePlatformUser
+  deleteUser = deletePlatformUser,
+  getLegalHistory = getPlatformLegalConsentHistory
 }: {
   deleteUser?: (target: PlatformUserDeletionTarget) => Promise<void>;
+  getLegalHistory?: (subject: PlatformLegalConsentSubject) => Promise<PlatformLegalConsentRecord[]>;
 } = {}) {
   const queryClient = useQueryClient();
   const restaurantsQuery = useQuery({
@@ -247,6 +354,7 @@ export function PlatformUsersPage({
   const [minimumSpent, setMinimumSpent] = useState('');
   const [maximumSpent, setMaximumSpent] = useState('');
   const [selectedUser, setSelectedUser] = useState<PlatformUserDirectoryItem | null>(null);
+  const [selectedLegalAccount, setSelectedLegalAccount] = useState<PlatformAccountListItem | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -423,13 +531,31 @@ export function PlatformUsersPage({
         </section>
       )}
       {activeGroup === 'restaurants' && !restaurantsQuery.isLoading && !restaurantsQuery.isError && (
-        <PlatformAccountList accounts={filteredRestaurants.map(mapRestaurantAccount)} onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })} />
+        <PlatformAccountList
+          accounts={filteredRestaurants.map(mapRestaurantAccount)}
+          onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })}
+          onOpenLegal={setSelectedLegalAccount}
+        />
       )}
       {activeGroup === 'drivers' && !driversQuery.isLoading && !driversQuery.isError && (
-        <PlatformAccountList accounts={filteredDrivers.map(mapDriverAccount)} onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })} />
+        <PlatformAccountList
+          accounts={filteredDrivers.map(mapDriverAccount)}
+          onDelete={(account) => setPendingDeletion({ kind: account.kind, id: account.id, name: account.name })}
+          onOpenLegal={setSelectedLegalAccount}
+        />
       )}
 
-      {selectedUser && <PlatformUserDetails user={selectedUser} onClose={() => setSelectedUser(null)} onDelete={() => setPendingDeletion({ kind: 'client', id: selectedUser.id, name: selectedUser.name })} />}
+      {selectedUser && <PlatformUserDetails user={selectedUser} getHistory={getLegalHistory} onClose={() => setSelectedUser(null)} onDelete={() => setPendingDeletion({ kind: 'client', id: selectedUser.id, name: selectedUser.name })} />}
+      {selectedLegalAccount && (
+        <LegalConsentHistoryDialog
+          title={selectedLegalAccount.name}
+          subject={selectedLegalAccount.kind === 'restaurant'
+            ? { kind: 'restaurant', id: selectedLegalAccount.legalSubjectId }
+            : { kind: 'driver', id: selectedLegalAccount.legalSubjectId }}
+          getHistory={getLegalHistory}
+          onClose={() => setSelectedLegalAccount(null)}
+        />
+      )}
       {addOpen && (
         <div className="platform-user-modal platform-user-add-modal" role="dialog" aria-modal="true" aria-labelledby="platform-user-add-title">
           <button type="button" className="platform-user-modal__backdrop" onClick={() => setAddOpen(false)} aria-label="Закрыть" />

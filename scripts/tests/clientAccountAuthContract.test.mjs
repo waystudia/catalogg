@@ -53,8 +53,8 @@ test('registration and checkout persist separate legal evidence before creating 
   assert.match(legacyCheckoutSource, /await recordClientRegistrationLegalChoices\(sessionToken, \{/);
   assert.match(legacyCheckoutSource, /acceptedAgreement,/);
   assert.match(legacyCheckoutSource, /acceptedPersonalData,/);
-  assert.match(legacyCheckoutSource, /generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData/);
-  assert.match(legacyCheckoutSource, /orderTransferConfirmed: acceptedOrderTransfer/);
+  assert.match(legacyCheckoutSource, /generalConsentConfirmed: clientLegalState !== null/);
+  assert.match(legacyCheckoutSource, /orderTransferConfirmed: clientLegalState !== null/);
 
   const loginIndex = legacyCheckoutSource.indexOf('session = await loginClientAccount');
   const legalIndex = legacyCheckoutSource.indexOf('await recordClientRegistrationLegalChoices(sessionToken');

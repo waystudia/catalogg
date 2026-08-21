@@ -16,6 +16,10 @@ const checkoutSource = await readFile(
   new URL('../../src/features/checkout/CheckoutScreen.tsx', import.meta.url),
   'utf8'
 );
+const checkoutLegalSource = await readFile(
+  new URL('../../src/features/checkout/CheckoutLegalConsents.tsx', import.meta.url),
+  'utf8'
+);
 const clientPlatformSource = await readFile(
   new URL('../../src/pages/client-platform/ClientPlatformApp.tsx', import.meta.url),
   'utf8'
@@ -149,7 +153,7 @@ test('order submission explains every missing field and remains clickable for va
   assert.match(checkoutSource, /Чтобы отправить заказ:/);
   assert.doesNotMatch(checkoutSource, /disabled=\{[^}]*!restaurant\.whatsapp/);
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
-  assert.match(checkoutSource, /if \(\(!generalLegalCurrent && \(!acceptedAgreement \|\| !acceptedPersonalData\)\) \|\| !acceptedOrderTransfer\)/);
+  assert.match(checkoutSource, /if \(legalAcceptanceMissing\)/);
 });
 
 test('successful checkout delegates immutable consent evidence to secure order creation before status', () => {
@@ -158,7 +162,7 @@ test('successful checkout delegates immutable consent evidence to secure order c
   const orderPayloadIndex = checkoutSource.indexOf('const orderPayload: CreateRestaurantOrderFromCartInput');
   assert.ok(saveProfileIndex > 0 && saveProfileIndex < orderPayloadIndex);
 
-  const secureConsentIndex = checkoutSource.indexOf('generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData');
+  const secureConsentIndex = checkoutSource.indexOf('generalConsentConfirmed: clientLegalState !== null');
   const clearIndex = checkoutSource.indexOf('clearCart();');
   const submitIndex = checkoutSource.indexOf('onSubmitOrder(orderId);');
   const whatsappIndex = checkoutSource.indexOf('if (whatsappHref) openCreatedOrderWhatsapp(whatsappHref);');
@@ -169,10 +173,12 @@ test('successful checkout delegates immutable consent evidence to secure order c
   assert.ok(whatsappIndex > submitIndex);
 });
 
-test('general consent state comes from the server and never implies order-transfer consent', () => {
+test('each current consent state comes from the server and hides only its own checkbox', () => {
   assert.match(checkoutSource, /getCurrentClientLegalState/);
   assert.match(checkoutSource, /useState\(false\)/);
-  assert.match(checkoutSource, /checked=\{acceptedOrderTransfer\}/);
+  assert.match(checkoutSource, /hasMissingCheckoutLegalAcceptance/);
+  assert.match(checkoutLegalSource, /showOrderTransfer = !state\.orderTransferConsentCurrent/);
+  assert.match(checkoutLegalSource, /checked=\{choices\.acceptedOrderTransfer\}/);
   assert.doesNotMatch(checkoutSource, /recordOrderConsent/);
   assert.doesNotMatch(clientPlatformSource, /Согласия подтверждены \{displayConsentDate\}/);
 });

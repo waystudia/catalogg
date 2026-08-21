@@ -341,7 +341,7 @@
 .platform-account-list > header,
 .platform-account-list > article {
   display: grid;
-  grid-template-columns: minmax(210px, 1.35fr) minmax(110px, 0.65fr) minmax(90px, 0.5fr) minmax(105px, 0.55fr) 40px;
+  grid-template-columns: minmax(210px, 1.35fr) minmax(110px, 0.65fr) minmax(90px, 0.5fr) minmax(105px, 0.55fr) 80px;
   align-items: center;
   gap: 10px;
 }
@@ -356,7 +356,7 @@
   border-bottom: 0;
 }
 
-.platform-account-list > article > span:not(.platform-user-identity),
+.platform-account-list > article > span:not(.platform-user-identity):not(.platform-account-list__actions),
 .platform-account-list > article > strong {
   overflow: hidden;
   font-size: 12px;
@@ -364,7 +364,7 @@
   white-space: nowrap;
 }
 
-.platform-account-list > article > button,
+.platform-account-list__actions > button,
 .platform-user-modal__actions > button:first-child {
   display: grid;
   width: 36px;
@@ -376,10 +376,22 @@
   color: #d92d20;
 }
 
-.platform-account-list > article > button svg,
+.platform-account-list__actions > button svg,
 .platform-user-modal__actions > button:first-child svg {
   width: 17px;
   height: 17px;
+}
+
+.platform-account-list__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.platform-account-list__actions > button:first-child {
+  border-color: #d9d6fe;
+  background: #f4f3ff;
+  color: var(--platform-accent);
 }
 
 .platform-user-modal {
@@ -487,6 +499,34 @@
 
 .platform-user-history {
   margin-top: 10px;
+}
+
+.platform-user-legal-history h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.platform-user-legal-history h3 svg {
+  width: 18px;
+  height: 18px;
+  color: var(--platform-accent);
+}
+
+.platform-user-legal-history > div {
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.platform-user-legal-history > div > strong {
+  max-width: 210px;
+  color: #079455;
+  font-size: 11px;
+  text-align: right;
+}
+
+.platform-user-legal-history > div > strong.is-revoked {
+  color: #d92d20;
 }
 
 .platform-user-add-modal > section {
@@ -694,11 +734,11 @@
   }
 
   .platform-account-list > article {
-    grid-template-columns: minmax(0, 1fr) 36px;
+    grid-template-columns: minmax(0, 1fr) 80px;
     min-height: 62px;
   }
 
-  .platform-account-list > article > span:not(.platform-user-identity),
+  .platform-account-list > article > span:not(.platform-user-identity):not(.platform-account-list__actions),
   .platform-account-list > article > strong {
     display: none;
   }

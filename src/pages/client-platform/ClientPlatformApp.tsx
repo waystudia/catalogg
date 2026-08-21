@@ -96,6 +96,11 @@ import { initializePostOrderAddon } from '../../shared/api/combinedOrderApi';
 import { CombinedOrderAddonPanel } from '../../features/combined-order/CombinedOrderAddonPanel';
 import { CombinedOrderSummaryPanel } from '../../features/combined-order/CombinedOrderSummaryPanel';
 import { ClientNotificationCenter } from '../../features/client-notifications/ClientNotificationCenter';
+import { CheckoutLegalConsents } from '../../features/checkout/CheckoutLegalConsents';
+import {
+  emptyClientLegalState,
+  hasMissingCheckoutLegalAcceptance
+} from '../../features/checkout/checkoutLegalState';
 import {
   buildClientAuthPath,
   getCurrentClientLegalState,
@@ -2366,7 +2371,7 @@ function PaymentConfirmPage({
   const dishes = getRestaurantDishes(snapshot, restaurant.slug);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
-  const [generalLegalCurrent, setGeneralLegalCurrent] = useState(false);
+  const [clientLegalState, setClientLegalState] = useState<typeof emptyClientLegalState | null>(null);
   const [acceptedAgreement, setAcceptedAgreement] = useState(false);
   const [acceptedPersonalData, setAcceptedPersonalData] = useState(false);
   const [acceptedOrderTransfer, setAcceptedOrderTransfer] = useState(false);
@@ -2390,7 +2395,7 @@ function PaymentConfirmPage({
   useEffect(() => {
     let active = true;
     void getCurrentClientLegalState().then((state) => {
-      if (active) setGeneralLegalCurrent(state.userAgreementCurrent && state.clientConsentCurrent);
+      if (active) setClientLegalState(state);
     });
     return () => { active = false; };
   }, []);
@@ -2418,8 +2423,18 @@ function PaymentConfirmPage({
     return orderAttemptRef.current.idempotencyKey;
   };
 
+  const legalChoices = {
+    acceptedAgreement,
+    acceptedPersonalData,
+    acceptedAdvertising: false,
+    acceptedOrderTransfer
+  };
+  const legalAcceptanceMissing = clientLegalState
+    ? hasMissingCheckoutLegalAcceptance(clientLegalState, legalChoices)
+    : true;
+
   const confirmPayment = async () => {
-    if ((!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)) || !acceptedOrderTransfer) {
+    if (legalAcceptanceMissing) {
       setOrderError('Подтвердите обязательные документы отдельно перед оформлением заказа.');
       return;
     }
@@ -2440,8 +2455,12 @@ function PaymentConfirmPage({
         deliveryFee: summary.deliveryFee,
         total: summary.total,
         idempotencyKey: getOrderIdempotencyKey(),
-        generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData,
-        orderTransferConfirmed: acceptedOrderTransfer
+        generalConsentConfirmed: clientLegalState !== null
+          && (clientLegalState.userAgreementCurrent || acceptedAgreement)
+          && (clientLegalState.clientConsentCurrent || acceptedPersonalData),
+        orderTransferConfirmed: clientLegalState !== null
+          && !clientLegalState.orderTransferConsentCurrent
+          && acceptedOrderTransfer
       });
       orderId = requireSavedRestaurantOrderId(remoteOrderId);
     } catch (error) {
@@ -2494,26 +2513,18 @@ function PaymentConfirmPage({
             <small>{paymentSettings.paymentComment}</small>
           </section>
         )}
-        <section className="legal-checkboxes" aria-label="Согласия для заказа">
-          {!generalLegalCurrent && (
-            <>
-              <label className="legal-checkbox">
-                <input type="checkbox" checked={acceptedAgreement} onChange={(event) => setAcceptedAgreement(event.target.checked)} />
-                <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span>
-              </label>
-              <label className="legal-checkbox">
-                <input type="checkbox" checked={acceptedPersonalData} onChange={(event) => setAcceptedPersonalData(event.target.checked)} />
-                <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
-              </label>
-            </>
-          )}
-          <label className="legal-checkbox">
-            <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
-            <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные выбранному ресторану и назначенному водителю</a> для исполнения заказа.</span>
-          </label>
-        </section>
+        <CheckoutLegalConsents
+          state={clientLegalState}
+          choices={legalChoices}
+          businessLabel="выбранному ресторану"
+          onChange={(choice, value) => {
+            if (choice === 'acceptedAgreement') setAcceptedAgreement(value);
+            if (choice === 'acceptedPersonalData') setAcceptedPersonalData(value);
+            if (choice === 'acceptedOrderTransfer') setAcceptedOrderTransfer(value);
+          }}
+        />
         {orderError && <small className="form-error">{orderError}</small>}
-        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting || (!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)) || !acceptedOrderTransfer}>
+        <button className="restaurant-primary-button" type="button" onClick={() => void confirmPayment()} disabled={summary.quantity === 0 || isSubmitting || legalAcceptanceMissing}>
           {isSubmitting ? 'Отправляем заказ...' : draft.paymentMethod === 'cash' ? 'Подтвердить заказ' : 'Я оплатил(а) заказ'}
         </button>
       </main>

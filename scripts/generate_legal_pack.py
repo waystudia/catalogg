@@ -28,6 +28,8 @@ OUT = ROOT / "docs" / "legal"
 PUBLIC = ROOT / "public" / "legal"
 DATE = "18 августа 2026 года"
 VERSION = "3.0"
+TRANSFER_CONSENT_VERSION = "3.1"
+TRANSFER_CONSENT_DATE = "21 августа 2026 года"
 OPERATOR = "Абдулкадыров Дук-Ваха Магомедович"
 ADDRESS = "Чеченская Республика, Курчалоевский район, село Цоци-Юрт, улица Т. Л. Алиева, дом 69"
 EMAIL = "privacy@wayyaam.ru"
@@ -361,14 +363,20 @@ AD_CONSENT = header("Согласие на получение рекламных
 «Согласен(на) получать рекламные и акционные уведомления WayYaam и ресторанов выбранным каналом. Согласие добровольно; могу отозвать его в любой момент».
 """
 
-TRANSFER_CONSENT = header("Согласие на передачу данных ресторану и водителю") + f"""
-## 1. Конкретная передача
+TRANSFER_CONSENT = header(
+    "Согласие на передачу данных бизнесу и водителю",
+    version=TRANSFER_CONSENT_VERSION,
+    date=TRANSFER_CONSENT_DATE,
+) + f"""
+## 1. Передача при заказах через аккаунт
 
-При подтверждении заказа я разрешаю оператору передать выбранному мной ресторану: имя, телефон, состав/стоимость заказа, способ оплаты, комментарий, адрес и координаты при доставке. Назначенному водителю передаются: имя, телефон, адрес/координаты, ориентир, комментарий, сведения о получении заказа и необходимый статус оплаты без банковских реквизитов клиента.
+Я разрешаю оператору при оформлении мной текущего и последующих заказов через мой аккаунт передавать данные только выбранному мной бизнесу и назначенному для конкретной доставки водителю. Бизнесу передаются: имя, телефон, состав/стоимость заказа, способ оплаты, комментарий, адрес и координаты при доставке. Назначенному водителю передаются: имя, телефон, адрес/координаты, ориентир, комментарий, сведения о получении заказа и необходимый статус оплаты без банковских реквизитов клиента.
+
+Согласие действует до его отзыва либо до изменения целей, состава данных, категорий получателей или редакции документа. При таком изменении WayYaam запрашивает новое подтверждение. Наличие согласия не открывает данные всем бизнесам или водителям: каждый получатель видит их только в связи со своим заказом или назначенной доставкой.
 
 ## 2. Цель и срок
 
-Цель - принять, приготовить, доставить заказ и решить связанные обращения. Бизнесу и водителю запрещено использовать данные для собственной рекламы или посторонних целей. Рабочий доступ водителя к контактам и координатам клиента прекращается сразу после завершения или отмены доставки; ограниченные технические события доступны только уполномоченной поддержке в пределах срока хранения.
+Цель - принять, собрать или приготовить, выдать и доставить заказ, а также решить связанные обращения. Бизнесу и водителю запрещено использовать данные для собственной рекламы или посторонних целей. Рабочий доступ водителя к контактам и координатам клиента прекращается сразу после завершения или отмены доставки; ограниченные технические события доступны только уполномоченной поддержке в пределах срока хранения.
 
 ## 3. WhatsApp и иные каналы
 
@@ -376,7 +384,7 @@ TRANSFER_CONSENT = header("Согласие на передачу данных �
 
 ## 4. Отзыв
 
-До передачи согласие можно отозвать без последствий, кроме невозможности выполнить доставку. После передачи отзыв прекращает будущую необязательную обработку, но не отменяет законную обработку уже принятого заказа. Обращение: `{EMAIL}`.
+Согласие можно отозвать через `{EMAIL}`. Отзыв прекращает передачу для будущих заказов и иную будущую необязательную обработку, но не отменяет законную обработку уже принятого заказа. После отзыва оформление нового заказа, которому необходима такая передача, потребует нового согласия.
 """
 
 
@@ -882,10 +890,11 @@ CHECKBOXES = header("Тексты чекбоксов и юридических �
 - Необязательно, не отмечено: «Согласен(на) получать [рекламные и акционные уведомления](/legal/07-advertising-consent.html). Отказ не влияет на регистрацию».
 - Рядом: «[Политика обработки персональных данных](/legal/01-personal-data-policy.html)».
 
-## 2. Оформление каждого заказа
+## 2. Оформление заказа при отсутствии актуального согласия
 
-- Обязательно, не отмечено: «Даю [согласие на передачу данных выбранному ресторану и назначенному водителю](/legal/08-order-data-transfer-consent.html) для исполнения этого заказа».
+- Обязательно, не отмечено: «Даю [согласие на передачу данных выбранному бизнесу и назначенному водителю](/legal/08-order-data-transfer-consent.html) для исполнения текущего и последующих заказов через мой аккаунт».
 - Обязательно при использовании согласия как основания: «Подтверждаю [согласие клиента](/legal/04-client-consent.html) в части данных этого заказа».
+- Если актуальные редакции уже приняты и не отозваны, повторные checkbox и кнопки согласия не показываются. Они появляются снова после отзыва или публикации новой редакции.
 - Геолокация: «Определить моё местоположение. Точка будет использована для этой доставки; адрес можно ввести вручную».
 - До перехода в WhatsApp: «Заказ будет открыт в WhatsApp, иностранном сервисе. Не продолжайте, если не согласны; оформите заказ внутри WayYaam или обратитесь в поддержку `{SUPPORT_EMAIL}`».
 
@@ -911,7 +920,7 @@ CHECKBOXES = header("Тексты чекбоксов и юридических �
 
 ## 6. Требования к доказательству
 
-Ни один обязательный checkbox не предустановлен. Нельзя объединять оферту, персональные данные и рекламу в один checkbox. Сервер сохраняет subject/document/version/hash/time/source/granted/revoked; localStorage не является достаточным доказательством. Текст и ссылка доступны до действия и с клавиатуры.
+Ни один обязательный checkbox не предустановлен. Нельзя объединять оферту, персональные данные и рекламу в один checkbox. Сервер сохраняет subject/document/version/hash/time/source/granted/revoked; localStorage не является достаточным доказательством. Текст и ссылка доступны до действия и с клавиатуры. Повторное подтверждение одной и той же действующей редакции не требуется.
 """
 
 
@@ -946,6 +955,11 @@ def inline_html(text: str) -> str:
     escaped = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', escaped)
     escaped = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", escaped)
     return escaped
+
+
+def document_release(markdown: str) -> tuple[str, str]:
+    match = re.search(r"\*\*Редакция:\*\*\s+([^\s]+)\s+от\s+(.+)", markdown)
+    return (match.group(1), match.group(2).strip()) if match else (VERSION, DATE)
 
 
 def markdown_to_html(markdown: str, title: str) -> str:
@@ -1008,6 +1022,7 @@ def markdown_to_html(markdown: str, title: str) -> str:
             out.append(f"<p>{inline_html(line)}</p>")
     flush_table(); close_lists()
     body = "\n".join(out)
+    document_version, document_date = document_release(markdown)
     return f"""<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{html.escape(title)} - WayYaam</title>
@@ -1021,7 +1036,7 @@ table{{border-collapse:collapse;width:100%;font-size:14px;margin:16px 0}} th,td{
 a{{color:#096b58}} code{{background:#eef2f1;padding:1px 4px;border-radius:4px}} footer{{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}}
 @media(max-width:700px){{article{{margin:0;padding:28px 18px;border-radius:0}}h1{{font-size:26px}}table{{display:block;overflow:auto}}}}
 @media print{{body{{background:#fff}}article{{max-width:none;margin:0;padding:0;box-shadow:none}}}}
-</style></head><body><article>{body}<footer>WayYaam · редакция {VERSION} от {DATE} · {EMAIL}</footer></article></body></html>"""
+</style></head><body><article>{body}<footer>WayYaam · редакция {document_version} от {document_date} · {EMAIL}</footer></article></body></html>"""
 
 
 def set_cell_margins(cell, top=90, start=90, bottom=90, end=90):
@@ -1055,7 +1070,7 @@ def add_runs(paragraph, text: str):
             paragraph.add_run(part)
 
 
-def configure_doc(doc: Document, title: str):
+def configure_doc(doc: Document, title: str, version: str):
     section = doc.sections[0]
     section.top_margin = Cm(2.1); section.bottom_margin = Cm(2.1)
     section.left_margin = Cm(2.2); section.right_margin = Cm(2.2)
@@ -1068,12 +1083,13 @@ def configure_doc(doc: Document, title: str):
         style.paragraph_format.space_before = Pt(12); style.paragraph_format.space_after = Pt(6); style.paragraph_format.keep_with_next = True
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    footer.add_run(f"WayYaam · {VERSION} · {EMAIL}").font.size = Pt(8)
+    footer.add_run(f"WayYaam · {version} · {EMAIL}").font.size = Pt(8)
     props = doc.core_properties; props.title = title; props.subject = "Комплект документов WayYaam"; props.author = OPERATOR
 
 
 def markdown_to_docx(markdown: str, title: str, path: Path):
-    doc = Document(); configure_doc(doc, title)
+    document_version, _ = document_release(markdown)
+    doc = Document(); configure_doc(doc, title, document_version)
     lines = markdown.splitlines(); idx = 0
     while idx < len(lines):
         line = lines[idx].strip()

@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { legalDocuments } from '../../shared/legalDocuments';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
 import { useClientPlatformStore } from '../client-platform/store';
 import type { ClientAddress, ClientOrder } from '../client-platform/types';
@@ -97,6 +96,8 @@ import {
 import { clientPasskeyIsSupported } from '../../shared/api/clientPasskeyApi';
 import { ClientPasskeyRegistrationDialog } from '../client-pairing/ClientPairing';
 import { qualifiesForFreeDelivery } from './deliveryPricing';
+import { CheckoutLegalConsents } from './CheckoutLegalConsents';
+import { emptyClientLegalState, hasMissingCheckoutLegalAcceptance } from './checkoutLegalState';
 
 const DEFAULT_DELIVERY_LOCATION = { lat: 43.3184, lng: 45.6927 };
 const DEFAULT_FALLBACK_DELIVERY_FEE = 120;
@@ -148,7 +149,7 @@ export function CheckoutScreen({
   const total = selectCartTotal(items);
   const cartCount = selectCartCount(items);
   const [orderComment, setOrderComment] = useState('');
-  const [generalLegalCurrent, setGeneralLegalCurrent] = useState(false);
+  const [clientLegalState, setClientLegalState] = useState<typeof emptyClientLegalState | null>(null);
   const [acceptedAgreement, setAcceptedAgreement] = useState(false);
   const [acceptedPersonalData, setAcceptedPersonalData] = useState(false);
   const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
@@ -436,14 +437,12 @@ export function CheckoutScreen({
 
     const restoreSession = () => {
       void restoreClientAccountSession()
-        .then((session) => {
+        .then(async (session) => {
           if (!isMounted) return;
           setHasClientSession(Boolean(session));
-          if (session) {
-            void getCurrentClientLegalState().then((state) => {
-              if (isMounted) setGeneralLegalCurrent(state.userAgreementCurrent && state.clientConsentCurrent);
-            });
-          }
+          const legalState = session ? await getCurrentClientLegalState() : emptyClientLegalState;
+          if (!isMounted) return;
+          setClientLegalState(legalState);
           if (session) {
             saveClientProfile({ name: session.name, phone: session.phone });
             setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
@@ -552,15 +551,16 @@ export function CheckoutScreen({
     window.open(restaurantMapUrl, '_blank', 'noopener,noreferrer');
   };
   const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
+  const legalChoices = { acceptedAgreement, acceptedPersonalData, acceptedAdvertising, acceptedOrderTransfer };
+  const legalAcceptanceMissing = clientLegalState
+    ? hasMissingCheckoutLegalAcceptance(clientLegalState, legalChoices)
+    : true;
   const checkoutBlockingReasons = [
     ...(items.length === 0 ? ['Добавьте хотя бы один товар.'] : []),
     ...(!clientName.trim() ? ['Введите имя.'] : []),
     ...(!isValidRussianClientPhone(clientPhone) ? ['Введите полный номер телефона.'] : []),
     ...(!isCheckoutAccountValid ? ['Введите пароль — минимум 6 символов.'] : []),
-    ...(!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)
-      ? ['Подтвердите соглашение и согласие на обработку данных отдельно.']
-      : []),
-    ...(!acceptedOrderTransfer ? ['Подтвердите передачу данных для этого заказа.'] : []),
+    ...(legalAcceptanceMissing ? ['Подтвердите только отсутствующие обязательные согласия.'] : []),
     ...(mode === 'delivery' && (deliveryLat === null || deliveryLng === null)
       ? ['Определите местоположение или выберите точку на карте.']
       : []),
@@ -1013,28 +1013,17 @@ export function CheckoutScreen({
         <div><strong>Данные используются для заказа</strong><span>Ознакомьтесь с условиями и подтвердите передачу исполнителям</span></div>
       </section>
 
-      <section className="legal-checkboxes" aria-label="Согласия для заказа">
-        {!generalLegalCurrent && (
-          <>
-            <label className="legal-checkbox">
-              <input type="checkbox" checked={acceptedAgreement} onChange={(event) => setAcceptedAgreement(event.target.checked)} />
-              <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">пользовательское соглашение</a>.</span>
-            </label>
-            <label className="legal-checkbox">
-              <input type="checkbox" checked={acceptedPersonalData} onChange={(event) => setAcceptedPersonalData(event.target.checked)} />
-              <span>Даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку персональных данных</a>.</span>
-            </label>
-            <label className="legal-checkbox">
-              <input type="checkbox" checked={acceptedAdvertising} onChange={(event) => setAcceptedAdvertising(event.target.checked)} />
-              <span>Согласен получать <a href={legalDocuments.advertisingConsent} target="_blank" rel="noreferrer">рекламные сообщения</a> (необязательно).</span>
-            </label>
-          </>
-        )}
-        <label className="legal-checkbox">
-          <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
-          <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные ресторану и назначенному водителю</a>.</span>
-        </label>
-      </section>
+      <CheckoutLegalConsents
+        state={clientLegalState}
+        choices={legalChoices}
+        businessLabel="ресторану"
+        onChange={(choice, value) => {
+          if (choice === 'acceptedAgreement') setAcceptedAgreement(value);
+          if (choice === 'acceptedPersonalData') setAcceptedPersonalData(value);
+          if (choice === 'acceptedAdvertising') setAcceptedAdvertising(value);
+          if (choice === 'acceptedOrderTransfer') setAcceptedOrderTransfer(value);
+        }}
+      />
 
       <section className="checkout-submit-card">
         {usesBankTransfer && (
@@ -1085,7 +1074,7 @@ export function CheckoutScreen({
               return;
             }
             if (!validateCheckoutContact()) return;
-            if ((!generalLegalCurrent && (!acceptedAgreement || !acceptedPersonalData)) || !acceptedOrderTransfer) {
+            if (legalAcceptanceMissing) {
               toast.error('Подтвердите обязательные документы отдельно.');
               return;
             }
@@ -1230,8 +1219,12 @@ export function CheckoutScreen({
               void createRestaurantOrderFromCart({
                 ...orderPayload,
                 idempotencyKey: getOrderIdempotencyKey(orderPayload),
-                generalConsentConfirmed: !generalLegalCurrent && acceptedAgreement && acceptedPersonalData,
-                orderTransferConfirmed: acceptedOrderTransfer
+                generalConsentConfirmed: clientLegalState !== null
+                  && (clientLegalState.userAgreementCurrent || acceptedAgreement)
+                  && (clientLegalState.clientConsentCurrent || acceptedPersonalData),
+                orderTransferConfirmed: clientLegalState !== null
+                  && !clientLegalState.orderTransferConsentCurrent
+                  && acceptedOrderTransfer
               })
                 .then((orderId) => {
                   if (orderId) {

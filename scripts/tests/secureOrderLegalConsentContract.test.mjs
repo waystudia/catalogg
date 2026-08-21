@@ -3,9 +3,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync('supabase/migrations/20260818080335_secure_order_access_and_legal_evidence.sql', 'utf8');
+const retainedConsentMigration = readFileSync('supabase/migrations/20260821042246_retain_current_client_legal_acceptance.sql', 'utf8');
 const clientApi = readFileSync('src/shared/api/clientPlatformApi.ts', 'utf8');
 const checkout = readFileSync('src/features/checkout/CheckoutScreen.tsx', 'utf8');
 const platformCheckout = readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
+const checkoutLegalConsents = readFileSync('src/features/checkout/CheckoutLegalConsents.tsx', 'utf8');
+const checkoutLegalState = readFileSync('src/features/checkout/checkoutLegalState.ts', 'utf8');
 
 test('legacy UUID-only order RPCs are revoked and the participant RPC derives access server-side', () => {
   assert.match(migration, /revoke all on function public\.get_public_restaurant_order_status\(uuid\)/i);
@@ -42,10 +45,25 @@ test('sensitive client tracking uses protected polling rather than direct table 
 test('all required confirmations are separate and unchecked by default', () => {
   for (const source of [checkout, platformCheckout]) {
     assert.match(source, /useState\(false\)/);
-    assert.match(source, /checked=\{acceptedAgreement\}/);
-    assert.match(source, /checked=\{acceptedPersonalData\}/);
-    assert.match(source, /checked=\{acceptedAdvertising\}/);
-    assert.match(source, /checked=\{acceptedOrderTransfer\}/);
+  }
+  for (const choice of ['acceptedAgreement', 'acceptedPersonalData', 'acceptedAdvertising', 'acceptedOrderTransfer']) {
+    assert.match(checkoutLegalConsents, new RegExp(`checked=\\{choices\\.${choice}\\}`));
+  }
+});
+
+test('current account consents are reused while revoked or new releases are requested again', () => {
+  assert.match(retainedConsentMigration, /target_order_transfer_version <> '3\.1'/);
+  assert.match(retainedConsentMigration, /bce5eb5088bbce6cda7b1f316d17955e7406803777eeeaef056e83f918d87455/);
+  assert.match(retainedConsentMigration, /order_transfer_is_current/i);
+  assert.match(retainedConsentMigration, /if not order_transfer_is_current[\s\S]*target_order_transfer_confirmed/i);
+  assert.match(retainedConsentMigration, /order_transfer_consent_current/i);
+  assert.match(retainedConsentMigration, /get_platform_legal_consent_history/i);
+  assert.match(retainedConsentMigration, /public\.is_platform_admin\(\)/i);
+  assert.match(retainedConsentMigration, /revoke all on function public\.get_platform_legal_consent_history[\s\S]*grant execute[\s\S]*to authenticated/i);
+  assert.match(checkoutLegalConsents, /if \(!showAgreement && !showPersonalData && !showOrderTransfer\) return null/);
+  assert.match(checkoutLegalState, /orderTransferConsentCurrent/);
+  for (const source of [checkout, platformCheckout]) {
+    assert.match(source, /hasMissingCheckoutLegalAcceptance/);
   }
 });
 

@@ -30,9 +30,9 @@ export const legalDocumentReleases = {
     sha256: '749116fa765a5cc8d040d4157ccfa0e52cdedf8cb9680cd7b6cae4266a80bd97'
   },
   order_transfer_consent: {
-    version: '3.0',
-    publishedAt: '2026-08-18',
-    sha256: 'b8526c815a6919a1b5df1f7bd7d7182de46fe9ff0d245026fd5262828f8645e7'
+    version: '3.1',
+    publishedAt: '2026-08-21',
+    sha256: 'bce5eb5088bbce6cda7b1f316d17955e7406803777eeeaef056e83f918d87455'
   },
   restaurant_consent: {
     version: '3.0',

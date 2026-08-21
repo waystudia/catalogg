@@ -77,27 +77,42 @@ export type CurrentClientLegalState = {
   registered: boolean;
   userAgreementCurrent: boolean;
   clientConsentCurrent: boolean;
+  orderTransferConsentCurrent: boolean;
 };
 
 export async function getCurrentClientLegalState(): Promise<CurrentClientLegalState> {
-  if (!supabase) return { registered: false, userAgreementCurrent: false, clientConsentCurrent: false };
+  if (!supabase) return {
+    registered: false,
+    userAgreementCurrent: false,
+    clientConsentCurrent: false,
+    orderTransferConsentCurrent: false
+  };
   const agreement = legalDocumentReleases.user_agreement;
   const consent = legalDocumentReleases.client_consent;
+  const orderTransfer = legalDocumentReleases.order_transfer_consent;
   const { data, error } = await supabase.rpc('get_current_client_legal_state', {
     client_session_token: getStoredClientSessionToken() || null,
     target_user_agreement_version: agreement.version,
     target_user_agreement_sha256: agreement.sha256,
     target_client_consent_version: consent.version,
-    target_client_consent_sha256: consent.sha256
+    target_client_consent_sha256: consent.sha256,
+    target_order_transfer_version: orderTransfer.version,
+    target_order_transfer_sha256: orderTransfer.sha256
   });
   if (error || !data || typeof data !== 'object') {
-    return { registered: false, userAgreementCurrent: false, clientConsentCurrent: false };
+    return {
+      registered: false,
+      userAgreementCurrent: false,
+      clientConsentCurrent: false,
+      orderTransferConsentCurrent: false
+    };
   }
   const row = data as Record<string, unknown>;
   return {
     registered: row.registered === true,
     userAgreementCurrent: row.user_agreement_current === true,
-    clientConsentCurrent: row.client_consent_current === true
+    clientConsentCurrent: row.client_consent_current === true,
+    orderTransferConsentCurrent: row.order_transfer_consent_current === true
   };
 }
 

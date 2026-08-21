@@ -15,6 +15,7 @@ const releaseDocuments = [
   ['01-personal-data-policy', '3.0', '18 августа 2026 года', 'f4af642654e6cdcd48205e35d1e8506a5552b34c2ea18a25f250fc79238288f8'],
   ['02-user-agreement', '3.0', '18 августа 2026 года', '3759c66b510a52c0acab71d7924ce3a7572b5ad33a4c098c62d805ae83093972'],
   ['03-cookie-policy', '3.1', '19 августа 2026 года', '7f3022a64a308cf0b4829ac362b827e67c209e00a22a4592d06420552872a2b6'],
+  ['08-order-data-transfer-consent', '3.1', '21 августа 2026 года', 'bce5eb5088bbce6cda7b1f316d17955e7406803777eeeaef056e83f918d87455'],
   ['09-restaurant-offer', '3.0', '18 августа 2026 года', '6a43ac2c59af2526dbdf1e3668ab0c2d75d768fefb0d0adbc17c482f1ed7f43c'],
   ['10-driver-offer', '3.0', '18 августа 2026 года', 'b64b00570e8c52cafa76b531f97637d121d8db22770d6e01261139906a104e2f']
 ];
@@ -35,7 +36,7 @@ test('registration records each accepted document with its own version and SHA-2
   assert.match(releasesSource, /driver_consent:[\s\S]*version: '3\.0'[\s\S]*b2b3a117/);
   assert.match(releasesSource, /client_consent:[\s\S]*version: '3\.0'[\s\S]*feb54a97/);
   assert.match(releasesSource, /advertising_consent:[\s\S]*version: '3\.0'[\s\S]*749116fa/);
-  assert.match(releasesSource, /order_transfer_consent:[\s\S]*version: '3\.0'[\s\S]*b8526c81/);
+  assert.match(releasesSource, /order_transfer_consent:[\s\S]*version: '3\.1'[\s\S]*bce5eb50/);
   assert.match(clientAccountSource, /legalDocumentReleases\[code\]/);
   assert.match(clientAccountSource, /target_document_version:\s*release\.version/);
   assert.match(clientAccountSource, /target_document_sha256:\s*release\.sha256/);
