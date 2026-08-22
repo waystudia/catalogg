@@ -1,4 +1,5 @@
 const BACKGROUND_MODEL = 'isnet-general-use-onnx-5349b617';
+const SEGMENTATION_SIDE = 1024;
 const MAX_PROCESSED_SIDE = 1600;
 const ortWasmModuleUrl = new URL(
   '../../../node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs',
@@ -30,7 +31,9 @@ type CutoutImage = {
   toBlob: (type?: string, quality?: number) => Promise<Blob>;
 };
 
-type BackgroundSegmenter = (image: Blob) => Promise<CutoutImage[]>;
+type BackgroundSegmenter = ((image: Blob) => Promise<CutoutImage[]>) & {
+  dispose?: () => Promise<void>;
+};
 type ModelDownloadProgress = {
   status: string;
   file?: string;
@@ -97,7 +100,7 @@ const scaledSize = (width: number, height: number, maxSide: number) => {
 const resizeForSegmentation = async (file: File) => {
   const decoded = await decodeImage(file);
   try {
-    const size = scaledSize(decoded.width, decoded.height, MAX_PROCESSED_SIDE);
+    const size = scaledSize(decoded.width, decoded.height, SEGMENTATION_SIDE);
     if (size.width === decoded.width && size.height === decoded.height) return file;
 
     const canvas = document.createElement('canvas');
@@ -134,6 +137,8 @@ const loadSegmenter = async (report: (percent: number) => void) => {
       env.localModelPath = localModelPath;
       env.backends.onnx.logLevel = 'error';
       if (!env.backends.onnx.wasm) throw new Error('Локальный модуль обработки недоступен');
+      env.backends.onnx.wasm.numThreads = 1;
+      env.backends.onnx.wasm.proxy = !import.meta.env.DEV;
       env.backends.onnx.wasm.wasmPaths = {
         mjs: new URL(ortWasmModuleUrl, window.location.origin).href,
         wasm: new URL(ortWasmBinaryUrl, window.location.origin).href
@@ -698,12 +703,19 @@ export const removeProductPhotoBackground: ProductPhotoProcessor = async (file, 
   const preparedImage = await resizeForSegmentation(file);
   report(3);
   const segmenter = await loadSegmenter(report);
-  const result = await segmenter(preparedImage);
-  report(90);
-  const cutout = result[0];
-  if (!cutout) throw new Error('Модель не смогла выделить товар');
-  const transparentImage = await cutout.toBlob('image/png');
-  const whiteImage = await placeCutoutOnWhite(transparentImage, file.name, MAX_PROCESSED_SIDE, preparedImage);
-  report(100);
-  return whiteImage;
+  try {
+    const result = await segmenter(preparedImage);
+    report(90);
+    const cutout = result[0];
+    if (!cutout) throw new Error('Модель не смогла выделить товар');
+    const transparentImage = await cutout.toBlob('image/png');
+    const whiteImage = await placeCutoutOnWhite(transparentImage, file.name, MAX_PROCESSED_SIDE, preparedImage);
+    report(100);
+    return whiteImage;
+  } finally {
+    if (/iP(?:hone|ad|od)/.test(navigator.userAgent) && segmenter.dispose) {
+      segmenterPromise = null;
+      await segmenter.dispose().catch(() => undefined);
+    }
+  }
 };
