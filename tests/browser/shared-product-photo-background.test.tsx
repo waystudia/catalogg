@@ -1,6 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-react';
+import { useState } from 'react';
 import { SharedProductCatalogPage } from '../../src/features/shared-product-catalog/SharedProductCatalogPage';
 import { ProductPhotoCamera } from '../../src/features/shared-product-catalog/ProductPhotoCamera';
 import { ProductPhotoRefinementEditor } from '../../src/features/shared-product-catalog/ProductPhotoRefinementEditor';
@@ -419,4 +420,36 @@ test('product camera shows a square guide and captures the centered frame', asyn
   await expect.element(screen.getByText('Камера готова')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Сделать снимок' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Выбрать из галереи' })).toBeVisible();
+});
+
+test('closing the product camera detaches its video element and stops every camera track', async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+  const stop = vi.fn();
+  const stream = new MediaStream();
+  Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [{ stop }] });
+
+  const CameraHarness = () => {
+    const [open, setOpen] = useState(true);
+    return open
+      ? <ProductPhotoCamera onCapture={() => undefined} onClose={() => setOpen(false)} cameraStreamFactory={async () => stream} />
+      : <p>Камера закрыта</p>;
+  };
+
+  try {
+    const screen = await render(<CameraHarness />);
+    await expect.element(screen.getByText('Камера готова')).toBeVisible();
+    const video = document.querySelector<HTMLVideoElement>('.product-photo-camera video')!;
+    expect(video.srcObject).toBe(stream);
+
+    await screen.getByRole('button', { name: 'Закрыть' }).first().click();
+
+    await expect.element(screen.getByText('Камера закрыта')).toBeVisible();
+    await expect.poll(() => stop.mock.calls.length).toBe(1);
+    expect(pause.mock.instances).toContain(video);
+    expect(video.srcObject).toBeNull();
+  } finally {
+    play.mockRestore();
+    pause.mockRestore();
+  }
 });

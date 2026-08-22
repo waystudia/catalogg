@@ -9,6 +9,7 @@ import {
   type BrowserBarcodeDecoderControls
 } from '../grocery-operations/browserBarcodeDecoder';
 import { playBarcodeScanSound } from '../grocery-operations/barcodeScanFeedback';
+import { releaseCameraStream } from './releaseCameraStream';
 
 type DetectedBarcode = { rawValue: string };
 type BarcodeDetectorInstance = { detect: (source: HTMLVideoElement) => Promise<DetectedBarcode[]> };
@@ -24,12 +25,14 @@ export function SharedBarcodeScanner({
   onNext?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [restartKey, setRestartKey] = useState(0);
   const [message, setMessage] = useState('Разрешите доступ к камере');
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    releaseCameraStream(activeVideoRef.current ?? videoRef.current, streamRef.current);
+    activeVideoRef.current = null;
     streamRef.current = null;
   }, []);
 
@@ -53,6 +56,7 @@ export function SharedBarcodeScanner({
         streamRef.current = stream;
         void optimizeBarcodeCameraStream(stream);
         if (videoRef.current) {
+          activeVideoRef.current = videoRef.current;
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
