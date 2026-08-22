@@ -54,7 +54,7 @@ export function SharedBarcodeScanner({
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setMessage('Быстрое сканирование — поворачивать телефон не нужно');
+        setMessage('Камера готова');
 
         if (!Detector && videoRef.current) {
           await fallbackReady;
@@ -107,13 +107,16 @@ export function SharedBarcodeScanner({
   return (
     <div className="shared-catalog-scanner" role="dialog" aria-modal="true" aria-label="Сканер штрих-кода">
       <div className="shared-catalog-scanner__panel">
-        <button type="button" className="shared-catalog-scanner__close" onClick={onClose} aria-label="Закрыть"><X /></button>
+        <header className="shared-catalog-scanner__head">
+          <strong>Сканер штрих-кода</strong>
+          <button type="button" className="shared-catalog-scanner__close" onClick={onClose} aria-label="Закрыть"><X /></button>
+        </header>
         <div className="shared-catalog-scanner__camera">
           <video ref={videoRef} playsInline muted />
-          <span><Camera />Весь кадр</span>
+          <span><Camera />Наведите на штрих-код</span>
         </div>
-        <strong>{message}</strong>
-        <small>Поддерживаются EAN‑8, EAN‑13, UPC и QR с записанным внутри GTIN.</small>
+        <strong className="shared-catalog-scanner__status">{message}</strong>
+        <small>EAN‑8, EAN‑13, UPC и QR с GTIN</small>
         <button type="button" onClick={() => setRestartKey((value) => value + 1)}><RotateCcw />Повторить</button>
       </div>
     </div>

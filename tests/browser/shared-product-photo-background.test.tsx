@@ -50,8 +50,10 @@ test('a product photo is processed automatically and the merchant chooses which 
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
   expect(photoPreloader).toHaveBeenCalledOnce();
-  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).not.toBeInTheDocument();
   await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Сканировать штрих‑код' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
   await expect.element(screen.getByRole('button', { name: 'Открыть камеру с рамкой' })).toBeVisible();
   await screen.getByRole('button', { name: 'Открыть камеру с рамкой' }).click();
@@ -192,7 +194,6 @@ test('failed background removal keeps the original photo available for saving', 
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
-  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
   const original = new File(['original'], 'product.png', { type: 'image/png' });
   choosePhoto(
     screen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,

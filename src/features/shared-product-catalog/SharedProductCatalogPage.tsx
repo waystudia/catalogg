@@ -395,10 +395,8 @@ export function SharedProductCatalogPage({
           <p>Название, группа, описание, фото и штрих‑код — единые для всех магазинов.</p>
         </div>
         <button type="button" onClick={() => {
-          prepareBarcodeScanSound();
           warmUpPhotoProcessor();
           setFormOpen(true);
-          setScannerOpen(true);
         }}><Plus />Добавить товар</button>
       </header>
 

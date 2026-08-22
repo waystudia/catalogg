@@ -711,10 +711,6 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
 
   const openGroceryProductEditor = (intent: 'products' | 'receiving' | 'pos', product: Product | null = null, barcode = '') => {
     setProductEditor({ intent, product, barcode });
-    if (!product && !barcode) {
-      prepareBarcodeScanSound();
-      setEditorScannerOpen(true);
-    }
   };
 
   const saveGroceryProduct = async (product: Product) => {
