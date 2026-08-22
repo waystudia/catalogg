@@ -50,11 +50,15 @@ test('a product photo is processed automatically and the merchant chooses which 
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
   expect(photoPreloader).toHaveBeenCalledOnce();
-  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).not.toBeInTheDocument();
-  await expect.element(screen.getByRole('button', { name: 'Сканировать штрих‑код' })).toBeVisible();
-  await screen.getByRole('button', { name: 'Сканировать штрих‑код' }).click();
-  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
-  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
+  const scannerDialog = screen.getByRole('dialog', { name: 'Сканер штрих-кода' });
+  await expect.element(scannerDialog).toBeVisible();
+  await expect.element(scannerDialog.getByText('Шаг 1 из 2')).toBeVisible();
+  await expect.element(scannerDialog.getByText('После сканирования сразу откроется камера товара')).toBeVisible();
+  await scannerDialog.getByRole('button', { name: 'Далее: фото' }).click();
+  const wizardCameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
+  await expect.element(wizardCameraDialog.getByText('Шаг 2 из 2')).toBeVisible();
+  await expect.element(wizardCameraDialog.getByText('Поместите весь товар в рамку')).toBeVisible();
+  await wizardCameraDialog.getByRole('button', { name: 'Закрыть' }).first().click();
   await expect.element(screen.getByRole('button', { name: 'Открыть камеру с рамкой' })).toBeVisible();
   await screen.getByRole('button', { name: 'Открыть камеру с рамкой' }).click();
   const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
@@ -70,6 +74,7 @@ test('a product photo is processed automatically and the merchant chooses which 
 
   await expect.element(screen.getByText('Убираем фон и готовим белый вариант…')).toBeVisible();
   await expect.element(screen.getByText('Оригинал уже выбран — товар можно сохранить сразу.')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Продолжить с оригиналом' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Отправить в общую базу' })).toBeEnabled();
   expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
 
@@ -86,6 +91,37 @@ test('a product photo is processed automatically and the merchant chooses which 
   await screen.getByRole('button', { name: 'Использовать белый фон' }).click();
   await expect.element(screen.getByText('Будет сохранено фото на белом фоне')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Выбрать другое фото' })).toBeVisible();
+});
+
+test('scanning an unknown barcode automatically opens the product photo step', async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const getUserMedia = vi.fn().mockResolvedValue(new MediaStream());
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  Object.defineProperty(window, 'BarcodeDetector', {
+    configurable: true,
+    value: class {
+      detect = vi.fn().mockResolvedValue([{ rawValue: '4006381333931' }]);
+    }
+  });
+
+  try {
+    const screen = await render(
+      <SharedProductCatalogPage mode="platform" demo photoPreloader={async () => undefined} />
+    );
+    await screen.getByRole('button', { name: 'Добавить товар' }).click();
+
+    const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
+    await expect.element(cameraDialog.getByText('Шаг 2 из 2')).toBeVisible();
+    await expect.element(screen.getByRole('textbox', { name: 'Штрих‑код' })).toHaveValue('4006381333931');
+  } finally {
+    play.mockRestore();
+    if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
+  }
 });
 
 test('rough foreground and background strokes guide the system to the real product edge', async () => {
@@ -194,6 +230,7 @@ test('failed background removal keeps the original photo available for saving', 
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
   const original = new File(['original'], 'product.png', { type: 'image/png' });
   choosePhoto(
     screen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,
@@ -205,6 +242,31 @@ test('failed background removal keeps the original photo available for saving', 
   );
   await expect.element(screen.getByText('Будет сохранена оригинальная фотография')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Добавить в общую базу' })).toBeEnabled();
+});
+
+test('slow background removal releases the form and keeps the original photo', async () => {
+  const photoProcessor = vi.fn(() => new Promise<File>(() => undefined));
+  const screen = await render(
+    <SharedProductCatalogPage
+      mode="platform"
+      demo
+      photoProcessor={photoProcessor}
+      photoPreloader={async () => undefined}
+      photoProcessingTimeoutMs={25}
+    />
+  );
+
+  await screen.getByRole('button', { name: 'Добавить товар' }).click();
+  await screen.getByRole('dialog', { name: 'Сканер штрих-кода' }).getByRole('button', { name: 'Закрыть' }).click();
+  choosePhoto(
+    screen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,
+    new File(['original'], 'slow-product.jpg', { type: 'image/jpeg' })
+  );
+
+  await expect.element(screen.getByRole('alert')).toHaveTextContent(
+    'Обработка белого фона заняла слишком много времени. Оригинал сохранён — можно продолжить без ожидания.'
+  );
+  await expect.element(screen.getByText('Будет сохранена оригинальная фотография')).toBeVisible();
 });
 
 test('a transparent cutout is exported as a compact image with a real white background', async () => {

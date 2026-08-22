@@ -106,7 +106,8 @@ export function SharedProductCatalogPage({
   demo = false,
   photoProcessor = removeProductPhotoBackground,
   photoPreloader = preloadProductPhotoBackgroundRemoval,
-  photoRefiner = refineProductPhotoBackground
+  photoRefiner = refineProductPhotoBackground,
+  photoProcessingTimeoutMs = 45_000
 }: {
   mode: SharedProductCatalogMode;
   catalogId?: string | null;
@@ -114,6 +115,7 @@ export function SharedProductCatalogPage({
   photoProcessor?: ProductPhotoProcessor;
   photoPreloader?: () => Promise<void>;
   photoRefiner?: ProductPhotoRefiner;
+  photoProcessingTimeoutMs?: number;
 }) {
   const [products, setProducts] = useState<SharedProduct[]>(demo ? demoProducts : []);
   const [categories, setCategories] = useState<MasterCategory[]>(demo ? demoCategories : []);
@@ -137,6 +139,7 @@ export function SharedProductCatalogPage({
   const [photoError, setPhotoError] = useState('');
   const [photoRefinementOpen, setPhotoRefinementOpen] = useState(false);
   const [photoCameraOpen, setPhotoCameraOpen] = useState(false);
+  const [captureWizardActive, setCaptureWizardActive] = useState(false);
   const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
@@ -179,6 +182,16 @@ export function SharedProductCatalogPage({
     photoInputRef.current.click();
   };
 
+  const continueWithOriginalPhoto = () => {
+    if (!originalPhoto) return;
+    photoRequestRef.current += 1;
+    setPhotoStatus('error');
+    setPhotoProgress(0);
+    setPhotoChoice('original');
+    setPhotoError('Белый фон пока не готов. Оригинал сохранён — форму можно заполнить и отправить.');
+    setDraft((current) => ({ ...current, imageFile: originalPhoto }));
+  };
+
   const processPhotoFile = async (file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -200,22 +213,33 @@ export function SharedProductCatalogPage({
     setPhotoRefinementMessage('');
     setDraft((current) => ({ ...current, imageFile: file }));
 
+    let timeout = 0;
     try {
-      const processed = await photoProcessor(file, (progress) => {
-        if (photoRequestRef.current === requestId) setPhotoProgress(progress);
-      });
+      const processed = await Promise.race([
+        photoProcessor(file, (progress) => {
+          if (photoRequestRef.current === requestId) setPhotoProgress(progress);
+        }),
+        new Promise<never>((_, reject) => {
+          timeout = window.setTimeout(() => reject(new Error('photo-processing-timeout')), photoProcessingTimeoutMs);
+        })
+      ]);
       if (photoRequestRef.current !== requestId) return;
       setProcessedPhoto(processed);
       setPhotoChoice('processed');
       setPhotoStatus('ready');
       setPhotoProgress(100);
       setDraft((current) => ({ ...current, imageFile: processed }));
-    } catch {
+    } catch (processingError) {
       if (photoRequestRef.current !== requestId) return;
+      photoRequestRef.current += 1;
       setPhotoStatus('error');
       setPhotoChoice('original');
-      setPhotoError('Не удалось автоматически убрать фон. Оригинал сохранён — можно продолжить или выбрать другое фото.');
+      setPhotoError(processingError instanceof Error && processingError.message === 'photo-processing-timeout'
+        ? 'Обработка белого фона заняла слишком много времени. Оригинал сохранён — можно продолжить без ожидания.'
+        : 'Не удалось автоматически убрать фон. Оригинал сохранён — можно продолжить или выбрать другое фото.');
       setDraft((current) => ({ ...current, imageFile: file }));
+    } finally {
+      window.clearTimeout(timeout);
     }
   };
 
@@ -268,7 +292,9 @@ export function SharedProductCatalogPage({
       setDraft((current) => ({ ...current, barcode }));
       setFormOpen(true);
       setMessage('Товар не найден. Заполните новую общую карточку.');
+      if (captureWizardActive) setPhotoCameraOpen(true);
     } else {
+      setCaptureWizardActive(false);
       setFormOpen(false);
       setMessage(`Найдено: ${found.title}`);
     }
@@ -396,7 +422,10 @@ export function SharedProductCatalogPage({
         </div>
         <button type="button" onClick={() => {
           warmUpPhotoProcessor();
+          prepareBarcodeScanSound();
           setFormOpen(true);
+          setCaptureWizardActive(true);
+          setScannerOpen(true);
         }}><Plus />Добавить товар</button>
       </header>
 
@@ -408,6 +437,7 @@ export function SharedProductCatalogPage({
         </select>
         <button type="button" onClick={() => {
           prepareBarcodeScanSound();
+          setCaptureWizardActive(false);
           setScannerOpen(true);
         }}><Camera />Сканировать</button>
       </section>
@@ -424,6 +454,7 @@ export function SharedProductCatalogPage({
           <div className="shared-catalog-form__grid">
             <label>Штрих‑код<span className="shared-catalog-barcode-field"><Barcode /><input required inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value.slice(0, 32) }))} placeholder="4601234567890" /><button type="button" aria-label="Сканировать штрих‑код" onClick={() => {
               prepareBarcodeScanSound();
+              setCaptureWizardActive(false);
               setScannerOpen(true);
             }}><Camera />Сканировать</button></span></label>
             <fieldset className="shared-catalog-photo-field"><legend>Фотография</legend><span className="shared-catalog-photo-source"><button type="button" onClick={() => setPhotoCameraOpen(true)}><Camera />Открыть камеру с рамкой</button><button className="shared-catalog-gallery-button" type="button" onClick={chooseAnotherPhoto}><ImagePlus />{originalPhoto?.name ?? 'Выбрать из галереи'}</button><input className="shared-catalog-file-input" ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /></span></fieldset>
@@ -437,6 +468,7 @@ export function SharedProductCatalogPage({
                   <LoaderCircle className="is-spinning" />
                   <span><strong>Убираем фон и готовим белый вариант…</strong><small>Оригинал уже выбран — товар можно сохранить сразу.</small></span>
                   <progress max="100" value={photoProgress}>{photoProgress}%</progress>
+                  <button type="button" onClick={continueWithOriginalPhoto}>Продолжить с оригиналом</button>
                 </div>
               )}
               {photoStatus !== 'processing' && (
@@ -489,14 +521,20 @@ export function SharedProductCatalogPage({
           )}
           {photoCameraOpen && (
             <ProductPhotoCamera
-              onClose={() => setPhotoCameraOpen(false)}
+              wizard={captureWizardActive}
+              onClose={() => {
+                setPhotoCameraOpen(false);
+                setCaptureWizardActive(false);
+              }}
               onChooseFile={() => {
                 setPhotoCameraOpen(false);
+                setCaptureWizardActive(false);
                 chooseAnotherPhoto();
               }}
-              onCapture={async (file) => {
+              onCapture={(file) => {
                 setPhotoCameraOpen(false);
-                await processPhotoFile(file);
+                setCaptureWizardActive(false);
+                void processPhotoFile(file);
               }}
             />
           )}
@@ -530,7 +568,17 @@ export function SharedProductCatalogPage({
         ))}
       </section>
 
-      {scannerOpen && <SharedBarcodeScanner onDetected={useDetectedBarcode} onClose={() => setScannerOpen(false)} />}
+      {scannerOpen && <SharedBarcodeScanner
+        onDetected={useDetectedBarcode}
+        onClose={() => {
+          setScannerOpen(false);
+          setCaptureWizardActive(false);
+        }}
+        onNext={captureWizardActive ? () => {
+          setScannerOpen(false);
+          setPhotoCameraOpen(true);
+        } : undefined}
+      />}
     </main>
   );
 }

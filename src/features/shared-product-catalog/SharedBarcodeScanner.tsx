@@ -1,4 +1,4 @@
-import { Camera, RotateCcw, X } from 'lucide-react';
+import { ArrowRight, Camera, RotateCcw, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isValidGlobalBarcode } from '../../entities/sharedProducts';
 import {
@@ -16,10 +16,12 @@ type BarcodeDetectorConstructor = new (options: { formats: string[] }) => Barcod
 
 export function SharedBarcodeScanner({
   onDetected,
-  onClose
+  onClose,
+  onNext
 }: {
   onDetected: (barcode: string) => void;
   onClose: () => void;
+  onNext?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -108,16 +110,29 @@ export function SharedBarcodeScanner({
     <div className="shared-catalog-scanner" role="dialog" aria-modal="true" aria-label="Сканер штрих-кода">
       <div className="shared-catalog-scanner__panel">
         <header className="shared-catalog-scanner__head">
-          <strong>Сканер штрих-кода</strong>
+          <span>
+            <strong>{onNext ? 'Добавление товара' : 'Сканер штрих-кода'}</strong>
+            {onNext && <small>Шаг 1 из 2</small>}
+          </span>
           <button type="button" className="shared-catalog-scanner__close" onClick={onClose} aria-label="Закрыть"><X /></button>
         </header>
+        {onNext && (
+          <div className="shared-catalog-camera-steps" aria-label="Этапы добавления товара">
+            <strong className="is-active"><span>1</span>Штрих‑код</strong>
+            <i aria-hidden="true" />
+            <strong><span>2</span>Фото</strong>
+          </div>
+        )}
         <div className="shared-catalog-scanner__camera">
           <video ref={videoRef} playsInline muted />
           <span><Camera />Наведите на штрих-код</span>
         </div>
         <strong className="shared-catalog-scanner__status">{message}</strong>
-        <small>EAN‑8, EAN‑13, UPC и QR с GTIN</small>
-        <button type="button" onClick={() => setRestartKey((value) => value + 1)}><RotateCcw />Повторить</button>
+        <small>{onNext ? 'После сканирования сразу откроется камера товара' : 'EAN‑8, EAN‑13, UPC и QR с GTIN'}</small>
+        <div className="shared-catalog-scanner__actions">
+          <button type="button" onClick={() => setRestartKey((value) => value + 1)}><RotateCcw />Повторить</button>
+          {onNext && <button type="button" onClick={onNext}>Далее: фото<ArrowRight /></button>}
+        </div>
       </div>
     </div>
   );
