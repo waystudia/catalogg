@@ -484,6 +484,50 @@ test('shared product scanner also recognizes a barcode on iPhone instead of show
   }
 });
 
+test('closing the shared scanner fully releases the iPhone camera element and every video track', async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+  const stop = vi.fn();
+  const stream = new MediaStream();
+  Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [{ stop }] });
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia: vi.fn().mockResolvedValue(stream) }
+  });
+  Reflect.deleteProperty(window, 'BarcodeDetector');
+  zxingFallback.detectedValue = '';
+
+  const ScannerHarness = () => {
+    const [open, setOpen] = useState(true);
+    return open
+      ? <SharedBarcodeScanner onDetected={() => undefined} onClose={() => setOpen(false)} />
+      : <p>Сканер закрыт</p>;
+  };
+
+  try {
+    const screen = await render(<ScannerHarness />);
+    await expect.element(screen.getByText('Камера готова')).toBeVisible();
+    const video = document.querySelector<HTMLVideoElement>('.shared-catalog-scanner video')!;
+    expect(video.srcObject).toBe(stream);
+
+    await screen.getByRole('button', { name: 'Закрыть' }).click();
+
+    await expect.element(screen.getByText('Сканер закрыт')).toBeVisible();
+    await expect.poll(() => stop.mock.calls.length).toBe(1);
+    expect(pause.mock.instances).toContain(video);
+    expect(video.srcObject).toBeNull();
+  } finally {
+    play.mockRestore();
+    pause.mockRestore();
+    if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
+  }
+});
+
 test('shared scanner keeps the same square geometry when iPhone camera permission resolves', async () => {
   const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
   const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');

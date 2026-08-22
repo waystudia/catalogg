@@ -1,5 +1,6 @@
 import { Camera, ImagePlus, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { releaseCameraStream } from './releaseCameraStream';
 
 type CameraStreamFactory = () => Promise<MediaStream>;
 
@@ -33,13 +34,15 @@ export function ProductPhotoCamera({
   cameraStreamFactory?: CameraStreamFactory;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState('');
 
   const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    releaseCameraStream(activeVideoRef.current ?? videoRef.current, streamRef.current);
+    activeVideoRef.current = null;
     streamRef.current = null;
   }, []);
 
@@ -54,6 +57,7 @@ export function ProductPhotoCamera({
         }
         streamRef.current = stream;
         if (videoRef.current) {
+          activeVideoRef.current = videoRef.current;
           videoRef.current.srcObject = stream;
           void videoRef.current.play().catch(() => undefined);
         }
