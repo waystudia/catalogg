@@ -159,6 +159,8 @@ export function SharedProductCatalogPage({
   const [detailsStepActive, setDetailsStepActive] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<'original' | 'processed' | null>(null);
   const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
+  const [photoRecoveryMessage, setPhotoRecoveryMessage] = useState('');
+  const [restoredPhotoToResume, setRestoredPhotoToResume] = useState<File | null>(null);
   const [draftStorageReady, setDraftStorageReady] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -202,8 +204,11 @@ export function SharedProductCatalogPage({
         setProcessedPhoto(null);
         setPhotoChoice('original');
         if (saved.originalPhoto) {
-          setPhotoStatus('error');
-          setPhotoError('Обработка была прервана перезапуском страницы. Оригинал сохранён — можно продолжить.');
+          setPhotoStatus('processing');
+          setPhotoProgress(1);
+          setPhotoError('');
+          setPhotoRecoveryMessage('Восстановили оригинал — продолжаем удаление фона автоматически.');
+          setRestoredPhotoToResume(saved.originalPhoto);
         }
         setMessage('Черновик нового товара восстановлен.');
       })
@@ -250,6 +255,8 @@ export function SharedProductCatalogPage({
     setPhotoCameraOpen(false);
     setPhotoPreview(null);
     setPhotoRefinementMessage('');
+    setPhotoRecoveryMessage('');
+    setRestoredPhotoToResume(null);
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
@@ -278,10 +285,14 @@ export function SharedProductCatalogPage({
     setPhotoProgress(0);
     setPhotoChoice('original');
     setPhotoError('Белый фон пока не готов. Оригинал сохранён — форму можно заполнить и отправить.');
+    setPhotoRecoveryMessage('');
     setDraft((current) => ({ ...current, imageFile: originalPhoto }));
   };
 
-  const processPhotoFile = async (file: File | null) => {
+  const processPhotoFile = useCallback(async (
+    file: File | null,
+    options: { recovered?: boolean } = {}
+  ) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       setPhotoError('Выберите фотографию товара в формате изображения.');
@@ -300,6 +311,7 @@ export function SharedProductCatalogPage({
     setPhotoError('');
     setPhotoRefinementOpen(false);
     setPhotoRefinementMessage('');
+    if (!options.recovered) setPhotoRecoveryMessage('');
     setDraft((current) => ({ ...current, imageFile: file }));
 
     await persistDraft({ ...draftRef.current, imageFile: file }, file);
@@ -321,11 +333,15 @@ export function SharedProductCatalogPage({
       setPhotoStatus('ready');
       setPhotoProgress(100);
       setDraft((current) => ({ ...current, imageFile: processed }));
+      if (options.recovered) {
+        setPhotoRecoveryMessage('Обработка восстановлена и завершена автоматически.');
+      }
     } catch (processingError) {
       if (photoRequestRef.current !== requestId) return;
       photoRequestRef.current += 1;
       setPhotoStatus('error');
       setPhotoChoice('original');
+      setPhotoRecoveryMessage('');
       setPhotoError(processingError instanceof Error && processingError.message === 'photo-processing-timeout'
         ? 'Обработка белого фона заняла слишком много времени. Оригинал сохранён — можно продолжить без ожидания.'
         : 'Не удалось автоматически убрать фон. Оригинал сохранён — можно продолжить или выбрать другое фото.');
@@ -333,7 +349,13 @@ export function SharedProductCatalogPage({
     } finally {
       window.clearTimeout(timeout);
     }
-  };
+  }, [persistDraft, photoProcessingTimeoutMs, photoProcessor]);
+
+  useEffect(() => {
+    if (!restoredPhotoToResume) return;
+    setRestoredPhotoToResume(null);
+    void processPhotoFile(restoredPhotoToResume, { recovered: true });
+  }, [processPhotoFile, restoredPhotoToResume]);
 
   const processSelectedPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
     await processPhotoFile(event.target.files?.[0] ?? null);
@@ -510,38 +532,41 @@ export function SharedProductCatalogPage({
 
   const photoReview = originalPhoto && (
     <section className="shared-catalog-photo-review" aria-label="Проверка фотографии товара">
-      {photoStatus === 'processing' && (
-        <div className="shared-catalog-photo-progress" aria-live="polite">
-          <LoaderCircle className="is-spinning" />
-          <span><strong>Белый фон готовим в фоне</strong><small>Название и категорию можно заполнить и сохранить сразу.</small></span>
-          <progress max="100" value={photoProgress}>{photoProgress}%</progress>
-          <button type="button" onClick={continueWithOriginalPhoto}>Продолжить с оригиналом</button>
-        </div>
-      )}
+      <div className="shared-catalog-photo-stack">
+        {originalPhotoUrl && (
+          <section className="shared-catalog-photo-version" aria-label="Оригинальная версия фотографии">
+            <button className={photoChoice === 'original' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'original'} onClick={selectOriginalPhoto}>
+              <img src={originalPhotoUrl} alt="Оригинальная фотография товара" />
+              <span><strong>Оригинал</strong><small>Без обработки</small></span>
+            </button>
+            <button className="shared-catalog-photo-version__action" type="button" onClick={() => setPhotoPreview('original')}><Eye />Просмотреть оригинал</button>
+          </section>
+        )}
+        {photoStatus === 'processing' && (
+          <div className="shared-catalog-photo-progress" aria-live="polite">
+            <LoaderCircle className="is-spinning" />
+            <span><strong>Белый фон готовим в фоне</strong><small>Название и категорию можно заполнить и сохранить сразу.</small></span>
+            <progress max="100" value={photoProgress}>{photoProgress}%</progress>
+            <button type="button" onClick={continueWithOriginalPhoto}>Продолжить с оригиналом</button>
+          </div>
+        )}
+        {processedPhotoUrl && (
+          <section className="shared-catalog-photo-version" aria-label="Фотография на белом фоне">
+            <button className={photoChoice === 'processed' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'processed'} onClick={selectProcessedPhoto}>
+              <img src={processedPhotoUrl} alt="Товар на белом фоне" />
+              <span><strong>Белый фон</strong><small>Фон удалён автоматически</small></span>
+            </button>
+            <button className="shared-catalog-photo-version__action" type="button" onClick={() => setPhotoPreview('processed')}><Eye />Просмотреть белый фон</button>
+            {processedPhoto && originalPhoto && <button className="shared-catalog-photo-version__action shared-catalog-photo-version__refine" type="button" onClick={() => setPhotoRefinementOpen(true)}><Paintbrush />Подправить кистью</button>}
+          </section>
+        )}
+      </div>
+      {photoRecoveryMessage && <p className="shared-catalog-photo-recovery" aria-live="polite"><Check />{photoRecoveryMessage}</p>}
       {photoStatus !== 'processing' && (
         <>
-          <div className="shared-catalog-photo-options">
-            {originalPhotoUrl && (
-              <button className={photoChoice === 'original' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'original'} onClick={selectOriginalPhoto}>
-                <img src={originalPhotoUrl} alt="Оригинальная фотография товара" />
-                <span><strong>Оригинал</strong><small>Без обработки</small></span>
-              </button>
-            )}
-            {processedPhotoUrl && (
-              <button className={photoChoice === 'processed' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'processed'} onClick={selectProcessedPhoto}>
-                <img src={processedPhotoUrl} alt="Товар на белом фоне" />
-                <span><strong>Белый фон</strong><small>Фон удалён автоматически</small></span>
-              </button>
-            )}
-          </div>
-          <div className="shared-catalog-photo-preview-actions">
-            {originalPhotoUrl && <button type="button" onClick={() => setPhotoPreview('original')}><Eye />Просмотреть оригинал</button>}
-            {processedPhotoUrl && <button type="button" onClick={() => setPhotoPreview('processed')}><Eye />Просмотреть белый фон</button>}
-          </div>
           {photoError && <p className="shared-catalog-photo-error" role="alert">{photoError}</p>}
           <div className="shared-catalog-photo-actions">
             {processedPhoto && <button type="button" onClick={selectProcessedPhoto}><Check />Использовать белый фон</button>}
-            {processedPhoto && originalPhoto && <button type="button" onClick={() => setPhotoRefinementOpen(true)}><Paintbrush />Подправить кистью</button>}
             <button type="button" onClick={selectOriginalPhoto}>Оставить оригинал</button>
             <button type="button" onClick={chooseAnotherPhoto}><ImagePlus />Выбрать другое фото</button>
           </div>
