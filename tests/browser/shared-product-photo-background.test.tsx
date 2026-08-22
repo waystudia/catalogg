@@ -85,10 +85,16 @@ test('a product photo is processed automatically and the merchant chooses which 
   finishProcessing?.(processed);
 
   await screen.getByText('Дополнительно').click();
-  await expect.element(screen.getByRole('img', { name: 'Оригинальная фотография товара' })).toBeVisible();
-  await expect.element(screen.getByRole('img', { name: 'Товар на белом фоне' })).toBeVisible();
+  const originalVersion = screen.getByLabelText('Оригинальная версия фотографии');
+  const whiteBackgroundVersion = screen.getByLabelText('Фотография на белом фоне');
+  await expect.element(originalVersion.getByRole('img', { name: 'Оригинальная фотография товара' })).toBeVisible();
+  await expect.element(whiteBackgroundVersion.getByRole('img', { name: 'Товар на белом фоне' })).toBeVisible();
+  expect(
+    originalVersion.element().compareDocumentPosition(whiteBackgroundVersion.element())
+    & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
   await expect.element(screen.getByText('Будет сохранено фото на белом фоне')).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Подправить кистью' })).toBeVisible();
+  await expect.element(whiteBackgroundVersion.getByRole('button', { name: 'Подправить кистью' })).toBeVisible();
   await screen.getByRole('button', { name: 'Просмотреть оригинал' }).click();
   const preview = screen.getByRole('dialog', { name: 'Просмотр фотографии товара' });
   await expect.element(preview.getByRole('img', { name: 'Оригинал товара крупным планом' })).toBeVisible();
@@ -104,7 +110,7 @@ test('a product photo is processed automatically and the merchant chooses which 
   await expect.element(screen.getByRole('button', { name: 'Выбрать другое фото' })).toBeVisible();
 });
 
-test('an interrupted iPhone photo process restores the new-product draft without restarting the model', async () => {
+test('an interrupted iPhone photo process resumes automatically from the preserved original', async () => {
   let savedDraft: SharedProductCreationDraft | null = null;
   const draftStore: SharedProductDraftStore = {
     load: vi.fn(async () => savedDraft),
@@ -115,7 +121,10 @@ test('an interrupted iPhone photo process restores the new-product draft without
       savedDraft = null;
     })
   };
-  const photoProcessor = vi.fn(() => new Promise<File>(() => undefined));
+  const resumedPhoto = new File(['resumed-white-background'], 'saved-product-white.jpg', { type: 'image/jpeg' });
+  const photoProcessor = vi.fn()
+    .mockImplementationOnce(() => new Promise<File>(() => undefined))
+    .mockResolvedValue(resumedPhoto);
   const firstScreen = await render(
     <SharedProductCatalogPage
       mode="platform"
@@ -158,11 +167,14 @@ test('an interrupted iPhone photo process restores the new-product draft without
   await expect.element(restoredScreen.getByText('4006381333931', { exact: true })).toBeVisible();
   await expect.element(restoredScreen.getByRole('textbox', { name: 'Название товара' })).toHaveValue('Тестовый товар');
   await expect.element(restoredScreen.getByRole('img', { name: 'Фото нового товара' })).toBeVisible();
+  await expect.poll(() => photoProcessor.mock.calls.length).toBe(2);
   await restoredScreen.getByText('Дополнительно').click();
-  await expect.element(restoredScreen.getByRole('alert')).toHaveTextContent(
-    'Обработка была прервана перезапуском страницы. Оригинал сохранён — можно продолжить.'
-  );
-  expect(photoProcessor).toHaveBeenCalledOnce();
+  await expect.element(restoredScreen.getByText('Обработка восстановлена и завершена автоматически.')).toBeVisible();
+  await expect.element(restoredScreen.getByLabelText('Оригинальная версия фотографии')).toBeVisible();
+  const restoredWhiteBackground = restoredScreen.getByLabelText('Фотография на белом фоне');
+  await expect.element(restoredWhiteBackground).toBeVisible();
+  await expect.element(restoredWhiteBackground.getByRole('button', { name: 'Подправить кистью' })).toBeVisible();
+  expect(document.body.textContent).not.toContain('Обработка была прервана перезапуском страницы.');
 });
 
 test('the browser draft store preserves an original product photo across a real page lifecycle', async () => {
