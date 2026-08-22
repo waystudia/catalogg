@@ -23,11 +23,13 @@ export function ProductPhotoCamera({
   onCapture,
   onChooseFile,
   onClose,
+  wizard = false,
   cameraStreamFactory = defaultCameraStreamFactory
 }: {
   onCapture: (file: File) => void | Promise<void>;
   onChooseFile?: () => void;
   onClose: () => void;
+  wizard?: boolean;
   cameraStreamFactory?: CameraStreamFactory;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -112,11 +114,18 @@ export function ProductPhotoCamera({
 
   return (
     <div className="product-photo-camera" role="dialog" aria-modal="true" aria-label="Фотографирование товара">
-      <section className="product-photo-camera__panel">
+      <section className={`product-photo-camera__panel${wizard ? ' product-photo-camera__panel--wizard' : ''}`}>
         <header>
-          <span><Camera /><strong>Фото товара</strong></span>
+          <span><Camera /><span><strong>{wizard ? 'Добавление товара' : 'Фото товара'}</strong>{wizard && <small>Шаг 2 из 2</small>}</span></span>
           <button type="button" onClick={onClose} aria-label="Закрыть"><X /></button>
         </header>
+        {wizard && (
+          <div className="shared-catalog-camera-steps shared-catalog-camera-steps--dark" aria-label="Этапы добавления товара">
+            <strong className="is-complete"><span>✓</span>Штрих‑код</strong>
+            <i aria-hidden="true" />
+            <strong className="is-active"><span>2</span>Фото</strong>
+          </div>
+        )}
         {ready && <p className="product-photo-camera__ready"><span aria-hidden="true">✓</span>Камера готова</p>}
         <div className="product-photo-camera__viewfinder">
           <video ref={videoRef} playsInline muted />

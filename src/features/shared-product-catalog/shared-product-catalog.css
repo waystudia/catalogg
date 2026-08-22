@@ -88,6 +88,7 @@
 .shared-catalog-photo-progress > span { display: grid; gap: 2px; }
 .shared-catalog-photo-progress small { color: var(--shared-muted); font-size: 12px; font-weight: 500; }
 .shared-catalog-photo-progress progress { grid-column: 1 / -1; width: 100%; height: 7px; accent-color: var(--shared-green); }
+.shared-catalog-photo-progress > button { grid-column: 1 / -1; min-height: 42px; border: 1px solid #9fcdb4; border-radius: 10px; color: #176b49; background: #fff; font-weight: 800; }
 .shared-catalog-photo-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .shared-catalog-photo-options > button { min-width: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 11px; padding: 8px; border: 2px solid transparent; border-radius: 13px; color: var(--shared-ink); background: #fff; text-align: left; box-shadow: 0 2px 10px rgba(31, 57, 39, .07); }
 .shared-catalog-photo-options > button.is-selected { border-color: #2b946a; box-shadow: 0 0 0 3px rgba(43, 148, 106, .1); }
@@ -136,7 +137,9 @@
 .shared-catalog-scanner { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: rgba(9, 18, 12, .76); }
 .shared-catalog-scanner__panel { width: min(430px, 100%); display: grid; gap: 12px; padding: 18px; border-radius: 22px; background: #fff; text-align: center; }
 .shared-catalog-scanner__head { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
-.shared-catalog-scanner__head > strong { font-size: 18px; }
+.shared-catalog-scanner__head > span { display: grid; gap: 2px; }
+.shared-catalog-scanner__head > span > strong { font-size: 18px; }
+.shared-catalog-scanner__head > span > small { color: #66736b; font-size: 12px; }
 .shared-catalog-scanner__close { flex: 0 0 auto; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; color: #fff; background: #145c41; }
 .shared-catalog-scanner__close svg { width: 24px; height: 24px; }
 .shared-catalog-scanner__camera { position: relative; width: 100%; min-height: 0; aspect-ratio: 1; border-radius: 16px; background: #17201a; overflow: hidden; }
@@ -144,11 +147,28 @@
 .shared-catalog-scanner__camera > span { position: absolute; top: 50%; left: 50%; width: min(64%, 230px); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; gap: 7px; border: 2px solid #5df0a5; border-radius: 18px; color: #fff; background: rgba(0,0,0,.08); box-shadow: 0 0 0 999px rgba(0,0,0,.05); font-weight: 800; pointer-events: none; transform: translate(-50%, -50%); }
 .shared-catalog-scanner__status { min-height: 24px; display: grid; place-items: center; }
 .shared-catalog-scanner__panel small { color: var(--shared-muted); }
-.shared-catalog-scanner__panel > button:last-child { min-height: 44px; display: flex; justify-content: center; align-items: center; gap: 7px; border: 0; border-radius: 12px; color: #fff; background: var(--shared-green); font-weight: 800; }
+.shared-catalog-camera-steps { display: grid; grid-template-columns: auto minmax(28px, 1fr) auto; align-items: center; gap: 8px; }
+.shared-catalog-camera-steps > strong { display: flex; align-items: center; gap: 6px; color: #7b867f; font-size: 12px; }
+.shared-catalog-camera-steps > strong > span { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid #bdc8c1; border-radius: 50%; font-size: 11px; }
+.shared-catalog-camera-steps > strong.is-active { color: #13764f; }
+.shared-catalog-camera-steps > strong.is-active > span,
+.shared-catalog-camera-steps > strong.is-complete > span { border-color: #19835a; color: #fff; background: #19835a; }
+.shared-catalog-camera-steps > i { height: 2px; border-radius: 999px; background: #d7dfda; }
+.shared-catalog-camera-steps--dark > strong { color: #9bac9f; }
+.shared-catalog-camera-steps--dark > strong.is-active,
+.shared-catalog-camera-steps--dark > strong.is-complete { color: #e8fff3; }
+.shared-catalog-camera-steps--dark > i { background: #285441; }
+.shared-catalog-scanner__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.shared-catalog-scanner__actions > button { min-height: 44px; display: flex; justify-content: center; align-items: center; gap: 7px; border: 1px solid #a9cfbb; border-radius: 12px; color: #176b49; background: #fff; font-weight: 800; }
+.shared-catalog-scanner__actions > button:last-child { border-color: var(--shared-green); color: #fff; background: var(--shared-green); }
+.shared-catalog-scanner__actions > button:only-child { grid-column: 1 / -1; }
+.shared-catalog-scanner__actions svg { width: 19px; }
 .product-photo-camera { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); background: #050806; }
 .product-photo-camera__panel { width: min(460px, 100%); max-height: 100%; display: grid; gap: 12px; padding: 14px; border-radius: 22px; color: #fff; background: #050806; overflow: auto; }
 .product-photo-camera__panel > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .product-photo-camera__panel > header > span { display: flex; align-items: center; gap: 8px; }
+.product-photo-camera__panel > header > span > span { display: grid; gap: 1px; }
+.product-photo-camera__panel > header small { color: #9bac9f; font-size: 11px; }
 .product-photo-camera__panel > header svg { width: 20px; color: #4aee9b; }
 .product-photo-camera__panel > header > button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff; background: rgba(255,255,255,.14); }
 .product-photo-camera__ready { justify-self: center; display: flex; align-items: center; gap: 7px; margin: 0; padding: 7px 12px; border: 1px solid #1bcf7d; border-radius: 10px; color: #dffbed; font-size: 12px; font-weight: 800; }
@@ -198,5 +218,6 @@
   .shared-catalog-scanner__panel { max-width: 430px; }
   .product-photo-camera { place-items: stretch; padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom)); }
   .product-photo-camera__panel { width: 100%; max-height: none; min-height: 100%; grid-template-rows: auto auto minmax(0, 1fr) auto auto; padding: 8px 12px; border-radius: 0; overflow: hidden; }
+  .product-photo-camera__panel--wizard { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
   .product-photo-camera__viewfinder { align-self: center; }
 }
