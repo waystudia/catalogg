@@ -237,7 +237,7 @@ test('returns from an order opened in chat to that same conversation', async () 
   }
 });
 
-test('opens the fast shared scanner immediately from the main add-product action', async () => {
+test('opens the new-product form first and requests the camera only after an explicit scan action', async () => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(
     <QueryClientProvider client={queryClient}>
@@ -248,9 +248,12 @@ test('opens the fast shared scanner immediately from the main add-product action
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
-  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Новый товар' })).toBeVisible();
-  await expect.element(screen.getByText('Весь кадр')).toBeVisible();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).not.toBeInTheDocument();
+
+  await screen.getByRole('button', { name: 'Сканировать' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Сканер штрих-кода' })).toBeVisible();
+  await expect.element(screen.getByText('Наведите на штрих-код')).toBeVisible();
 });
 
 test('keeps the full desktop navigation while mobile uses the five primary actions', async () => {

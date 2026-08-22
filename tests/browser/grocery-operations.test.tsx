@@ -470,12 +470,60 @@ test('shared product scanner also recognizes a barcode on iPhone instead of show
     expect(zxingFallback.stop.mock.calls.length).toBeGreaterThan(0);
     expect(zxingFallback.preload).toHaveBeenCalledOnce();
     expect(zxingFallback.start).toHaveBeenCalledOnce();
-    await expect.element(screen.getByText(/быстрое сканирование/i)).toBeVisible();
+    await expect.element(screen.getByText('Камера готова')).toBeVisible();
     const guide = document.querySelector<HTMLElement>('.shared-catalog-scanner__camera > span')!;
     expect(Math.abs(guide.getBoundingClientRect().width - guide.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     await expect.element(screen.getByText(/браузер не поддерживает сканирование/i)).not.toBeInTheDocument();
   } finally {
     zxingFallback.detectedValue = '';
+    play.mockRestore();
+    if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
+    else Reflect.deleteProperty(navigator, 'mediaDevices');
+    if (originalBarcodeDetector) Object.defineProperty(window, 'BarcodeDetector', originalBarcodeDetector);
+    else Reflect.deleteProperty(window, 'BarcodeDetector');
+  }
+});
+
+test('shared scanner keeps the same square geometry when iPhone camera permission resolves', async () => {
+  const originalMediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices');
+  const originalBarcodeDetector = Object.getOwnPropertyDescriptor(window, 'BarcodeDetector');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  let resolveCamera!: (stream: MediaStream) => void;
+  const getUserMedia = vi.fn(() => new Promise<MediaStream>((resolve) => {
+    resolveCamera = resolve;
+  }));
+  zxingFallback.detectedValue = '';
+  Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+  Reflect.deleteProperty(window, 'BarcodeDetector');
+  await page.viewport(390, 844);
+
+  try {
+    const screen = await render(<SharedBarcodeScanner onDetected={() => undefined} onClose={() => undefined} />);
+    await expect.element(screen.getByText('Разрешите доступ к камере')).toBeVisible();
+
+    const panel = document.querySelector<HTMLElement>('.shared-catalog-scanner__panel')!;
+    const camera = document.querySelector<HTMLElement>('.shared-catalog-scanner__camera')!;
+    const close = screen.getByRole('button', { name: 'Закрыть' }).element();
+    const beforePanel = panel.getBoundingClientRect();
+    const beforeCamera = camera.getBoundingClientRect();
+
+    expect(Math.abs(beforeCamera.width - beforeCamera.height)).toBeLessThanOrEqual(1);
+    expect(close.getBoundingClientRect().bottom).toBeLessThanOrEqual(beforeCamera.top);
+    expect(close.getBoundingClientRect().width).toBeGreaterThanOrEqual(44);
+    expect(close.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+
+    resolveCamera(new MediaStream());
+    await expect.element(screen.getByText('Камера готова')).toBeVisible();
+    const afterPanel = panel.getBoundingClientRect();
+    const afterCamera = camera.getBoundingClientRect();
+
+    expect(Math.abs(afterPanel.width - beforePanel.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterPanel.height - beforePanel.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterCamera.width - beforeCamera.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterCamera.height - beforeCamera.height)).toBeLessThanOrEqual(1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+  } finally {
+    await page.viewport(414, 896);
     play.mockRestore();
     if (originalMediaDevices) Object.defineProperty(navigator, 'mediaDevices', originalMediaDevices);
     else Reflect.deleteProperty(navigator, 'mediaDevices');
