@@ -32,13 +32,17 @@ import { SharedBarcodeScanner } from './SharedBarcodeScanner';
 import { prepareBarcodeScanSound } from '../grocery-operations/barcodeScanFeedback';
 import {
   removeProductPhotoBackground,
-  preloadProductPhotoBackgroundRemoval,
   refineProductPhotoBackground,
   type ProductPhotoProcessor,
   type ProductPhotoRefiner
 } from './productPhotoBackground';
 import { ProductPhotoRefinementEditor } from './ProductPhotoRefinementEditor';
 import { ProductPhotoCamera } from './ProductPhotoCamera';
+import {
+  indexedDbSharedProductDraftStore,
+  type SharedProductCreationDraft,
+  type SharedProductDraftStore
+} from './sharedProductDraftStore';
 import './shared-product-catalog.css';
 
 export type SharedProductCatalogMode = 'platform' | 'merchant';
@@ -84,6 +88,15 @@ const emptyDraft = (categoryId = ''): ProductDraft => ({
   imageFile: null
 });
 
+const storedDraft = (draft: ProductDraft, originalPhoto: File | null): SharedProductCreationDraft => ({
+  barcode: draft.barcode,
+  title: draft.title,
+  categoryId: draft.categoryId,
+  description: draft.description,
+  originalPhoto,
+  updatedAt: new Date().toISOString()
+});
+
 type PhotoProcessingStatus = 'idle' | 'processing' | 'ready' | 'error';
 
 const useObjectUrl = (file: File | null) => {
@@ -105,9 +118,9 @@ export function SharedProductCatalogPage({
   catalogId = null,
   demo = false,
   photoProcessor = removeProductPhotoBackground,
-  photoPreloader = preloadProductPhotoBackgroundRemoval,
   photoRefiner = refineProductPhotoBackground,
-  photoProcessingTimeoutMs = 45_000
+  photoProcessingTimeoutMs = 45_000,
+  draftStore = indexedDbSharedProductDraftStore
 }: {
   mode: SharedProductCatalogMode;
   catalogId?: string | null;
@@ -116,6 +129,7 @@ export function SharedProductCatalogPage({
   photoPreloader?: () => Promise<void>;
   photoRefiner?: ProductPhotoRefiner;
   photoProcessingTimeoutMs?: number;
+  draftStore?: SharedProductDraftStore;
 }) {
   const [products, setProducts] = useState<SharedProduct[]>(demo ? demoProducts : []);
   const [categories, setCategories] = useState<MasterCategory[]>(demo ? demoCategories : []);
@@ -141,14 +155,72 @@ export function SharedProductCatalogPage({
   const [photoCameraOpen, setPhotoCameraOpen] = useState(false);
   const [captureWizardActive, setCaptureWizardActive] = useState(false);
   const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
+  const [draftStorageReady, setDraftStorageReady] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
+  const draftRef = useRef(draft);
   const originalPhotoUrl = useObjectUrl(originalPhoto);
   const processedPhotoUrl = useObjectUrl(processedPhoto);
+  const draftStorageKey = `shared-product:${mode}:${catalogId ?? 'global'}`;
+  const draftPersistenceEnabled = !demo || draftStore !== indexedDbSharedProductDraftStore;
 
-  const warmUpPhotoProcessor = () => {
-    void photoPreloader().catch(() => undefined);
-  };
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  const persistDraft = useCallback(async (nextDraft: ProductDraft, photo: File | null) => {
+    if (!draftPersistenceEnabled) return;
+    await draftStore.save(draftStorageKey, storedDraft(nextDraft, photo)).catch(() => undefined);
+  }, [draftPersistenceEnabled, draftStorageKey, draftStore]);
+
+  useEffect(() => {
+    let active = true;
+    if (!draftPersistenceEnabled) {
+      setDraftStorageReady(true);
+      return () => { active = false; };
+    }
+    void draftStore.load(draftStorageKey)
+      .then((saved) => {
+        if (!active || !saved) return;
+        const restoredDraft: ProductDraft = {
+          barcode: saved.barcode,
+          title: saved.title,
+          categoryId: saved.categoryId,
+          description: saved.description,
+          imageFile: saved.originalPhoto
+        };
+        setDraft(restoredDraft);
+        setFormOpen(true);
+        setOriginalPhoto(saved.originalPhoto);
+        setProcessedPhoto(null);
+        setPhotoChoice('original');
+        if (saved.originalPhoto) {
+          setPhotoStatus('error');
+          setPhotoError('Обработка была прервана перезапуском страницы. Оригинал сохранён — можно продолжить.');
+        }
+        setMessage('Черновик нового товара восстановлен.');
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setDraftStorageReady(true);
+      });
+    return () => { active = false; };
+  }, [draftPersistenceEnabled, draftStorageKey, draftStore]);
+
+  useEffect(() => {
+    if (!draftStorageReady || !draftPersistenceEnabled || !formOpen) return;
+    const timer = window.setTimeout(() => {
+      void persistDraft(draft, originalPhoto);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [
+    draft,
+    draftPersistenceEnabled,
+    draftStorageReady,
+    formOpen,
+    originalPhoto,
+    persistDraft
+  ]);
 
   const resetPhoto = () => {
     photoRequestRef.current += 1;
@@ -212,6 +284,9 @@ export function SharedProductCatalogPage({
     setPhotoRefinementOpen(false);
     setPhotoRefinementMessage('');
     setDraft((current) => ({ ...current, imageFile: file }));
+
+    await persistDraft({ ...draftRef.current, imageFile: file }, file);
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 
     let timeout = 0;
     try {
@@ -284,12 +359,12 @@ export function SharedProductCatalogPage({
   }, [categoryFilter, demo, products, query]);
 
   const useDetectedBarcode = (barcode: string) => {
-    warmUpPhotoProcessor();
     setScannerOpen(false);
     setQuery(barcode);
     const found = findSharedProductByBarcode(products, barcode);
     if (!found) {
       setDraft((current) => ({ ...current, barcode }));
+      void persistDraft({ ...draftRef.current, barcode }, originalPhoto);
       setFormOpen(true);
       setMessage('Товар не найден. Заполните новую общую карточку.');
       if (captureWizardActive) setPhotoCameraOpen(true);
@@ -387,6 +462,7 @@ export function SharedProductCatalogPage({
       };
       setProducts((current) => [nextProduct, ...current.filter((product) => product.id !== id)]);
       setDraft(emptyDraft(categories[0]?.id));
+      void draftStore.clear(draftStorageKey).catch(() => undefined);
       resetPhoto();
       setFormOpen(false);
       setMessage(mode === 'platform' ? 'Товар добавлен в общую базу.' : 'Товар добавлен в общую базу и отправлен на проверку.');
@@ -421,7 +497,6 @@ export function SharedProductCatalogPage({
           <p>Название, группа, описание, фото и штрих‑код — единые для всех магазинов.</p>
         </div>
         <button type="button" onClick={() => {
-          warmUpPhotoProcessor();
           prepareBarcodeScanSound();
           setFormOpen(true);
           setCaptureWizardActive(true);

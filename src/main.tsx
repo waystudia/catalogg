@@ -66,7 +66,7 @@ const ClientPasskeyPreview = import.meta.env.DEV
         default: module.ClientPasskeyPreview
       })))
   : null;
-const SharedProductPreviewPage = import.meta.env.DEV
+const SharedProductPreviewPage = (import.meta.env.DEV || import.meta.env.VITE_ENABLE_INTERNAL_PREVIEWS === 'true')
   ? lazy(() =>
       import('./pages/shared-product-preview/SharedProductPreviewPage').then((module) => ({
         default: module.SharedProductPreviewPage

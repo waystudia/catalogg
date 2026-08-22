@@ -23,6 +23,9 @@ describe('self-hosted product background model', () => {
     assert.match(implementation, /env\.localModelPath\s*=\s*localModelPath/);
     assert.match(implementation, /local_files_only:\s*true/);
     assert.match(implementation, /env\.backends\.onnx\.wasm\.wasmPaths\s*=/);
+    assert.match(implementation, /env\.backends\.onnx\.wasm\.numThreads\s*=\s*1/);
+    assert.match(implementation, /env\.backends\.onnx\.wasm\.proxy\s*=\s*!import\.meta\.env\.DEV/);
+    assert.match(implementation, /SEGMENTATION_SIDE\s*=\s*1024/);
     assert.match(implementation, /isnet-general-use-onnx-5349b617/);
     assert.doesNotMatch(implementation, /https:\/\/(?:huggingface\.co|cdn\.jsdelivr\.net)/);
   });

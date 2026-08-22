@@ -11,13 +11,17 @@ const failedRequests = [];
 const browser = await chromium.launch({ headless: true });
 
 try {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const page = await browser.newPage({
+    viewport: { width: 390, height: 844 },
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Version/18.6 Mobile/15E148 Safari/604.1'
+  });
   page.on('request', (request) => requests.push(request.url()));
   page.on('pageerror', (error) => browserErrors.push(error.message));
   page.on('requestfailed', (request) => failedRequests.push(
     `${request.url()} ${request.failure()?.errorText ?? 'unknown error'}`
   ));
-  await page.goto(`${baseUrl}/#/__shared-product-preview`, { waitUntil: 'networkidle' });
+  await page.goto(`${baseUrl}/#/__shared-product-preview`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Добавить товар' }).waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Добавить товар' }).click();
   await page.getByRole('dialog', { name: 'Сканер штрих-кода' })
     .getByRole('button', { name: 'Закрыть' })

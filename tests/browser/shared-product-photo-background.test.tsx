@@ -6,6 +6,11 @@ import { SharedProductCatalogPage } from '../../src/features/shared-product-cata
 import { ProductPhotoCamera } from '../../src/features/shared-product-catalog/ProductPhotoCamera';
 import { ProductPhotoRefinementEditor } from '../../src/features/shared-product-catalog/ProductPhotoRefinementEditor';
 import {
+  indexedDbSharedProductDraftStore,
+  type SharedProductCreationDraft,
+  type SharedProductDraftStore
+} from '../../src/features/shared-product-catalog/sharedProductDraftStore';
+import {
   placeCutoutOnWhite,
   refineProductPhotoBackground
 } from '../../src/features/shared-product-catalog/productPhotoBackground';
@@ -50,7 +55,7 @@ test('a product photo is processed automatically and the merchant chooses which 
   );
 
   await screen.getByRole('button', { name: 'Добавить товар' }).click();
-  expect(photoPreloader).toHaveBeenCalledOnce();
+  expect(photoPreloader).not.toHaveBeenCalled();
   const scannerDialog = screen.getByRole('dialog', { name: 'Сканер штрих-кода' });
   await expect.element(scannerDialog).toBeVisible();
   await expect.element(scannerDialog.getByText('Шаг 1 из 2')).toBeVisible();
@@ -77,6 +82,7 @@ test('a product photo is processed automatically and the merchant chooses which 
   await expect.element(screen.getByText('Оригинал уже выбран — товар можно сохранить сразу.')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Продолжить с оригиналом' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Отправить в общую базу' })).toBeEnabled();
+  await expect.poll(() => photoProcessor.mock.calls.length).toBe(1);
   expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
 
   finishProcessing?.(processed);
@@ -92,6 +98,90 @@ test('a product photo is processed automatically and the merchant chooses which 
   await screen.getByRole('button', { name: 'Использовать белый фон' }).click();
   await expect.element(screen.getByText('Будет сохранено фото на белом фоне')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Выбрать другое фото' })).toBeVisible();
+});
+
+test('an interrupted iPhone photo process restores the new-product draft without restarting the model', async () => {
+  let savedDraft: SharedProductCreationDraft | null = null;
+  const draftStore: SharedProductDraftStore = {
+    load: vi.fn(async () => savedDraft),
+    save: vi.fn(async (_key, nextDraft) => {
+      savedDraft = nextDraft;
+    }),
+    clear: vi.fn(async () => {
+      savedDraft = null;
+    })
+  };
+  const photoProcessor = vi.fn(() => new Promise<File>(() => undefined));
+  const firstScreen = await render(
+    <SharedProductCatalogPage
+      mode="platform"
+      demo
+      draftStore={draftStore}
+      photoProcessor={photoProcessor}
+      photoPreloader={async () => undefined}
+    />
+  );
+
+  await firstScreen.getByRole('button', { name: 'Добавить товар' }).click();
+  await firstScreen.getByRole('dialog', { name: 'Сканер штрих-кода' })
+    .getByRole('button', { name: 'Закрыть' })
+    .click();
+  await firstScreen.getByRole('textbox', { name: 'Штрих‑код' }).fill('4006381333931');
+  await firstScreen.getByRole('textbox', { name: 'Название' }).fill('Тестовый товар');
+  const original = new File(['original-photo'], 'saved-product.jpg', { type: 'image/jpeg' });
+  choosePhoto(
+    firstScreen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,
+    original
+  );
+
+  await expect.element(firstScreen.getByText('Убираем фон и готовим белый вариант…')).toBeVisible();
+  await expect.poll(() => savedDraft?.originalPhoto?.name).toBe('saved-product.jpg');
+  await expect.poll(() => photoProcessor.mock.calls.length).toBe(1);
+  expect(photoProcessor).toHaveBeenCalledOnce();
+  await firstScreen.unmount();
+
+  const restoredScreen = await render(
+    <SharedProductCatalogPage
+      mode="platform"
+      demo
+      draftStore={draftStore}
+      photoProcessor={photoProcessor}
+      photoPreloader={async () => undefined}
+    />
+  );
+
+  await expect.element(restoredScreen.getByText('Черновик нового товара восстановлен.')).toBeVisible();
+  await expect.element(restoredScreen.getByRole('textbox', { name: 'Штрих‑код' })).toHaveValue('4006381333931');
+  await expect.element(restoredScreen.getByRole('textbox', { name: 'Название' })).toHaveValue('Тестовый товар');
+  await expect.element(restoredScreen.getByRole('img', { name: 'Оригинальная фотография товара' })).toBeVisible();
+  await expect.element(restoredScreen.getByRole('alert')).toHaveTextContent(
+    'Обработка была прервана перезапуском страницы. Оригинал сохранён — можно продолжить.'
+  );
+  expect(photoProcessor).toHaveBeenCalledOnce();
+});
+
+test('the browser draft store preserves an original product photo across a real page lifecycle', async () => {
+  const key = `browser-test-${crypto.randomUUID()}`;
+  const originalPhoto = new File(['persistent-photo'], 'persistent-product.jpg', { type: 'image/jpeg' });
+  try {
+    await indexedDbSharedProductDraftStore.save(key, {
+      barcode: '4006381333931',
+      title: 'Сохранённый товар',
+      categoryId: 'demo-grocery',
+      description: 'Черновик',
+      originalPhoto,
+      updatedAt: '2026-08-22T09:30:00.000Z'
+    });
+
+    const restored = await indexedDbSharedProductDraftStore.load(key);
+    expect(restored?.barcode).toBe('4006381333931');
+    expect(restored?.title).toBe('Сохранённый товар');
+    expect(restored?.originalPhoto).toBeInstanceOf(File);
+    expect(restored?.originalPhoto?.name).toBe('persistent-product.jpg');
+    expect(await restored?.originalPhoto?.text()).toBe('persistent-photo');
+  } finally {
+    await indexedDbSharedProductDraftStore.clear(key);
+  }
 });
 
 test('scanning an unknown barcode automatically opens the product photo step', async () => {

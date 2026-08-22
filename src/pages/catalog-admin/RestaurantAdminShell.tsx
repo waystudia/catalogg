@@ -79,7 +79,6 @@ import { applyReceivingLines } from '../../features/grocery-operations/inventory
 import '../../features/grocery-operations/grocery-operations.css';
 import { SharedProductCatalogPage } from '../../features/shared-product-catalog/SharedProductCatalogPage';
 import { SharedBarcodeScanner } from '../../features/shared-product-catalog/SharedBarcodeScanner';
-import { preloadProductPhotoBackgroundRemoval } from '../../features/shared-product-catalog/productPhotoBackground';
 import { prepareBarcodeScanSound } from '../../features/grocery-operations/barcodeScanFeedback';
 import { BrandLogo } from '../../shared/BrandLogo';
 import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
@@ -1252,7 +1251,6 @@ export function RestaurantAdminShell({ access, routePath = '', onRefresh, onSign
       {isGrocery && editorScannerOpen && <SharedBarcodeScanner
         onClose={() => setEditorScannerOpen(false)}
         onDetected={(barcode) => {
-          void preloadProductPhotoBackgroundRemoval();
           setProductEditor((current) => (current ? { ...current, barcode } : current));
           setEditorScannerOpen(false);
         }}
