@@ -2,6 +2,7 @@ import {
   Barcode,
   Camera,
   Check,
+  Eye,
   ImagePlus,
   LoaderCircle,
   Paintbrush,
@@ -9,7 +10,8 @@ import {
   Plus,
   Search,
   Store,
-  Tags
+  Tags,
+  X
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import type { SharedProduct } from '../../entities/sharedProducts';
@@ -154,9 +156,13 @@ export function SharedProductCatalogPage({
   const [photoRefinementOpen, setPhotoRefinementOpen] = useState(false);
   const [photoCameraOpen, setPhotoCameraOpen] = useState(false);
   const [captureWizardActive, setCaptureWizardActive] = useState(false);
+  const [detailsStepActive, setDetailsStepActive] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<'original' | 'processed' | null>(null);
   const [photoRefinementMessage, setPhotoRefinementMessage] = useState('');
   const [draftStorageReady, setDraftStorageReady] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const photoRequestRef = useRef(0);
   const draftRef = useRef(draft);
   const originalPhotoUrl = useObjectUrl(originalPhoto);
@@ -191,6 +197,7 @@ export function SharedProductCatalogPage({
         };
         setDraft(restoredDraft);
         setFormOpen(true);
+        setDetailsStepActive(Boolean(saved.originalPhoto));
         setOriginalPhoto(saved.originalPhoto);
         setProcessedPhoto(null);
         setPhotoChoice('original');
@@ -206,6 +213,15 @@ export function SharedProductCatalogPage({
       });
     return () => { active = false; };
   }, [draftPersistenceEnabled, draftStorageKey, draftStore]);
+
+  useEffect(() => {
+    if (!detailsStepActive) return;
+    const frame = window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ block: 'start' });
+      titleInputRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [detailsStepActive]);
 
   useEffect(() => {
     if (!draftStorageReady || !draftPersistenceEnabled || !formOpen) return;
@@ -232,6 +248,7 @@ export function SharedProductCatalogPage({
     setPhotoError('');
     setPhotoRefinementOpen(false);
     setPhotoCameraOpen(false);
+    setPhotoPreview(null);
     setPhotoRefinementMessage('');
     if (photoInputRef.current) photoInputRef.current.value = '';
   };
@@ -370,6 +387,7 @@ export function SharedProductCatalogPage({
       if (captureWizardActive) setPhotoCameraOpen(true);
     } else {
       setCaptureWizardActive(false);
+      setDetailsStepActive(false);
       setFormOpen(false);
       setMessage(`Найдено: ${found.title}`);
     }
@@ -418,6 +436,7 @@ export function SharedProductCatalogPage({
         setCategoryFilter('all');
         setQuery(existingProduct.barcode);
         setFormOpen(false);
+        setDetailsStepActive(false);
         setMessage('');
         setError(`Штрих‑код ${existingProduct.barcode} уже принадлежит товару «${existingProduct.title}». Другой товар с этим кодом создать нельзя.`);
         return;
@@ -465,6 +484,7 @@ export function SharedProductCatalogPage({
       void draftStore.clear(draftStorageKey).catch(() => undefined);
       resetPhoto();
       setFormOpen(false);
+      setDetailsStepActive(false);
       setMessage(mode === 'platform' ? 'Товар добавлен в общую базу.' : 'Товар добавлен в общую базу и отправлен на проверку.');
     } catch (productError) {
       setError(productError instanceof Error ? productError.message : 'Не удалось сохранить товар');
@@ -488,6 +508,56 @@ export function SharedProductCatalogPage({
     }
   };
 
+  const photoReview = originalPhoto && (
+    <section className="shared-catalog-photo-review" aria-label="Проверка фотографии товара">
+      {photoStatus === 'processing' && (
+        <div className="shared-catalog-photo-progress" aria-live="polite">
+          <LoaderCircle className="is-spinning" />
+          <span><strong>Белый фон готовим в фоне</strong><small>Название и категорию можно заполнить и сохранить сразу.</small></span>
+          <progress max="100" value={photoProgress}>{photoProgress}%</progress>
+          <button type="button" onClick={continueWithOriginalPhoto}>Продолжить с оригиналом</button>
+        </div>
+      )}
+      {photoStatus !== 'processing' && (
+        <>
+          <div className="shared-catalog-photo-options">
+            {originalPhotoUrl && (
+              <button className={photoChoice === 'original' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'original'} onClick={selectOriginalPhoto}>
+                <img src={originalPhotoUrl} alt="Оригинальная фотография товара" />
+                <span><strong>Оригинал</strong><small>Без обработки</small></span>
+              </button>
+            )}
+            {processedPhotoUrl && (
+              <button className={photoChoice === 'processed' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'processed'} onClick={selectProcessedPhoto}>
+                <img src={processedPhotoUrl} alt="Товар на белом фоне" />
+                <span><strong>Белый фон</strong><small>Фон удалён автоматически</small></span>
+              </button>
+            )}
+          </div>
+          <div className="shared-catalog-photo-preview-actions">
+            {originalPhotoUrl && <button type="button" onClick={() => setPhotoPreview('original')}><Eye />Просмотреть оригинал</button>}
+            {processedPhotoUrl && <button type="button" onClick={() => setPhotoPreview('processed')}><Eye />Просмотреть белый фон</button>}
+          </div>
+          {photoError && <p className="shared-catalog-photo-error" role="alert">{photoError}</p>}
+          <div className="shared-catalog-photo-actions">
+            {processedPhoto && <button type="button" onClick={selectProcessedPhoto}><Check />Использовать белый фон</button>}
+            {processedPhoto && originalPhoto && <button type="button" onClick={() => setPhotoRefinementOpen(true)}><Paintbrush />Подправить кистью</button>}
+            <button type="button" onClick={selectOriginalPhoto}>Оставить оригинал</button>
+            <button type="button" onClick={chooseAnotherPhoto}><ImagePlus />Выбрать другое фото</button>
+          </div>
+          <p className="shared-catalog-photo-choice">
+            <Check />{photoChoice === 'processed'
+              ? 'Будет сохранено фото на белом фоне'
+              : 'Будет сохранена оригинальная фотография'}
+          </p>
+          {photoRefinementMessage && <p className="shared-catalog-photo-refinement-message"><Check />{photoRefinementMessage}</p>}
+        </>
+      )}
+    </section>
+  );
+
+  const previewUrl = photoPreview === 'processed' ? processedPhotoUrl : originalPhotoUrl;
+
   return (
     <main className="shared-catalog-page">
       <header className="shared-catalog-head">
@@ -499,6 +569,7 @@ export function SharedProductCatalogPage({
         <button type="button" onClick={() => {
           prepareBarcodeScanSound();
           setFormOpen(true);
+          setDetailsStepActive(false);
           setCaptureWizardActive(true);
           setScannerOpen(true);
         }}><Plus />Добавить товар</button>
@@ -521,64 +592,56 @@ export function SharedProductCatalogPage({
       {error && <p className="shared-catalog-error">{error}</p>}
 
       {formOpen && (
-        <form className="shared-catalog-form" onSubmit={createProduct}>
+        <form ref={formRef} className={`shared-catalog-form${detailsStepActive ? ' shared-catalog-form--details-step' : ''}`} onSubmit={createProduct}>
           <div className="shared-catalog-form__head">
-            <div><PackagePlus /><span><strong>Новый товар в общей базе</strong><small>Цена и остаток здесь не указываются</small></span></div>
-            <button type="button" onClick={() => setFormOpen(false)}>Закрыть</button>
+            <div><PackagePlus /><span><strong>{detailsStepActive ? 'Данные товара' : 'Новый товар в общей базе'}</strong><small>{detailsStepActive ? 'Шаг 3 из 3 · осталось название и категория' : 'Цена и остаток здесь не указываются'}</small></span></div>
+            <button type="button" onClick={() => {
+              setFormOpen(false);
+              setDetailsStepActive(false);
+            }}>Закрыть</button>
           </div>
-          <div className="shared-catalog-form__grid">
-            <label>Штрих‑код<span className="shared-catalog-barcode-field"><Barcode /><input required inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value.slice(0, 32) }))} placeholder="4601234567890" /><button type="button" aria-label="Сканировать штрих‑код" onClick={() => {
-              prepareBarcodeScanSound();
-              setCaptureWizardActive(false);
-              setScannerOpen(true);
-            }}><Camera />Сканировать</button></span></label>
-            <fieldset className="shared-catalog-photo-field"><legend>Фотография</legend><span className="shared-catalog-photo-source"><button type="button" onClick={() => setPhotoCameraOpen(true)}><Camera />Открыть камеру с рамкой</button><button className="shared-catalog-gallery-button" type="button" onClick={chooseAnotherPhoto}><ImagePlus />{originalPhoto?.name ?? 'Выбрать из галереи'}</button><input className="shared-catalog-file-input" ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} /></span></fieldset>
-            <label>Название<input required maxLength={120} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Название с упаковки" /></label>
-            <label>Общая группа<span className="shared-catalog-category-row"><select required value={draft.categoryId} onChange={(event) => setDraft((current) => ({ ...current, categoryId: event.target.value }))}><option value="">Выберите группу</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><button type="button" onClick={() => setNewCategoryOpen(true)}><Plus />Новая</button></span></label>
-          </div>
-          {originalPhoto && (
-            <section className="shared-catalog-photo-review" aria-label="Проверка фотографии товара">
-              {photoStatus === 'processing' && (
-                <div className="shared-catalog-photo-progress" aria-live="polite">
-                  <LoaderCircle className="is-spinning" />
-                  <span><strong>Убираем фон и готовим белый вариант…</strong><small>Оригинал уже выбран — товар можно сохранить сразу.</small></span>
-                  <progress max="100" value={photoProgress}>{photoProgress}%</progress>
-                  <button type="button" onClick={continueWithOriginalPhoto}>Продолжить с оригиналом</button>
-                </div>
-              )}
-              {photoStatus !== 'processing' && (
-                <>
-                  <div className="shared-catalog-photo-options">
-                    {originalPhotoUrl && (
-                      <button className={photoChoice === 'original' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'original'} onClick={selectOriginalPhoto}>
-                        <img src={originalPhotoUrl} alt="Оригинальная фотография товара" />
-                        <span><strong>Оригинал</strong><small>Без обработки</small></span>
-                      </button>
-                    )}
-                    {processedPhotoUrl && (
-                      <button className={photoChoice === 'processed' ? 'is-selected' : ''} type="button" aria-pressed={photoChoice === 'processed'} onClick={selectProcessedPhoto}>
-                        <img src={processedPhotoUrl} alt="Товар на белом фоне" />
-                        <span><strong>Белый фон</strong><small>Фон удалён автоматически</small></span>
-                      </button>
-                    )}
-                  </div>
-                  {photoError && <p className="shared-catalog-photo-error" role="alert">{photoError}</p>}
-                  <div className="shared-catalog-photo-actions">
-                    {processedPhoto && <button type="button" onClick={selectProcessedPhoto}><Check />Использовать белый фон</button>}
-                    {processedPhoto && originalPhoto && <button type="button" onClick={() => setPhotoRefinementOpen(true)}><Paintbrush />Подправить кистью</button>}
-                    <button type="button" onClick={selectOriginalPhoto}>Оставить оригинал</button>
-                    <button type="button" onClick={chooseAnotherPhoto}><ImagePlus />Выбрать другое фото</button>
-                  </div>
-                  <p className="shared-catalog-photo-choice">
-                    <Check />{photoChoice === 'processed'
-                      ? 'Будет сохранено фото на белом фоне'
-                      : 'Будет сохранена оригинальная фотография'}
-                  </p>
-                  {photoRefinementMessage && <p className="shared-catalog-photo-refinement-message"><Check />{photoRefinementMessage}</p>}
-                </>
-              )}
+          {detailsStepActive && originalPhotoUrl && (
+            <section className="shared-catalog-details-photo" aria-label="Фотография нового товара">
+              <button type="button" onClick={() => setPhotoPreview(photoChoice)} aria-label="Открыть фото товара">
+                <img src={photoChoice === 'processed' && processedPhotoUrl ? processedPhotoUrl : originalPhotoUrl} alt="Фото нового товара" />
+                <Eye />
+              </button>
+              <span>
+                <strong>{photoStatus === 'processing' ? 'Белый фон готовим в фоне' : photoStatus === 'ready' ? 'Белый фон готов' : 'Оригинал сохранён'}</strong>
+                <small>{photoStatus === 'processing' ? 'Можно заполнять и сохранять сразу' : 'Нажмите на фото для просмотра'}</small>
+              </span>
             </section>
           )}
+          <div className="shared-catalog-form__grid">
+            {detailsStepActive && draft.barcode ? (
+              <div className="shared-catalog-barcode-summary">
+                <Barcode />
+                <span><small>Штрих‑код</small><code>{draft.barcode}</code></span>
+                <button type="button" onClick={() => {
+                  prepareBarcodeScanSound();
+                  setCaptureWizardActive(false);
+                  setScannerOpen(true);
+                }}>Изменить</button>
+              </div>
+            ) : (
+              <label>Штрих‑код<span className="shared-catalog-barcode-field"><Barcode /><input required inputMode="numeric" value={draft.barcode} onChange={(event) => setDraft((current) => ({ ...current, barcode: event.target.value.slice(0, 32) }))} placeholder="Введите или отсканируйте" /><button type="button" aria-label="Сканировать штрих‑код" onClick={() => {
+                prepareBarcodeScanSound();
+                setCaptureWizardActive(false);
+                setScannerOpen(true);
+              }}><Camera />Сканировать</button></span></label>
+            )}
+            {!detailsStepActive && <fieldset className="shared-catalog-photo-field"><legend>Фотография</legend><span className="shared-catalog-photo-source"><button type="button" onClick={() => setPhotoCameraOpen(true)}><Camera />Открыть камеру с рамкой</button><button className="shared-catalog-gallery-button" type="button" onClick={chooseAnotherPhoto}><ImagePlus />{originalPhoto?.name ?? 'Выбрать из галереи'}</button></span></fieldset>}
+            <label>Название товара<input ref={titleInputRef} required maxLength={120} value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Название с упаковки" /></label>
+            <label>Категория<span className="shared-catalog-category-row"><select required value={draft.categoryId} onChange={(event) => setDraft((current) => ({ ...current, categoryId: event.target.value }))}><option value="">Выберите категорию</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select><button type="button" onClick={() => setNewCategoryOpen(true)}><Plus />Новая</button></span></label>
+          </div>
+          <input className="shared-catalog-file-input" ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Сфотографировать или выбрать фото" onChange={(event) => void processSelectedPhoto(event)} />
+          {detailsStepActive ? (
+            <details className="shared-catalog-optional">
+              <summary>Дополнительно</summary>
+              {photoReview}
+              <label className="shared-catalog-description">Описание<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Необязательно" /></label>
+            </details>
+          ) : photoReview}
           {photoRefinementOpen && originalPhoto && processedPhoto && (
             <ProductPhotoRefinementEditor
               original={originalPhoto}
@@ -603,20 +666,37 @@ export function SharedProductCatalogPage({
               }}
               onChooseFile={() => {
                 setPhotoCameraOpen(false);
+                setDetailsStepActive(captureWizardActive);
                 setCaptureWizardActive(false);
                 chooseAnotherPhoto();
               }}
               onCapture={(file) => {
                 setPhotoCameraOpen(false);
+                setDetailsStepActive(captureWizardActive);
                 setCaptureWizardActive(false);
                 void processPhotoFile(file);
               }}
             />
           )}
           {newCategoryOpen && <div className="shared-catalog-new-category"><Tags /><input autoFocus maxLength={80} value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="Название новой общей группы" /><button disabled={saving || newCategoryName.trim().length < 2} type="button" onClick={() => void addCategory()}>Добавить для всех</button></div>}
-          <label className="shared-catalog-description">Описание<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Необязательно" /></label>
-          <button className="shared-catalog-save" disabled={saving} type="submit">{saving ? <LoaderCircle className="is-spinning" /> : <Plus />}{mode === 'platform' ? 'Добавить в общую базу' : 'Отправить в общую базу'}</button>
+          {!detailsStepActive && <label className="shared-catalog-description">Описание<textarea maxLength={1000} value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Необязательно" /></label>}
+          <button className="shared-catalog-save" disabled={saving} type="submit">{saving ? <LoaderCircle className="is-spinning" /> : <Plus />}{detailsStepActive ? 'Сохранить товар' : mode === 'platform' ? 'Добавить в общую базу' : 'Отправить в общую базу'}</button>
         </form>
+      )}
+
+      {photoPreview && previewUrl && (
+        <div className="shared-catalog-photo-preview" role="dialog" aria-modal="true" aria-label="Просмотр фотографии товара">
+          <section>
+            <header><strong>{photoPreview === 'original' ? 'Оригинал' : 'Белый фон'}</strong><button type="button" onClick={() => setPhotoPreview(null)} aria-label="Закрыть просмотр"><X /></button></header>
+            <img src={previewUrl} alt={photoPreview === 'original' ? 'Оригинал товара крупным планом' : 'Товар на белом фоне крупным планом'} />
+            {processedPhotoUrl && originalPhotoUrl && (
+              <footer>
+                <button className={photoPreview === 'original' ? 'is-active' : ''} type="button" onClick={() => setPhotoPreview('original')}>Оригинал</button>
+                <button className={photoPreview === 'processed' ? 'is-active' : ''} type="button" onClick={() => setPhotoPreview('processed')}>Белый фон</button>
+              </footer>
+            )}
+          </section>
+        </div>
       )}
 
       <section className="shared-catalog-list" aria-busy={loading}>

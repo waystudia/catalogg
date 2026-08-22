@@ -116,7 +116,7 @@ export function SharedBarcodeScanner({
         <header className="shared-catalog-scanner__head">
           <span>
             <strong>{onNext ? 'Добавление товара' : 'Сканер штрих-кода'}</strong>
-            {onNext && <small>Шаг 1 из 2</small>}
+            {onNext && <small>Шаг 1 из 3</small>}
           </span>
           <button type="button" className="shared-catalog-scanner__close" onClick={onClose} aria-label="Закрыть"><X /></button>
         </header>
@@ -125,6 +125,8 @@ export function SharedBarcodeScanner({
             <strong className="is-active"><span>1</span>Штрих‑код</strong>
             <i aria-hidden="true" />
             <strong><span>2</span>Фото</strong>
+            <i aria-hidden="true" />
+            <strong><span>3</span>Данные</strong>
           </div>
         )}
         <div className="shared-catalog-scanner__camera">

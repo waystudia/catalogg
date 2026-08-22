@@ -58,19 +58,13 @@ test('a product photo is processed automatically and the merchant chooses which 
   expect(photoPreloader).not.toHaveBeenCalled();
   const scannerDialog = screen.getByRole('dialog', { name: 'Сканер штрих-кода' });
   await expect.element(scannerDialog).toBeVisible();
-  await expect.element(scannerDialog.getByText('Шаг 1 из 2')).toBeVisible();
+  await expect.element(scannerDialog.getByText('Шаг 1 из 3')).toBeVisible();
   await expect.element(scannerDialog.getByText('После сканирования сразу откроется камера товара')).toBeVisible();
   await scannerDialog.getByRole('button', { name: 'Далее: фото' }).click();
   const wizardCameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
-  await expect.element(wizardCameraDialog.getByText('Шаг 2 из 2')).toBeVisible();
+  await expect.element(wizardCameraDialog.getByText('Шаг 2 из 3')).toBeVisible();
   await expect.element(wizardCameraDialog.getByText('Поместите весь товар в рамку')).toBeVisible();
-  await wizardCameraDialog.getByRole('button', { name: 'Закрыть' }).first().click();
-  await expect.element(screen.getByRole('button', { name: 'Открыть камеру с рамкой' })).toBeVisible();
-  await screen.getByRole('button', { name: 'Открыть камеру с рамкой' }).click();
-  const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
-  await expect.element(cameraDialog).toBeVisible();
-  await expect.element(cameraDialog.getByText('Поместите весь товар в рамку')).toBeVisible();
-  await cameraDialog.getByRole('button', { name: 'Закрыть' }).first().click();
+  await wizardCameraDialog.getByRole('button', { name: 'Выбрать из галереи' }).click();
 
   const original = new File(['original'], 'product.jpg', { type: 'image/jpeg' });
   choosePhoto(
@@ -78,19 +72,29 @@ test('a product photo is processed automatically and the merchant chooses which 
     original
   );
 
-  await expect.element(screen.getByText('Убираем фон и готовим белый вариант…')).toBeVisible();
-  await expect.element(screen.getByText('Оригинал уже выбран — товар можно сохранить сразу.')).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Продолжить с оригиналом' })).toBeVisible();
-  await expect.element(screen.getByRole('button', { name: 'Отправить в общую базу' })).toBeEnabled();
+  await expect.element(screen.getByText('Шаг 3 из 3 · осталось название и категория')).toBeVisible();
+  await expect.element(screen.getByRole('textbox', { name: 'Название товара' })).toBeVisible();
+  await expect.element(screen.getByRole('combobox', { name: 'Категория' })).toBeVisible();
+  const detailsPhoto = screen.getByLabelText('Фотография нового товара');
+  await expect.element(detailsPhoto.getByText('Белый фон готовим в фоне')).toBeVisible();
+  await expect.element(detailsPhoto.getByText('Можно заполнять и сохранять сразу')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Сохранить товар' })).toBeEnabled();
   await expect.poll(() => photoProcessor.mock.calls.length).toBe(1);
   expect(photoProcessor).toHaveBeenCalledWith(original, expect.any(Function));
 
   finishProcessing?.(processed);
 
+  await screen.getByText('Дополнительно').click();
   await expect.element(screen.getByRole('img', { name: 'Оригинальная фотография товара' })).toBeVisible();
   await expect.element(screen.getByRole('img', { name: 'Товар на белом фоне' })).toBeVisible();
   await expect.element(screen.getByText('Будет сохранено фото на белом фоне')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Подправить кистью' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Просмотреть оригинал' }).click();
+  const preview = screen.getByRole('dialog', { name: 'Просмотр фотографии товара' });
+  await expect.element(preview.getByRole('img', { name: 'Оригинал товара крупным планом' })).toBeVisible();
+  await preview.getByRole('button', { name: 'Белый фон' }).click();
+  await expect.element(preview.getByRole('img', { name: 'Товар на белом фоне крупным планом' })).toBeVisible();
+  await preview.getByRole('button', { name: 'Закрыть просмотр' }).click();
 
   await screen.getByRole('button', { name: 'Оставить оригинал' }).click();
   await expect.element(screen.getByText('Будет сохранена оригинальная фотография')).toBeVisible();
@@ -127,14 +131,14 @@ test('an interrupted iPhone photo process restores the new-product draft without
     .getByRole('button', { name: 'Закрыть' })
     .click();
   await firstScreen.getByRole('textbox', { name: 'Штрих‑код' }).fill('4006381333931');
-  await firstScreen.getByRole('textbox', { name: 'Название' }).fill('Тестовый товар');
+  await firstScreen.getByRole('textbox', { name: 'Название товара' }).fill('Тестовый товар');
   const original = new File(['original-photo'], 'saved-product.jpg', { type: 'image/jpeg' });
   choosePhoto(
     firstScreen.getByLabelText('Сфотографировать или выбрать фото').element() as HTMLInputElement,
     original
   );
 
-  await expect.element(firstScreen.getByText('Убираем фон и готовим белый вариант…')).toBeVisible();
+  await expect.element(firstScreen.getByLabelText('Проверка фотографии товара').getByText('Белый фон готовим в фоне')).toBeVisible();
   await expect.poll(() => savedDraft?.originalPhoto?.name).toBe('saved-product.jpg');
   await expect.poll(() => photoProcessor.mock.calls.length).toBe(1);
   expect(photoProcessor).toHaveBeenCalledOnce();
@@ -151,9 +155,10 @@ test('an interrupted iPhone photo process restores the new-product draft without
   );
 
   await expect.element(restoredScreen.getByText('Черновик нового товара восстановлен.')).toBeVisible();
-  await expect.element(restoredScreen.getByRole('textbox', { name: 'Штрих‑код' })).toHaveValue('4006381333931');
-  await expect.element(restoredScreen.getByRole('textbox', { name: 'Название' })).toHaveValue('Тестовый товар');
-  await expect.element(restoredScreen.getByRole('img', { name: 'Оригинальная фотография товара' })).toBeVisible();
+  await expect.element(restoredScreen.getByText('4006381333931', { exact: true })).toBeVisible();
+  await expect.element(restoredScreen.getByRole('textbox', { name: 'Название товара' })).toHaveValue('Тестовый товар');
+  await expect.element(restoredScreen.getByRole('img', { name: 'Фото нового товара' })).toBeVisible();
+  await restoredScreen.getByText('Дополнительно').click();
   await expect.element(restoredScreen.getByRole('alert')).toHaveTextContent(
     'Обработка была прервана перезапуском страницы. Оригинал сохранён — можно продолжить.'
   );
@@ -204,7 +209,7 @@ test('scanning an unknown barcode automatically opens the product photo step', a
     await screen.getByRole('button', { name: 'Добавить товар' }).click();
 
     const cameraDialog = screen.getByRole('dialog', { name: 'Фотографирование товара' });
-    await expect.element(cameraDialog.getByText('Шаг 2 из 2')).toBeVisible();
+    await expect.element(cameraDialog.getByText('Шаг 2 из 3')).toBeVisible();
     await expect.element(screen.getByRole('textbox', { name: 'Штрих‑код' })).toHaveValue('4006381333931');
   } finally {
     play.mockRestore();
