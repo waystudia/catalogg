@@ -9,6 +9,10 @@ const migration = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260813195108_add_shared_product_master.sql'),
   'utf8'
 );
+const optionalBarcodeMigration = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20260829133000_allow_shared_products_without_barcode.sql'),
+  'utf8'
+);
 const catalogAdapter = readFileSync(resolve(repoRoot, 'src/shared/supabase.ts'), 'utf8');
 
 describe('shared product master migration', () => {
@@ -95,5 +99,12 @@ describe('shared product master migration', () => {
     assert.match(catalogAdapter, /master_product_id: value\.master_product_id \?\? undefined/i);
     assert.match(catalogAdapter, /master_product_id: product\.master_product_id/i);
     assert.match(catalogAdapter, /master_content_version: product\.master_product_id/i);
+  });
+
+  it('keeps products without a barcode searchable and addable to a merchant catalog', () => {
+    assert.match(optionalBarcodeMigration, /function public\.search_shared_products[\s\S]*left join lateral[\s\S]*master_product_identifiers/i);
+    assert.match(optionalBarcodeMigration, /function public\.bulk_add_shared_products_to_catalog[\s\S]*left join lateral[\s\S]*master_product_identifiers/i);
+    assert.match(optionalBarcodeMigration, /master_record\.normalized_barcode is not null/i);
+    assert.match(optionalBarcodeMigration, /coalesce\(master_record\.barcode, ''\),[\s\S]*'draft'::public\.product_status/i);
   });
 });

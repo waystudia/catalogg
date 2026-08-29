@@ -14,8 +14,8 @@ type SharedProductRow = {
   net_content_unit: string | null;
   category_id: string | null;
   category_name: string | null;
-  barcode: string;
-  normalized_barcode: string;
+  barcode: string | null;
+  normalized_barcode: string | null;
   image_url: string | null;
   version: number;
   status: SharedProduct['status'];
@@ -77,8 +77,8 @@ export const mapSharedProductRow = (row: SharedProductRow): SharedProduct => ({
   netContentUnit: row.net_content_unit,
   categoryId: row.category_id,
   categoryName: row.category_name,
-  barcode: row.barcode,
-  normalizedBarcode: row.normalized_barcode,
+  barcode: row.barcode ?? '',
+  normalizedBarcode: row.normalized_barcode ?? '',
   imageUrl: row.image_url,
   version: row.version,
   status: row.status
