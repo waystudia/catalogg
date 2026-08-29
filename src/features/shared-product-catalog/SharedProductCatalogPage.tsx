@@ -735,7 +735,7 @@ export function SharedProductCatalogPage({
               <span>{product.categoryName ?? 'Без группы'} · {product.status === 'verified' ? 'Проверено' : 'На проверке'}</span>
               <h3>{product.title}</h3>
               <p>{product.description || 'Описание пока не добавлено'}</p>
-              <code>{product.barcode}</code>
+              <code>{product.barcode || 'Без штрих-кода'}</code>
             </div>
             {mode === 'merchant' ? (
               <button type="button" disabled={saving || addedIds.has(product.id)} onClick={() => void addToStore(product)}>
