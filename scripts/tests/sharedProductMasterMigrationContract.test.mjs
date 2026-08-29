@@ -105,6 +105,6 @@ describe('shared product master migration', () => {
     assert.match(optionalBarcodeMigration, /function public\.search_shared_products[\s\S]*left join lateral[\s\S]*master_product_identifiers/i);
     assert.match(optionalBarcodeMigration, /function public\.bulk_add_shared_products_to_catalog[\s\S]*left join lateral[\s\S]*master_product_identifiers/i);
     assert.match(optionalBarcodeMigration, /master_record\.normalized_barcode is not null/i);
-    assert.match(optionalBarcodeMigration, /master_record\.barcode,[\s\S]*'draft'::public\.product_status/i);
+    assert.match(optionalBarcodeMigration, /coalesce\(master_record\.barcode, ''\),[\s\S]*'draft'::public\.product_status/i);
   });
 });

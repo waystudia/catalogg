@@ -231,7 +231,7 @@ begin
         'master',
         master_record.title,
         'shared-' || replace(requested_master_id::text, '-', ''),
-        master_record.barcode,
+        coalesce(master_record.barcode, ''),
         'draft'::public.product_status,
         0,
         master_record.description,
