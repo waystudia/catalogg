@@ -276,6 +276,7 @@ type DriverLookupRow = {
   delivery_id?: string | null;
   delivery_status?: DeliveryStatus | 'waiting_driver' | null;
   delivery_updated_at?: string | null;
+  offered_fee?: number | null;
   pickup_qr_confirmed_at?: string | null;
   restaurant_payment_confirmed_at?: string | null;
   driver_restaurant_order_payment_confirmed_at?: string | null;
@@ -697,6 +698,7 @@ const hydrateRestaurantOrderDriver = (order: RestaurantOrder, driver: DriverLook
     driverRestaurantDeliveryPayoutReceivedAmount: Number(driver.driver_restaurant_delivery_payout_received_amount ?? order.driverRestaurantDeliveryPayoutReceivedAmount ?? 0),
     restaurantFundsDelivery: driver.restaurant_funds_delivery ?? order.restaurantFundsDelivery,
     restaurantDeliveryPayoutAmount: Number(driver.restaurant_delivery_payout_amount ?? order.restaurantDeliveryPayoutAmount ?? 0),
+    courierPayout: Number(driver.offered_fee ?? order.courierPayout ?? 0),
     driverName: driver.name ?? order.driverName,
     driverPhone: driver.phone ?? order.driverPhone,
     driverVehicleInfo: driver.vehicle_info ?? order.driverVehicleInfo,

@@ -515,6 +515,7 @@ begin
         'delivery_id', delivery.id,
         'delivery_status', delivery.status,
         'delivery_updated_at', delivery.updated_at,
+        'offered_fee', delivery.offered_fee,
         'pickup_qr_confirmed_at', delivery.pickup_qr_confirmed_at,
         'restaurant_payment_confirmed_at', order_row.restaurant_payment_confirmed_at,
         'driver_restaurant_order_payment_confirmed_at',

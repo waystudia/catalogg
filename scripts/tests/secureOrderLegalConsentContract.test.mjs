@@ -3,6 +3,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const migration = readFileSync('supabase/migrations/20260818080335_secure_order_access_and_legal_evidence.sql', 'utf8');
+const correctiveMigration = readFileSync('supabase/migrations/20260830161657_fix_schema_qualified_nullif.sql', 'utf8');
+const allMigrationSql = readdirSync('supabase/migrations')
+  .filter((name) => name.endsWith('.sql'))
+  .map((name) => readFileSync(`supabase/migrations/${name}`, 'utf8'))
+  .join('\n');
 const clientApi = readFileSync('src/shared/api/clientPlatformApi.ts', 'utf8');
 const checkout = readFileSync('src/features/checkout/CheckoutScreen.tsx', 'utf8');
 const platformCheckout = readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
@@ -31,6 +36,14 @@ test('document releases are server-pinned and evidence is append-only and order-
   assert.match(migration, /prevent_legal_acceptance_mutation/);
   assert.match(migration, /before update or delete on public\.legal_consent_records/i);
   assert.match(migration, /document_code[\s\S]*order_transfer_consent[\s\S]*created_order_id/i);
+});
+
+test('secure order finalization never schema-qualifies NULLIF as a pg_catalog function', () => {
+  assert.doesNotMatch(allMigrationSql, /pg_catalog\.nullif\s*\(/i);
+  assert.match(correctiveMigration, /finish_secure_client_order\(uuid,uuid,text,boolean,text,text,text,text,boolean,text,text\)/i);
+  assert.match(correctiveMigration, /activate_current_driver\(jsonb\)/i);
+  assert.match(correctiveMigration, /pg_get_functiondef/i);
+  assert.match(correctiveMigration, /notify pgrst, 'reload schema'/i);
 });
 
 test('sensitive client tracking uses protected polling rather than direct table subscriptions', () => {
