@@ -7,9 +7,14 @@ const migrationPath = new URL(
   import.meta.url
 );
 const driverApiPath = new URL('../../src/shared/api/deliveryApi.ts', import.meta.url);
+const restaurantOrdersApiPath = new URL('../../src/shared/api/restaurantOrdersApi.ts', import.meta.url);
 const driverAppPath = new URL('../../src/pages/driver/DriverApp.tsx', import.meta.url);
 const restaurantPanelPath = new URL(
   '../../src/features/restaurant-admin/OrderDetailsPanel.tsx',
+  import.meta.url
+);
+const correctiveMigrationPath = new URL(
+  '../../supabase/migrations/20260830163520_expose_restaurant_assigned_driver_offered_fee.sql',
   import.meta.url
 );
 
@@ -37,10 +42,12 @@ test('free delivery settlement persists both driver confirmations and protects p
 });
 
 test('driver UI separates order handover from restaurant-funded delivery payout', async () => {
-  const [api, driverApp, restaurantPanel] = await Promise.all([
+  const [api, restaurantOrdersApi, driverApp, restaurantPanel, correctiveMigration] = await Promise.all([
     readFile(driverApiPath, 'utf8'),
+    readFile(restaurantOrdersApiPath, 'utf8'),
     readFile(driverAppPath, 'utf8'),
-    readFile(restaurantPanelPath, 'utf8')
+    readFile(restaurantPanelPath, 'utf8'),
+    readFile(correctiveMigrationPath, 'utf8')
   ]);
 
   assert.match(api, /confirm_current_driver_restaurant_order_payment/);
@@ -52,4 +59,7 @@ test('driver UI separates order handover from restaurant-funded delivery payout'
   assert.match(driverApp, /Сначала завершите расчёт с рестораном/);
   assert.match(restaurantPanel, /Оплата доставки рестораном/);
   assert.match(restaurantPanel, /До этого QR выдачи заказа будет заблокирован/);
+  assert.match(restaurantOrdersApi, /offered_fee\?: number \| null/);
+  assert.match(restaurantOrdersApi, /courierPayout: Number\(driver\.offered_fee \?\? order\.courierPayout \?\? 0\)/);
+  assert.match(correctiveMigration, /'offered_fee', delivery\.offered_fee/);
 });

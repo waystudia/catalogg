@@ -190,7 +190,7 @@ begin
         pg_catalog.jsonb_build_object(
           'captured_by', 'secure_order_rpc',
           'context', 'checkout',
-          'ip_address', pg_catalog.nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
+          'ip_address', nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
           'user_agent', pg_catalog.left(coalesce(request_headers ->> 'user-agent', ''), 1000)
         )
       ),
@@ -202,7 +202,7 @@ begin
         pg_catalog.jsonb_build_object(
           'captured_by', 'secure_order_rpc',
           'context', 'checkout',
-          'ip_address', pg_catalog.nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
+          'ip_address', nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
           'user_agent', pg_catalog.left(coalesce(request_headers ->> 'user-agent', ''), 1000)
         )
       )
@@ -226,7 +226,7 @@ begin
         'captured_by', 'secure_order_rpc',
         'context', 'specific_order_transfer',
         'catalog_id', target_catalog_id,
-        'ip_address', pg_catalog.nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
+        'ip_address', nullif(pg_catalog.split_part(coalesce(request_headers ->> 'x-forwarded-for', ''), ',', 1), ''),
         'user_agent', pg_catalog.left(coalesce(request_headers ->> 'user-agent', ''), 1000)
       )
     ) on conflict do nothing;
@@ -1101,7 +1101,7 @@ declare
   target_driver public.drivers%rowtype;
   accepted_at timestamptz := pg_catalog.now();
   request_headers jsonb := coalesce(
-    pg_catalog.nullif(pg_catalog.current_setting('request.headers', true), '')::jsonb,
+    nullif(pg_catalog.current_setting('request.headers', true), '')::jsonb,
     '{}'::jsonb
   );
   consent_evidence jsonb;
