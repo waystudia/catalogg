@@ -1278,7 +1278,7 @@ export function CheckoutScreen({
                         ? 'waiting_payment_confirmation'
                         : 'new',
                       paymentStatus: usesBankTransfer ? 'waiting_confirmation' : 'unpaid',
-                      totalAmount: total,
+                      totalAmount: checkoutGrandTotal,
                       addressLine:
                         orderType === 'delivery'
                           ? finalDeliveryAddress

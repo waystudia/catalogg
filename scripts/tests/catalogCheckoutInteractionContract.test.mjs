@@ -169,6 +169,11 @@ test('successful checkout delegates immutable consent evidence to secure order c
   assert.ok(whatsappIndex > submitIndex);
 });
 
+test('the saved client order includes the delivery fee shown in the checkout total', () => {
+  assert.match(checkoutSource, /const checkoutGrandTotal = total \+ payableDeliveryFee/);
+  assert.match(checkoutSource, /submitClientOrder\(\{[\s\S]*totalAmount:\s*checkoutGrandTotal/);
+});
+
 test('general consent state comes from the server and never implies order-transfer consent', () => {
   assert.match(checkoutSource, /getCurrentClientLegalState/);
   assert.match(checkoutSource, /useState\(false\)/);
