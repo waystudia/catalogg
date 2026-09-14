@@ -26,20 +26,23 @@ describe('driver dashboard presentation', () => {
   });
 
   it.each([
-    ['assigned', { label: 'Поехать в ресторан', to: '/driver/map' }],
+    ['assigned', { label: 'Я в ресторане', status: 'arrived_to_restaurant' }],
     ['arrived_to_restaurant', { label: 'Забрал заказ', status: 'handed_over' }],
     ['handed_over', { label: 'Выехал к клиенту', status: 'on_the_way' }],
-    ['on_the_way', { label: 'Я у клиента', status: 'arrived_to_client' }],
-    ['arrived_to_client', { label: 'Доставлено', status: 'delivered' }]
+    ['on_the_way', { label: 'Я у клиента', status: 'arrived_to_client' }]
   ] as const)('maps %s to its next operational action', (status, action) => {
     expect(getDriverNextAction(status)).toEqual(action);
   });
 
-  it('offers restaurant arrival only after the restaurant route was opened', () => {
+  it('keeps restaurant arrival separate from the external Navigator action', () => {
     expect(getDriverNextAction('assigned', true)).toEqual({
       label: 'Я в ресторане',
       status: 'arrived_to_restaurant'
     });
+  });
+
+  it('does not expose direct completion before mutual handoff confirmation', () => {
+    expect(getDriverNextAction('arrived_to_client')).toBeNull();
   });
 
   it('keeps an accepted order at stage one until its restaurant route is opened', () => {

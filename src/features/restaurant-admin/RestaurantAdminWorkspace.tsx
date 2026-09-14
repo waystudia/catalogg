@@ -423,6 +423,7 @@ export function RestaurantAdminWorkspace({
                 <OrderDetailsPanel
                   order={selectedVisibleOrder}
                   catalogSlug={catalogSlug}
+                  businessType={restaurant.business_type}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
                   onStatus={async (status, reason) => {

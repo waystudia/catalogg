@@ -28,15 +28,12 @@ export const getDriverNextAction = (
   restaurantRouteStarted = false,
   businessType: BusinessType = 'restaurant'
 ): DriverNextAction => {
+  void restaurantRouteStarted;
   const terms = getBusinessTerms(businessType);
-  if (status === 'assigned' && !restaurantRouteStarted) {
-    return { label: terms.driverRouteAction, to: '/driver/map' };
-  }
   if (status === 'assigned') return { label: terms.driverArrival, status: 'arrived_to_restaurant' };
   if (status === 'arrived_to_restaurant') return { label: 'Забрал заказ', status: 'handed_over' };
   if (status === 'handed_over') return { label: 'Выехал к клиенту', status: 'on_the_way' };
   if (status === 'on_the_way') return { label: 'Я у клиента', status: 'arrived_to_client' };
-  if (status === 'arrived_to_client') return { label: 'Доставлено', status: 'delivered' };
   return null;
 };
 

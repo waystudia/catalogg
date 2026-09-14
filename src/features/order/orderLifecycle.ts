@@ -125,6 +125,14 @@ type BuildYandexMapsRouteUrlInput = {
   readonly to: RoutePoint;
 };
 
+type BuildYandexNavigatorRouteUrlInput = {
+  readonly from?: RoutePoint;
+  readonly via?: readonly RoutePoint[];
+  readonly to: RoutePoint;
+  readonly client?: string;
+  readonly signature?: string;
+};
+
 export type DeliveryPriceRule = {
   readonly fromSettlement: string;
   readonly toSettlement: string;
@@ -255,6 +263,37 @@ export const buildYandexMapsRouteAppUrl = (input: BuildYandexMapsRouteUrlInput) 
   const query = webUrl.split('?')[1] ?? '';
   return `yandexmaps://maps.yandex.ru/?${query}`;
 };
+
+const appendNavigatorPoint = (
+  params: URLSearchParams,
+  prefix: 'from' | 'to' | `via_${number}`,
+  point: RoutePoint | undefined
+) => {
+  if (!point) return false;
+  const exactPoint = hasCoordinates(point) ? point : coordinatesInAddress(point.address) ?? point;
+  if (!hasCoordinates(exactPoint)) return false;
+  params.set(`lat_${prefix}`, String(exactPoint.lat));
+  params.set(`lon_${prefix}`, String(exactPoint.lng));
+  return true;
+};
+
+export const buildYandexNavigatorRouteAppUrl = ({
+  from,
+  via = [],
+  to,
+  client,
+  signature
+}: BuildYandexNavigatorRouteUrlInput) => {
+  const params = new URLSearchParams();
+  appendNavigatorPoint(params, 'from', from);
+  via.slice(0, 18).forEach((point, index) => appendNavigatorPoint(params, `via_${index}`, point));
+  if (!appendNavigatorPoint(params, 'to', to)) return '';
+  if (client?.trim()) params.set('client', client.trim());
+  if (signature?.trim()) params.set('signature', signature.trim());
+  return `yandexnavi://build_route_on_map?${params.toString()}`;
+};
+
+export const buildYandexNavigatorReturnUrl = () => 'yandexnavi://';
 
 const normalizeSettlement = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
 

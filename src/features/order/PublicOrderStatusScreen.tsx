@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buildYandexMapsRouteUrl } from './orderLifecycle';
-import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
-import { getPublicOrderTracking, getPublicRestaurantOrderStatus, type PublicRestaurantOrderStatus, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import { getPublicRestaurantOrderStatus, type PublicRestaurantOrderStatus, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const publicOrderStatusLabels: Record<RestaurantOrderStatus, string> = {
@@ -27,13 +25,6 @@ export function PublicOrderStatusScreen({
     refetchInterval: 15_000
   });
   const order = statusQuery.data;
-  const trackingQuery = useQuery({
-    queryKey: ['public-order-tracking', orderId],
-    queryFn: () => getPublicOrderTracking(orderId),
-    refetchInterval: 10_000,
-    enabled: Boolean(order)
-  });
-
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <>
       <section className="checkout-summary public-order-status">
@@ -69,25 +60,11 @@ export function PublicOrderStatusScreen({
             <strong>{value.driverName}</strong>
           </div>
         )}
-        {trackingQuery.data?.driverName && trackingQuery.data.driverLat !== null && trackingQuery.data.driverLng !== null && (
+        {value.fulfillmentType === 'delivery' && value.driverName && (
           <div className="checkout-summary__total">
-            <span>Водитель в пути</span>
-            <a href={buildYandexMapsRouteUrl({
-              from: { lat: trackingQuery.data.driverLat, lng: trackingQuery.data.driverLng, address: 'Водитель' },
-              to: { lat: value.deliveryLat, lng: value.deliveryLng, address: value.deliveryAddress }
-            })} target="_blank" rel="noreferrer">
-              Открыть местоположение на Яндекс Картах
-            </a>
+            <span>Доставка</span>
+            <strong>Водитель выполняет заказ</strong>
           </div>
-        )}
-        {value.fulfillmentType === 'delivery' && value.restaurantLat !== null && value.restaurantLng !== null && value.deliveryLat !== null && value.deliveryLng !== null && (
-          <DeliveryTrackingMap
-            restaurant={{ lat: value.restaurantLat, lng: value.restaurantLng, label: value.restaurantName, address: value.restaurantAddress }}
-            client={{ lat: value.deliveryLat, lng: value.deliveryLng, label: value.clientName, address: value.deliveryAddress }}
-            driver={trackingQuery.data?.driverLat !== null && trackingQuery.data?.driverLat !== undefined && trackingQuery.data?.driverLng !== null && trackingQuery.data?.driverLng !== undefined
-              ? { lat: trackingQuery.data.driverLat, lng: trackingQuery.data.driverLng, label: trackingQuery.data.driverName || 'Водитель' }
-              : null}
-          />
         )}
         <div className="checkout-summary__total">
           <span>Итого</span>
@@ -131,4 +108,3 @@ export function PublicOrderStatusScreen({
     </main>
   );
 }
-

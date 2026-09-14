@@ -2467,3 +2467,65 @@
   margin: 0;
   color: #667085;
 }
+
+.client-receipt-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 16px 16px;
+  border: 1px solid #ddd6fe;
+  border-radius: 20px;
+  padding: 18px;
+  background: linear-gradient(145deg, #f7f5ff, #fff);
+  box-shadow: 0 14px 34px rgba(91, 61, 244, 0.12);
+  text-align: center;
+}
+
+.client-receipt-panel > svg {
+  width: 42px;
+  height: 42px;
+  justify-self: center;
+  border-radius: 50%;
+  padding: 9px;
+  background: #5b3df4;
+  color: #fff;
+}
+
+.client-receipt-panel h2,
+.client-receipt-panel p {
+  margin: 0;
+}
+
+.client-receipt-panel p {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.client-receipt-panel__confirm,
+.client-receipt-panel__review {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 14px;
+  background: #5b3df4;
+  color: #fff;
+  font-weight: 900;
+}
+
+.client-receipt-panel__problem {
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.client-receipt-panel--confirmed {
+  border-color: #abefc6;
+  background: #ecfdf3;
+}
+
+.client-receipt-panel--confirmed > svg {
+  background: #12b76a;
+}

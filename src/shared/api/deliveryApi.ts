@@ -1,6 +1,7 @@
 import {
   buildDeliveryDestinationAddress,
   buildDriverDeliveryView,
+  buildYandexNavigatorRouteAppUrl,
   createPickupQrToken,
   type DeliveryStatus,
   type DriverDeliveryView,
@@ -47,6 +48,8 @@ export type DeliveryOffer = DriverDeliveryView & {
   readonly restaurantPaymentConfirmed: boolean;
   readonly pickupQrConfirmed: boolean;
   readonly pickupQrExpiresAt?: string;
+  readonly driverHandedToClientAt?: string | null;
+  readonly clientReceivedAt?: string | null;
 };
 
 export type DriverEarning = {
@@ -89,6 +92,8 @@ type DeliveryRow = {
   pickup_qr_token: string | null;
   pickup_qr_expires_at: string | null;
   pickup_qr_confirmed_at?: string | null;
+  driver_handed_to_client_at?: string | null;
+  client_received_at?: string | null;
   assigned_at: string | null;
   route_to_restaurant_url: string | null;
   route_to_client_url: string | null;
@@ -359,6 +364,12 @@ type DriverDashboardDataRow = {
   readonly deliveries: DeliveryRow[];
 };
 
+type DriverDeliveryHandoffRow = {
+  readonly delivery_id?: unknown;
+  readonly driver_handed_to_client_at?: unknown;
+  readonly client_received_at?: unknown;
+};
+
 const runSoftDriverQuery = async <T,>(
   request: PromiseLike<{ data: T | null; error: unknown | null }>,
   message: string,
@@ -435,6 +446,12 @@ const loadCurrentDriverDashboardData = async (): Promise<DriverSoftQueryResult<D
 
   copySupabaseSessionToScope('driver');
   return requestDashboard();
+};
+
+const loadCurrentDriverDeliveryHandoffs = async (): Promise<DriverDeliveryHandoffRow[]> => {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('get_current_driver_delivery_handoffs');
+  return error || !Array.isArray(data) ? [] : data as DriverDeliveryHandoffRow[];
 };
 
 const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboardSnapshot => ({
@@ -522,7 +539,9 @@ const rowToOffer = (
     paymentMethod: order.payment_method === 'cash' ? 'cash' : 'bank_transfer',
     restaurantPaymentConfirmed: Boolean(order.restaurant_payment_confirmed_at),
     pickupQrConfirmed: Boolean(row.pickup_qr_confirmed_at),
-    pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined
+    pickupQrExpiresAt: row.pickup_qr_expires_at ?? undefined,
+    driverHandedToClientAt: row.driver_handed_to_client_at ?? null,
+    clientReceivedAt: row.client_received_at ?? null
   };
 };
 
@@ -705,6 +724,27 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
       return rowToOffer(row, profile.id, catalogId ? businessTypeByCatalog.get(catalogId) : undefined);
     })
     .filter((offer): offer is DeliveryOffer => Boolean(offer));
+
+  const handoffRows = await loadCurrentDriverDeliveryHandoffs();
+  if (handoffRows.length > 0) {
+    const handoffsByDeliveryId = new Map(handoffRows.flatMap((row) => {
+      const deliveryId = typeof row.delivery_id === 'string' ? row.delivery_id : '';
+      return deliveryId ? [[deliveryId, row] as const] : [];
+    }));
+    offers = offers.map((offer) => {
+      const handoff = handoffsByDeliveryId.get(offer.deliveryId);
+      if (!handoff) return offer;
+      return {
+        ...offer,
+        driverHandedToClientAt: typeof handoff.driver_handed_to_client_at === 'string'
+          ? handoff.driver_handed_to_client_at
+          : null,
+        clientReceivedAt: typeof handoff.client_received_at === 'string'
+          ? handoff.client_received_at
+          : null
+      };
+    });
+  }
 
   const assignedOrderIds = Array.from(new Set(offers
     .filter((offer) => offer.isAssignedToViewer)
@@ -984,7 +1024,62 @@ export async function completeDeliveryProgress(deliveryId: string) {
     15_000
   );
 
-  if (error) throw error;
+  if (!error) return;
+  if (/delivery_completion_confirmation_required/i.test(error.message)) {
+    throw new Error('Завершение доступно после подтверждения получения клиентом.');
+  }
+  throw error;
+}
+
+export async function confirmDriverDeliveryHandoff(deliveryId: string) {
+  if (!supabase) {
+    return { driverHandedToClientAt: new Date().toISOString() };
+  }
+
+  const { data, error } = await withDriverRequestTimeout(
+    supabase.rpc('confirm_driver_delivery_handoff', { target_delivery_id: deliveryId }),
+    'Не удалось отправить клиенту подтверждение передачи.',
+    15_000
+  );
+  if (error) {
+    if (/delivery_handoff_not_allowed/i.test(error.message)) {
+      throw new Error('Сначала подтвердите, что вы приехали к клиенту.');
+    }
+    throw error;
+  }
+  const row = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+  return {
+    driverHandedToClientAt: typeof row.driver_handed_to_client_at === 'string'
+      ? row.driver_handed_to_client_at
+      : new Date().toISOString()
+  };
+}
+
+export async function getDriverNavigatorRouteUrl(
+  delivery: Pick<DeliveryOffer, 'deliveryId' | 'restaurantLat' | 'restaurantLng' | 'restaurantAddress' | 'deliveryLat' | 'deliveryLng' | 'deliveryAddress'>,
+  rebuildReason = ''
+) {
+  if (!supabase) {
+    return buildYandexNavigatorRouteAppUrl({
+      via: [{ lat: delivery.restaurantLat, lng: delivery.restaurantLng, address: delivery.restaurantAddress }],
+      to: { lat: delivery.deliveryLat, lng: delivery.deliveryLng, address: delivery.deliveryAddress }
+    });
+  }
+
+  const { data, error } = await supabase.functions.invoke('sign-yandex-navigator-route', {
+    body: {
+      delivery_id: delivery.deliveryId,
+      ...(rebuildReason ? { rebuild_reason: rebuildReason } : {})
+    }
+  });
+  if (error) throw new Error('Не удалось подготовить маршрут Яндекс Навигатора.');
+  const url = data && typeof data === 'object' && typeof (data as { url?: unknown }).url === 'string'
+    ? (data as { url: string }).url
+    : '';
+  if (!url.startsWith('yandexnavi://')) {
+    throw new Error('Яндекс Навигатор ещё не настроен для этого приложения.');
+  }
+  return url;
 }
 
 export async function refreshDriverPickupQr(deliveryId: string) {

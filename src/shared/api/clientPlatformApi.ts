@@ -383,6 +383,62 @@ export async function saveClientReview(input: {
   throw error;
 }
 
+export type ClientOrderHandoffState = {
+  readonly driverHandedToClientAt: string | null;
+  readonly clientReceivedAt: string | null;
+};
+
+const mapClientOrderHandoffState = (data: unknown): ClientOrderHandoffState => {
+  const row = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+  return {
+    driverHandedToClientAt: typeof row.driver_handed_to_client_at === 'string'
+      ? row.driver_handed_to_client_at
+      : null,
+    clientReceivedAt: typeof row.client_received_at === 'string'
+      ? row.client_received_at
+      : null
+  };
+};
+
+export async function getClientOrderHandoffState(orderId: string): Promise<ClientOrderHandoffState> {
+  const sessionToken = getStoredClientSessionToken();
+  if (!supabase || !sessionToken) {
+    return { driverHandedToClientAt: null, clientReceivedAt: null };
+  }
+  const { data, error } = await supabase.rpc('get_client_order_handoff_state', {
+    client_session_token: sessionToken,
+    target_order_id: orderId
+  });
+  if (error) return { driverHandedToClientAt: null, clientReceivedAt: null };
+  return mapClientOrderHandoffState(data);
+}
+
+export async function confirmClientOrderReceipt(orderId: string): Promise<ClientOrderHandoffState> {
+  const sessionToken = getStoredClientSessionToken();
+  if (!sessionToken) throw new Error('Войдите в аккаунт клиента, чтобы подтвердить получение.');
+  if (!supabase) {
+    return {
+      driverHandedToClientAt: new Date().toISOString(),
+      clientReceivedAt: new Date().toISOString()
+    };
+  }
+  const { data, error } = await supabase.rpc('confirm_client_order_receipt', {
+    client_session_token: sessionToken,
+    target_order_id: orderId
+  });
+  if (!error) return mapClientOrderHandoffState(data);
+  if (/client_handoff_auth_required/i.test(error.message)) {
+    throw new Error('Сессия закончилась. Войдите в аккаунт клиента ещё раз.');
+  }
+  if (/client_handoff_order_forbidden/i.test(error.message)) {
+    throw new Error('Подтвердить получение может только клиент этого заказа.');
+  }
+  if (/client_receipt_not_allowed/i.test(error.message)) {
+    throw new Error('Водитель ещё не подтвердил передачу заказа.');
+  }
+  throw error;
+}
+
 type ClientPlatformOrderInput = {
   restaurant: Pick<ClientRestaurant, 'slug' | 'description' | 'addressLine' | 'lat' | 'lng' | 'deliveryProvider'>;
   profile: ClientProfile;
@@ -577,6 +633,8 @@ export type ClientOrderRealtimePatch = {
   readonly driverLat?: number | null;
   readonly driverLng?: number | null;
   readonly driverLocationAt?: string | null;
+  readonly driverHandedToClientAt?: string | null;
+  readonly clientReceivedAt?: string | null;
 };
 
 export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: ClientOrderRealtimePatch) => void) {
@@ -584,9 +642,10 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
   if (!client) return () => undefined;
 
   const fetchOrder = async () => {
-    const { data: statusData, error: statusError } = await client.rpc('get_public_restaurant_order_status', {
-      target_order_id: orderId
-    });
+    const [{ data: statusData, error: statusError }, handoffState] = await Promise.all([
+      client.rpc('get_public_restaurant_order_status', { target_order_id: orderId }),
+      getClientOrderHandoffState(orderId)
+    ]);
     if (statusError || !statusData || typeof statusData !== 'object') return;
     const status = statusData as {
       id?: unknown;
@@ -616,7 +675,9 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       driverPhone: status.driver_phone ? String(status.driver_phone) : undefined,
       driverLat: tracking?.driver_lat ?? null,
       driverLng: tracking?.driver_lng ?? null,
-      driverLocationAt: tracking?.driver_location_at ?? null
+      driverLocationAt: tracking?.driver_location_at ?? null,
+      driverHandedToClientAt: handoffState.driverHandedToClientAt,
+      clientReceivedAt: handoffState.clientReceivedAt
     });
   };
 
@@ -629,7 +690,12 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
     .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, fetchOrder)
     .subscribe();
 
+  const pollId = window.setInterval(() => {
+    if (document.visibilityState === 'visible') void fetchOrder();
+  }, 5_000);
+
   return () => {
+    window.clearInterval(pollId);
     void client.removeChannel(channel);
   };
 }

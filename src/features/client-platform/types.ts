@@ -197,6 +197,8 @@ export type ClientOrder = {
   driverLat?: number | null;
   driverLng?: number | null;
   driverLocationAt?: string | null;
+  driverHandedToClientAt?: string | null;
+  clientReceivedAt?: string | null;
   items: ClientOrderItem[];
 };
 

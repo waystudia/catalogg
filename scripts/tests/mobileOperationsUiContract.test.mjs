@@ -99,12 +99,9 @@ describe('mobile operational interfaces', () => {
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
     assert.match(driverCss, /\.driver-current-block__accepted/);
     assert.match(driverCss, /\.driver-inline-qr/);
-    assert.match(driverCss, /\.driver-secondary--map-hint/);
-    assert.match(driverSource, /Построить маршрут к клиенту/);
-    assert.match(
-      driverSource,
-      /delivery\.status === 'handed_over'[\s\S]*driver-secondary--map-hint/
-    );
+    assert.match(driverCss, /\.driver-navigator-open/);
+    assert.match(driverSource, /Открыть маршрут в Навигаторе/);
+    assert.match(driverSource, /Вернуться в Навигатор/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
   });
@@ -132,13 +129,10 @@ describe('mobile operational interfaces', () => {
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /Построить маршрут: \{terms\.placeDative\}/);
-    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted,\s*offer\.businessType\)/);
+    assert.match(currentPanel, /<DriverYandexNavigationActions delivery=\{offer\}/);
+    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*false,\s*offer\.businessType\)/);
     assert.match(currentPanel, /nextAction\.label/);
-    assert.match(
-      driverSource,
-      /function DriverMapScreen[\s\S]*getDriverDeliveryProgress\(delivery\.status,\s*restaurantRouteStarted,\s*delivery\.businessType\)/
-    );
+    assert.doesNotMatch(driverSource, /function DriverMapScreen/);
   });
 
   it('shows real driver earnings and platform debt as separate balance values', () => {
@@ -159,35 +153,26 @@ describe('mobile operational interfaces', () => {
     assert.match(mapCss, /\.delivery-tracking-map__attribution\s*\{[^}]*font-size:\s*[5-7]px/s);
   });
 
-  it('uses a compact navigator layout without the map legend', () => {
+  it('uses an external Navigator flow without an embedded driver map', () => {
     assert.match(mapSource, /!navigationMode[\s\S]*delivery-tracking-map__legend/);
     assert.match(mapSource, /Выровнять карту по компасу/);
     assert.match(mapSource, /Следить за водителем/);
     assert.match(mapSource, /Включить голосовые подсказки/);
     assert.match(mapSource, /--map-counter-rotation/);
     assert.match(mapSource, /onRouteSummaryChange/);
-    assert.match(driverSource, /driver-map-sheet__leg-metrics/);
-    assert.match(driverSource, /routeSummary\?\.distanceM/);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__canvas\s*\{[^}]*height:\s*100%/s);
-    assert.match(driverCss, /\.driver-map-topbar\s*\{[^}]*background:\s*#fff/s);
-    assert.match(driverCss, /\.driver-map-canvas\s*\{[^}]*top:\s*6[0-9]px/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*width:\s*11[0-9]px/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*min-height:\s*7[0-9]px/s);
-    assert.match(driverCss, /\.driver-phone--map \.delivery-tracking-map__navigation\s*\{[^}]*overflow:\s*hidden;[^}]*padding:\s*1[0-4]px/s);
     assert.match(mapCss, /\.delivery-tracking-map__tile\s*\{[^}]*transition:\s*none;/s);
     assert.match(mapCss, /\.delivery-tracking-map__canvas\s*\{[^}]*overflow:\s*clip;/s);
     assert.match(mapSource, /getNavigationLookAheadDistanceM\(mapZoomRef\.current\)/);
     assert.match(mapSource, /getNearestEquivalentAngle/);
     assert.match(mapSource, /roadRoute\.nextManeuver\?\.street/);
     assert.match(mapSource, /requestAnimationFrame/);
-    assert.match(driverSource, /DriverRouteLegProgress/);
-    assert.match(driverSource, /routeTotalDistanceM/);
-    assert.match(driverSource, /activeLeg=\{activeLeg\}/);
-    assert.match(driverCss, /\.driver-map-sheet__leg-progress/);
+    assert.doesNotMatch(driverSource, /DriverRouteLegProgress/);
+    assert.doesNotMatch(driverSource, /<DeliveryTrackingMap/);
+    assert.match(driverSource, /getDriverNavigatorRouteUrl/);
+    assert.match(driverSource, /buildYandexNavigatorReturnUrl/);
+    assert.match(driverSource, /DriverCompletionSlider/);
+    assert.match(driverCss, /\.driver-completion-slider/);
     assert.match(driverSource, /aria-label=\{`Текущая доставка \$\{delivery\.orderNumber\}`\}/);
     assert.match(driverSource, /driver-order-panel driver-current-block driver-current-block--details/);
-    assert.match(driverCss, /\.driver-map-sheet__actions\s*\{[^}]*min-height:\s*3[6-9]px/s);
-    assert.match(driverCss, /\.driver-map-sheet__yandex,[\s\S]*min-height:\s*3[6-9]px/s);
-    assert.match(driverCss, /\.driver-map-sheet[\s\S]*height:\s*2[0-9]dvh/);
   });
 });

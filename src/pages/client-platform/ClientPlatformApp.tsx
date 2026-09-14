@@ -69,6 +69,7 @@ import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import {
   createClientPlatformOrder,
+  confirmClientOrderReceipt,
   getClientPlatformSnapshot,
   saveClientReview,
   subscribeClientOrderRealtime,
@@ -84,9 +85,7 @@ import {
 import type { ClientAccountSession } from '../../shared/api/clientAccountApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
-import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
-import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
 import { signOutPlatformAdmin } from '../../shared/api/platformAdminApi';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
@@ -2281,8 +2280,16 @@ function OrderStatusPage({
   const terms = getBusinessTerms(restaurant.businessType);
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
+  const profile = useClientPlatformStore((state) => state.profile);
   const order = selectClientOrderForStatus(orders, restaurant.slug, orderId);
   const restaurantImage = snapshot.restaurants.find((item) => item.slug === restaurant.slug)?.coverUrl;
+  const [isConfirmingReceipt, setIsConfirmingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState('');
+  const [showReceiptReview, setShowReceiptReview] = useState(false);
+  const [receiptReviewRating, setReceiptReviewRating] = useState(5);
+  const [receiptReviewComment, setReceiptReviewComment] = useState('');
+  const [receiptReviewMessage, setReceiptReviewMessage] = useState('');
+  const [isReceiptReviewSending, setIsReceiptReviewSending] = useState(false);
 
   useEffect(() => {
     if (!order?.id) return undefined;
@@ -2295,10 +2302,50 @@ function OrderStatusPage({
         driverPhone: patch.driverPhone,
         driverLat: patch.driverLat,
         driverLng: patch.driverLng,
-        driverLocationAt: patch.driverLocationAt
+        driverLocationAt: patch.driverLocationAt,
+        driverHandedToClientAt: patch.driverHandedToClientAt,
+        clientReceivedAt: patch.clientReceivedAt
       }));
     });
   }, [order?.id, syncOrderPatch]);
+
+  const confirmReceipt = async () => {
+    if (!order || isConfirmingReceipt) return;
+    setReceiptError('');
+    setIsConfirmingReceipt(true);
+    try {
+      const handoffState = await confirmClientOrderReceipt(order.id);
+      syncOrderPatch(order.id, handoffState);
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : 'Не удалось подтвердить получение заказа.');
+    } finally {
+      setIsConfirmingReceipt(false);
+    }
+  };
+
+  const submitReceiptReview = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!order || isReceiptReviewSending) return;
+    setReceiptError('');
+    setReceiptReviewMessage('');
+    setIsReceiptReviewSending(true);
+    try {
+      await saveClientReview({
+        orderId: order.id,
+        restaurantId: restaurant.id,
+        clientName: profile.name || order.clientName,
+        clientPhone: profile.phone || order.clientPhone,
+        rating: receiptReviewRating,
+        comment: receiptReviewComment
+      });
+      setReceiptReviewMessage('Спасибо! Отзыв отправлен.');
+      setShowReceiptReview(false);
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : 'Не удалось отправить отзыв.');
+    } finally {
+      setIsReceiptReviewSending(false);
+    }
+  };
 
   if (!order) {
     return (
@@ -2345,22 +2392,10 @@ function OrderStatusPage({
               </a>
             </span>
           )}
-          {order.driverName && order.driverLat !== null && order.driverLat !== undefined && order.driverLng !== null && order.driverLng !== undefined && (
+          {order.driverName && (
             <span>
-              <strong>Таксист в пути</strong>
-              <small>{order.driverLat.toFixed(5)}, {order.driverLng.toFixed(5)}</small>
+              <strong>{order.driverHandedToClientAt ? 'Водитель передал заказ' : 'Водитель в пути'}</strong>
               {order.driverLocationAt && <small>Обновлено {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>}
-              <a
-                href={buildYandexMapsRouteUrl({
-                  from: { lat: order.driverLat, lng: order.driverLng, address: 'Водитель' },
-                  to: { lat: order.deliveryLat, lng: order.deliveryLng, address: order.addressLine }
-                })}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <MapPin />
-                Отследить на карте
-              </a>
             </span>
           )}
           <span>
@@ -2372,20 +2407,52 @@ function OrderStatusPage({
             <small>{order.addressLine}</small>
           </span>
         </section>
-        {order.orderType === 'delivery' && restaurant.lat !== null && restaurant.lng !== null &&
-          typeof order.deliveryLat === 'number' && Number.isFinite(order.deliveryLat) &&
-          typeof order.deliveryLng === 'number' && Number.isFinite(order.deliveryLng) && (
-            <section className="delivery-tracking-section">
-              <h2>Карта доставки</h2>
-              <DeliveryTrackingMap
-                restaurant={{ lat: restaurant.lat, lng: restaurant.lng, label: 'Ресторан', address: restaurant.addressLine }}
-                client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: 'Вы', address: order.addressLine }}
-                driver={order.driverLat !== null && order.driverLat !== undefined && order.driverLng !== null && order.driverLng !== undefined
-                  ? { lat: order.driverLat, lng: order.driverLng, label: 'Таксист', address: order.driverName }
-                  : null}
-              />
-            </section>
-          )}
+        {order.orderType === 'delivery' && order.driverHandedToClientAt && !order.clientReceivedAt && (
+          <section className="client-receipt-panel" role="dialog" aria-labelledby="client-receipt-title">
+            <PackageCheck />
+            <h2 id="client-receipt-title">Вы получили заказ?</h2>
+            <p>Подтвердите получение, чтобы водитель мог завершить доставку.</p>
+            {receiptError && <small className="form-error">{receiptError}</small>}
+            <button className="client-receipt-panel__confirm" type="button" disabled={isConfirmingReceipt} onClick={() => void confirmReceipt()}>
+              <Check />
+              {isConfirmingReceipt ? 'Подтверждаем...' : 'Получил заказ'}
+            </button>
+            <a className="client-receipt-panel__problem" href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)} target="_blank" rel="noreferrer">
+              Сообщить о проблеме
+            </a>
+          </section>
+        )}
+        {order.orderType === 'delivery' && order.clientReceivedAt && (
+          <section className="client-receipt-panel client-receipt-panel--confirmed">
+            <Check />
+            <h2>Получение подтверждено</h2>
+            <p>Водитель теперь может завершить доставку.</p>
+            {!receiptReviewMessage && (
+              <button className="client-receipt-panel__review" type="button" onClick={() => setShowReceiptReview((value) => !value)}>
+                <Star /> Оставить отзыв
+              </button>
+            )}
+            {showReceiptReview && (
+              <form className="order-review-form" onSubmit={(event) => void submitReceiptReview(event)}>
+                <label>
+                  Оценка
+                  <select value={receiptReviewRating} onChange={(event) => setReceiptReviewRating(Number(event.target.value))}>
+                    {[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Отзыв
+                  <textarea value={receiptReviewComment} onChange={(event) => setReceiptReviewComment(event.target.value)} rows={3} />
+                </label>
+                {receiptError && <small className="form-error">{receiptError}</small>}
+                <button type="submit" disabled={isReceiptReviewSending}>
+                  {isReceiptReviewSending ? 'Отправляем...' : 'Отправить отзыв'}
+                </button>
+              </form>
+            )}
+            {receiptReviewMessage && <small className="form-success">{receiptReviewMessage}</small>}
+          </section>
+        )}
         <a
           className="secondary-flow-button"
           href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)}
@@ -2811,7 +2878,9 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           driverPhone: patch.driverPhone,
           driverLat: patch.driverLat,
           driverLng: patch.driverLng,
-          driverLocationAt: patch.driverLocationAt
+          driverLocationAt: patch.driverLocationAt,
+          driverHandedToClientAt: patch.driverHandedToClientAt,
+          clientReceivedAt: patch.clientReceivedAt
         }));
       })
     );

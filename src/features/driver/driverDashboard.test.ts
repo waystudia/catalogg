@@ -33,8 +33,8 @@ describe('driver dashboard presentation', () => {
 
   it('returns the next operational action for every active delivery stage', () => {
     assert.deepEqual(getDriverNextAction('assigned'), {
-      label: 'Поехать в ресторан',
-      to: '/driver/map'
+      label: 'Я в ресторане',
+      status: 'arrived_to_restaurant'
     });
     assert.deepEqual(getDriverNextAction('assigned', true), {
       label: 'Я в ресторане',
@@ -52,10 +52,7 @@ describe('driver dashboard presentation', () => {
       label: 'Я у клиента',
       status: 'arrived_to_client'
     });
-    assert.deepEqual(getDriverNextAction('arrived_to_client'), {
-      label: 'Доставлено',
-      status: 'delivered'
-    });
+    assert.equal(getDriverNextAction('arrived_to_client'), null);
     assert.equal(getDriverNextAction('waiting_courier'), null);
     assert.equal(getDriverNextAction('delivered'), null);
   });
@@ -81,8 +78,8 @@ describe('driver dashboard presentation', () => {
 
   it('uses coffee shop terminology for route and arrival actions', () => {
     assert.deepEqual(getDriverNextAction('assigned', false, 'coffee_shop'), {
-      label: 'Поехать в кофейню',
-      to: '/driver/map'
+      label: 'Я в кофейне',
+      status: 'arrived_to_restaurant'
     });
     assert.deepEqual(getDriverNextAction('assigned', true, 'coffee_shop'), {
       label: 'Я в кофейне',

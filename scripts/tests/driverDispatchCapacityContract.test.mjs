@@ -17,7 +17,6 @@ const restaurantApi = read('src/shared/api/restaurantOrdersApi.ts');
 const restaurantPanel = read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
 const driverApi = read('src/shared/api/deliveryApi.ts');
 const driverApp = read('src/pages/driver/DriverApp.tsx');
-const mapSource = read('src/shared/DeliveryTrackingMap.tsx');
 const pushSource = read('supabase/functions/send-web-push/index.ts');
 const deliverySettings = read('src/features/restaurant-settings/DeliverySettingsCard.tsx');
 const driverCss = read('src/pages/driver/driver.css');
@@ -86,18 +85,17 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(migrationSql, /sum\(coalesce\(e\.commission, 0\)\)/);
   });
 
-  it('opens navigation on a separate full-screen route and restores close follow mode', () => {
+  it('keeps delivery maps out of the driver interface and opens the external Navigator', () => {
     const activeScreen = driverApp.slice(
       driverApp.indexOf('function DriverActiveScreen'),
       driverApp.indexOf('function DriverQrScreen')
     );
     assert.doesNotMatch(activeScreen, /<DeliveryTrackingMap/);
-    assert.match(driverApp, /Открыть карту маршрута/);
-    assert.match(driverApp, /driver-phone--map/);
-    assert.match(mapSource, /const driverFollowMapZoom = 17\.5/);
-    assert.match(mapSource, /animateMapZoom\(driverFollowMapZoom\)/);
-    assert.match(mapSource, /requestAnimationFrame/);
-    assert.match(mapSource, /aria-label="Определить местоположение"/);
+    assert.doesNotMatch(driverApp, /function DriverMapScreen/);
+    assert.doesNotMatch(driverApp, /Открыть карту маршрута/);
+    assert.match(driverApp, /Открыть маршрут в Навигаторе/);
+    assert.match(driverApp, /Вернуться в Навигатор/);
+    assert.match(driverApp, /buildYandexNavigatorReturnUrl/);
   });
 
   it('keeps restaurant order intake enabled while allowing fulfillment modes to be configured', () => {
@@ -107,21 +105,13 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(deliverySettings, /Доставка/);
   });
 
-  it('keeps the full-screen driver map focused on navigation and compact contact actions', () => {
-    const mapScreen = driverApp.slice(
-      driverApp.indexOf('function DriverMapScreen'),
-      driverApp.indexOf('function DriverEarningsScreen')
-    );
-    assert.match(mapScreen, /getDriverDeliveryProgress/);
-    assert.match(mapScreen, /driver-map-sheet/);
-    assert.match(mapScreen, /Яндекс Карты/);
-    assert.match(mapScreen, /К ресторану и клиенту/);
-    assert.match(mapScreen, /Позвонить клиенту/);
-    assert.match(mapScreen, /Написать клиенту/);
-    assert.doesNotMatch(mapScreen, /getDriverNextAction/);
-    assert.doesNotMatch(mapScreen, /updateDeliveryProgress/);
-    assert.match(driverCss, /\.driver-phone--map\s*\{[\s\S]*height:\s*100dvh/);
-    assert.match(driverCss, /\.driver-map-sheet/);
-    assert.match(driverCss, /height:\s*28dvh/);
+  it('gates final completion behind driver handoff, client receipt and a swipe', () => {
+    assert.match(driverApp, /confirmDriverDeliveryHandoff/);
+    assert.match(driverApp, /Отдал заказ/);
+    assert.match(driverApp, /Ждём, когда клиент нажмёт «Получил заказ»/);
+    assert.match(driverApp, /driverHandedAt && delivery\.clientReceivedAt/);
+    assert.match(driverApp, /DriverCompletionSlider/);
+    assert.match(driverCss, /\.driver-completion-slider/);
+    assert.match(driverCss, /::-webkit-slider-thumb/);
   });
 });

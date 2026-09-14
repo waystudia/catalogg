@@ -22,7 +22,7 @@ import {
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
 import { driverHasCapacity } from '../../shared/driverCapacity';
-import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
+import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
 import {
   loadPaymentStatus,
   savePaymentStatus,
@@ -50,6 +50,7 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 export function OrderDetailsPanel({
   order,
   catalogSlug,
+  businessType,
   paymentSettings,
   onClose,
   onStatus,
@@ -58,12 +59,14 @@ export function OrderDetailsPanel({
 }: {
   order: RestaurantOrder;
   catalogSlug: string;
+  businessType?: BusinessType;
   paymentSettings: RestaurantPaymentSettings;
   onClose: () => void;
   onStatus: (status: RestaurantOrderStatus, reason?: string) => Promise<void>;
   onRefreshOrders: () => void;
   onDelete: () => Promise<void>;
 }) {
+  const businessTerms = getBusinessTerms(businessType);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(() =>
     order.restaurantPaymentConfirmedAt ? 'confirmed' : loadPaymentStatus(catalogSlug, order.id)
   );
@@ -348,17 +351,16 @@ export function OrderDetailsPanel({
 
         {visibleComment && <p className="admin-order-comment">{visibleComment}</p>}
 
-        {order.restaurantLat !== null && order.restaurantLng !== null && order.deliveryLat !== null && order.deliveryLng !== null && (
-          <details className="admin-order-map-details">
-            <summary>Карта доставки</summary>
-            <DeliveryTrackingMap
-              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
-              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: orderAddress }}
-              driver={order.driverLat !== null && order.driverLng !== null
-                ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
-                : null}
-            />
-          </details>
+        {order.fulfillmentType === 'delivery' && (
+          <section className="admin-order-delivery-route" aria-label="Этап доставки">
+            <MapPin />
+            <span>
+              <small>Маршрут без встроенной карты</small>
+              <strong>{businessTerms.place} → клиент</strong>
+              <small>{orderAddress}</small>
+            </span>
+            <em data-tone={adminOrderStatusTones[order.status]}>{adminOrderStatusLabels[order.status]}</em>
+          </section>
         )}
 
         <section className="admin-order-composition">

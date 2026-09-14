@@ -4,7 +4,6 @@ import {
   Eye,
   EyeOff,
   Home,
-  MapPin,
   Menu,
   MoreVertical,
   Package,
@@ -39,8 +38,6 @@ import {
   type RestaurantOrder,
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
-import { buildYandexMapsRouteUrl } from '../../features/order/orderLifecycle';
-import { DeliveryTrackingMap } from '../../shared/DeliveryTrackingMap';
 import type { PaymentStatus as RestaurantPaymentStatus } from '../../features/order/orderLifecycle';
 import { getCatalogPublicUrl } from '../../shared/platformUrls';
 import {
@@ -1167,31 +1164,8 @@ function OrderDetails({
             </dd>
           </div>
         )}
-        {order.fulfillmentType === 'delivery' && order.deliveryLat !== null && order.deliveryLng !== null && order.restaurantLat !== null && order.restaurantLng !== null && (
-          <section className="ra-payment-box">
-            <h3><MapPin />Карта доставки</h3>
-            <DeliveryTrackingMap
-              restaurant={{ lat: order.restaurantLat, lng: order.restaurantLng, label: 'Ресторан', address: order.restaurantAddress }}
-              client={{ lat: order.deliveryLat, lng: order.deliveryLng, label: order.clientName || 'Клиент', address: order.deliveryAddress }}
-              driver={order.driverLat !== null && order.driverLng !== null
-                ? { lat: order.driverLat, lng: order.driverLng, label: order.driverName || 'Водитель' }
-                : null}
-            />
-            <a
-              className="ra-order-map-link"
-              href={buildYandexMapsRouteUrl({
-                from: { lat: order.restaurantLat, lng: order.restaurantLng, address: order.restaurantAddress },
-                to: { lat: order.deliveryLat, lng: order.deliveryLng, address: order.deliveryAddress }
-              })}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Открыть маршрут в Яндекс Картах
-            </a>
-          </section>
-        )}
         {order.fulfillmentType === 'delivery' && order.restaurantAddress && (
-          <div><dt>Точка ресторана</dt><dd>{order.restaurantAddress}</dd></div>
+          <div><dt>Точка бизнеса</dt><dd>{order.restaurantAddress}</dd></div>
         )}
         <div><dt>Комментарий</dt><dd>{order.comment || 'Нет комментария'}</dd></div>
         <div><dt>Оплата</dt><dd>{orderPaymentStatusLabels[order.paymentStatus]}</dd></div>

@@ -66,7 +66,9 @@ describe('client platform order status helpers', () => {
       driverPhone: undefined,
       driverLat: undefined,
       driverLng: undefined,
-      driverLocationAt: undefined
+      driverLocationAt: undefined,
+      driverHandedToClientAt: undefined,
+      clientReceivedAt: undefined
     });
 
     expect(Object.keys(patch)).toEqual([]);
@@ -81,7 +83,9 @@ describe('client platform order status helpers', () => {
         driverPhone: '+7 928 000-00-00',
         driverLat: 43.3,
         driverLng: 45.7,
-        driverLocationAt: '2026-07-12T10:15:00.000Z'
+        driverLocationAt: '2026-07-12T10:15:00.000Z',
+        driverHandedToClientAt: '2026-07-12T10:20:00.000Z',
+        clientReceivedAt: '2026-07-12T10:21:00.000Z'
       })
     ).toEqual({
       status: 'assigned_driver',
@@ -90,7 +94,9 @@ describe('client platform order status helpers', () => {
       driverPhone: '+7 928 000-00-00',
       driverLat: 43.3,
       driverLng: 45.7,
-      driverLocationAt: '2026-07-12T10:15:00.000Z'
+      driverLocationAt: '2026-07-12T10:15:00.000Z',
+      driverHandedToClientAt: '2026-07-12T10:20:00.000Z',
+      clientReceivedAt: '2026-07-12T10:21:00.000Z'
     });
   });
 });

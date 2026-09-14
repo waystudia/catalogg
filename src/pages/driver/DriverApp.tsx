@@ -6,14 +6,12 @@ import {
   ChevronRight,
   Check,
   CircleDollarSign,
-  Clock3,
   ClipboardList,
   Headphones,
   Home,
   KeyRound,
   LogOut,
   MapPin,
-  MessageCircle,
   Navigation,
   PackageCheck,
   Phone,
@@ -39,20 +37,20 @@ import {
   splitDriverHomeOffers
 } from '../../features/driver/dashboardPresentation';
 import {
-  buildYandexMapsRouteAppUrl,
-  calculateDriverCashHandover,
-  getDriverNavigationStage,
-  getDriverRoutePoints
+  buildYandexNavigatorReturnUrl,
+  calculateDriverCashHandover
 } from '../../features/order/orderLifecycle';
 import type { DeliveryStatus } from '../../features/order/orderLifecycle';
 import {
   acceptDeliveryOffer,
   changeDriverPassword,
   completeDeliveryProgress,
+  confirmDriverDeliveryHandoff,
   confirmDriverPickup,
   demoDriverId,
   getAuthenticatedDriverId,
   getDriverDashboard,
+  getDriverNavigatorRouteUrl,
   hasDriverAuthSession,
   refreshDriverPickupQr,
   saveDriverProfile,
@@ -68,7 +66,6 @@ import {
 } from '../../shared/api/deliveryApi';
 import { requestDriverDeliveryPrice } from '../../shared/api/deliveryPricingApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
-import { DeliveryTrackingMap, type DeliveryRouteSummary } from '../../shared/DeliveryTrackingMap';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission,
@@ -83,10 +80,6 @@ import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessio
 import './driver.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
-const formatDriverMapDistance = (distanceM: number) => `${new Intl.NumberFormat('ru-RU', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1
-}).format(distanceM / 1000)} км`;
 
 const buildDriverPickupQrPayload = (delivery: Pick<DeliveryOffer, 'deliveryId' | 'orderId' | 'pickupQrToken'> | null) =>
   delivery?.pickupQrToken ? `wc-delivery|${delivery.deliveryId}|${delivery.pickupQrToken}` : '';
@@ -139,86 +132,6 @@ const formatDriverDeliveryAddress = (address: string) => {
   return addressHasStreetDetails(dedupedAddress)
     ? dedupedAddress
     : `${dedupedAddress} · улица и дом не указаны`;
-};
-
-const coordinatesFromAddress = (address: string) => {
-  const match = address.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
-  if (!match) return null;
-  const lat = Number(match[1]);
-  const lng = Number(match[2]);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  return { lat, lng };
-};
-
-const coordinatesFromRouteUrl = (url: string | undefined, position: 'first' | 'last') => {
-  if (!url) return null;
-  const readPairs = (value: string) => {
-    const decodedValue = decodeURIComponent(value);
-    const routeMatch = decodedValue.match(/(?:^|[?&])rtext=([^&]+)/);
-    return (routeMatch?.[1] ?? decodedValue).match(coordinatePairPattern) ?? [];
-  };
-
-  let pairs: string[] = [];
-  try {
-    const parsedUrl = new URL(url);
-    pairs = readPairs(parsedUrl.searchParams.get('rtext') ?? url);
-  } catch {
-    pairs = readPairs(url);
-  }
-
-  const coordinatePair = position === 'first' ? pairs[0] : pairs[pairs.length - 1];
-  return coordinatePair ? coordinatesFromAddress(coordinatePair) : null;
-};
-
-const getDriverDeliveryMapData = (delivery: DeliveryOffer) => {
-  const restaurantFromRoute =
-    coordinatesFromRouteUrl(delivery.routeToClientUrl, 'first') ??
-    coordinatesFromRouteUrl(delivery.routeToRestaurantUrl, 'last');
-  const clientFromRoute = coordinatesFromRouteUrl(delivery.routeToClientUrl, 'last');
-  const clientFallback = coordinatesFromAddress(delivery.deliveryAddress) ?? clientFromRoute;
-  const restaurantLat = delivery.restaurantLat ?? restaurantFromRoute?.lat ?? null;
-  const restaurantLng = delivery.restaurantLng ?? restaurantFromRoute?.lng ?? null;
-  const deliveryLat = delivery.deliveryLat ?? clientFallback?.lat ?? null;
-  const deliveryLng = delivery.deliveryLng ?? clientFallback?.lng ?? null;
-
-  return {
-    restaurantLat,
-    restaurantLng,
-    deliveryLat,
-    deliveryLng,
-    isComplete:
-      restaurantLat !== null &&
-      restaurantLng !== null &&
-      deliveryLat !== null &&
-      deliveryLng !== null
-  };
-};
-
-type CompleteDriverDeliveryMapData = ReturnType<typeof getDriverDeliveryMapData> & {
-  restaurantLat: number;
-  restaurantLng: number;
-  deliveryLat: number;
-  deliveryLng: number;
-  isComplete: true;
-};
-
-const hasCompleteDriverDeliveryMapData = (
-  mapData: ReturnType<typeof getDriverDeliveryMapData> | null
-): mapData is CompleteDriverDeliveryMapData =>
-  mapData?.isComplete === true &&
-  mapData.restaurantLat !== null &&
-  mapData.restaurantLng !== null &&
-  mapData.deliveryLat !== null &&
-  mapData.deliveryLng !== null;
-
-const getDriverMapUnavailableMessage = (mapData: ReturnType<typeof getDriverDeliveryMapData> | null) => {
-  if (!mapData) return 'Выберите заказ, чтобы открыть его маршрут';
-  const restaurantMissing = mapData.restaurantLat === null || mapData.restaurantLng === null;
-  const clientMissing = mapData.deliveryLat === null || mapData.deliveryLng === null;
-  if (restaurantMissing && clientMissing) return 'У заказа нет сохранённых точек ресторана и клиента.';
-  if (restaurantMissing) return 'У ресторана не сохранена точка на карте.';
-  if (clientMissing) return 'У заказа не сохранена точка клиента.';
-  return 'Для этого заказа не сохранены координаты маршрута';
 };
 
 const parseDriverSettlements = (value: string) =>
@@ -535,6 +448,9 @@ export function DriverApp() {
       void updateDriverLocation(effectiveDriverId, location).catch(() => undefined);
     };
     const onPosition = (position: GeolocationPosition) => {
+      const recordedAtMs = Number.isFinite(position.timestamp) && position.timestamp > 0
+        ? position.timestamp
+        : Date.now();
       latestLocation = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
@@ -546,7 +462,7 @@ export function DriverApp() {
           ...current.profile,
           lastLat: position.coords.latitude,
           lastLng: position.coords.longitude,
-          lastLocationAt: new Date().toISOString()
+          lastLocationAt: new Date(recordedAtMs).toISOString()
         }
       }));
       const waitMs = Math.max(0, 5_000 - (Date.now() - lastSentAt));
@@ -640,13 +556,6 @@ export function DriverApp() {
           !dismissedDeliveryIds.includes(delivery.deliveryId)
       )
     : [];
-  const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
-  const mapCandidates = [activeDelivery, ...snapshot.availableDeliveries]
-    .filter((delivery): delivery is DeliveryOffer => Boolean(delivery));
-  const mapDelivery = routeDeliveryId
-    ? mapCandidates.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
-    : activeDelivery ?? availableDeliveries[0] ?? null;
-
   if (!authChecked) {
     return (
       <main className="driver-app">
@@ -675,7 +584,7 @@ export function DriverApp() {
 
   return (
     <main className="driver-app">
-      <section className={route === 'map' ? 'driver-phone driver-phone--map' : 'driver-phone'}>
+      <section className="driver-phone">
         {route === 'profile' ? (
           <DriverProfileScreen profile={profile} snapshot={snapshot} error={error} />
         ) : route === 'orders' ? (
@@ -686,10 +595,8 @@ export function DriverApp() {
             recentDeliveryIds={recentDeliveryIds}
             error={error}
           />
-        ) : route === 'active' ? (
+        ) : route === 'active' || route === 'map' ? (
           <DriverActiveScreen delivery={activeDelivery} />
-        ) : route === 'map' ? (
-          <DriverMapScreen delivery={mapDelivery} profile={profile} />
         ) : route === 'qr' ? (
           <DriverQrScreen delivery={activeDelivery} />
         ) : route === 'earnings' ? (
@@ -723,7 +630,7 @@ export function DriverApp() {
             }}
           />
         )}
-        {route !== 'map' && <DriverBottomNav active={route} />}
+        <DriverBottomNav active={route === 'map' ? 'home' : route} />
       </section>
     </main>
   );
@@ -1018,12 +925,8 @@ function DriverCurrentDeliveryPanel({
   const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
   const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
-  const restaurantRouteStorageKey = `driver-restaurant-route-started:${offer.deliveryId}`;
-  const [restaurantRouteStarted, setRestaurantRouteStarted] = useState(
-    () => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
-  );
-  const nextAction = getDriverNextAction(offer.status, restaurantRouteStarted, offer.businessType);
-  const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted, offer.businessType);
+  const nextAction = getDriverNextAction(offer.status, false, offer.businessType);
+  const progress = getDriverDeliveryProgress(offer.status, false, offer.businessType);
   const qrPayload = buildDriverPickupQrPayload(offer);
   const qrImageUrl = useDriverPickupQrImage(qrPayload);
   const waitingForCashConfirmation =
@@ -1069,26 +972,10 @@ function DriverCurrentDeliveryPanel({
 
   const qrTimerLabel = `${String(Math.floor(qrSecondsLeft / 60)).padStart(2, '0')}:${String(qrSecondsLeft % 60).padStart(2, '0')}`;
 
-  useEffect(() => {
-    setRestaurantRouteStarted(
-      window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
-    );
-  }, [restaurantRouteStorageKey]);
-
-  const openRestaurantRoute = () => {
-    window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');
-    setRestaurantRouteStarted(true);
-    navigate(`/driver/map/${offer.deliveryId}`);
-  };
-
   const advance = async () => {
     if (!nextAction || isUpdating) return;
     if (nextAction.to && !nextAction.status) {
-      if (offer.status === 'assigned') {
-        openRestaurantRoute();
-      } else {
-        navigate(nextAction.to);
-      }
+      navigate(nextAction.to);
       return;
     }
     if (!nextAction.status) return;
@@ -1176,18 +1063,7 @@ function DriverCurrentDeliveryPanel({
       )}
       {error && <small className="driver-incoming-order__error">{error}</small>}
       <div className="driver-current-block__actions">
-        {offer.status === 'assigned' && !restaurantRouteStarted ? (
-          <button
-            className="driver-secondary driver-secondary--map-hint"
-            type="button"
-            onClick={openRestaurantRoute}
-          ><Navigation />Построить маршрут: {terms.placeDative}</button>
-        ) : (
-          <Link
-            className="driver-secondary"
-            to={`/driver/map/${offer.deliveryId}`}
-          ><Navigation />Карта</Link>
-        )}
+        <DriverYandexNavigationActions delivery={offer} />
         {offer.clientPhone ? (
           <a className="driver-secondary" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
         ) : (
@@ -1197,6 +1073,16 @@ function DriverCurrentDeliveryPanel({
           <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
             {isUpdating ? 'Сохраняем...' : nextAction.label}
           </button>
+        )}
+        {offer.status === 'arrived_to_client' && (
+          <Link className="driver-primary" to="/driver/active">
+            <PackageCheck />
+            {offer.clientReceivedAt
+              ? 'Завершить заказ'
+              : offer.driverHandedToClientAt
+                ? 'Ждём подтверждения клиента'
+                : 'Подтвердить передачу клиенту'}
+          </Link>
         )}
       </div>
     </section>
@@ -1263,6 +1149,7 @@ function DriverDeliveryCard({
 
 type DriverYandexNavigationDelivery = Pick<
   DeliveryOffer,
+  | 'deliveryId'
   | 'status'
   | 'restaurantAddress'
   | 'restaurantLat'
@@ -1279,26 +1166,19 @@ export function DriverYandexNavigationActions({
   delivery: DriverYandexNavigationDelivery;
   onConfirmPickup?: () => Promise<void> | void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
+  const [isBuildingRoute, setIsBuildingRoute] = useState(false);
   const [error, setError] = useState('');
-  const navigationStage = getDriverNavigationStage(delivery.status);
+  const routeStorageKey = `wayyaam-navigator-launched:${delivery.deliveryId}`;
+  const [hasLaunchedRoute, setHasLaunchedRoute] = useState(
+    () => window.localStorage.getItem(routeStorageKey) === 'true'
+  );
   const restaurantCoordinatesAreReady = Number.isFinite(delivery.restaurantLat) && Number.isFinite(delivery.restaurantLng);
   const clientCoordinatesAreReady = Number.isFinite(delivery.deliveryLat) && Number.isFinite(delivery.deliveryLng);
-  const restaurantRoute = buildYandexMapsRouteAppUrl({
-    to: {
-      lat: delivery.restaurantLat,
-      lng: delivery.restaurantLng,
-      address: delivery.restaurantAddress
-    }
-  });
-  const clientRoute = buildYandexMapsRouteAppUrl({
-    to: {
-      lat: delivery.deliveryLat,
-      lng: delivery.deliveryLng,
-      address: delivery.deliveryAddress
-    }
-  });
+
+  useEffect(() => {
+    setHasLaunchedRoute(window.localStorage.getItem(routeStorageKey) === 'true');
+  }, [routeStorageKey]);
 
   const confirmPickup = async () => {
     if (!onConfirmPickup || isConfirmingPickup) return;
@@ -1313,70 +1193,62 @@ export function DriverYandexNavigationActions({
     }
   };
 
+  const openInitialRoute = async (rebuildReason = '') => {
+    if (isBuildingRoute) return;
+    setIsBuildingRoute(true);
+    setError('');
+    try {
+      const url = await getDriverNavigatorRouteUrl(delivery, rebuildReason);
+      if (!url) throw new Error('Для маршрута нужны точные координаты бизнеса и клиента.');
+      window.localStorage.setItem(routeStorageKey, 'true');
+      setHasLaunchedRoute(true);
+      window.location.href = url;
+    } catch (routeError) {
+      setError(routeError instanceof Error ? routeError.message : 'Не удалось открыть Яндекс Навигатор');
+    } finally {
+      setIsBuildingRoute(false);
+    }
+  };
+
   return (
     <section className="driver-yandex-navigation">
-      {navigationStage.canConfirmPickup && onConfirmPickup && (
+      {delivery.status === 'arrived_to_restaurant' && onConfirmPickup && (
         <button className="driver-primary" type="button" disabled={isConfirmingPickup} onClick={() => void confirmPickup()}>
           <PackageCheck />
           {isConfirmingPickup ? 'Подтверждаем...' : 'Я взял заказ'}
         </button>
       )}
-      {navigationStage.activeLeg === 'client' && clientCoordinatesAreReady ? (
+      {hasLaunchedRoute ? (
         <a
-          className={
-            delivery.status === 'handed_over'
-              ? 'driver-secondary driver-secondary--map-hint'
-              : 'driver-secondary'
-          }
-          href={clientRoute}
-          target="_blank"
-          rel="noreferrer"
+          className="driver-primary driver-navigator-return"
+          href={buildYandexNavigatorReturnUrl()}
         >
           <Navigation />
-          Построить маршрут к клиенту
+          <span><strong>Вернуться в Навигатор</strong><small>Маршрут уже создан — новая ссылка не расходуется</small></span>
+          <ChevronRight />
         </a>
       ) : (
-        <button className="driver-secondary" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
+        <button
+          className="driver-primary driver-navigator-open"
+          type="button"
+          disabled={isBuildingRoute || !restaurantCoordinatesAreReady || !clientCoordinatesAreReady}
+          onClick={() => void openInitialRoute()}
+        >
           <Navigation />
-          Использовать Яндекс Карты
+          <span>
+            <strong>{isBuildingRoute ? 'Готовим маршрут...' : 'Открыть маршрут в Навигаторе'}</strong>
+            <small>Бизнес → клиент, маршрут создаётся один раз</small>
+          </span>
+          <ChevronRight />
         </button>
       )}
-      {isOpen && (
-        <div className="driver-yandex-navigation__routes">
-          {restaurantCoordinatesAreReady ? (
-            <a
-              className={navigationStage.activeLeg === 'restaurant' ? 'driver-primary' : 'driver-secondary'}
-              aria-current={navigationStage.activeLeg === 'restaurant' ? 'step' : undefined}
-              href={restaurantRoute}
-            >
-              <Home />
-              Маршрут до ресторана
-            </a>
-          ) : (
-            <button className="driver-secondary" type="button" disabled>Точка ресторана не сохранена</button>
-          )}
-          {navigationStage.clientRouteAvailable && clientCoordinatesAreReady ? (
-            <a
-              className={navigationStage.activeLeg === 'client' ? 'driver-primary' : 'driver-secondary'}
-              aria-current={navigationStage.activeLeg === 'client' ? 'step' : undefined}
-              href={clientRoute}
-            >
-              <MapPin />
-              Маршрут до клиента
-            </a>
-          ) : (
-            <button
-              className="driver-secondary"
-              type="button"
-              disabled
-              aria-label="Маршрут до клиента — после получения заказа"
-            >
-              <MapPin />
-              До клиента — после получения
-            </button>
-          )}
-        </div>
-      )}
+      {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
+        <small className="driver-navigator-note">Сохраните точные координаты бизнеса и клиента, чтобы открыть маршрут.</small>
+      ) : hasLaunchedRoute ? (
+        <button className="driver-navigator-rebuild" type="button" onClick={() => void openInitialRoute('driver_requested_rebuild')} disabled={isBuildingRoute}>
+          Маршрут потерян? Построить оставшийся заново
+        </button>
+      ) : null}
       {error && <p className="driver-error">{error}</p>}
     </section>
   );
@@ -1513,7 +1385,6 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   return (
     <>
       <DriverHeader title="Новый заказ" action={<small>{offer.routeEtaMin} мин</small>} />
-      <DriverMapPreview offer={offer} />
       <section className="driver-order-panel">
         <span className="driver-badge">Доставка</span>
         <h2>Заказ {offer.orderNumber}</h2>
@@ -1524,21 +1395,6 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
         <DriverRouteLine icon={<WalletCards />} label="Выплата за доставку" value={formatPrice(offer.deliveryFee)} />
         <small>{offer.paymentLabel}</small>
         <div className="driver-action-row driver-action-row--order">
-          <a href={offer.routeToRestaurantUrl} target="_blank" rel="noreferrer">
-            <Navigation />
-            К ресторану
-          </a>
-          {offer.routeToClientUrl ? (
-            <a href={offer.routeToClientUrl} target="_blank" rel="noreferrer">
-              <MapPin />
-              К клиенту
-            </a>
-          ) : (
-            <button type="button" disabled>
-              <MapPin />
-              К клиенту после принятия
-            </button>
-          )}
           {qrPayload ? (
             <Link to="/driver/qr">
               <QrCode />
@@ -1576,11 +1432,16 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [error, setError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [driverHandedAt, setDriverHandedAt] = useState(delivery?.driverHandedToClientAt ?? null);
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [delivery?.deliveryId]);
+
+  useEffect(() => {
+    setDriverHandedAt(delivery?.driverHandedToClientAt ?? null);
+  }, [delivery?.deliveryId, delivery?.driverHandedToClientAt]);
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status, false, delivery.businessType) : null, [delivery]);
   const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status, false, delivery.businessType) : null, [delivery]);
@@ -1626,6 +1487,37 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     }
   };
 
+  const confirmHandoff = async () => {
+    if (!delivery || isUpdatingStatus) return;
+    setError('');
+    setIsUpdatingStatus(true);
+    try {
+      const result = await confirmDriverDeliveryHandoff(delivery.deliveryId);
+      setDriverHandedAt(result.driverHandedToClientAt);
+    } catch (handoffError) {
+      setError(handoffError instanceof Error ? handoffError.message : 'Не удалось сообщить клиенту о передаче заказа');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const finishDelivery = async () => {
+    if (!delivery || isUpdatingStatus) return;
+    setError('');
+    setIsUpdatingStatus(true);
+    try {
+      await completeDeliveryProgress(delivery.deliveryId);
+      updateLocalDeliveryStatus('delivered');
+      completeLocalDelivery();
+      navigate('/driver/earnings');
+    } catch (completionError) {
+      setError(completionError instanceof Error ? completionError.message : 'Не удалось завершить заказ');
+      throw completionError;
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
   if (!delivery) {
     return (
       <>
@@ -1642,14 +1534,6 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   return (
     <>
       <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small>} />
-      <Link className="driver-open-map" to={`/driver/map/${delivery.deliveryId}`}>
-        <Navigation />
-        <span>
-          <strong>Открыть карту маршрута</strong>
-          <small>Полноэкранная навигация со слежением за водителем</small>
-        </span>
-        <ChevronRight />
-      </Link>
       <section
         className="driver-order-panel driver-current-block driver-current-block--details"
         aria-label={`Текущая доставка ${delivery.orderNumber}`}
@@ -1721,9 +1605,81 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
           </button>
         )}
         <DriverYandexNavigationActions delivery={delivery} />
+        {delivery.status === 'arrived_to_client' && !driverHandedAt && (
+          <section className="driver-handoff-card">
+            <strong>Вы передали заказ клиенту?</strong>
+            <small>После подтверждения клиент сразу увидит кнопку «Получил заказ».</small>
+            <button className="driver-primary" type="button" onClick={() => void confirmHandoff()} disabled={isUpdatingStatus}>
+              <PackageCheck />
+              {isUpdatingStatus ? 'Отправляем...' : 'Отдал заказ'}
+            </button>
+          </section>
+        )}
+        {delivery.status === 'arrived_to_client' && driverHandedAt && !delivery.clientReceivedAt && (
+          <section className="driver-handoff-card driver-handoff-card--waiting">
+            <Check />
+            <span><strong>Передача отмечена</strong><small>Ждём, когда клиент нажмёт «Получил заказ».</small></span>
+          </section>
+        )}
+        {delivery.status === 'arrived_to_client' && driverHandedAt && delivery.clientReceivedAt && (
+          <DriverCompletionSlider disabled={isUpdatingStatus} onComplete={finishDelivery} />
+        )}
         {error && <p className="driver-error">{error}</p>}
       </section>
     </>
+  );
+}
+
+export function DriverCompletionSlider({
+  disabled = false,
+  onComplete
+}: {
+  disabled?: boolean;
+  onComplete: () => Promise<void> | void;
+}) {
+  const [value, setValue] = useState(0);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const finishIfReady = async (currentValue = value) => {
+    if (disabled || isCompleting || currentValue < 88) {
+      if (currentValue < 88) setValue(0);
+      return;
+    }
+    setIsCompleting(true);
+    try {
+      await onComplete();
+      setValue(100);
+    } catch {
+      setValue(0);
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  return (
+    <section className="driver-completion-gate" aria-label="Завершение заказа">
+      <div className="driver-completion-gate__confirmed">
+        <Check />
+        <span><strong>Клиент подтвердил получение</strong><small>Теперь заказ можно завершить.</small></span>
+      </div>
+      <label className="driver-completion-slider" style={{ '--driver-completion': `${value}%` } as CSSProperties}>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={value}
+          disabled={disabled || isCompleting}
+          aria-label="Сдвиньте вправо, чтобы завершить заказ"
+          onChange={(event) => setValue(Number(event.target.value))}
+          onPointerUp={(event) => void finishIfReady(Number(event.currentTarget.value))}
+          onKeyUp={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') void finishIfReady(Number(event.currentTarget.value));
+          }}
+        />
+        <span aria-hidden="true">{isCompleting ? 'Завершаем...' : 'сдвиньте, чтобы завершить'}</span>
+      </label>
+    </section>
   );
 }
 
@@ -1750,255 +1706,6 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
         К активному заказу
       </Link>
     </>
-  );
-}
-
-export function DriverRouteLegProgress({
-  activeLeg,
-  restaurantName,
-  clientName,
-  totalDistanceM,
-  remainingDistanceM,
-  remainingDurationS
-}: {
-  activeLeg: 'restaurant' | 'client';
-  restaurantName: string;
-  clientName: string;
-  totalDistanceM: number;
-  remainingDistanceM: number;
-  remainingDurationS: number;
-}) {
-  const safeTotalDistanceM = Math.max(1, totalDistanceM, remainingDistanceM);
-  const safeRemainingDistanceM = Math.min(safeTotalDistanceM, Math.max(0, remainingDistanceM));
-  const completedPercent = Math.round(((safeTotalDistanceM - safeRemainingDistanceM) / safeTotalDistanceM) * 100);
-  const origin = activeLeg === 'client' ? restaurantName : 'Моё местоположение';
-  const destination = activeLeg === 'client' ? clientName : restaurantName;
-
-  return (
-    <section className="driver-map-sheet__leg" aria-label={`Маршрут: ${origin} — ${destination}`}>
-      <div className="driver-map-sheet__leg-points">
-        <span><Navigation /><small>Откуда</small><strong>{origin}</strong></span>
-        <i aria-hidden="true">→</i>
-        <span><MapPin /><small>Куда</small><strong>{destination}</strong></span>
-      </div>
-      <div
-        className="driver-map-sheet__leg-progress"
-        role="progressbar"
-        aria-label="Пройдено по маршруту"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={completedPercent}
-        style={{ '--driver-route-progress': `${completedPercent}%` } as CSSProperties}
-      >
-        <span className="driver-map-sheet__leg-progress-endpoint driver-map-sheet__leg-progress-endpoint--start" aria-hidden="true" />
-        <span className="driver-map-sheet__leg-progress-endpoint driver-map-sheet__leg-progress-endpoint--end" aria-hidden="true" />
-        <i aria-hidden="true" />
-      </div>
-      <div className="driver-map-sheet__leg-metrics">
-        <span>Всего {formatDriverMapDistance(safeTotalDistanceM)}</span>
-        <span>Осталось {formatDriverMapDistance(safeRemainingDistanceM)}</span>
-        <span><Clock3 />≈ {Math.max(1, Math.round(remainingDurationS / 60))} мин</span>
-      </div>
-    </section>
-  );
-}
-
-function DriverMapScreen({ delivery, profile }: { delivery: DeliveryOffer | null; profile: DriverProfile }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [routeRefreshKey, setRouteRefreshKey] = useState(0);
-  const [routeSummaryState, setRouteSummary] = useState<{ key: string; summary: DeliveryRouteSummary } | null>(null);
-  const [routeTotal, setRouteTotal] = useState<{ key: string; distanceM: number } | null>(null);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
-  const sheetPointerStartRef = useRef<number | null>(null);
-  const navigationStage = delivery ? getDriverNavigationStage(delivery.status) : null;
-  const activeLeg = navigationStage?.activeLeg ?? 'restaurant';
-  const routeLegKey = `${delivery?.deliveryId ?? 'none'}:${activeLeg}`;
-  const mapData = delivery ? getDriverDeliveryMapData(delivery) : null;
-  const completeMapData = hasCompleteDriverDeliveryMapData(mapData) ? mapData : null;
-  const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
-  const restaurantRouteStarted = Boolean(
-    delivery?.status === 'assigned' &&
-    window.sessionStorage.getItem(`driver-restaurant-route-started:${delivery.deliveryId}`) === 'true'
-  );
-  const progress = delivery && !['waiting_courier', 'waiting_driver'].includes(delivery.status)
-    ? getDriverDeliveryProgress(delivery.status, restaurantRouteStarted, delivery.businessType)
-    : null;
-  const currentDriverPoint = profile.lastLat !== null && profile.lastLng !== null
-    ? { lat: profile.lastLat, lng: profile.lastLng, label: 'Моё местоположение' }
-    : null;
-  const yandexRouteUrl = delivery
-    ? buildYandexMapsRouteAppUrl({
-        to: navigationStage?.activeLeg === 'client'
-          ? {
-              lat: delivery.deliveryLat,
-              lng: delivery.deliveryLng,
-              address: delivery.deliveryAddress
-            }
-          : {
-              lat: delivery.restaurantLat,
-              lng: delivery.restaurantLng,
-              address: delivery.restaurantAddress
-            }
-        })
-    : '';
-  const clientChatUrl = delivery?.clientPhone
-    ? `https://wa.me/${delivery.clientPhone.replace(/\D/g, '')}`
-    : '';
-  const currentRoutePoints = delivery
-    ? delivery.status === 'waiting_courier'
-      ? [
-          { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-          { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-        ].filter((point): point is { lat: number; lng: number } => point.lat !== null && point.lng !== null)
-      : getDriverRoutePoints({
-          status: delivery.status,
-          driver: { lat: profile.lastLat, lng: profile.lastLng },
-          restaurant: { lat: mapData?.restaurantLat ?? null, lng: mapData?.restaurantLng ?? null },
-          client: { lat: mapData?.deliveryLat ?? null, lng: mapData?.deliveryLng ?? null }
-        })
-    : [];
-  const handleRouteSummaryChange = useCallback((summary: DeliveryRouteSummary | null) => {
-    setRouteSummary(summary ? { key: routeLegKey, summary } : null);
-    if (!summary) return;
-    setRouteTotal((current) => current?.key === routeLegKey
-      ? { ...current, distanceM: Math.max(current.distanceM, summary.distanceM) }
-      : { key: routeLegKey, distanceM: summary.distanceM });
-  }, [routeLegKey]);
-  const routeSummary = routeSummaryState?.key === routeLegKey ? routeSummaryState.summary : null;
-  const remainingDistanceM = routeSummary?.distanceM ?? (delivery?.distanceKm ?? 0) * 1_000;
-  const remainingDurationS = routeSummary?.durationS ?? (delivery?.routeEtaMin ?? 0) * 60;
-  const routeTotalDistanceM = routeTotal?.key === routeLegKey
-    ? Math.max(routeTotal.distanceM, remainingDistanceM)
-    : remainingDistanceM;
-
-  return (
-    <div className="driver-map-screen" data-sheet-expanded={sheetExpanded}>
-      <header className="driver-map-topbar">
-        <button
-          type="button"
-          onClick={() => navigate(getDriverBackTarget(location.pathname), { replace: true })}
-          aria-label="Выйти из карты"
-        ><ArrowLeft /></button>
-        <span><i aria-hidden="true" />Вы на маршруте</span>
-        <button
-          type="button"
-          onClick={() => {
-            setRouteSummary(null);
-            setRouteTotal(null);
-            setRouteRefreshKey((key) => key + 1);
-          }}
-          aria-label="Обновить маршрут"
-        ><RefreshCw /></button>
-      </header>
-      <div className="driver-map-canvas">
-        {delivery && completeMapData ? (
-            <DeliveryTrackingMap
-              key={`${delivery.deliveryId}:${routeRefreshKey}`}
-              className="driver-tracking-map"
-              initialStyle="satellite"
-              navigationMode
-              restaurant={{ lat: completeMapData.restaurantLat, lng: completeMapData.restaurantLng, label: delivery.restaurantName, address: delivery.restaurantAddress, details: ['Точка A'] }}
-              client={{
-                lat: completeMapData.deliveryLat,
-                lng: completeMapData.deliveryLng,
-                label: delivery.clientName || 'Клиент',
-                address: displayDeliveryAddress,
-                details: [delivery.clientPhone, delivery.deliveryComment].filter((detail): detail is string => Boolean(detail))
-              }}
-              routePoints={currentRoutePoints}
-              followDriverHeading={currentDriverPoint !== null}
-              driver={currentDriverPoint}
-              onRouteSummaryChange={handleRouteSummaryChange}
-            />
-        ) : delivery ? (
-          <DriverMapUnavailable tall message={getDriverMapUnavailableMessage(mapData)} />
-        ) : (
-          <DeliveryTrackingMap
-            key={`driver-only:${routeRefreshKey}`}
-            className="driver-tracking-map"
-            initialStyle="satellite"
-            navigationMode
-            driver={currentDriverPoint}
-            followDriverHeading={currentDriverPoint !== null}
-            onRouteSummaryChange={handleRouteSummaryChange}
-          />
-        )}
-      </div>
-      <section className="driver-map-sheet">
-        <button
-          className="driver-map-sheet__handle"
-          type="button"
-          aria-label={sheetExpanded ? 'Свернуть информацию о заказе' : 'Развернуть информацию о заказе'}
-          aria-expanded={sheetExpanded}
-          onClick={() => setSheetExpanded((expanded) => !expanded)}
-          onPointerDown={(event) => {
-            sheetPointerStartRef.current = event.clientY;
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerUp={(event) => {
-            const start = sheetPointerStartRef.current;
-            sheetPointerStartRef.current = null;
-            if (start === null) return;
-            if (start - event.clientY > 24) setSheetExpanded(true);
-            if (event.clientY - start > 24) setSheetExpanded(false);
-          }}
-        >
-          <span />
-        </button>
-        {delivery ? (
-          <>
-            <header className="driver-map-sheet__order">
-              <span>
-                <small>✓ Заказ принят</small>
-                <strong>{delivery.orderNumber}</strong>
-              </span>
-            </header>
-            <DriverRouteLegProgress
-              activeLeg={activeLeg}
-              restaurantName={delivery.restaurantName}
-              clientName={delivery.clientName || 'Клиент'}
-              totalDistanceM={routeTotalDistanceM}
-              remainingDistanceM={remainingDistanceM}
-              remainingDurationS={remainingDurationS}
-            />
-          {progress && (
-            <ol className="driver-delivery-progress" aria-label="Статус доставки">
-              {progress.labels.map((label, index) => {
-                const step = index + 1;
-                return (
-                  <li key={label} data-complete={step < progress.activeStep} data-active={step === progress.activeStep}>
-                    <span>{step < progress.activeStep ? <Check /> : step}</span>
-                    <small>{label}</small>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-            <div className="driver-map-sheet__actions">
-              <a className="driver-map-sheet__yandex" href={yandexRouteUrl}>
-                <Navigation />
-                <span><strong>Яндекс Карты</strong><small>К ресторану и клиенту</small></span>
-                <ChevronRight />
-              </a>
-              <article className="driver-map-sheet__client">
-                <span>
-                  <small>Клиент</small>
-                  <strong>{delivery.clientName || 'Клиент'}</strong>
-                  <small>{delivery.clientPhone || 'Телефон не указан'}</small>
-                </span>
-                <div>
-                  {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`} aria-label="Позвонить клиенту"><Phone /></a>}
-                  {clientChatUrl && <a href={clientChatUrl} target="_blank" rel="noreferrer" aria-label="Написать клиенту"><MessageCircle /></a>}
-                </div>
-              </article>
-            </div>
-          </>
-        ) : (
-          <strong className="driver-map-sheet__empty">Нет активного заказа</strong>
-        )}
-      </section>
-    </div>
   );
 }
 
@@ -2053,7 +1760,6 @@ function DriverProfileScreen({
   error: string;
 }) {
   const menu = [
-    { to: '/driver/map', label: 'Карта', Icon: MapPin },
     { to: '/driver/earnings', label: 'Заработок', Icon: WalletCards },
     { to: '/driver/settings', label: 'Настройки', Icon: Settings },
     { to: '/driver/support', label: 'Поддержка', Icon: Headphones }
@@ -2311,38 +2017,10 @@ function DriverRouteLine({ icon, label, value }: { icon: ReactNode; label: strin
   );
 }
 
-function DriverMapPreview({ offer, tall = false }: { offer: DeliveryOffer | null; tall?: boolean }) {
-  const className = tall ? 'driver-map-preview driver-map-preview--tall' : 'driver-map-preview';
-  return (
-    <Link className={className} to={offer ? `/driver/map/${offer.deliveryId}` : '/driver/map'} aria-label="Открыть карту доставки">
-      <span className="driver-map-pin driver-map-pin--restaurant"><Home /></span>
-      <span className="driver-map-route" />
-      <span className="driver-map-pin driver-map-pin--client"><MapPin /></span>
-      {offer && (
-        <div>
-          <strong>{offer.distanceKm} км</strong>
-          <small>{offer.restaurantName} → клиент</small>
-        </div>
-      )}
-    </Link>
-  );
-}
-
-function DriverMapUnavailable({ tall = false, message = 'Для этого заказа не сохранены координаты маршрута' }: { tall?: boolean; message?: string }) {
-  return (
-    <section className={tall ? 'driver-map-unavailable driver-map-unavailable--tall' : 'driver-map-unavailable'}>
-      <MapPin />
-      <strong>Карта пока недоступна</strong>
-      <small>{message}</small>
-    </section>
-  );
-}
-
 function DriverBottomNav({ active }: { active: string }) {
   const items = [
     { id: 'home', to: '/driver', label: 'Главная', Icon: Home },
     { id: 'orders', to: '/driver/orders', label: 'Заказы', Icon: ClipboardList },
-    { id: 'map', to: '/driver/map', label: 'Карта', Icon: MapPin },
     { id: 'earnings', to: '/driver/earnings', label: 'Баланс', Icon: WalletCards },
     { id: 'profile', to: '/driver/profile', label: 'Профиль', Icon: User }
   ];
