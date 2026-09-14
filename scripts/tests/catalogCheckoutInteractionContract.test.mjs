@@ -45,10 +45,11 @@ test('product controls suppress native text selection and touch callouts', () =>
   assert.match(appStyles, /\.product-tile[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*user-select:\s*none;/);
 });
 
-test('product photos repeat at both edges and normalize after scrolling', () => {
-  assert.match(appSource, /\[images\[images\.length - 1\], \.\.\.images, images\[0\]\]/);
+test('product photos use a finite carousel and settle on a real image index', () => {
+  assert.match(appSource, /const displayedImages = images\.length > 1 \? images : \[images\[0\]\];/);
   assert.match(appSource, /product-photo-carousel__slide/);
-  assert.match(appSource, /scrollBehavior\s*=\s*'auto'/);
+  assert.match(appSource, /Math\.max\(0, Math\.min\(images\.length - 1, Math\.round\(track\.scrollLeft \/ width\)\)\)/);
+  assert.doesNotMatch(appSource, /scrollBehavior\s*=\s*'auto'/);
 });
 
 test('mobile gestures lock single photos and enable only horizontal gallery swipes', () => {
@@ -70,12 +71,13 @@ test('mobile gestures lock single photos and enable only horizontal gallery swip
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-x;/
+    /\.product-photo-carousel--swipeable\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*auto;[^}]*touch-action:\s*pan-x;/
+    /\.product-photo-carousel--swipeable \.product-photo-carousel__track\s*\{[^}]*overflow-x:\s*hidden;[^}]*touch-action:\s*pan-y;/
   );
+  assert.match(appSource, /Math\.abs\(deltaX\) >= 24 && Math\.abs\(deltaX\) > Math\.abs\(deltaY\)/);
 });
 
 test('a clicked catalog category stays active while smooth scrolling reaches its section', () => {
@@ -135,17 +137,18 @@ test('customer contacts are required once for hall, takeaway, and delivery befor
   assert.match(checkoutSource, /customerPhone:\s*clientPhone\.trim\(\)/);
 });
 
-test('order submission stays disabled until contacts and both legal consents are valid', () => {
+test('order submission requires contacts and consents only for a new client session', () => {
   assert.match(
     checkoutSource,
     /const isCheckoutContactValid = clientName\.trim\(\)\.length > 0 && isValidRussianClientPhone\(clientPhone\)/
   );
   assert.match(
     checkoutSource,
-    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !isCheckoutAccountValid \|\| !acceptedOrderData \|\| !acceptedOrderTransfer\}/
+    /disabled=\{isSubmittingOrder \|\| !restaurant\.whatsapp \|\| !isCheckoutContactValid \|\| !isCheckoutAccountValid \|\| !hasRequiredOrderConsent\}/
   );
   assert.match(checkoutSource, /if \(!validateCheckoutContact\(\)\) return/);
-  assert.match(checkoutSource, /if \(!acceptedOrderData \|\| !acceptedOrderTransfer\)/);
+  assert.match(checkoutSource, /const hasRequiredOrderConsent = !showCheckoutConsent \|\| \(acceptedOrderData && acceptedOrderTransfer\)/);
+  assert.match(checkoutSource, /if \(!hasRequiredOrderConsent\)/);
 });
 
 test('successful checkout persists the profile and consent, then clears the cart before opening WhatsApp', () => {
@@ -188,7 +191,8 @@ test('upsell quantities support several products and the sauce fallback can be s
   assert.match(upsellSource, /const quantity = getProductCartQuantity\(items, product\.id\)/);
   assert.match(upsellSource, /<span>\{quantity\}<\/span>/);
   assert.doesNotMatch(upsellSource, /<span>1<\/span>/);
-  assert.match(upsellSource, /disabled=\{!hasSelectedSuggestions\}/);
+  assert.match(upsellSource, /<button type="button" onClick=\{onSkip\}>Пропустить<\/button>/);
+  assert.match(upsellSource, /\{hasSelectedSuggestions && \([\s\S]*<footer className="flow-upsell-footer">/);
   assert.match(appSource, /isProductInCategory\(product, category\.id\) \|\|[\s\S]*isSauceCategory\(category\)[\s\S]*isSauceProduct\(product\)/);
 });
 
