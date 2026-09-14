@@ -71,3 +71,31 @@ test('existing unclassified courier is visibly blocked from new assignments unti
   await screen.getByRole('button', { name: 'Сохранить тип для Существующий курьер' }).click();
   expect(service.setType).toHaveBeenCalledWith('mangal', 'driver-old', 'staff_salaried');
 });
+
+test('restaurant can hide each unavailable order mode from checkout', async () => {
+  const onSave = vi.fn();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <DeliverySettingsCard
+        settings={defaultRestaurantDeliverySettings}
+        catalogSlug="mangal"
+        courierService={courierService()}
+        onSave={onSave}
+        onOpenBackup={() => undefined}
+        onBack={() => undefined}
+      />
+    </QueryClientProvider>
+  );
+
+  await expect.element(screen.getByText('Способы получения заказа')).toBeVisible();
+  await screen.getByRole('checkbox', { name: /Заказы в зале/ }).click();
+  await screen.getByRole('checkbox', { name: /Самовывоз/ }).click();
+  await screen.getByRole('button', { name: 'Сохранить доставку' }).click();
+
+  expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+    enable_hall_orders: false,
+    enable_pickup: false,
+    enable_delivery: true
+  }));
+});

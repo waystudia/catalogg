@@ -11,10 +11,12 @@ test('upsell reminder keeps free delivery and cart panels visible on mobile', as
       <div className="app-shell">
         <div className="modal-backdrop flow-backdrop flow-backdrop--upsell">
           <section className="flow-modal" role="dialog" aria-label="Вы забыли напитки?">
-            <h2>Вы забыли напитки?</h2>
+            <header className="flow-upsell-head">
+              <span aria-hidden="true" />
+              <div><h2>Вы забыли напитки?</h2><p>Добавьте к заказу или сразу пропустите.</p></div>
+              <button type="button">Пропустить</button>
+            </header>
             <div className="flow-products" />
-            <button className="primary-wide" type="button">Выбрать «Напитки»</button>
-            <button className="ghost-wide" type="button">Продолжить без выбора</button>
           </section>
         </div>
         <div className="cart-dock">
@@ -26,6 +28,7 @@ test('upsell reminder keeps free delivery and cart panels visible on mobile', as
 
     await expect.element(screen.getByText('До бесплатной доставки осталось 1 260 ₽')).toBeVisible();
     await expect.element(screen.getByText('В корзине 2 товара')).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Пропустить' })).toBeVisible();
 
     for (const width of [360, 383]) {
       await page.viewport(width, 628);
@@ -41,6 +44,7 @@ test('upsell reminder keeps free delivery and cart panels visible on mobile', as
 
       expect(dockZ).toBeGreaterThan(backdropZ);
       expect(modalBox.bottom).toBeLessThanOrEqual(dockBox.top - 8);
+      expect(modalBox.height).toBeLessThanOrEqual(252);
       expect(dockBox.bottom).toBeLessThanOrEqual(628);
     }
   } finally {

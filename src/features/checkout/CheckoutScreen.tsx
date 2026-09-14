@@ -96,6 +96,8 @@ const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(
 const buildDeliveryAddress = (city: string, settlement: string, address: string) =>
   Array.from(new Set([city.trim(), settlement.trim(), address.trim()].filter(Boolean))).join(', ');
 
+export const shouldShowCheckoutConsent = (hasClientSession: boolean) => !hasClientSession;
+
 export function CheckoutScreen({
   catalogSlug,
   restaurant,
@@ -204,6 +206,8 @@ export function CheckoutScreen({
   const [accountError, setAccountError] = useState('');
   const isCheckoutContactValid = clientName.trim().length > 0 && isValidRussianClientPhone(clientPhone);
   const isCheckoutAccountValid = hasClientSession || clientPassword.length >= 6;
+  const showCheckoutConsent = shouldShowCheckoutConsent(hasClientSession);
+  const hasRequiredOrderConsent = !showCheckoutConsent || (acceptedOrderData && acceptedOrderTransfer);
   const effectiveDeliverySettlement = normalizeSettlementName(
     usesCustomSettlement ? customSettlement : deliverySettlement
   );
@@ -959,21 +963,25 @@ export function CheckoutScreen({
         />
       </section>
 
-      <section className="checkout-privacy-card">
-        <ShieldCheck />
-        <div><strong>Данные используются для заказа</strong><span>Ознакомьтесь с условиями и подтвердите передачу исполнителям</span></div>
-      </section>
+      {showCheckoutConsent && (
+        <>
+          <section className="checkout-privacy-card">
+            <ShieldCheck />
+            <div><strong>Данные используются для заказа</strong><span>Ознакомьтесь с условиями и подтвердите передачу исполнителям</span></div>
+          </section>
 
-      <section className="legal-checkboxes" aria-label="Согласия для заказа">
-        <label className="legal-checkbox">
-          <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
-          <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a> и даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
-        </label>
-        <label className="legal-checkbox">
-          <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
-          <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные ресторану и назначенному водителю</a>.</span>
-        </label>
-      </section>
+          <section className="legal-checkboxes" aria-label="Согласия для заказа">
+            <label className="legal-checkbox">
+              <input type="checkbox" checked={acceptedOrderData} onChange={(event) => setAcceptedOrderData(event.target.checked)} />
+              <span>Принимаю <a href={legalDocuments.agreement} target="_blank" rel="noreferrer">Пользовательское соглашение</a> и даю <a href={legalDocuments.clientConsent} target="_blank" rel="noreferrer">согласие на обработку данных</a> этого заказа.</span>
+            </label>
+            <label className="legal-checkbox">
+              <input type="checkbox" checked={acceptedOrderTransfer} onChange={(event) => setAcceptedOrderTransfer(event.target.checked)} />
+              <span>Разрешаю <a href={legalDocuments.orderTransferConsent} target="_blank" rel="noreferrer">передать данные ресторану и назначенному водителю</a>.</span>
+            </label>
+          </section>
+        </>
+      )}
 
       <section className="checkout-submit-card">
         {usesBankTransfer && (
@@ -1005,7 +1013,7 @@ export function CheckoutScreen({
               : 'primary-wide checkout-summary__action is-disabled'
           }
           type="button"
-          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !isCheckoutAccountValid || !acceptedOrderData || !acceptedOrderTransfer}
+          disabled={isSubmittingOrder || !restaurant.whatsapp || !isCheckoutContactValid || !isCheckoutAccountValid || !hasRequiredOrderConsent}
           onClick={async () => {
             if (!restaurant.whatsapp) {
               return;
@@ -1015,7 +1023,7 @@ export function CheckoutScreen({
               return;
             }
             if (!validateCheckoutContact()) return;
-            if (!acceptedOrderData || !acceptedOrderTransfer) {
+            if (!hasRequiredOrderConsent) {
               toast.error('Подтвердите оба обязательных согласия.');
               return;
             }

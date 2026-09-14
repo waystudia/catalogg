@@ -19,29 +19,23 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
       ? [product.image_url]
       : [];
   const [activeIndex, setActiveIndex] = useState(0);
-  const [displayedIndex, setDisplayedIndex] = useState(images.length > 1 ? 1 : 0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const didSwipe = useRef(false);
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const scrollEndRef = useRef<number | null>(null);
   const displayedImages = images.length > 1
-    ? [images[images.length - 1], ...images, images[0]]
+    ? images
     : (images.length ? images : ['']);
 
   useEffect(() => {
     setActiveIndex(0);
-    setDisplayedIndex(images.length > 1 ? 1 : 0);
     window.requestAnimationFrame(() => {
       const track = trackRef.current;
-      if (track) track.scrollTo({ left: images.length > 1 ? track.clientWidth : 0 });
+      if (track) track.scrollLeft = 0;
     });
   }, [product.id, images.length]);
-
-  useEffect(() => () => {
-    if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
-  }, []);
 
   useEffect(() => {
     if (!isViewerOpen) return;
@@ -82,13 +76,22 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
         onTouchStart={(event) => {
           if (images.length < 2) return;
           touchStartX.current = event.touches[0]?.clientX ?? null;
+          touchStartY.current = event.touches[0]?.clientY ?? null;
           didSwipe.current = false;
         }}
         onTouchEnd={(event) => {
           if (images.length < 2 || touchStartX.current === null) return;
-          const delta = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+          const deltaX = (event.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
+          const deltaY = (event.changedTouches[0]?.clientY ?? touchStartY.current ?? 0) - (touchStartY.current ?? 0);
           touchStartX.current = null;
-          didSwipe.current = Math.abs(delta) >= 12;
+          touchStartY.current = null;
+          const isHorizontalSwipe = Math.abs(deltaX) >= 24 && Math.abs(deltaX) > Math.abs(deltaY);
+          didSwipe.current = isHorizontalSwipe;
+          if (!isHorizontalSwipe) return;
+          const direction = deltaX < 0 ? 1 : -1;
+          const nextIndex = Math.max(0, Math.min(images.length - 1, activeIndex + direction));
+          const track = trackRef.current;
+          if (track) track.scrollTo({ left: nextIndex * track.clientWidth, behavior: 'smooth' });
         }}
       >
         <div
@@ -98,26 +101,12 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
             const track = event.currentTarget;
             const width = track.clientWidth;
             if (width <= 0) return;
-            const rawIndex = Math.round(track.scrollLeft / width);
-            setDisplayedIndex(rawIndex);
-            setActiveIndex(images.length > 1 ? (rawIndex - 1 + images.length) % images.length : 0);
-            if (scrollEndRef.current !== null) window.clearTimeout(scrollEndRef.current);
-            scrollEndRef.current = window.setTimeout(() => {
-              if (images.length < 2) return;
-              const settledIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
-              const resetIndex = settledIndex === 0 ? images.length : settledIndex === images.length + 1 ? 1 : null;
-              if (resetIndex === null) return;
-              track.style.scrollBehavior = 'auto';
-              track.scrollTo({ left: resetIndex * track.clientWidth });
-              setDisplayedIndex(resetIndex);
-              window.requestAnimationFrame(() => {
-                track.style.scrollBehavior = '';
-              });
-            }, 180);
+            const nextIndex = Math.max(0, Math.min(images.length - 1, Math.round(track.scrollLeft / width)));
+            setActiveIndex(nextIndex);
           }}
         >
           {displayedImages.map((image, index) => (
-            <span className={`product-photo-carousel__slide${index === displayedIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
+            <span className={`product-photo-carousel__slide${index === activeIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
               <SafeImage
                 className={hero ? 'product-hero' : undefined}
                 src={image}

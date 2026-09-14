@@ -1689,15 +1689,13 @@ function UpsellReminder({
   products,
   onSelect,
   onConfirm,
-  onSkip,
-  onDismiss
+  onSkip
 }: {
   category: Category;
   products: Product[];
   onSelect: (product: Product) => void;
   onConfirm: () => void;
   onSkip: () => void;
-  onDismiss: () => void;
 }) {
   const items = useCartStore((state) => state.items);
   const add = useCartStore((state) => state.add);
@@ -1730,12 +1728,14 @@ function UpsellReminder({
     <div className="modal-backdrop flow-backdrop flow-backdrop--upsell">
       <section className="flow-modal" role="dialog" aria-modal="true" aria-labelledby="flow-title">
         <div className="modal-handle" />
-        <button className="flow-modal__close" type="button" onClick={onDismiss} aria-label="Закрыть">
-          <X />
-        </button>
-        {isDrinks ? <Coffee className="modal-icon" /> : <ChefHat className="modal-icon" />}
-        <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
-        <p>Можно добавить к заказу одну или несколько позиций перед оформлением.</p>
+        <header className="flow-upsell-head">
+          <span>{isDrinks ? <Coffee /> : <ChefHat />}</span>
+          <div>
+            <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
+            <p>Добавьте к заказу или сразу пропустите.</p>
+          </div>
+          <button type="button" onClick={onSkip}>Пропустить</button>
+        </header>
         <div className="flow-products">
           {suggestions.map((product) => {
             const quantity = getProductCartQuantity(items, product.id);
@@ -1776,13 +1776,12 @@ function UpsellReminder({
             В этой категории пока нет товаров.
           </p>
         )}
-        {hasSelectedSuggestions && <p className="flow-selected">Добавлено позиций: {selectedSuggestionCount}</p>}
-        <button className="primary-wide" type="button" disabled={!hasSelectedSuggestions} onClick={onConfirm}>
-          Выбрать «{category.name}»
-        </button>
-        <button className="ghost-wide" type="button" onClick={onSkip}>
-          Продолжить без выбора
-        </button>
+        {hasSelectedSuggestions && (
+          <footer className="flow-upsell-footer">
+            <span>Добавлено: {selectedSuggestionCount}</span>
+            <button type="button" onClick={onConfirm}>Продолжить</button>
+          </footer>
+        )}
       </section>
     </div>
   );
@@ -2771,7 +2770,7 @@ function AppContent({
 
   const businessTemplateClass = catalog.restaurant.business_type === 'confectionery'
     ? ' app-shell--confectionery'
-    : '';
+    : ' app-shell--food';
 
   return (
     <div
@@ -2982,9 +2981,6 @@ function AppContent({
           onSelect={selectFlowProduct}
           onConfirm={continueOrderFlow}
           onSkip={continueOrderFlow}
-          onDismiss={() => {
-            setOrderFlow({ step: 'done', selectedByCategory: {} });
-          }}
         />
       )}
       <CartSheet

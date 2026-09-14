@@ -4251,12 +4251,12 @@ a {
 }
 
 .product-photo-carousel--swipeable {
-  touch-action: pan-x;
+  touch-action: pan-y;
 }
 
 .product-photo-carousel--swipeable .product-photo-carousel__track {
-  overflow-x: auto;
-  touch-action: pan-x;
+  overflow-x: hidden;
+  touch-action: pan-y;
 }
 
 .product-photo-carousel__track::-webkit-scrollbar { display: none; }
@@ -4562,10 +4562,110 @@ a {
 }
 
 @media (max-width: 767px) {
+  .app-shell--food .catalog-grid,
+  .app-shell--food .popular-grid,
+  .app-shell--food .pair-grid,
+  .app-shell--food .drink-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell--food .product-tile,
+  .app-shell--food .product-tile--large,
+  .app-shell--food .product-tile--drink {
+    display: grid;
+    grid-template-rows: auto minmax(62px, auto);
+    height: auto;
+    aspect-ratio: auto;
+  }
+
+  .app-shell--food .product-tile__image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .app-shell--food .product-tile__body {
+    position: static;
+    display: grid;
+    align-content: stretch;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 2px;
+    padding: 6px 8px 7px;
+    background: var(--product-card);
+  }
+
+  .app-shell--food .product-tile__body h3,
+  .app-shell--food .product-tile__body strong {
+    color: var(--product-card-text);
+  }
+
+  .app-shell--food .product-tile__body h3 {
+    font-size: 13px;
+    line-height: 1.08;
+    -webkit-line-clamp: 2;
+  }
+
+  .app-shell--food .product-tile__body p {
+    display: none;
+  }
+
+  .app-shell--food .product-tile__bottom {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 30px;
+    gap: 4px;
+  }
+
+  .app-shell--food .product-tile__bottom strong {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .app-shell--food .product-tile__stepper {
+    width: auto;
+  }
+
+  .app-shell--food .product-tile .add-button,
+  .app-shell--food .product-tile__stepper-button,
+  .app-shell--food .product-tile__stepper.has-quantity .add-button {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    border: 2px solid #fff;
+    background: var(--accent);
+    color: #17120b;
+    box-shadow: 0 5px 16px rgb(0 0 0 / 30%);
+  }
+
+  .app-shell--food .product-tile__stepper-button--minus {
+    background: #fff;
+    color: #17120b;
+  }
+
+  .app-shell--food .product-tile__stepper.has-quantity {
+    min-width: 88px;
+    animation: food-stepper-expand 180ms ease-out both;
+  }
+
+  .app-shell--food .product-tile__stepper.has-quantity .product-tile__stepper-button--minus,
+  .app-shell--food .product-tile__stepper.has-quantity .product-tile__stepper-count {
+    animation: food-stepper-reveal 220ms ease-out both;
+    transform-origin: right center;
+  }
+
   .app-shell--confectionery .product-tile {
     grid-template-rows: 112px 106px;
     height: 218px;
   }
+}
+
+@keyframes food-stepper-expand {
+  from { max-width: 28px; }
+  to { max-width: 76px; }
+}
+
+@keyframes food-stepper-reveal {
+  from { opacity: 0; transform: translateX(34px) scale(0.8); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 .product-tile__quantity-badge {
@@ -10964,4 +11064,232 @@ a {
   .flow-backdrop--upsell .flow-modal {
     max-height: calc(100dvh - 143px - env(safe-area-inset-bottom));
   }
+}
+
+/* Compact food ordering controls and non-blocking add-on tray. */
+@media (max-width: 720px) {
+  .app-shell--food .product-tile .add-button,
+  .app-shell--food .product-tile__stepper-button,
+  .app-shell--food .product-tile__stepper.has-quantity .add-button {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+    border-width: 1px;
+  }
+
+  .app-shell--food .product-tile__stepper-button svg,
+  .app-shell--food .product-tile .add-button svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .app-shell--food .product-tile__stepper.has-quantity {
+    min-width: 72px;
+    gap: 2px;
+  }
+
+  .checkout-customer-details {
+    gap: 8px;
+    padding: 11px 12px;
+  }
+
+  .checkout-customer-details__fields {
+    gap: 7px;
+  }
+
+  .checkout-screen .checkout-customer-details .checkout-field input {
+    min-height: 42px;
+    padding: 8px 11px;
+    font-size: 14px;
+  }
+
+  .checkout-customer-details__head h2 {
+    font-size: 15px;
+  }
+
+  .checkout-customer-details__head p,
+  .checkout-customer-details .checkout-field small {
+    font-size: 9px;
+  }
+
+  .checkout-screen .legal-checkbox {
+    grid-template-columns: 30px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    min-height: 34px;
+  }
+
+  .checkout-screen .legal-checkbox input {
+    width: 28px;
+    height: 28px;
+    margin: 0;
+  }
+
+  .flow-backdrop.flow-backdrop--upsell {
+    align-items: end;
+    padding: 8px 10px calc(282px + env(safe-area-inset-bottom));
+    background: transparent;
+    backdrop-filter: none;
+    pointer-events: none;
+  }
+
+  .flow-backdrop--upsell .flow-modal {
+    width: 100%;
+    max-height: 252px;
+    gap: 7px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--accent) 52%, #fff);
+    border-radius: 20px;
+    padding: 7px 9px 9px;
+    box-shadow: 0 14px 34px rgb(27 20 8 / 22%);
+    pointer-events: auto;
+  }
+
+  .flow-backdrop--upsell .modal-handle {
+    width: 34px;
+    height: 4px;
+    margin: -2px auto 0;
+  }
+
+  .flow-upsell-head {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .flow-upsell-head > span {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 18%, #fff);
+    color: #b96b00;
+  }
+
+  .flow-upsell-head > span svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .flow-upsell-head > div {
+    min-width: 0;
+  }
+
+  .flow-backdrop--upsell .flow-upsell-head h2 {
+    margin: 0;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.15;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .flow-upsell-head p {
+    margin: 1px 0 0;
+    overflow: hidden;
+    color: #766e65;
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .flow-upsell-head > button,
+  .flow-upsell-footer > button {
+    min-height: 32px;
+    border: 1px solid var(--accent);
+    border-radius: 11px;
+    padding: 0 10px;
+    background: #fff;
+    color: #8d5700;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .flow-backdrop--upsell .flow-products {
+    display: grid;
+    grid-auto-columns: 106px;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 7px;
+    max-height: 138px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1px 1px 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .flow-backdrop--upsell .flow-product-card {
+    grid-template-columns: 54px minmax(0, 1fr);
+    grid-template-rows: auto auto 28px;
+    gap: 2px 5px;
+    min-height: 126px;
+    border-radius: 12px;
+    padding: 5px;
+    scroll-snap-align: start;
+  }
+
+  .flow-backdrop--upsell .flow-product-card img,
+  .flow-backdrop--upsell .flow-product-card .image-fallback {
+    grid-row: 1 / 4;
+    width: 54px;
+    height: 100%;
+    min-height: 112px;
+    border-radius: 8px;
+  }
+
+  .flow-backdrop--upsell .flow-product-card strong {
+    align-self: end;
+    font-size: 11px;
+    white-space: normal;
+    line-height: 1.08;
+  }
+
+  .flow-backdrop--upsell .flow-product-card small {
+    font-size: 11px;
+  }
+
+  .flow-backdrop--upsell .flow-product-card__stepper {
+    gap: 3px;
+  }
+
+  .flow-backdrop--upsell .flow-product-card__stepper button {
+    width: 26px;
+    height: 26px;
+  }
+
+  .flow-upsell-footer {
+    display: flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: #61594f;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .flow-upsell-footer > button {
+    background: var(--accent);
+    color: #17120b;
+  }
+}
+
+.delivery-settings-basic__intro {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+
+.delivery-settings-basic__intro strong {
+  font-size: 15px;
+}
+
+.delivery-settings-basic__intro small {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.35;
 }
