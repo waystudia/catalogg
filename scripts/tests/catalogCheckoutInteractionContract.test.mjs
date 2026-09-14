@@ -46,7 +46,7 @@ test('product controls suppress native text selection and touch callouts', () =>
 });
 
 test('product photos use a finite carousel and settle on a real image index', () => {
-  assert.match(appSource, /const displayedImages = images\.length > 1 \? images : \[images\[0\]\];/);
+  assert.match(appSource, /const displayedImages = images\.length > 1\s*\? images\s*:\s*\(images\.length \? images : \[''\]\);/);
   assert.match(appSource, /product-photo-carousel__slide/);
   assert.match(appSource, /Math\.max\(0, Math\.min\(images\.length - 1, Math\.round\(track\.scrollLeft \/ width\)\)\)/);
   assert.doesNotMatch(appSource, /scrollBehavior\s*=\s*'auto'/);
