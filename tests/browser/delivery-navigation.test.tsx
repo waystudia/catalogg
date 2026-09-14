@@ -4,7 +4,7 @@ import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
 import {
   DriverActiveScreen,
-  DriverRouteLegProgress,
+  DriverCompletionSlider,
   DriverYandexNavigationActions
 } from '../../src/pages/driver/DriverApp';
 import type { DeliveryOffer } from '../../src/shared/api/deliveryApi';
@@ -24,6 +24,7 @@ const client = {
 };
 
 const navigationDelivery = (status: 'assigned' | 'arrived_to_restaurant' | 'handed_over') => ({
+  deliveryId: `delivery-${status}`,
   status,
   restaurantAddress: restaurant.address,
   restaurantLat: restaurant.lat,
@@ -271,53 +272,18 @@ test('keeps a wide upright restaurant destination label the same size while zoom
   expect(zoomedOutSize.height).toBe(initialSize.height);
 });
 
-test('shows route progress for the current restaurant or client leg', async () => {
-  const restaurantLeg = await render(
-    <DriverRouteLegProgress
-      activeLeg="restaurant"
-      restaurantName="Мангал"
-      clientName="дукхвах"
-      totalDistanceM={5_000}
-      remainingDistanceM={3_000}
-      remainingDurationS={600}
-    />
-  );
+test('shows the iPhone-style completion slider only as an explicit final action', async () => {
+  const onComplete = vi.fn(async () => undefined);
+  const screen = await render(<DriverCompletionSlider onComplete={onComplete} />);
 
-  await expect.element(restaurantLeg.getByText('Моё местоположение')).toBeVisible();
-  await expect.element(restaurantLeg.getByText('Мангал')).toBeVisible();
-  await expect.element(restaurantLeg.getByText('Всего 5,0 км')).toBeVisible();
-  await expect.element(restaurantLeg.getByText('Осталось 3,0 км')).toBeVisible();
-  await expect.element(restaurantLeg.getByText('≈ 10 мин')).toBeVisible();
-  const restaurantProgress = restaurantLeg.getByRole('progressbar');
-  await expect.element(restaurantProgress).toHaveAttribute('aria-valuenow', '40');
-  const progressElement = restaurantProgress.element();
-  const progressBounds = progressElement.getBoundingClientRect();
-  const endpointDots = progressElement.querySelectorAll('.driver-map-sheet__leg-progress-endpoint');
-  expect(endpointDots).toHaveLength(2);
-  const startDotBounds = endpointDots[0].getBoundingClientRect();
-  const endDotBounds = endpointDots[1].getBoundingClientRect();
-  expect(Math.abs((startDotBounds.left + startDotBounds.width / 2) - progressBounds.left)).toBeLessThan(1);
-  expect(Math.abs((endDotBounds.left + endDotBounds.width / 2) - progressBounds.right)).toBeLessThan(1);
-  const routePointBlocks = progressElement.closest('.driver-map-sheet__leg')?.querySelectorAll('.driver-map-sheet__leg-points > span');
-  expect(routePointBlocks).not.toBeUndefined();
-  expect(routePointBlocks).toHaveLength(2);
-  expect(Math.abs(routePointBlocks![1].getBoundingClientRect().right - progressBounds.right)).toBeLessThan(3);
-  await cleanup();
-
-  const clientLeg = await render(
-    <DriverRouteLegProgress
-      activeLeg="client"
-      restaurantName="Мангал"
-      clientName="дукхвах"
-      totalDistanceM={8_000}
-      remainingDistanceM={2_000}
-      remainingDurationS={240}
-    />
-  );
-
-  await expect.element(clientLeg.getByText('Мангал')).toBeVisible();
-  await expect.element(clientLeg.getByText('дукхвах')).toBeVisible();
-  await expect.element(clientLeg.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
+  await expect.element(screen.getByText('Клиент подтвердил получение')).toBeVisible();
+  const slider = screen.getByRole('slider', { name: 'Сдвиньте вправо, чтобы завершить заказ' });
+  await expect.element(slider).toBeVisible();
+  const sliderElement = slider.element() as HTMLInputElement;
+  sliderElement.value = '100';
+  sliderElement.dispatchEvent(new Event('input', { bubbles: true }));
+  sliderElement.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  await vi.waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
 });
 
 test('shows an assigned order detail in the same accepted-delivery card used on the home screen', async () => {
@@ -368,41 +334,21 @@ test('shows an assigned order detail in the same accepted-delivery card used on 
   await expect.element(card.getByText('200 ₽')).toBeVisible();
 });
 
-test('reveals Yandex restaurant navigation before pickup and client navigation after handoff', async () => {
+test('shows one Navigator route action and then a quota-free return action', async () => {
+  window.localStorage.removeItem('wayyaam-navigator-launched:delivery-assigned');
   const assignedScreen = await render(
     <DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />
   );
 
-  await assignedScreen.getByRole('button', { name: 'Использовать Яндекс Карты' }).click();
-  await expect.element(assignedScreen.getByRole('link', { name: 'Маршрут до ресторана' })).toHaveAttribute('aria-current', 'step');
-  await expect.element(assignedScreen.getByRole('button', { name: 'Маршрут до клиента — после получения заказа' })).toBeDisabled();
+  await expect.element(assignedScreen.getByRole('button', { name: /Открыть маршрут в Навигаторе/ })).toBeVisible();
+  await expect.element(assignedScreen.getByText('Бизнес → клиент, маршрут создаётся один раз')).toBeVisible();
   await cleanup();
 
-  const handedOverScreen = await render(
-    <DriverYandexNavigationActions delivery={navigationDelivery('handed_over')} />
-  );
-
-  const clientRoute = handedOverScreen.getByRole('link', { name: 'Построить маршрут к клиенту' });
-  await expect.element(clientRoute).toHaveClass(/driver-secondary--map-hint/);
-  await expect.element(clientRoute).toHaveAttribute(
-    'href',
-    'yandexmaps://maps.yandex.ru/?rtext=~43.318123%2C45.698456&rtt=auto'
-  );
-  await cleanup();
-
-  const clientOnlyScreen = await render(
-    <DriverYandexNavigationActions
-      delivery={{
-        ...navigationDelivery('handed_over'),
-        restaurantLat: null,
-        restaurantLng: null
-      }}
-    />
-  );
-  await expect.element(clientOnlyScreen.getByRole('link', { name: 'Построить маршрут к клиенту' })).toHaveAttribute(
-    'href',
-    'yandexmaps://maps.yandex.ru/?rtext=~43.318123%2C45.698456&rtt=auto'
-  );
+  window.localStorage.setItem('wayyaam-navigator-launched:delivery-assigned', 'true');
+  const returnScreen = await render(<DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />);
+  const returnLink = returnScreen.getByRole('link', { name: /Вернуться в Навигатор/ });
+  await expect.element(returnLink).toHaveAttribute('href', 'yandexnavi://');
+  await expect.element(returnScreen.getByText('Маршрут уже создан — новая ссылка не расходуется')).toBeVisible();
 });
 
 test('offers manual pickup confirmation when the driver reached the restaurant', async () => {
