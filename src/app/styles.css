@@ -11128,7 +11128,7 @@ a {
 
   .flow-backdrop.flow-backdrop--upsell {
     align-items: end;
-    padding: 8px 10px calc(282px + env(safe-area-inset-bottom));
+    padding: 8px 10px calc(287px + env(safe-area-inset-bottom));
     background: transparent;
     backdrop-filter: none;
     pointer-events: none;
