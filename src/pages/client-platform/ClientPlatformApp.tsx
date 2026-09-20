@@ -625,6 +625,7 @@ function PageHeader({
 }
 
 function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientPlatformSnapshot; isLoading: boolean; isError: boolean; onRetry: () => void }) {
+  const location = useLocation();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
   const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
   const toggleFavoriteDish = useClientPlatformStore((state) => state.toggleFavoriteDish);
@@ -639,6 +640,16 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
   const banners = snapshot.banners.filter((item) => item.isActive);
 
   useEffect(() => setVisibleCount(20), [businessFilter, effectiveCityId]);
+
+  useEffect(() => {
+    const restoreScrollY = (location.state as { restoreScrollY?: unknown } | null)?.restoreScrollY;
+    if (typeof restoreScrollY !== 'number' || !Number.isFinite(restoreScrollY)) return;
+
+    const restore = () => window.scrollTo({ top: Math.max(0, restoreScrollY), left: 0, behavior: 'auto' });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(restore);
+    });
+  }, [location.key, location.state]);
 
   return (
     <>
@@ -1297,10 +1308,26 @@ function RestaurantArea({
 
 function RestaurantTopbar({ restaurant, title }: { restaurant: ClientRestaurant; title?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const returnToMarketplace = () => {
+    const marketplaceReturn = (location.state as {
+      marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
+    } | null)?.marketplaceReturn;
+    if (typeof marketplaceReturn?.pathname !== 'string' || !marketplaceReturn.pathname.startsWith('/')) {
+      navigate(-1);
+      return;
+    }
+    navigate(marketplaceReturn.pathname, {
+      state: {
+        restoreScrollY: typeof marketplaceReturn.scrollY === 'number' ? marketplaceReturn.scrollY : 0
+      }
+    });
+  };
 
   return (
     <header className="restaurant-topbar">
-      <button className="restaurant-icon-button" type="button" onClick={() => navigate(-1)} aria-label="Назад">
+      <button className="restaurant-icon-button" type="button" onClick={returnToMarketplace} aria-label="Назад">
         <ArrowLeft />
       </button>
       <Link className="restaurant-home-link" to="/">

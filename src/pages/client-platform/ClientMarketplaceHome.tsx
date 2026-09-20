@@ -1,5 +1,5 @@
 import { Grid2X2, Heart, Home, ReceiptText, ShoppingCart, Star, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { MarketplaceItem } from '../../features/client-platform/types';
 import { SafeImage } from '../../shared/SafeImage';
 
@@ -33,13 +33,31 @@ export function MarketplaceProductGrid({ items, favoriteIds, onToggleFavorite }:
   favoriteIds: string[];
   onToggleFavorite: (itemId: string) => void;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   return (
     <div className="marketplace-feed-grid" role="list" aria-label="Товары рядом">
       {items.map((item) => {
         const isFavorite = favoriteIds.includes(item.id);
         return (
           <article className="marketplace-product-card" role="listitem" key={`${item.businessId}:${item.id}`}>
-            <Link className="marketplace-product-card__link" to={item.href} aria-label={`Открыть ${item.title} в ${item.businessName}`}>
+            <Link
+              className="marketplace-product-card__link"
+              to={item.href}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(item.href, {
+                  state: {
+                    marketplaceReturn: {
+                      pathname: `${location.pathname}${location.search}${location.hash}`,
+                      scrollY: window.scrollY
+                    }
+                  }
+                });
+              }}
+              aria-label={`Открыть ${item.title} в ${item.businessName}`}
+            >
               <span className="marketplace-product-card__media"><SafeImage src={item.imageUrl} alt={item.title} width={480} height={480} /></span>
               <span className="marketplace-product-card__body">
                 <strong>{item.title}</strong><small>{item.businessName}</small>
