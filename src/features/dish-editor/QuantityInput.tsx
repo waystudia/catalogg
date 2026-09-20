@@ -64,8 +64,8 @@ export function QuantityInput({
 }) {
   const terms = getBusinessTerms(businessType);
   return (
-    <section className="dish-section">
-      <h3>Параметры</h3>
+    <details className="dish-section dish-disclosure">
+      <summary><span>Вес и остаток</span><small>{unlimitedQuantity ? 'Без ограничений' : `${dailyQuantity} шт`} · {weight} г</small></summary>
       <div className="dish-two-fields">
         <label>
           Вес
@@ -99,6 +99,6 @@ export function QuantityInput({
         </span>
       </label>
       {!unlimitedQuantity && dailyQuantity === 0 && <p className="dish-stock-warning">Закончилось</p>}
-    </section>
+    </details>
   );
 }

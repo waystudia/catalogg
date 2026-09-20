@@ -5996,6 +5996,16 @@ a {
   font-size: 16px;
 }
 
+.restaurant-address__city {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: color-mix(in srgb, var(--settings-card-text) 8%, transparent);
+  color: var(--settings-card-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .map-link-button {
   display: flex;
   min-height: 48px;
@@ -7422,6 +7432,84 @@ a {
   font-weight: 900;
 }
 
+.flow-upsell-page {
+  position: relative;
+  width: min(920px, 100%);
+  min-height: calc(100dvh - 112px);
+  margin: 0 auto;
+  padding: 20px 20px 220px;
+}
+
+.flow-upsell-page__content {
+  display: grid;
+  gap: 18px;
+}
+
+.flow-upsell-page .flow-upsell-head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.flow-upsell-page .flow-upsell-head > div {
+  min-width: 0;
+}
+
+.flow-upsell-page .flow-upsell-head > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 18%, #fff);
+  color: #b96b00;
+  justify-self: start;
+}
+
+.flow-upsell-page .flow-upsell-head h2,
+.flow-upsell-page .flow-upsell-head p {
+  margin: 0;
+  text-align: center;
+}
+
+.flow-upsell-page .flow-upsell-head p {
+  margin-top: 3px;
+  color: #766e65;
+}
+
+.flow-upsell-page .flow-upsell-head > button,
+.flow-upsell-page .flow-upsell-footer > button {
+  min-height: 42px;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 0 16px;
+  background: #fff;
+  color: #8d5700;
+  font-weight: 850;
+}
+
+.flow-upsell-page .flow-upsell-head > button {
+  justify-self: end;
+}
+
+.flow-upsell-page .flow-products {
+  max-height: none;
+  overflow: visible;
+}
+
+.flow-upsell-page .flow-upsell-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, #fff);
+  border-radius: 18px;
+  padding: 10px 12px;
+  background: #fff8ec;
+  font-weight: 800;
+}
+
 .flow-selected {
   border: 1px solid rgba(232, 162, 58, 0.28);
   border-radius: 14px;
@@ -7663,18 +7751,6 @@ a {
 .admin-placeholder ul {
   margin: 14px 0 0;
   padding-left: 22px;
-}
-
-.instagram-link {
-  display: inline-flex;
-  min-height: 58px;
-  width: fit-content;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid rgba(232, 162, 58, 0.34);
-  border-radius: var(--button-radius);
-  padding: 0 18px;
-  color: var(--accent-2);
 }
 
 .social-section {
@@ -9736,7 +9812,7 @@ a {
     right: 16px;
     bottom: calc(14px + env(safe-area-inset-bottom));
     left: 16px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 220px);
     min-height: 76px;
     border: 1px solid #e8e0d4;
     border-radius: 24px;
@@ -11068,6 +11144,103 @@ a {
 
 /* Compact food ordering controls and non-blocking add-on tray. */
 @media (max-width: 720px) {
+  .flow-upsell-page {
+    min-height: calc(100dvh - 86px);
+    padding: 14px 12px calc(190px + env(safe-area-inset-bottom));
+  }
+
+  .flow-upsell-page__content {
+    gap: 13px;
+  }
+
+  .flow-upsell-page .flow-upsell-head {
+    grid-template-areas:
+      "icon copy spacer"
+      ". . skip";
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    gap: 9px;
+  }
+
+  .flow-upsell-page .flow-upsell-head > span {
+    grid-area: icon;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .flow-upsell-page .flow-upsell-head > span svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .flow-upsell-page .flow-upsell-head h2 {
+    font-size: 18px;
+    line-height: 1.15;
+  }
+
+  .flow-upsell-page .flow-upsell-head p {
+    overflow: visible;
+    font-size: 12px;
+    line-height: 1.25;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .flow-upsell-page .flow-upsell-head > button,
+  .flow-upsell-page .flow-upsell-footer > button {
+    min-height: 36px;
+    border-radius: 12px;
+    padding: 0 11px;
+    font-size: 12px;
+  }
+
+  .flow-upsell-page .flow-upsell-head > div {
+    grid-area: copy;
+  }
+
+  .flow-upsell-page .flow-upsell-head > button {
+    grid-area: skip;
+    justify-self: end;
+  }
+
+  .flow-upsell-page .flow-products {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .flow-upsell-page .flow-product-card {
+    grid-template-rows: auto auto auto 28px;
+    min-height: 0;
+    gap: 4px;
+    padding: 7px;
+  }
+
+  .flow-upsell-page .flow-product-card img,
+  .flow-upsell-page .flow-product-card .image-fallback {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+
+  .flow-upsell-page .flow-product-card strong {
+    font-size: 13px;
+  }
+
+  .flow-upsell-page .flow-product-card small {
+    font-size: 14px;
+  }
+
+  .flow-upsell-page .flow-product-card__stepper button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .flow-upsell-page .flow-upsell-footer {
+    position: sticky;
+    bottom: calc(168px + env(safe-area-inset-bottom));
+    z-index: 8;
+    padding: 8px 10px;
+  }
+
   .app-shell--food .product-tile .add-button,
   .app-shell--food .product-tile__stepper-button,
   .app-shell--food .product-tile__stepper.has-quantity .add-button {

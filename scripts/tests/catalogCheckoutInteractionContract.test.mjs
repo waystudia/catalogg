@@ -179,10 +179,12 @@ test('catalog removes the redundant order-information chip row and sauces have a
   assert.match(appSource, /categorySuggestions\.length > 0[\s\S]*isSauceCategory[\s\S]*isSauceProduct\(product\)/);
 });
 
-test('upsell modal covers sticky catalog UI and uses compact two-column mobile controls', () => {
-  assert.match(appStyles, /\.flow-backdrop\s*\{[^}]*z-index:\s*60;/);
-  assert.match(appStyles, /\.flow-modal > \.primary-wide,[\s\S]*min-height:\s*50px;[\s\S]*font-size:\s*16px;/);
-  assert.match(appStyles, /@media \(max-width: 360px\)[\s\S]*\.flow-products\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
+test('upsell is a full page and keeps compact two-column mobile controls', () => {
+  const upsellSource = appSource.slice(appSource.indexOf('function UpsellReminder'), appSource.indexOf('function AdminPanel'));
+  assert.match(upsellSource, /<main className="flow-upsell-page"/);
+  assert.doesNotMatch(upsellSource, /role="dialog"|modal-backdrop|flow-modal/);
+  assert.match(appStyles, /\.flow-upsell-page\s*\{[^}]*min-height:\s*calc\(100dvh - 112px\)/);
+  assert.match(appStyles, /@media \(max-width: 720px\)[\s\S]*\.flow-upsell-page \.flow-products\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
 });
 
 test('upsell quantities support several products and the sauce fallback can be selected', () => {

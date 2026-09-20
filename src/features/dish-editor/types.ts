@@ -27,13 +27,14 @@ export type Dish = {
   allowInscription: boolean;
   allowDecorationComment: boolean;
   allowProductionSchedule: boolean;
+  publishChoiceCards: boolean;
 };
 
 export function productToDish(product: Product | null, fallbackCategory: string): Dish {
   const categories = product?.category_ids?.length ? product.category_ids : product?.category_id ? [product.category_id] : [fallbackCategory];
 
   return {
-    id: product?.id ?? `dish-${Date.now()}`,
+    id: product?.id ?? crypto.randomUUID(),
     name: product?.title ?? '',
     price: product?.price ?? 0,
     categories,
@@ -61,7 +62,8 @@ export function productToDish(product: Product | null, fallbackCategory: string)
     allergens: product?.allergens?.join(', ') ?? '',
     allowInscription: product?.allow_inscription ?? false,
     allowDecorationComment: product?.allow_decoration_comment ?? false,
-    allowProductionSchedule: product?.allow_production_schedule ?? false
+    allowProductionSchedule: product?.allow_production_schedule ?? false,
+    publishChoiceCards: product?.publish_choice_cards ?? false
   };
 }
 
@@ -101,6 +103,8 @@ export function dishToProduct(dish: Dish, current: Product | null): Product {
     allow_inscription: dish.allowInscription,
     allow_decoration_comment: dish.allowDecorationComment,
     allow_production_schedule: dish.allowProductionSchedule,
+    publish_choice_cards: dish.publishChoiceCards,
+    is_hidden: dish.publishChoiceCards ? true : current?.publish_choice_cards ? false : current?.is_hidden,
     placeholder_kind: dish.images.length === 0 && dish.pricingType ? 'dessert' : current?.placeholder_kind
   };
 }

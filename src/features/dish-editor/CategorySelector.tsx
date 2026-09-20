@@ -29,8 +29,8 @@ export function CategorySelector({
   };
 
   return (
-    <section className="dish-section">
-      <h3>Категории</h3>
+    <details className="dish-section dish-disclosure">
+      <summary><span>Категории</span><small>{value.length > 0 ? `Выбрано: ${value.length}` : 'Не выбраны'}</small></summary>
       <div className="dish-category-chips">
         {categories.map((category) => {
           const Icon = categoryIcons[category.id as keyof typeof categoryIcons] ?? Soup;
@@ -47,6 +47,6 @@ export function CategorySelector({
           );
         })}
       </div>
-    </section>
+    </details>
   );
 }

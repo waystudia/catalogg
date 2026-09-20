@@ -109,6 +109,24 @@ export type ClientDish = {
   photoQuality?: PhotoQualitySettings;
 };
 
+export type MarketplaceItem = {
+  id: string;
+  sourceType: 'dish' | 'product';
+  businessId: string;
+  businessSlug: string;
+  businessType: BusinessType;
+  businessName: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  price: number;
+  rating: number;
+  estimatedTime: string;
+  categoryId: string;
+  href: string;
+  isPopular: boolean;
+};
+
 export type ClientCartLine = {
   dishId: string;
   quantity: number;

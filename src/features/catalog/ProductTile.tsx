@@ -186,8 +186,7 @@ export function ProductTile({
     .filter((item) => item.product.id === product.id)
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
-  const requiresConfiguration = choiceOptions.length > 0
-    || product.pricing_type === 'per_kg'
+  const requiresConfiguration = product.pricing_type === 'per_kg'
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
     || product.allow_inscription
     || product.allow_decoration_comment
@@ -329,13 +328,14 @@ export function ProductTile({
               disabled={soldOut}
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
-                const button = event.currentTarget;
+                event.stopPropagation();
+                const animationSnapshot = captureCartAnimation(event.currentTarget);
                 if (requiresConfiguration) {
                   onOpen(product);
                   return;
                 }
-                const animationSnapshot = captureCartAnimation(button);
-                add(product);
+                if (choiceOptions[0]?.name) add(product, choiceOptions[0].name);
+                else add(product);
                 onAdd?.(product);
                 playAddSound();
                 window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));

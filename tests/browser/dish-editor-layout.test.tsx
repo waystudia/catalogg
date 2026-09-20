@@ -34,6 +34,15 @@ const product: Product = {
   choice_options: []
 };
 
+const relatedProduct = (overrides: Partial<Product>): Product => ({
+  ...product,
+  id: 'related-dish',
+  title: 'Картошка фри',
+  category_id: 'pizza',
+  category_ids: ['pizza'],
+  ...overrides
+});
+
 const restaurant: Restaurant = {
   id: 'restaurant-1',
   name: 'Мангал',
@@ -71,6 +80,28 @@ const renderDishEditor = (editingProduct: Product | null, onSaveProduct = vi.fn(
   );
 };
 
+const renderDishEditorWithProducts = (
+  editingProduct: Product | null,
+  products: Product[],
+  onSaveProduct = vi.fn()
+) => {
+  useAdminStore.setState({ editor: 'dish', isPanelOpen: true });
+
+  return render(
+    <DesignEditor
+      editingProduct={editingProduct}
+      categories={categories}
+      products={products}
+      restaurant={restaurant}
+      onSaveProduct={onSaveProduct}
+      onCloseProduct={vi.fn()}
+      onUpdateRestaurant={vi.fn()}
+      cartCount={0}
+      onNavigate={vi.fn()}
+    />
+  );
+};
+
 test('keeps the dish editor controls on one mobile screen and scrolls only the form content', async () => {
   await page.viewport(319, 613);
 
@@ -84,6 +115,7 @@ test('keeps the dish editor controls on one mobile screen and scrolls only the f
     const cancel = screen.getByRole('button', { name: 'Отмена' }).element();
     const save = screen.getByRole('button', { name: 'Сохранить изменения' }).element();
     const photoSection = screen.getByRole('heading', { name: 'Фотографии блюда' }).element().closest<HTMLElement>('.dish-section');
+    await screen.getByText('Описание', { exact: true }).click();
     const description = screen.getByRole('textbox', { name: 'Описание' }).element();
 
     expect(editor).not.toBeNull();
@@ -128,6 +160,7 @@ test('edits a separate name and price for every dish variant', async () => {
 
   try {
     const screen = await renderDishEditor(pricedProduct, onSaveProduct);
+    await screen.getByText('Варианты блюда').click();
     const price = screen.getByRole('spinbutton', { name: 'Цена варианта 1' });
     price.element().scrollIntoView({ block: 'center' });
 
@@ -138,9 +171,99 @@ test('edits a separate name and price for every dish variant', async () => {
     await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
 
     await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
-    expect(onSaveProduct).toHaveBeenCalledWith(expect.objectContaining({
+    expect(onSaveProduct.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
       choice_options: [{ name: 'Большая', price: 750 }]
     }));
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});
+
+test('filters often-bought-together dishes with horizontally selectable mini categories', async () => {
+  try {
+    const fries = relatedProduct({ id: 'fries', title: 'Картошка фри' });
+    const wings = relatedProduct({
+      id: 'wings',
+      title: 'Острые крылышки',
+      category_id: 'meat',
+      category_ids: ['meat']
+    });
+    const screen = await renderDishEditorWithProducts(product, [product, fries, wings]);
+    await screen.getByText('Часто покупают вместе').click();
+    const pairCategories = screen.getByRole('navigation', { name: 'Категории сопутствующих блюд' });
+    const meatCategory = pairCategories.getByRole('button', { name: 'Мясо' });
+    meatCategory.element().scrollIntoView({ block: 'center' });
+
+    await expect.element(pairCategories.getByRole('button', { name: 'Все' })).toBeVisible();
+    await expect.element(screen.getByText('Картошка фри')).toBeVisible();
+    await expect.element(screen.getByText('Острые крылышки')).toBeVisible();
+
+    await meatCategory.click();
+
+    await expect.element(screen.getByText('Острые крылышки')).toBeVisible();
+    await expect.element(screen.getByText('Картошка фри')).not.toBeInTheDocument();
+  } finally {
+    useAdminStore.setState({ editor: null, isPanelOpen: false });
+  }
+});
+
+test('optionally synchronizes dish variants into separate catalog cards without duplicates', async () => {
+  const onSaveProduct = vi.fn();
+  const sourceProduct: Product = {
+    ...product,
+    title: 'Пицца «Маргарита»',
+    choice_options: [
+      { name: 'большая', price: 750 },
+      { name: '6 шт', price: 990 }
+    ]
+  };
+  const existingVariant = relatedProduct({
+    id: 'existing-large-card',
+    title: 'Старое название',
+    generated_from_choice: sourceProduct.id,
+    generated_choice_index: 0
+  });
+  const obsoleteVariant = relatedProduct({
+    id: 'obsolete-card',
+    title: 'Удалённый вариант',
+    generated_from_choice: sourceProduct.id,
+    generated_choice_index: 4
+  });
+
+  try {
+    const screen = await renderDishEditorWithProducts(
+      sourceProduct,
+      [sourceProduct, existingVariant, obsoleteVariant],
+      onSaveProduct
+    );
+    await screen.getByText('Варианты блюда').click();
+    const publishVariants = screen.getByRole('button', { name: /Отдельные карточки/ });
+    publishVariants.element().scrollIntoView({ block: 'center' });
+    await publishVariants.click();
+    await expect.element(publishVariants).toHaveClass(/is-active/);
+    await screen.getByRole('button', { name: 'Сохранить изменения' }).click();
+
+    await expect.poll(() => onSaveProduct.mock.calls.length).toBe(1);
+    expect(onSaveProduct.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ publish_choice_cards: true, is_hidden: true }));
+    expect(onSaveProduct.mock.calls[0]?.[1]).toEqual([
+      expect.objectContaining({
+        id: 'existing-large-card',
+        title: 'Пицца «Маргарита» большая',
+        price: 750,
+        choice_options: [],
+        is_hidden: false,
+        generated_from_choice: sourceProduct.id,
+        generated_choice_index: 0
+      }),
+      expect.objectContaining({
+        title: 'Пицца «Маргарита», 6 шт',
+        price: 990,
+        choice_options: [],
+        generated_from_choice: sourceProduct.id,
+        generated_choice_index: 1
+      })
+    ]);
+    expect(onSaveProduct.mock.calls[0]?.[2]).toEqual(['obsolete-card']);
   } finally {
     useAdminStore.setState({ editor: null, isPanelOpen: false });
   }

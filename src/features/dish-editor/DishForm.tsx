@@ -98,6 +98,18 @@ export function DishForm({
   onSubmit: () => void;
   businessType?: BusinessType;
 }) {
+  const [pairCategory, setPairCategory] = useState('all');
+  const pairProducts = products.filter((product) => product.id !== dish.id);
+  const pairCategories = categories.filter((category) =>
+    pairProducts.some((product) =>
+      (product.category_ids?.length ? product.category_ids : [product.category_id]).includes(category.id)
+    )
+  );
+  const visiblePairProducts = pairCategory === 'all'
+    ? pairProducts
+    : pairProducts.filter((product) =>
+      (product.category_ids?.length ? product.category_ids : [product.category_id]).includes(pairCategory)
+    );
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
@@ -170,7 +182,8 @@ export function DishForm({
         </section>
       )}
 
-      <section className="dish-section">
+      <details className="dish-section dish-disclosure">
+        <summary><span>Описание</span><small>{dish.description ? `${dish.description.length}/500` : 'Не заполнено'}</small></summary>
         <label>
           Описание
           <textarea
@@ -181,7 +194,7 @@ export function DishForm({
           />
         </label>
         <small>{dish.description.length}/500</small>
-      </section>
+      </details>
 
       {(businessType === 'coffee_shop' || businessType === 'confectionery') && (
         <section className="dish-section dish-choice-editor dish-modifier-editor">
@@ -266,7 +279,8 @@ export function DishForm({
         </section>
       )}
 
-      <section className="dish-section">
+      <details className="dish-section dish-disclosure">
+        <summary><span>Состав и аллергены</span><small>{dish.ingredients ? 'Заполнено' : 'Не заполнено'}</small></summary>
         <label>
           Состав
           <input
@@ -282,7 +296,7 @@ export function DishForm({
             <input maxLength={200} value={dish.allergens} onChange={(event) => onChange({ allergens: event.target.value.slice(0, 200) })} placeholder="глютен, яйца, молочные продукты" />
           </label>
         )}
-      </section>
+      </details>
 
       <QuantityInput
         businessType={businessType}
@@ -294,9 +308,10 @@ export function DishForm({
         onUnlimitedChange={(unlimitedQuantity) => onChange({ unlimitedQuantity })}
       />
 
-      <section className="dish-section">
+      <details className="dish-section dish-disclosure">
+        <summary><span>Подача</span><small>{dish.serveWith || 'Не указано'}</small></summary>
         <label>
-          Подается с
+          Подаётся с
           <input
             list="serve-options"
             maxLength={120}
@@ -310,12 +325,21 @@ export function DishForm({
             ))}
           </datalist>
         </label>
-      </section>
+      </details>
 
-      <section className="dish-section dish-choice-editor">
+      <details className="dish-section dish-choice-editor dish-disclosure">
+        <summary><span>Варианты блюда</span><small>{dish.choiceOptions.length > 0 ? `${dish.choiceOptions.length} варианта` : 'Не добавлены'}</small></summary>
         <div>
-          <h3>Выбор варианта</h3>
-          <small>Покупатель сможет выбрать только один вариант.</small>
+          <h3>Как показывать варианты</h3>
+          <small>Выберите подходящий сценарий для этого блюда.</small>
+        </div>
+        <div className="dish-variant-mode" role="group" aria-label="Тип вариантов блюда">
+          <button className={!dish.publishChoiceCards ? 'is-active' : ''} type="button" onClick={() => onChange({ publishChoiceCards: false })}>
+            <strong>В одной карточке</strong><small>Например: оригинальные или острые</small>
+          </button>
+          <button className={dish.publishChoiceCards ? 'is-active' : ''} type="button" onClick={() => onChange({ publishChoiceCards: true })}>
+            <strong>Отдельные карточки</strong><small>Например: средняя и большая</small>
+          </button>
         </div>
         <div className="dish-choice-editor__list">
           {dish.choiceOptions.map((option, index) => (
@@ -370,13 +394,32 @@ export function DishForm({
             + Добавить вариант
           </button>
         )}
-      </section>
+        {dish.publishChoiceCards && <p className="dish-variant-mode__hint">После сохранения исходное блюдо будет скрыто, а каждый вариант появится в каталоге отдельной карточкой.</p>}
+      </details>
 
-      <section className="dish-section">
-        <h3>Часто покупают вместе</h3>
+      <details className="dish-section dish-disclosure">
+        <summary><span>Часто покупают вместе</span><small>{dish.pairIds.length > 0 ? `Выбрано: ${dish.pairIds.length}` : 'Не выбрано'}</small></summary>
+        <nav className="dish-pair-categories" aria-label="Категории сопутствующих блюд">
+          <button
+            className={pairCategory === 'all' ? 'is-active' : ''}
+            type="button"
+            onClick={() => setPairCategory('all')}
+          >
+            Все
+          </button>
+          {pairCategories.map((category) => (
+            <button
+              className={pairCategory === category.id ? 'is-active' : ''}
+              type="button"
+              key={category.id}
+              onClick={() => setPairCategory(category.id)}
+            >
+              {category.name}
+            </button>
+          ))}
+        </nav>
         <div className="dish-pair-picker">
-          {products
-            .filter((product) => product.id !== dish.id)
+          {visiblePairProducts
             .map((product) => {
               const selected = dish.pairIds.includes(product.id);
               return (
@@ -399,10 +442,10 @@ export function DishForm({
               );
             })}
         </div>
-      </section>
+      </details>
 
-      <section className="dish-section">
-        <h3>Переключатели</h3>
+      <details className="dish-section dish-disclosure">
+        <summary><span>Дополнительные отметки</span><small>Новинка и популярное</small></summary>
         <div className="dish-switches">
           {['Новинка', 'Популярное'].map((tag) => (
             <label className="dish-switch" key={tag}>
@@ -422,7 +465,7 @@ export function DishForm({
             </label>
           ))}
         </div>
-      </section>
+      </details>
     </form>
   );
 }

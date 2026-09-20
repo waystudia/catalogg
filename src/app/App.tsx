@@ -28,7 +28,6 @@ import {
   Salad,
   Sandwich,
   Search,
-  Settings,
   Share2,
   ShieldCheck,
   ShoppingBag,
@@ -105,6 +104,7 @@ import {
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
+import { persistDishProductChanges } from '../features/dish-editor/dishVariantCards';
 import {
   getProductCartQuantity,
   isSauceProduct,
@@ -1718,6 +1718,10 @@ function UpsellReminder({
   );
   const hasSelectedSuggestions = selectedSuggestionCount > 0;
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [category.id]);
+
   const chooseProduct = (product: Product) => {
     add(product);
     onSelect(product);
@@ -1725,9 +1729,8 @@ function UpsellReminder({
   };
 
   return (
-    <div className="modal-backdrop flow-backdrop flow-backdrop--upsell">
-      <section className="flow-modal" role="dialog" aria-modal="true" aria-labelledby="flow-title">
-        <div className="modal-handle" />
+    <main className="flow-upsell-page" aria-labelledby="flow-title">
+      <section className="flow-upsell-page__content">
         <header className="flow-upsell-head">
           <span>{isDrinks ? <Coffee /> : <ChefHat />}</span>
           <div>
@@ -1783,11 +1786,11 @@ function UpsellReminder({
           </footer>
         )}
       </section>
-    </div>
+    </main>
   );
 }
 
-function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'; onAdd: () => void; onSettings: () => void }) {
+export function AdminPanel({ onAdd }: { onAdd: () => void }) {
   const isAdmin = useAuthStore((state) => state.isAdmin);
 
   if (!isAdmin) {
@@ -1796,11 +1799,8 @@ function AdminPanel({ active, onAdd, onSettings }: { active?: 'add' | 'settings'
 
   return (
     <nav className="admin-panel">
-      <button className={active === 'add' ? 'is-active' : ''} type="button" onClick={onAdd}>
+      <button type="button" onClick={onAdd}>
         <Plus /> Добавить
-      </button>
-      <button className={active === 'settings' ? 'is-active' : ''} type="button" onClick={onSettings}>
-        <Settings /> Настройки
       </button>
     </nav>
   );
@@ -2256,11 +2256,20 @@ function AppContent({
     setAdminEditor('dish');
   };
 
-  const saveProduct = (product: Product) => {
-    const normalizedProduct = applyStockValues(product, getDailyStock(product), getCurrentStock(product));
+  const saveProduct = (product: Product, generatedProducts: Product[] = [], removedProductIds: string[] = []) => {
+    const normalizedProducts = [product, ...generatedProducts].map((item) =>
+      applyStockValues(item, getDailyStock(item), getCurrentStock(item))
+    );
+    const normalizedProduct = normalizedProducts[0];
+    const removedIds = new Set(removedProductIds);
     setLocalProducts((current) => {
-      const exists = current.some((item) => item.id === normalizedProduct.id);
-      return exists ? current.map((item) => (item.id === normalizedProduct.id ? normalizedProduct : item)) : [normalizedProduct, ...current];
+      const next = current.filter((item) => !removedIds.has(item.id));
+      normalizedProducts.forEach((savedProduct) => {
+        const index = next.findIndex((item) => item.id === savedProduct.id);
+        if (index >= 0) next[index] = savedProduct;
+        else next.unshift(savedProduct);
+      });
+      return next;
     });
     if (selectedProduct?.id === normalizedProduct.id) {
       setSelectedProduct(normalizedProduct);
@@ -2268,11 +2277,18 @@ function AppContent({
     setEditingProduct(null);
     setAdminEditor(null);
     setStockTargets((current) => {
-      const next = { ...current, [normalizedProduct.id]: getDailyStock(normalizedProduct) };
+      const next = { ...current };
+      removedProductIds.forEach((productId) => delete next[productId]);
+      normalizedProducts.forEach((savedProduct) => {
+        next[savedProduct.id] = getDailyStock(savedProduct);
+      });
       saveStockTargets(next);
       return next;
     });
-    persist(saveProductToSupabase(normalizedProduct));
+    persist(persistDishProductChanges(normalizedProducts, removedProductIds, {
+      save: saveProductToSupabase,
+      remove: deleteProductFromSupabase
+    }));
   };
 
   const deleteProduct = (productId: string) => {
@@ -2837,6 +2853,17 @@ function AppContent({
             showCart
           />
 
+          {orderFlow.step !== 'done' && activeFlowCategory ? (
+            <UpsellReminder
+              category={activeFlowCategory}
+              products={catalog.products}
+              onSelect={selectFlowProduct}
+              onConfirm={continueOrderFlow}
+              onSkip={continueOrderFlow}
+            />
+          ) : (
+            <>
+
           {routeSection === 'reviews' && !isAdmin && (
             <CatalogReviewsScreen restaurant={catalog.restaurant} reviews={restaurantReviews} />
           )}
@@ -2926,6 +2953,8 @@ function AppContent({
             />
           )}
           <SiteCredit />
+            </>
+          )}
           <CartBar
             deliverySettings={deliverySettings}
             onCheckout={() => setIsCartOpen(true)}
@@ -2936,9 +2965,7 @@ function AppContent({
 
       {!screen.startsWith('settings') && screen !== 'admin-home' && (
         <AdminPanel
-          active={undefined}
           onAdd={() => setAdminEditor('dish')}
-          onSettings={() => setScreen('admin-home')}
         />
       )}
       <DesignEditor
@@ -2974,15 +3001,6 @@ function AppContent({
           setAdminEditor(null);
         }}
       />
-      {orderFlow.step !== 'done' && activeFlowCategory && screen !== 'catalog' && screen !== 'drinks' && (
-        <UpsellReminder
-          category={activeFlowCategory}
-          products={catalog.products}
-          onSelect={selectFlowProduct}
-          onConfirm={continueOrderFlow}
-          onSkip={continueOrderFlow}
-        />
-      )}
       <CartSheet
         isOpen={isCartOpen}
         isLoading={isLoading}

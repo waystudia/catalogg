@@ -20,8 +20,8 @@ export function TagsSelector({
   };
 
   return (
-    <section className="dish-section">
-      <h3>Метки</h3>
+    <details className="dish-section dish-disclosure">
+      <summary><span>Метки</span><small>{tags.length > 0 ? tags.join(', ') : 'Без меток'}</small></summary>
       <div className="dish-tags">
         {tags.map((tag) => (
           <button className="dish-tag is-selected" type="button" key={tag} onClick={() => onChange(tags.filter((item) => item !== tag))}>
@@ -42,6 +42,6 @@ export function TagsSelector({
             );
           })}
       </div>
-    </section>
+    </details>
   );
 }
