@@ -47,7 +47,9 @@ export function MarketplaceProductGrid({ items, favoriteIds, onToggleFavorite }:
               to={item.href}
               onClick={(event) => {
                 event.preventDefault();
-                navigate(item.href, {
+                const restaurantTarget = new URL(item.href, window.location.origin);
+                restaurantTarget.searchParams.set('focusDish', item.id);
+                navigate(`${restaurantTarget.pathname}${restaurantTarget.search}${restaurantTarget.hash}`, {
                   state: {
                     marketplaceReturn: {
                       pathname: `${location.pathname}${location.search}${location.hash}`,

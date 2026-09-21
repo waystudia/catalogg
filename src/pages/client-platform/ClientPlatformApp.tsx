@@ -1357,12 +1357,20 @@ function RestaurantCatalogPage({
   const restaurantCategories = getRestaurantCategories(snapshot, restaurant.slug);
   const dishes = getRestaurantDishes(snapshot, restaurant.slug);
   const activeCategory = searchParams.get('category') ?? 'all';
+  const focusDishId = searchParams.get('focusDish');
   const visibleDishes = dishes.filter((dish) =>
     activeCategory === 'all' || activeCategory === 'popular' ? dish.isPopular : dish.categorySlug === activeCategory
   );
   const summary = calculateCartSummary(cartLines, dishes, 0);
   const ProviderIcon = providerIcons[restaurant.deliveryProvider];
   const restaurantIsFavorite = favoriteRestaurantIds.includes(restaurant.id);
+
+  useEffect(() => {
+    if (!focusDishId || activeCategory !== 'all') return;
+    const target = document.querySelector<HTMLElement>(`[data-dish-id="${CSS.escape(focusDishId)}"]`);
+    if (!target) return;
+    window.requestAnimationFrame(() => target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' }));
+  }, [activeCategory, focusDishId, visibleDishes.length]);
 
   return (
     <>
@@ -1432,7 +1440,7 @@ function RestaurantCatalogPage({
           <h2>{activeCategory === 'all' ? 'Популярное' : restaurantCategories.find((category) => category.slug === activeCategory)?.name ?? terms.items}</h2>
           <div className="dish-grid">
             {visibleDishes.map((dish) => (
-              <article className="dish-card" key={dish.id}>
+              <article className="dish-card" data-dish-id={dish.id} key={dish.id}>
                 <button
                   className={favoriteDishIds.includes(dish.id) ? 'dish-card__favorite is-active' : 'dish-card__favorite'}
                   type="button"
