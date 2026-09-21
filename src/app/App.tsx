@@ -1887,6 +1887,9 @@ function AppContent({
   const focusProductId = routeSection
     ? undefined
     : new URLSearchParams(location.search).get('focusDish') ?? undefined;
+  const focusProductTitle = routeSection
+    ? undefined
+    : new URLSearchParams(location.search).get('focusDishTitle') ?? undefined;
   const shareCurrentPage = useCallback(async () => {
     const url = window.location.href;
     const title = document.title || 'WayYaam';
