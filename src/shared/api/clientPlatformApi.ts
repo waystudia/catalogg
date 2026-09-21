@@ -28,6 +28,7 @@ import type {
 import { isPublicMenuCategory } from '../../entities/publicCategoryVisibility';
 import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
+import { captureCommercialAttribution, getCommercialAttributionSessionId } from '../commercialAttribution';
 import { supabase } from '../supabase';
 import { getStoredClientSessionToken } from './clientAccountApi';
 
@@ -533,6 +534,8 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
   if (catalogResult.error) throw catalogResult.error;
   const catalogId = catalogResult.data?.id as string | undefined;
   if (!catalogId) return null;
+  const commercialSessionId = getCommercialAttributionSessionId();
+  await captureCommercialAttribution(catalogId);
 
   const items = buildClientOrderItems(input.lines);
   if (items.length === 0) return null;
@@ -553,7 +556,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
   });
 
   const rpcName = resolveClientOrderRpcName(items);
-  const rpcArgs = {
+  const rpcArgs: Record<string, unknown> = {
     target_catalog_id: catalogId,
     customer_name: clientName,
     customer_phone: clientPhone,
@@ -567,6 +570,7 @@ export async function createClientPlatformOrder(input: ClientPlatformOrderInput)
     idempotency_key: input.idempotencyKey?.trim() || null,
     items
   };
+  if (commercialSessionId) rpcArgs.commercial_session_id = commercialSessionId;
   let { data, error } = await supabase.rpc(rpcName, rpcArgs);
 
   if (error && rpcArgs.idempotency_key && rpcShouldRetryWithoutIdempotencyKey(error)) {

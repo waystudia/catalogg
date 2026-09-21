@@ -14,6 +14,7 @@ import {
 } from './restaurantOrderPayload';
 import { getConfiguredDeliveryPrice } from './deliveryPricingApi';
 import { resolveStoredDeliveryLocation } from '../deliveryLocation';
+import { getCommercialAttributionSessionId } from '../commercialSession';
 import { formatPublicOrderNumber } from '../publicOrderNumber';
 import type { RestaurantCourierType } from '../../features/restaurant-billing/restaurantBillingRules';
 
@@ -1218,6 +1219,8 @@ export async function createRestaurantOrderFromCart(input: CreateRestaurantOrder
   const { slug } = input;
   const catalogId = await getCatalogIdBySlug(slug);
   if (!catalogId) return null;
-
-  return createRestaurantOrderWithClient(supabase, catalogId, input);
+  return createRestaurantOrderWithClient(supabase, catalogId, {
+    ...input,
+    commercialSessionId: getCommercialAttributionSessionId()
+  });
 }

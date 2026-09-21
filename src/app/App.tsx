@@ -144,6 +144,7 @@ import {
   type RestaurantOrderStatus
 } from '../shared/api/restaurantOrdersApi';
 import { getRestaurantPaymentsBySlug, saveRestaurantPayments } from '../shared/api/restaurantPaymentsApi';
+import { captureCommercialAttributionForCatalogSlug } from '../shared/commercialAttribution';
 import { getRestaurantAdminModuleAccessBySlug } from '../shared/api/restaurantModulesApi';
 import { BrandLogo } from '../shared/BrandLogo';
 import { SafeImage } from '../shared/SafeImage';
@@ -1936,6 +1937,9 @@ function AppContent({
     refetchOnWindowFocus: false,
     refetchOnReconnect: true
   });
+  useEffect(() => {
+    void captureCommercialAttributionForCatalogSlug(catalogSlug);
+  }, [catalogSlug]);
   const { data: restaurantReviews = [] } = useQuery({
     queryKey: ['restaurant-reviews', catalogSlug],
     queryFn: () => loadCatalogReviews(catalogSlug),

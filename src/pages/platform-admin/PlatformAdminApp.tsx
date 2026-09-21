@@ -87,6 +87,16 @@ import {
   savePlatformCustomTariff
 } from '../../shared/api/subscriptionsApi';
 import {
+  archiveCommercialProfile,
+  assignCommercialProfile,
+  duplicateCommercialProfile,
+  getCommercialAssignments,
+  getCommercialProfiles,
+  saveCommercialProfile,
+  type CommercialProfile,
+  type CommercialRuleDraft
+} from '../../shared/api/commercialTermsApi';
+import {
   deletePlatformContentPage,
   getContentPageClientPath,
   getPlatformContentPages,
@@ -2092,6 +2102,7 @@ type BillingDraft = PlatformBillingSettings & {
   customTariff: number;
   customTariffFixed: number;
 };
+type CommercialProfileDraft = Omit<CommercialProfile, 'id' | 'assignedBusinesses'> & { id?: string };
 
 const billingDraftStorageKey = 'waycatalog-platform-billing-draft';
 
@@ -2122,6 +2133,7 @@ const readBillingDraft = (): BillingDraft => {
 
 type SubscriptionView =
   | 'overview'
+  | 'commercial-profiles'
   | 'commissions'
   | 'limits'
   | 'custom-tariff'
@@ -2173,12 +2185,51 @@ function SubscriptionsPage() {
   const priceRequestsQuery = useQuery({ queryKey: ['delivery-price-requests'], queryFn: getDeliveryPriceRequests });
   const clientsQuery = useQuery({ queryKey: ['platform-clients-for-billing'], queryFn: () => getClients({ page: 1, pageSize: 1000, status: 'all', payment: 'all', templateId: 'all' }) });
   const driversQuery = useQuery({ queryKey: ['platform-drivers-for-billing'], queryFn: getDrivers });
+  const commercialProfilesQuery = useQuery({ queryKey: ['commercial-profiles'], queryFn: getCommercialProfiles });
+  const commercialAssignmentsQuery = useQuery({ queryKey: ['commercial-assignments'], queryFn: getCommercialAssignments });
   const queryClient = useQueryClient();
   const [billing, setBilling] = useState<BillingDraft>(() => readBillingDraft());
   const [fromSettlement, setFromSettlement] = useState('');
   const [toSettlement, setToSettlement] = useState('');
   const [amount, setAmount] = useState(200);
+  const emptyCommercialRules = (): CommercialRuleDraft[] => [
+    { sourceTypeCode: 'PARTNER', feeType: 'fixed', fixedAmount: 0, percentRate: 0, minimumAmount: null, maximumAmount: null },
+    { sourceTypeCode: 'WAYYAAM', feeType: 'percent', fixedAmount: 0, percentRate: 0, minimumAmount: null, maximumAmount: null },
+    { sourceTypeCode: 'WAYYAAM_AD', feeType: 'percent', fixedAmount: 0, percentRate: 0, minimumAmount: null, maximumAmount: null }
+  ];
+  const [commercialDraft, setCommercialDraft] = useState<CommercialProfileDraft>({
+    name: '', description: '', status: 'active', attributionWindowDays: 30, attributionStrategy: 'last_valid_touch', rules: emptyCommercialRules()
+  });
+  const [commercialSelectedCatalogIds, setCommercialSelectedCatalogIds] = useState<string[]>([]);
+  const [commercialAssignmentProfileId, setCommercialAssignmentProfileId] = useState('');
   const [view, setView] = useState<SubscriptionView>('overview');
+
+  const resetCommercialDraft = () => setCommercialDraft({ name: '', description: '', status: 'active', attributionWindowDays: 30, attributionStrategy: 'last_valid_touch', rules: emptyCommercialRules() });
+  const saveCommercialDraft = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      await saveCommercialProfile(commercialDraft);
+      toast.success(commercialDraft.id ? 'Профиль условий обновлён' : 'Профиль условий создан');
+      resetCommercialDraft();
+      await queryClient.invalidateQueries({ queryKey: ['commercial-profiles'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось сохранить профиль условий');
+    }
+  };
+  const assignSelectedCommercialProfile = async () => {
+    if (!commercialAssignmentProfileId || commercialSelectedCatalogIds.length === 0) return;
+    try {
+      await assignCommercialProfile(commercialSelectedCatalogIds, commercialAssignmentProfileId, 'mass assignment from platform admin');
+      toast.success(`Условия назначены: ${commercialSelectedCatalogIds.length}`);
+      setCommercialSelectedCatalogIds([]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['commercial-profiles'] }),
+        queryClient.invalidateQueries({ queryKey: ['commercial-assignments'] })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось назначить условия');
+    }
+  };
 
   useEffect(() => {
     if (!billingSettingsQuery.data) return;
@@ -2294,6 +2345,36 @@ function SubscriptionsPage() {
 
   if (view !== 'overview') {
     const onBack = () => setView('overview');
+    if (view === 'commercial-profiles') {
+      const profiles = commercialProfilesQuery.data ?? [];
+      const assignmentsByCatalog = new Map((commercialAssignmentsQuery.data ?? []).map((assignment) => [assignment.catalogId, assignment.profileId]));
+      const clients = clientsQuery.data?.data ?? [];
+      return (
+        <main className="platform-page platform-compact-detail">
+          <PlatformInnerHeader title="Профили условий" description="Комиссия определяется на сервере и фиксируется в новом заказе" onBack={onBack} action={<button type="button" onClick={resetCommercialDraft}><Plus />Новый</button>} />
+          <form className="platform-detail-form" onSubmit={(event) => void saveCommercialDraft(event)}>
+            <label>Название<input value={commercialDraft.name} onChange={(event) => setCommercialDraft({ ...commercialDraft, name: event.target.value })} placeholder="Стандарт — рестораны" required /></label>
+            <label>Описание<input value={commercialDraft.description} onChange={(event) => setCommercialDraft({ ...commercialDraft, description: event.target.value })} placeholder="Основные условия" /></label>
+            <label>Окно атрибуции, дней<input type="number" min="1" max="365" value={commercialDraft.attributionWindowDays} onChange={(event) => setCommercialDraft({ ...commercialDraft, attributionWindowDays: Number(event.target.value) || 1 })} /></label>
+            <label>Правило атрибуции<select value={commercialDraft.attributionStrategy} onChange={(event) => setCommercialDraft({ ...commercialDraft, attributionStrategy: event.target.value as CommercialProfile['attributionStrategy'] })}><option value="last_valid_touch">Последний действующий переход</option><option value="first_valid_touch">Первый действующий переход</option></select></label>
+            {commercialDraft.rules.map((rule, index) => (
+              <fieldset key={rule.sourceTypeCode}><legend>{rule.sourceTypeCode}</legend>
+                <label>Тип<select value={rule.feeType} onChange={(event) => setCommercialDraft({ ...commercialDraft, rules: commercialDraft.rules.map((item, itemIndex) => itemIndex === index ? { ...item, feeType: event.target.value as CommercialRuleDraft['feeType'] } : item) })}><option value="free">Бесплатно</option><option value="fixed">Фиксированная</option><option value="percent">Процент</option><option value="fixed_percent">Фиксированная + процент</option></select></label>
+                <label>Фикс., ₽<input type="number" min="0" value={rule.fixedAmount} disabled={rule.feeType === 'free' || rule.feeType === 'percent'} onChange={(event) => setCommercialDraft({ ...commercialDraft, rules: commercialDraft.rules.map((item, itemIndex) => itemIndex === index ? { ...item, fixedAmount: Number(event.target.value) } : item) })} /></label>
+                <label>Процент<input type="number" min="0" max="100" step="0.01" value={rule.percentRate} disabled={rule.feeType === 'free' || rule.feeType === 'fixed'} onChange={(event) => setCommercialDraft({ ...commercialDraft, rules: commercialDraft.rules.map((item, itemIndex) => itemIndex === index ? { ...item, percentRate: Number(event.target.value) } : item) })} /></label>
+                <label>Мин., ₽<input type="number" min="0" value={rule.minimumAmount ?? ''} onChange={(event) => setCommercialDraft({ ...commercialDraft, rules: commercialDraft.rules.map((item, itemIndex) => itemIndex === index ? { ...item, minimumAmount: event.target.value === '' ? null : Number(event.target.value) } : item) })} /></label>
+                <label>Макс., ₽<input type="number" min="0" value={rule.maximumAmount ?? ''} onChange={(event) => setCommercialDraft({ ...commercialDraft, rules: commercialDraft.rules.map((item, itemIndex) => itemIndex === index ? { ...item, maximumAmount: event.target.value === '' ? null : Number(event.target.value) } : item) })} /></label>
+              </fieldset>
+            ))}
+            <button type="submit"><Save />{commercialDraft.id ? 'Сохранить профиль' : 'Создать профиль'}</button>
+          </form>
+          <section className="platform-simple-list">
+            {profiles.map((profile) => <article key={profile.id}><span><strong>{profile.name}</strong><small>{profile.assignedBusinesses} бизнесов · {profile.status === 'active' ? 'Активен' : 'Архив'}</small></span><div><button type="button" onClick={() => setCommercialDraft(profile)}>Открыть</button><button type="button" onClick={() => void duplicateCommercialProfile(profile).then(() => queryClient.invalidateQueries({ queryKey: ['commercial-profiles'] }))}>Дублировать</button>{profile.status === 'active' && <button type="button" className="is-danger" onClick={() => void archiveCommercialProfile(profile.id).then(() => queryClient.invalidateQueries({ queryKey: ['commercial-profiles'] }))}>Архивировать</button>}</div></article>)}
+          </section>
+          <section className="platform-detail-form"><h2>Массовое назначение</h2><label>Профиль<select value={commercialAssignmentProfileId} onChange={(event) => setCommercialAssignmentProfileId(event.target.value)}><option value="">Выберите профиль</option>{profiles.filter((profile) => profile.status === 'active').map((profile) => <option value={profile.id} key={profile.id}>{profile.name}</option>)}</select></label><div>{clients.map((client) => <label key={client.catalogId}><input type="checkbox" checked={commercialSelectedCatalogIds.includes(client.catalogId)} onChange={(event) => setCommercialSelectedCatalogIds((current) => event.target.checked ? [...current, client.catalogId] : current.filter((id) => id !== client.catalogId))} />{client.companyName} · {profiles.find((profile) => profile.id === assignmentsByCatalog.get(client.catalogId))?.name ?? '—'}</label>)}</div><button type="button" disabled={!commercialAssignmentProfileId || commercialSelectedCatalogIds.length === 0} onClick={() => void assignSelectedCommercialProfile()}>Применить к выбранным</button></section>
+        </main>
+      );
+    }
     if (view === 'modules') {
       return <PlatformRestaurantModulesPage onBack={onBack} />;
     }
@@ -2426,6 +2507,7 @@ function SubscriptionsPage() {
     tone: string;
   }> = [
     { view: 'modules', title: 'Модули ресторанов', description: 'POS, склад, финансы и функции по подписке', summary: <>Безопасное включение</>, Icon: Boxes, tone: 'purple' },
+    { view: 'commercial-profiles', title: 'Профили условий', description: 'Комиссии по источнику заказа и бизнесу', summary: <>{formatCount(commercialProfilesQuery.data?.length ?? 0, ['профиль', 'профиля', 'профилей'])}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'commissions', title: 'Комиссии', description: 'Настройка комиссий для платформы', summary: <>Клиент {formatMoney(billing.clientFee)} · Ресторан {formatTariff(billing.restaurantTariffType, billing.restaurantCommission, billing.restaurantFixedFee)} · Водитель {formatTariff(billing.driverTariffType, billing.driverTariff, billing.driverFixedFee)}</>, Icon: BadgePercent, tone: 'purple' },
     { view: 'limits', title: 'Лимиты', description: 'Лимиты и предупреждения', summary: <>Ресторан {formatMoney(billing.restaurantLimit)} · Водитель {formatMoney(billing.driverLimit)} · {billing.warningPercent}%</>, Icon: ShieldAlert, tone: 'violet' },
     { view: 'custom-tariff', title: 'Индивидуальный тариф', description: 'Установить тариф для ресторана или водителя', summary: <>{customTariffsQuery.data?.length ?? 0} настроено</>, Icon: UserRound, tone: 'purple' },

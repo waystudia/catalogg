@@ -2,6 +2,7 @@ import type { CartItem, Product } from '../../entities/models';
 import { getSelectedModifierDetails } from '../../entities/productModifiers';
 import { normalizeSelectedWeight } from '../../entities/productPricing';
 import { formatDeliveryLocationNote } from '../deliveryLocation';
+import { getCommercialAttributionSessionId } from '../commercialSession';
 
 type DeliverySettingsForSave = {
   service_settlements: string[];
@@ -26,6 +27,7 @@ export type CreateRestaurantOrderFromCartInput = {
   comment?: string;
   customerName?: string;
   customerPhone?: string;
+  commercialSessionId?: string | null;
 };
 
 type SupabaseResult<T> = PromiseLike<{ data: T | null; error: unknown }>;
@@ -287,14 +289,15 @@ export async function createRestaurantOrderWithClient(
     comment = '',
     customerName = 'Гость',
     customerPhone = '',
-    idempotencyKey
+    idempotencyKey,
+    commercialSessionId = getCommercialAttributionSessionId()
   }: CreateRestaurantOrderFromCartInput
 ) {
   const locationNote =
     fulfillmentType === 'delivery'
       ? formatDeliveryLocationNote(deliveryLat, deliveryLng, deliveryAccuracyM)
       : '';
-  const restaurantRpcArgs = {
+  const restaurantRpcArgs: Record<string, unknown> = {
     target_catalog_id: catalogId,
     customer_name: customerName,
     customer_phone: customerPhone,
@@ -308,6 +311,7 @@ export async function createRestaurantOrderWithClient(
     idempotency_key: idempotencyKey?.trim() || null,
     items: buildPublicRestaurantOrderItems(items)
   };
+  if (commercialSessionId) restaurantRpcArgs.commercial_session_id = commercialSessionId;
   const rpcName = resolvePublicOrderRpcName(items);
   let { data, error } = await client.rpc(rpcName, restaurantRpcArgs);
 

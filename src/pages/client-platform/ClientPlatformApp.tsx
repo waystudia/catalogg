@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { legalDocuments } from '../../shared/legalDocuments';
+import { captureCommercialAttributionForCatalogSlug } from '../../shared/commercialAttribution';
 import {
   ArrowLeft,
   ArrowRight,
@@ -1264,6 +1265,10 @@ function RestaurantArea({
 }) {
   const restaurant = getRestaurantBySlug(snapshot, slug);
   const location = useLocation();
+
+  useEffect(() => {
+    if (restaurant?.slug) void captureCommercialAttributionForCatalogSlug(restaurant.slug);
+  }, [restaurant?.slug]);
 
   if (!restaurant) {
     return (
