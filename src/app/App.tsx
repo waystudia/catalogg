@@ -1017,7 +1017,8 @@ function CatalogScreen({
   reviewCount,
   onReviews,
   flowAction,
-  focusProductId
+  focusProductId,
+  focusProductTitle
 }: {
   restaurant?: Restaurant;
   categories: Category[];
@@ -1037,6 +1038,7 @@ function CatalogScreen({
   onReviews: () => void;
   flowAction?: FlowAction;
   focusProductId?: string;
+  focusProductTitle?: string;
 }) {
   const terms = getBusinessTerms(restaurant?.business_type);
   const [active, setActive] = useState(initialCategory);
@@ -1098,7 +1100,13 @@ function CatalogScreen({
     let attempts = 0;
     const focusProduct = () => {
       if (cancelled) return;
-      const target = document.querySelector<HTMLElement>(`[data-product-id="${CSS.escape(focusProductId)}"]`);
+      const targetById = document.querySelector<HTMLElement>(`[data-product-id="${CSS.escape(focusProductId)}"]`);
+      const normalizedTitle = focusProductTitle?.trim().toLocaleLowerCase('ru');
+      const target = targetById ?? (normalizedTitle
+        ? Array.from(document.querySelectorAll<HTMLElement>('[data-product-id]')).find((element) =>
+            element.querySelector('h3')?.textContent?.trim().toLocaleLowerCase('ru') === normalizedTitle
+          )
+        : undefined);
       if (target) {
         target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
         return;
@@ -1113,7 +1121,7 @@ function CatalogScreen({
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [focusProductId, initialCategory, products.length]);
+  }, [focusProductId, focusProductTitle, initialCategory, products.length]);
 
   useEffect(() => {
     if (initialScrollDoneRef.current || initialCategory === 'all') return undefined;
@@ -2137,9 +2145,9 @@ function AppContent({
   }, [catalogQueryKey, catalogSlug]);
 
   useEffect(() => {
-    if (focusProductId && screen === 'home' && routeSection !== 'reviews') return;
+    if ((focusProductId || focusProductTitle) && screen === 'home' && routeSection !== 'reviews') return;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [focusProductId, routeSection, screen, selectedProduct?.id]);
+  }, [focusProductId, focusProductTitle, routeSection, screen, selectedProduct?.id]);
 
   useEffect(() => {
     if (cartCount === 0) {
@@ -2932,6 +2940,7 @@ function AppContent({
               onReviews={() => navigate(`/${catalogSlug}/reviews`)}
               flowAction={activeFlowCategory ? makeFlowAction(activeFlowCategory) : undefined}
               focusProductId={focusProductId}
+              focusProductTitle={focusProductTitle}
             />
           )}
           {screen === 'catalog' && (

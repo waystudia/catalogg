@@ -49,6 +49,7 @@ export function MarketplaceProductGrid({ items, favoriteIds, onToggleFavorite }:
                 event.preventDefault();
                 const restaurantTarget = new URL(item.href, window.location.origin);
                 restaurantTarget.searchParams.set('focusDish', item.id);
+                restaurantTarget.searchParams.set('focusDishTitle', item.title);
                 navigate(`${restaurantTarget.pathname}${restaurantTarget.search}${restaurantTarget.hash}`, {
                   state: {
                     marketplaceReturn: {
