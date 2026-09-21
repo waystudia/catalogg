@@ -1016,7 +1016,8 @@ function CatalogScreen({
   reviewRating,
   reviewCount,
   onReviews,
-  flowAction
+  flowAction,
+  focusProductId
 }: {
   restaurant?: Restaurant;
   categories: Category[];
@@ -1035,6 +1036,7 @@ function CatalogScreen({
   reviewCount: number;
   onReviews: () => void;
   flowAction?: FlowAction;
+  focusProductId?: string;
 }) {
   const terms = getBusinessTerms(restaurant?.business_type);
   const [active, setActive] = useState(initialCategory);
@@ -1089,6 +1091,29 @@ function CatalogScreen({
   useEffect(() => {
     setActive(initialCategory);
   }, [initialCategory]);
+
+  useEffect(() => {
+    if (!focusProductId || initialCategory !== 'all') return undefined;
+    let cancelled = false;
+    let attempts = 0;
+    const focusProduct = () => {
+      if (cancelled) return;
+      const target = document.querySelector<HTMLElement>(`[data-product-id="${CSS.escape(focusProductId)}"]`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+        return;
+      }
+      if (attempts < 120) {
+        attempts += 1;
+        window.requestAnimationFrame(focusProduct);
+      }
+    };
+    const frame = window.requestAnimationFrame(focusProduct);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [focusProductId, initialCategory, products.length]);
 
   useEffect(() => {
     if (initialScrollDoneRef.current || initialCategory === 'all') return undefined;
@@ -1841,13 +1866,19 @@ function SettingsHome({ onOpen }: { onOpen: (screen: SettingsScreen) => void }) 
 function AppContent({
   catalogSlug,
   routeSection,
-  routeOrderId
+  routeOrderId,
+  platformReturn
 }: {
   catalogSlug: string;
   routeSection?: string;
   routeOrderId?: string;
+  platformReturn?: { pathname: string; scrollY: number };
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const focusProductId = routeSection
+    ? undefined
+    : new URLSearchParams(location.search).get('focusDish') ?? undefined;
   const shareCurrentPage = useCallback(async () => {
     const url = window.location.href;
     const title = document.title || 'WayYaam';
@@ -2841,7 +2872,13 @@ function AppContent({
               }
               setScreen('home');
             }}
-            onPlatformBack={() => navigate('/')}
+            onPlatformBack={() => {
+              if (platformReturn) {
+                navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
+                return;
+              }
+              navigate('/');
+            }}
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
             onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
@@ -2877,7 +2914,13 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }))}
+              onBack={() => {
+                if (platformReturn) {
+                  navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
+                  return;
+                }
+                navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }));
+              }}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -2887,6 +2930,7 @@ function AppContent({
               reviewCount={restaurantReviewSummary.reviewCount}
               onReviews={() => navigate(`/${catalogSlug}/reviews`)}
               flowAction={activeFlowCategory ? makeFlowAction(activeFlowCategory) : undefined}
+              focusProductId={focusProductId}
             />
           )}
           {screen === 'catalog' && (
@@ -3021,6 +3065,16 @@ export function App() {
   const pathParts = location.pathname.split('/').filter(Boolean);
   const routeSection = pathParts[1];
   const routeOrderId = routeSection === 'order' ? pathParts[2] : undefined;
+  const marketplaceReturnState = (location.state as {
+    marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
+  } | null)?.marketplaceReturn;
+  const platformReturn = typeof marketplaceReturnState?.pathname === 'string'
+    && marketplaceReturnState.pathname.startsWith('/')
+    ? {
+        pathname: marketplaceReturnState.pathname,
+        scrollY: typeof marketplaceReturnState.scrollY === 'number' ? marketplaceReturnState.scrollY : 0
+      }
+    : undefined;
 
   if (!slug) {
     return null;
@@ -3028,7 +3082,12 @@ export function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent catalogSlug={slug} routeSection={routeSection} routeOrderId={routeOrderId} />
+      <AppContent
+        catalogSlug={slug}
+        routeSection={routeSection}
+        routeOrderId={routeOrderId}
+        platformReturn={platformReturn}
+      />
     </QueryClientProvider>
   );
 }

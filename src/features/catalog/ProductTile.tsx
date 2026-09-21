@@ -249,6 +249,7 @@ export function ProductTile({
   return (
     <article
       className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}${soldOut ? ' is-sold-out' : ''}`}
+      data-product-id={product.id}
       onClick={() => onOpen(product)}
     >
       <div className="product-tile__image">
