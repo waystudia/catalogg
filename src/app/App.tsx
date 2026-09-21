@@ -2137,8 +2137,9 @@ function AppContent({
   }, [catalogQueryKey, catalogSlug]);
 
   useEffect(() => {
+    if (focusProductId && screen === 'home' && routeSection !== 'reviews') return;
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [screen, selectedProduct?.id]);
+  }, [focusProductId, routeSection, screen, selectedProduct?.id]);
 
   useEffect(() => {
     if (cartCount === 0) {
