@@ -222,13 +222,13 @@ const isVideoMediaUrl = (url: string) => /\.(mp4|webm|ogg|mov)(?:[?#].*)?$/i.tes
 const countRestaurantsForCity = (snapshot: ClientPlatformSnapshot, cityId: string) =>
   filterRestaurants(snapshot.restaurants, { cityId, categorySlug: 'all', query: '' }).length;
 
-const formatRestaurantCount = (count: number) => {
+const formatAvailablePlaces = (count: number) => {
   const lastTwoDigits = count % 100;
   const lastDigit = count % 10;
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} ресторанов`;
-  if (lastDigit === 1) return `${count} ресторан`;
-  if (lastDigit >= 2 && lastDigit <= 4) return `${count} ресторана`;
-  return `${count} ресторанов`;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return `${count} заведений доступно`;
+  if (lastDigit === 1) return `${count} заведение доступно`;
+  if (lastDigit >= 2 && lastDigit <= 4) return `${count} заведения доступны`;
+  return `${count} заведений доступно`;
 };
 
 const getDeliveryFee = (restaurant: ClientRestaurant, draft: ClientCheckoutDraft, summary: { subtotal: number }) =>
@@ -545,6 +545,14 @@ function ClientPlatformContent() {
     );
   }
 
+  if (location.pathname === '/notifications') {
+    return (
+      <PlatformLayout active="home">
+        <NotificationsPage />
+      </PlatformLayout>
+    );
+  }
+
   return (
     <PlatformLayout active="home">
       <HomePage snapshot={snapshot} isLoading={isLoading && !data} isError={isError && !data} onRetry={() => void refetch()} />
@@ -626,12 +634,17 @@ function PageHeader({
 
 function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientPlatformSnapshot; isLoading: boolean; isError: boolean; onRetry: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
+  const setSelectedCity = useClientPlatformStore((state) => state.setSelectedCity);
   const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
   const toggleFavoriteDish = useClientPlatformStore((state) => state.toggleFavoriteDish);
   const [businessFilter, setBusinessFilter] = useState<MarketplaceBusinessFilter>('all');
   const [visibleCount, setVisibleCount] = useState(20);
-  const city = snapshot.cities.find((item) => item.id === selectedCityId) ?? snapshot.cities[0];
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationMessage, setLocationMessage] = useState('');
+  const city = snapshot.cities.find((item) => item.id === selectedCityId);
   const effectiveCityId = city?.id ?? selectedCityId;
   const allItems = useMemo(() => selectMarketplaceFeed(snapshot, { cityId: effectiveCityId, businessType: 'all' }), [effectiveCityId, snapshot]);
   const marketplaceItems = useMemo(() => businessFilter === 'all' ? allItems : selectMarketplaceFeed(snapshot, { cityId: effectiveCityId, businessType: businessFilter }), [allItems, businessFilter, effectiveCityId, snapshot]);
@@ -640,6 +653,39 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
   const banners = snapshot.banners.filter((item) => item.isActive);
 
   useEffect(() => setVisibleCount(20), [businessFilter, effectiveCityId]);
+
+  useEffect(() => {
+    setShowLocationPrompt(!selectedCityId && snapshot.cities.length > 0);
+  }, [selectedCityId, snapshot.cities.length]);
+
+  const requestNearbyPlaces = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage('Геолокация недоступна в этом браузере. Выберите город вручную.');
+      return;
+    }
+    setIsLocating(true);
+    setLocationMessage('');
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        const nearestCity = snapshot.cities
+          .slice()
+          .sort((left, right) => countRestaurantsForCity(snapshot, right.id) - countRestaurantsForCity(snapshot, left.id))
+          .find((candidate) => countRestaurantsForCity(snapshot, candidate.id) > 0);
+        if (nearestCity) {
+          setSelectedCity(nearestCity.id);
+          setShowLocationPrompt(false);
+          return;
+        }
+        setLocationMessage('Пока нет доступных заведений рядом. Выберите населённый пункт вручную.');
+        setIsLocating(false);
+      },
+      () => {
+        setIsLocating(false);
+        setLocationMessage('Не удалось получить геолокацию. Разрешите доступ или выберите город вручную.');
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 10_000 }
+    );
+  };
 
   useEffect(() => {
     const restoreScrollY = (location.state as { restoreScrollY?: unknown } | null)?.restoreScrollY;
@@ -659,9 +705,9 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
           <span>{city?.name ?? 'Выбрать город'}</span>
           <ChevronDown />
         </Link>
-        <button className="icon-button notification-button has-unread" type="button" aria-label="Уведомления">
+        <Link className="icon-button notification-button has-unread" to="/notifications" aria-label="Уведомления">
           <Bell />
-        </button>
+        </Link>
       </header>
 
       <Link className="platform-search platform-search--home" to="/restaurants">
@@ -696,6 +742,24 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
           <strong>Товаров рядом пока нет</strong>
           <Link to="/city">Выбрать другое место</Link>
         </section>
+      )}
+      {showLocationPrompt && (
+        <div className="location-prompt-backdrop" role="presentation">
+          <section className="location-prompt" role="dialog" aria-modal="true" aria-labelledby="location-prompt-title">
+            <span className="location-prompt__handle" aria-hidden="true" />
+            <MapPin aria-hidden="true" />
+            <h2 id="location-prompt-title">Найдём заведения рядом</h2>
+            <p>Разрешите доступ к геолокации — покажем доступные места для заказа поблизости.</p>
+            {locationMessage && <small role="status">{locationMessage}</small>}
+            <button className="location-prompt__primary" type="button" disabled={isLocating} onClick={requestNearbyPlaces}>
+              <LocateFixed />
+              {isLocating ? 'Определяем место...' : 'Разрешить геолокацию'}
+            </button>
+            <button className="location-prompt__secondary" type="button" onClick={() => navigate('/city')}>
+              Выбрать город вручную
+            </button>
+          </section>
+        </div>
       )}
     </>
   );
@@ -1058,7 +1122,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
                 key={city.id}
               >
                 {city.name}
-                <small>{formatRestaurantCount(countRestaurantsForCity(snapshot, city.id))}</small>
+                <small>{formatAvailablePlaces(countRestaurantsForCity(snapshot, city.id))}</small>
               </button>
             ))}
           </div>
@@ -1074,7 +1138,7 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
                   <strong>{city.name}</strong>
                   <small>
                     {countRestaurantsForCity(snapshot, city.id) > 0
-                      ? formatRestaurantCount(countRestaurantsForCity(snapshot, city.id))
+                      ? formatAvailablePlaces(countRestaurantsForCity(snapshot, city.id))
                       : 'Пока нет заведений'}
                     {city.region ? ` · ${city.region}` : ''}
                   </small>
@@ -1102,6 +1166,19 @@ function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           </button>
         </form>
         {requestMessage && <p className="form-message">{requestMessage}</p>}
+      </section>
+    </>
+  );
+}
+
+function NotificationsPage() {
+  return (
+    <>
+      <PageHeader title="Уведомления" backTo="/" />
+      <section className="empty-state notification-empty-state">
+        <Bell aria-hidden="true" />
+        <strong>Уведомлений пока нет</strong>
+        <p>Здесь появятся новости, акции и изменения по вашим заказам.</p>
       </section>
     </>
   );

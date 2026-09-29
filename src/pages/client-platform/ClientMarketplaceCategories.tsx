@@ -66,9 +66,9 @@ function DiscoveryHeader({ cityName }: { cityName: string }) {
         <span>{cityName}</span>
         <ChevronDown aria-hidden="true" />
       </Link>
-      <button className="icon-button notification-button has-unread" type="button" aria-label="Уведомления">
+      <Link className="icon-button notification-button has-unread" to="/notifications" aria-label="Уведомления">
         <Bell aria-hidden="true" />
-      </button>
+      </Link>
     </header>
   );
 }
@@ -294,7 +294,7 @@ export function ClientMarketplaceCategories({
   const [selectedCategory, setSelectedCategory] = useState('');
   const [deliveryOnly, setDeliveryOnly] = useState(false);
   const [freeDeliveryOnly, setFreeDeliveryOnly] = useState(false);
-  const city = snapshot.cities.find((item) => item.id === selectedCityId) ?? snapshot.cities[0];
+  const city = snapshot.cities.find((item) => item.id === selectedCityId);
   const effectiveCityId = city?.id ?? selectedCityId;
   const popularBusinesses = useMemo(() => selectBusinessesForDiscovery(snapshot.restaurants, {
     cityId: effectiveCityId,
