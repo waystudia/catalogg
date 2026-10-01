@@ -13,6 +13,15 @@ import {
 import './app/styles.css';
 import './features/dish-editor/styles.css';
 
+// Keep the configured public API endpoint in the entry bundle.  Production's
+// immutable-release guard verifies this before switching `current`, preventing
+// a build made without the Supabase environment from reaching users.
+const productionApiEndpoint = import.meta.env.VITE_SUPABASE_URL ?? '';
+
+if (productionApiEndpoint) {
+  document.documentElement.dataset.wayyaamApi = productionApiEndpoint;
+}
+
 const ClientPlatformApp = lazy(() =>
   import('./pages/client-platform/ClientPlatformApp').then((module) => ({ default: module.ClientPlatformApp }))
 );
@@ -37,6 +46,11 @@ const ScannerPage = lazy(() =>
 const RestaurantActivationPage = lazy(() =>
   import('./features/restaurant-activation/RestaurantActivationPage').then((module) => ({
     default: module.RestaurantActivationPage
+  }))
+);
+const PartnerRegistrationPreview = lazy(() =>
+  import('./features/partner-registration-preview/PartnerRegistrationPreview').then((module) => ({
+    default: module.PartnerRegistrationPreview
   }))
 );
 
@@ -73,6 +87,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <Route path="/profile/*" element={<ClientPlatformApp />} />
           <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/registration-preview" element={<PartnerRegistrationPreview />} />
           <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/scanner" element={<ScannerPage />} />
