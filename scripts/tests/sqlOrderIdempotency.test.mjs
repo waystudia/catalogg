@@ -93,5 +93,13 @@ describe('public order idempotency SQL', () => {
       publicOrderGrantMigration,
       /grant execute on function public\.create_public_restaurant_order\([\s\S]*?\) to anon, authenticated/i
     );
+    assert.match(
+      publicOrderGrantMigration,
+      /revoke execute on function public\.create_legacy_public_restaurant_order\([\s\S]*?\) from public/i
+    );
+    assert.match(
+      publicOrderGrantMigration,
+      /grant execute on function public\.create_legacy_public_restaurant_order\([\s\S]*?\) to anon, authenticated/i
+    );
   });
 });
