@@ -78,6 +78,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <Route path="/categories" element={<ClientPlatformApp />} />
           <Route path="/restaurants" element={<ClientPlatformApp />} />
           <Route path="/cart" element={<ClientPlatformApp />} />
+          <Route path="/notifications" element={<ClientPlatformApp />} />
           <Route path="/pages/:pageSlug" element={<ClientPlatformApp />} />
           <Route path="/profile/*" element={<ClientPlatformApp />} />
           <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
