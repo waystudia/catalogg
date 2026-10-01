@@ -1960,6 +1960,21 @@
   grid-column: 1 / -1;
 }
 
+/* Keep the driver's decision order visible: route first, then the current
+   status action, with calling left as a secondary utility. */
+.driver-current-block__actions > .driver-yandex-navigation {
+  order: 1;
+}
+
+.driver-current-block__actions > .driver-current-block__next-action {
+  grid-column: 1 / -1;
+  order: 2;
+}
+
+.driver-current-block__actions > .driver-current-block__contact-action {
+  order: 3;
+}
+
 .driver-navigator-open,
 .driver-navigator-return {
   width: 100%;

@@ -1065,12 +1065,12 @@ function DriverCurrentDeliveryPanel({
       <div className="driver-current-block__actions">
         <DriverYandexNavigationActions delivery={offer} />
         {offer.clientPhone ? (
-          <a className="driver-secondary" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
+          <a className="driver-secondary driver-current-block__contact-action" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
         ) : (
-          <button className="driver-secondary" type="button" disabled><Phone />Позвонить</button>
+          <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><Phone />Позвонить</button>
         )}
         {nextAction && (
-          <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
+          <button className="driver-primary driver-current-block__next-action" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
             {isUpdating ? 'Сохраняем...' : nextAction.label}
           </button>
         )}
