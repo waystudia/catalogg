@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sql = readFileSync(resolve(repoRoot, 'supabase/order_idempotency.sql'), 'utf8');
+const publicOrderGrantMigration = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20261001183308_grant_public_restaurant_order_rpc.sql'),
+  'utf8'
+);
 
 const extractFunction = (name) => {
   const marker = `create or replace function public.${name}`;
@@ -78,5 +82,16 @@ describe('public order idempotency SQL', () => {
       assert.match(functionSql, /location->>'lng'/);
       assert.match(functionSql, /location->>'accuracy_m'/);
     }
+  });
+
+  it('restores browser access to the public order RPC after restrictive production grants', () => {
+    assert.match(
+      publicOrderGrantMigration,
+      /revoke execute on function public\.create_public_restaurant_order\([\s\S]*?\) from public/i
+    );
+    assert.match(
+      publicOrderGrantMigration,
+      /grant execute on function public\.create_public_restaurant_order\([\s\S]*?\) to anon, authenticated/i
+    );
   });
 });

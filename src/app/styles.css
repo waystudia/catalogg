@@ -6204,20 +6204,21 @@ a {
 }
 
 .checkout-screen .takeaway-note {
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
 }
 
 .checkout-screen .takeaway-note__message {
   align-items: flex-start;
-  gap: 10px;
-  font-size: 19px;
+  gap: 8px;
+  font-size: 17px;
   line-height: 1.2;
 }
 
 .checkout-screen .takeaway-note__message svg {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
 }
 
 .checkout-location-actions {
@@ -6230,27 +6231,27 @@ a {
 .checkout-screen .checkout-location-button {
   display: inline-flex;
   width: 100%;
-  min-height: 48px;
+  min-height: 42px;
   margin: 0;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #cfcbc4;
   border-radius: 14px;
   background: #fafafa;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.15;
 }
 
 .checkout-screen .checkout-location-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .checkout-screen .checkout-delivery-fields {
-  gap: 10px;
+  gap: 8px;
 }
 
 .checkout-screen .checkout-field {
-  gap: 5px;
+  gap: 4px;
   color: var(--checkout-ink);
   font-size: 12px;
 }
@@ -6258,7 +6259,7 @@ a {
 .checkout-screen .checkout-field input,
 .checkout-screen .checkout-field select,
 .checkout-screen .checkout-field textarea {
-  min-height: 48px;
+  min-height: 44px;
   border: 1px solid #dedbd5;
   border-radius: 14px;
   padding: 11px 13px;
@@ -6268,7 +6269,7 @@ a {
 }
 
 .checkout-screen .checkout-field textarea {
-  min-height: 72px;
+  min-height: 64px;
   resize: vertical;
 }
 
@@ -6785,7 +6786,9 @@ a {
 }
 
 .checkout-screen > .site-credit {
+  margin-top: 12px;
   padding: 0 0 6px;
+  border-top: 0;
   color: #77716a;
 }
 

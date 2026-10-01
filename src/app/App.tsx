@@ -2520,9 +2520,7 @@ function AppContent({
   const continueFromCartBar = () => {
     setIsCartOpen(false);
     if (screen === 'checkout') {
-      const review = document.getElementById('checkout-review');
-      review?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      window.setTimeout(() => review?.focus({ preventScroll: true }), 450);
+      document.getElementById('checkout-submit-order')?.click();
       return;
     }
     if (orderFlow.step !== 'done') {

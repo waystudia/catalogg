@@ -647,12 +647,6 @@ export function CheckoutScreen({
               )}
             </div>
           )}
-          {(deliveryLat !== null && deliveryLng !== null) && (
-            <p className="checkout-location-hint">
-              Координаты: {deliveryLat.toFixed(7)}, {deliveryLng.toFixed(7)}
-              {deliveryAccuracyM ? ` · точность ${deliveryAccuracyM} м` : ' · выбрано вручную'}
-            </p>
-          )}
           {deliveryAccuracyM && deliveryAccuracyM > 100 && (
             <p className="checkout-location-warning">Точность слабая. Проверьте адрес перед отправкой заказа.</p>
           )}
@@ -1007,6 +1001,7 @@ export function CheckoutScreen({
           </section>
         )}
         <button
+          id="checkout-submit-order"
           className={
             restaurant.whatsapp && isCheckoutContactValid && isCheckoutAccountValid
               ? 'primary-wide checkout-summary__action'
