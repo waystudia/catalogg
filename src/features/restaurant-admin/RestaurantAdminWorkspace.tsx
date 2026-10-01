@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
-  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
+  ArrowRight, Bell, Calculator, CalendarDays, ClipboardList, CreditCard, Home, Info, Package,
+  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils, WalletCards
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { useAuthStore } from '../stores';
@@ -90,11 +90,12 @@ export function RestaurantAdminWorkspace({
   const [tab, setTab] = useState<RestaurantAdminTab>(() =>
     routeSection === 'order'
       ? 'orders'
-      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner' || routeSection === 'pos'
+      : routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'finance' || routeSection === 'settings' || routeSection === 'scanner' || routeSection === 'pos'
         ? routeSection
       : 'home'
   );
   const [filter, setFilter] = useState<AdminOrderFilter>('all');
+  const [financePeriod, setFinancePeriod] = useState<'today' | 'week' | 'month'>('month');
   const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
@@ -126,6 +127,16 @@ export function RestaurantAdminWorkspace({
     courierExpense,
     netRevenue
   } = calculateRestaurantFinance(monthOrders, billingTariff);
+  const financeOrders = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    if (financePeriod === 'today') start.setHours(0, 0, 0, 0);
+    if (financePeriod === 'week') start.setDate(now.getDate() - 6);
+    if (financePeriod === 'month') start.setDate(1);
+    if (financePeriod !== 'today') start.setHours(0, 0, 0, 0);
+    return orders.filter((order) => new Date(order.createdAt) >= start);
+  }, [financePeriod, orders]);
+  const finance = useMemo(() => calculateRestaurantFinance(financeOrders, billingTariff), [billingTariff, financeOrders]);
   const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
   const filteredOrders =
     filter === 'all'
@@ -227,7 +238,7 @@ export function RestaurantAdminWorkspace({
       setTab(moduleAccess.pos === 'disabled' ? 'home' : 'pos');
       return;
     }
-    if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
+    if (routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'finance' || routeSection === 'settings' || routeSection === 'scanner') {
       setTab(routeSection);
     }
   }, [moduleAccess.pos, routeSection]);
@@ -291,6 +302,7 @@ export function RestaurantAdminWorkspace({
           <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => openTab('home')}><Home />Главная</button>
           <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
           <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
+          <button className={tab === 'finance' ? 'is-active' : ''} type="button" onClick={() => openTab('finance')}><WalletCards />Финансы</button>
           <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
           {moduleAccess.pos !== 'disabled' && <button className={tab === 'pos' ? 'is-active' : ''} type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
@@ -330,7 +342,7 @@ export function RestaurantAdminWorkspace({
           <section className="restaurant-admin__content">
             <section className="admin-finance-summary">
               <header>
-                <h2>Финансы</h2>
+                <button className="admin-finance-summary__open" type="button" onClick={() => openTab('finance')}><h2>Финансы</h2><ArrowRight /></button>
                 <small>{formatPrice(monthRevenue)} за месяц <Info /></small>
               </header>
               <div>
@@ -401,6 +413,39 @@ export function RestaurantAdminWorkspace({
                 </article>
               ))}
             </div>
+          </section>
+        )}
+
+        {tab === 'finance' && (
+          <section className="restaurant-admin__content admin-finance-page">
+            <header className="admin-finance-page__header">
+              <div>
+                <span>Финансовый отчёт</span>
+                <h2>Деньги заведения</h2>
+                <p>В расчёт входят все неотменённые заказы за выбранный период.</p>
+              </div>
+              <CalendarDays />
+            </header>
+            <div className="admin-finance-page__periods" role="group" aria-label="Период отчёта">
+              {([['today', 'Сегодня'], ['week', '7 дней'], ['month', 'Месяц']] as const).map(([period, label]) => (
+                <button className={financePeriod === period ? 'is-active' : ''} key={period} type="button" onClick={() => setFinancePeriod(period)}>{label}</button>
+              ))}
+            </div>
+            <div className="admin-finance-page__metrics">
+              <article><span>Выручка</span><strong>{formatPrice(finance.grossRevenue)}</strong><small>{financeOrders.length} заказов</small></article>
+              <article><span>Комиссия платформы</span><strong>{formatPrice(finance.platformDebt)}</strong><small>{billingTariff ? 'По действующему тарифу' : 'Тариф не задан'}</small></article>
+              <article><span>Курьерам</span><strong>{formatPrice(finance.courierExpense)}</strong><small>Выплаты за доставки</small></article>
+              <article data-tone="net"><span>К получению</span><strong>{formatPrice(finance.netRevenue)}</strong><small>Выручка после удержаний</small></article>
+            </div>
+            <section className="admin-finance-page__orders">
+              <header><h3>Заказы в отчёте</h3><button type="button" onClick={() => openTab('orders')}>Все заказы <ArrowRight /></button></header>
+              {financeOrders.length > 0 ? financeOrders.slice(0, 12).map((order) => (
+                <article key={order.id}>
+                  <span><strong>#{order.orderNumber}</strong><small>{formatOrderTime(order.createdAt)} · {adminOrderStatusLabels[order.status] ?? order.status}</small></span>
+                  <strong>{formatPrice(order.total)}</strong>
+                </article>
+              )) : <p className="admin-finance-page__empty">За выбранный период пока нет заказов.</p>}
+            </section>
           </section>
         )}
 
@@ -558,6 +603,7 @@ export function RestaurantAdminWorkspace({
         <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => openTab('home')}><Home />Главная</button>
         <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
         <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
+        <button className={tab === 'finance' ? 'is-active' : ''} type="button" onClick={() => openTab('finance')}><WalletCards />Финансы</button>
         <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
         <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
       </nav>

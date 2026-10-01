@@ -710,7 +710,7 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
         </Link>
       </header>
 
-      <Link className="platform-search platform-search--home" to="/restaurants">
+      <Link className="platform-search platform-search--home" to="/restaurants?focus=1">
         <Search />
         <span>Что хотите заказать?</span>
       </Link>
@@ -1192,14 +1192,36 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const businessCategory = getBusinessCategoryBySlug(searchParams.get('businessCategory'));
   const queryParam = searchParams.get('query') ?? '';
   const [query, setQuery] = useState(queryParam);
-  const restaurants = businessCategory
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
+  const matchingDishRestaurantSlugs = useMemo(() => new Set(
+    snapshot.dishes
+      .filter((dish) => normalizedQuery.length > 0 && `${dish.name} ${dish.description} ${dish.tags.join(' ')}`.toLocaleLowerCase('ru-RU').includes(normalizedQuery))
+      .map((dish) => dish.restaurantSlug)
+  ), [normalizedQuery, snapshot.dishes]);
+  const unfilteredRestaurants = businessCategory
     ? selectBusinessesForDiscovery(snapshot.restaurants, {
         cityId,
         categorySlug,
-        query,
+        query: '',
         businessTypes: businessCategory.businessTypes
       })
-    : filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId, categorySlug, query });
+    : filterRestaurantsWithCityFallback(snapshot.restaurants, { cityId, categorySlug, query: '' });
+  const restaurants = unfilteredRestaurants.filter((restaurant) =>
+    normalizedQuery.length === 0 ||
+    `${restaurant.name} ${restaurant.description}`.toLocaleLowerCase('ru-RU').includes(normalizedQuery) ||
+    matchingDishRestaurantSlugs.has(restaurant.slug)
+  );
+
+  useEffect(() => {
+    setQuery(queryParam);
+  }, [queryParam]);
+
+  useEffect(() => {
+    if (searchParams.get('focus') !== '1') return;
+    const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [searchParams]);
 
   const setCategory = (slug: string) => {
     const next = new URLSearchParams(searchParams);
@@ -1218,8 +1240,17 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <Search />
         <input
           aria-label="Поиск заведений"
+          ref={searchInputRef}
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            const nextQuery = event.target.value;
+            setQuery(nextQuery);
+            const next = new URLSearchParams(searchParams);
+            next.delete('focus');
+            if (nextQuery.trim()) next.set('query', nextQuery);
+            else next.delete('query');
+            setSearchParams(next, { replace: true });
+          }}
           placeholder="Поиск заведений"
           type="search"
         />
@@ -1243,6 +1274,13 @@ function RestaurantsPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         {restaurants.map((restaurant) => (
           <RestaurantListItem restaurant={restaurant} categories={snapshot.categories} key={restaurant.id} />
         ))}
+        {restaurants.length === 0 && (
+          <section className="empty-state empty-state--compact">
+            <Store />
+            <strong>Ничего не нашли</strong>
+            <p>Попробуйте название заведения, блюда или другую категорию.</p>
+          </section>
+        )}
       </div>
     </>
   );

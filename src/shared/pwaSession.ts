@@ -1,6 +1,6 @@
 const pwaResumePathKey = 'waycatalog:pwa-resume-path';
 
-export type RestaurantAdminTab = 'home' | 'dishes' | 'orders' | 'settings' | 'scanner' | 'pos';
+export type RestaurantAdminTab = 'home' | 'dishes' | 'orders' | 'finance' | 'settings' | 'scanner' | 'pos';
 
 const isBrowser = () => typeof window !== 'undefined';
 const reservedRootRoutes = new Set([
@@ -45,7 +45,7 @@ export const routeIsRoleAppPath = (path: string) => {
     slug &&
     !reservedRootRoutes.has(slug) &&
     section &&
-    ['dashboard', 'orders', 'dishes', 'settings', 'scanner', 'pos', 'payments'].includes(section)
+    ['dashboard', 'orders', 'dishes', 'finance', 'settings', 'scanner', 'pos', 'payments'].includes(section)
   );
 };
 
@@ -55,7 +55,7 @@ const roleAppKey = (path: string) => {
   if (normalizedPath === '/admin' || normalizedPath.startsWith('/admin/')) return 'admin';
 
   const [, slug, section] = normalizedPath.split('/');
-  return slug && !reservedRootRoutes.has(slug) && section && ['dashboard', 'orders', 'dishes', 'settings', 'scanner', 'pos', 'payments'].includes(section)
+  return slug && !reservedRootRoutes.has(slug) && section && ['dashboard', 'orders', 'dishes', 'finance', 'settings', 'scanner', 'pos', 'payments'].includes(section)
     ? `restaurant:${slug}`
     : null;
 };

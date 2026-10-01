@@ -2168,7 +2168,7 @@ function AppContent({
       setScreen('catalog');
       return;
     }
-    if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'settings' || routeSection === 'scanner') {
+    if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'finance' || routeSection === 'settings' || routeSection === 'scanner') {
       setScreen('admin-home');
     }
     if (routeSection === 'payments') {

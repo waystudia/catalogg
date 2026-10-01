@@ -12,6 +12,7 @@ import {
   KeyRound,
   LogOut,
   MapPin,
+  MessageCircle,
   Navigation,
   PackageCheck,
   Phone,
@@ -1064,16 +1065,32 @@ function DriverCurrentDeliveryPanel({
       {error && <small className="driver-incoming-order__error">{error}</small>}
       <div className="driver-current-block__actions">
         <DriverYandexNavigationActions delivery={offer} />
-        {offer.clientPhone ? (
-          <a className="driver-secondary driver-current-block__contact-action" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
-        ) : (
-          <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><Phone />Позвонить</button>
-        )}
         {nextAction && (
-          <button className="driver-primary driver-current-block__next-action" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
-            {isUpdating ? 'Сохраняем...' : nextAction.label}
-          </button>
+          nextAction.label === 'Я в ресторане' ? (
+            <DriverSwipeAction
+              disabled={isUpdating || pickupBlocked}
+              isLoading={isUpdating}
+              label={nextAction.label}
+              onConfirm={() => void advance()}
+            />
+          ) : (
+            <button className="driver-primary driver-current-block__next-action" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
+              {isUpdating ? 'Сохраняем...' : nextAction.label}
+            </button>
+          )
         )}
+        <div className="driver-current-block__contact-actions">
+          {offer.clientPhone ? (
+            <a className="driver-secondary driver-current-block__contact-action" href={`tel:${offer.clientPhone}`}><Phone />Позвонить</a>
+          ) : (
+            <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><Phone />Позвонить</button>
+          )}
+          {offer.clientPhone ? (
+            <a className="driver-secondary driver-current-block__contact-action" href={`https://wa.me/${offer.clientPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle />Написать</a>
+          ) : (
+            <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><MessageCircle />Написать</button>
+          )}
+        </div>
         {offer.status === 'arrived_to_client' && (
           <Link className="driver-primary" to="/driver/active">
             <PackageCheck />
@@ -1095,6 +1112,65 @@ function DriverStat({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
       <span>{label}</span>
     </article>
+  );
+}
+
+function DriverSwipeAction({
+  label,
+  disabled,
+  isLoading,
+  onConfirm
+}: {
+  label: string;
+  disabled: boolean;
+  isLoading: boolean;
+  onConfirm: () => void;
+}) {
+  const [offset, setOffset] = useState(0);
+  const startXRef = useRef<number | null>(null);
+  const didConfirmRef = useRef(false);
+  const maximumOffset = 220;
+  const confirmOffset = 150;
+
+  const finish = () => {
+    const shouldConfirm = offset >= confirmOffset && !disabled && !didConfirmRef.current;
+    startXRef.current = null;
+    if (shouldConfirm) {
+      didConfirmRef.current = true;
+      setOffset(maximumOffset);
+      onConfirm();
+      return;
+    }
+    setOffset(0);
+  };
+
+  return (
+    <div className="driver-swipe-action" data-confirmed={didConfirmRef.current || undefined}>
+      <span className="driver-swipe-action__hint">Проведите вправо, чтобы подтвердить</span>
+      <button
+        className="driver-swipe-action__thumb"
+        type="button"
+        disabled={disabled}
+        style={{ '--driver-swipe-offset': `${offset}px` } as CSSProperties}
+        onPointerDown={(event) => {
+          startXRef.current = event.clientX;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (startXRef.current === null || disabled) return;
+          setOffset(Math.max(0, Math.min(maximumOffset, event.clientX - startXRef.current)));
+        }}
+        onPointerUp={finish}
+        onPointerCancel={() => {
+          startXRef.current = null;
+          setOffset(0);
+        }}
+        aria-label={`${label}. Проведите вправо для подтверждения`}
+      >
+        <ChevronRight />
+      </button>
+      <strong>{isLoading ? 'Сохраняем...' : label}</strong>
+    </div>
   );
 }
 
@@ -1193,12 +1269,12 @@ export function DriverYandexNavigationActions({
     }
   };
 
-  const openInitialRoute = async (rebuildReason = '') => {
+  const openInitialRoute = async () => {
     if (isBuildingRoute) return;
     setIsBuildingRoute(true);
     setError('');
     try {
-      const url = await getDriverNavigatorRouteUrl(delivery, rebuildReason);
+      const url = await getDriverNavigatorRouteUrl(delivery);
       if (!url) throw new Error('Для маршрута нужны точные координаты бизнеса и клиента.');
       window.localStorage.setItem(routeStorageKey, 'true');
       setHasLaunchedRoute(true);
@@ -1244,10 +1320,6 @@ export function DriverYandexNavigationActions({
       )}
       {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
         <small className="driver-navigator-note">Сохраните точные координаты бизнеса и клиента, чтобы открыть маршрут.</small>
-      ) : hasLaunchedRoute ? (
-        <button className="driver-navigator-rebuild" type="button" onClick={() => void openInitialRoute('driver_requested_rebuild')} disabled={isBuildingRoute}>
-          Маршрут потерян? Построить оставшийся заново
-        </button>
       ) : null}
       {error && <p className="driver-error">{error}</p>}
     </section>
