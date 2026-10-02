@@ -1325,7 +1325,7 @@ export function DriverYandexNavigationActions({
           href={buildYandexNavigatorReturnUrl()}
         >
           <Navigation />
-          <span><strong>Вернуться в Навигатор</strong><small>Маршрут уже создан — новая ссылка не расходуется</small></span>
+          <span><strong>Вернуться в Навигатор</strong></span>
           <ChevronRight />
         </a>
       ) : (
