@@ -311,7 +311,6 @@ export function RestaurantAdminWorkspace({
           <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
           <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
           <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
-          {moduleAccess.pos !== 'disabled' && <button className={tab === 'pos' ? 'is-active' : ''} type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
         </nav>
       </aside>
