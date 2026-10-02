@@ -33,7 +33,8 @@ import {
   Star,
   Store,
   Truck,
-  UserRoundCheck
+  UserRoundCheck,
+  X
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
