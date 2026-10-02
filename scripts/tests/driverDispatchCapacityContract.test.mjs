@@ -70,6 +70,17 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(pushSource, /max_active_deliveries/);
   });
 
+  it('makes the courier checkboxes control dispatch and releases timed-out offers', () => {
+    assert.match(migrationSql, /resolve_unassigned_delivery_provider_from_settings/);
+    assert.match(migrationSql, /not own_courier_enabled/);
+    assert.match(migrationSql, /new\.delivery_provider := 'platform'/);
+    assert.match(migrationSql, /driver\.is_online/);
+    assert.match(migrationSql, /driver\.max_active_deliveries/);
+    assert.match(migrationSql, /release_expired_own_courier_offers/);
+    assert.match(migrationSql, /own_courier_timeout_platform/);
+    assert.match(driverApi, /release_expired_own_courier_offers/);
+  });
+
   it('enforces capacity in the database when an offer is accepted', () => {
     assert.match(migrationSql, /create or replace function public\.accept_available_delivery/);
     assert.match(migrationSql, /active_delivery_count >= driver_capacity/);

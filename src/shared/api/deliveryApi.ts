@@ -387,19 +387,33 @@ const loadDriverDeliveryOffers = async (): Promise<DriverSoftQueryResult<Deliver
   if (!supabase) return { data: [], error: null };
   const client = supabase;
 
-  const requestOffers = () => runSoftDriverQuery<DeliveryRow[]>(
-    client.rpc('get_driver_delivery_offers') as PromiseLike<{
+  const releaseExpiredOwnCourierOffers = async () => {
+    // This RPC is deliberately best-effort. Older deployments do not have it,
+    // and the regular offers RPC remains a safe compatibility fallback.
+    try {
+      await client.rpc('release_expired_own_courier_offers');
+    } catch {
+      // The next request still shows all deliveries this driver is allowed to see.
+    }
+  };
+
+  const requestOffers = async () => {
+    await releaseExpiredOwnCourierOffers();
+    return runSoftDriverQuery<DeliveryRow[]>(
+      client.rpc('get_driver_delivery_offers') as PromiseLike<{
       data: DeliveryRow[] | null;
       error: unknown | null;
-    }>,
-    'Не удалось загрузить доставки водителя.',
-    20_000
-  );
+      }>,
+      'Не удалось загрузить доставки водителя.',
+      20_000
+    );
+  };
 
   const firstAttempt = await requestOffers();
   if (!firstAttempt.error) return firstAttempt;
 
   copySupabaseSessionToScope('driver');
+  await releaseExpiredOwnCourierOffers();
   return runSoftDriverQuery<DeliveryRow[]>(
     client.rpc('get_driver_delivery_offers') as PromiseLike<{
       data: DeliveryRow[] | null;
@@ -665,6 +679,14 @@ export async function hasDriverAuthSession() {
 
 export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
   if (!supabase) return buildDemoSnapshot();
+
+  // The dashboard RPC is the normal fast path, so release expired own-courier
+  // offers here as well as in the legacy offers path below.
+  try {
+    await supabase.rpc('release_expired_own_courier_offers');
+  } catch {
+    // Compatible with production during the rolling database deployment.
+  }
 
   const dashboardResult = await loadCurrentDriverDashboardData();
   let driverResult: DriverSoftQueryResult<DriverRow>;

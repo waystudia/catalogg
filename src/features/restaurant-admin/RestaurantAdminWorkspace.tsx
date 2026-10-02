@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowRight, Bell, Calculator, CalendarDays, ClipboardList, CreditCard, Home, Info, Package,
-  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils, WalletCards
+  Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { useAuthStore } from '../stores';
@@ -310,7 +310,6 @@ export function RestaurantAdminWorkspace({
           <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => openTab('home')}><Home />Главная</button>
           <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
           <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
-          <button className={tab === 'finance' ? 'is-active' : ''} type="button" onClick={() => openTab('finance')}><WalletCards />Финансы</button>
           <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
           {moduleAccess.pos !== 'disabled' && <button className={tab === 'pos' ? 'is-active' : ''} type="button" onClick={() => openTab('pos')}><Calculator />POS-касса</button>}
           <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
@@ -610,7 +609,6 @@ export function RestaurantAdminWorkspace({
         <button className={tab === 'home' ? 'is-active' : ''} type="button" onClick={() => openTab('home')}><Home />Главная</button>
         <button className={tab === 'dishes' ? 'is-active' : ''} type="button" onClick={() => openTab('dishes')}><Utensils />Каталог</button>
         <button className={tab === 'orders' ? 'is-active' : ''} type="button" onClick={() => openTab('orders')}><ClipboardList />Заказы</button>
-        <button className={tab === 'finance' ? 'is-active' : ''} type="button" onClick={() => openTab('finance')}><WalletCards />Финансы</button>
         <button className={tab === 'scanner' ? 'is-active' : ''} type="button" onClick={() => openTab('scanner')}><QrCode />Сканер</button>
         <button className={tab === 'settings' ? 'is-active' : ''} type="button" onClick={() => openTab('settings')}><Settings />Настройки</button>
       </nav>
