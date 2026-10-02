@@ -76,13 +76,14 @@ import {
   subscribeClientPlatformSnapshotRealtime
 } from '../../shared/api/clientPlatformApi';
 import {
-  buildClientAuthPath,
+  buildClientAuthPath, getStoredClientSessionToken,
   hasStoredClientSession,
   logoutClientAccount,
   registerClientAccount,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
 import type { ClientAccountSession } from '../../shared/api/clientAccountApi';
+import { getClientDeliveryChat, sendClientDeliveryChat, type DeliveryChatMessage } from '../../shared/api/deliveryChatApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
@@ -2403,6 +2404,7 @@ function OrderStatusPage({
   const [receiptReviewComment, setReceiptReviewComment] = useState('');
   const [receiptReviewMessage, setReceiptReviewMessage] = useState('');
   const [isReceiptReviewSending, setIsReceiptReviewSending] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     if (!order?.id) return undefined;
@@ -2499,10 +2501,10 @@ function OrderStatusPage({
           {order.driverName && (
             <span>
               <strong>{order.driverName}</strong>
-              <a href={`tel:${order.driverPhone}`}>
+              <span className="client-driver-contact-actions"><a href={`tel:${order.driverPhone}`}>
                 <Phone />
                 Позвонить
-              </a>
+              </a><button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать</button></span>
             </span>
           )}
           {order.driverName && (
@@ -2520,6 +2522,7 @@ function OrderStatusPage({
             <small>{order.addressLine}</small>
           </span>
         </section>
+        {isChatOpen && <ClientDeliveryChat orderId={order.id} onClose={() => setIsChatOpen(false)} />}
         {order.orderType === 'delivery' && order.driverHandedToClientAt && !order.clientReceivedAt && (
           <section className="client-receipt-panel" role="dialog" aria-labelledby="client-receipt-title">
             <PackageCheck />
@@ -2581,6 +2584,16 @@ function OrderStatusPage({
       </main>
     </>
   );
+}
+
+function ClientDeliveryChat({ orderId, onClose }: { orderId: string; onClose: () => void }) {
+  const token = getStoredClientSessionToken();
+  const [messages, setMessages] = useState<DeliveryChatMessage[]>([]);
+  const [body, setBody] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => { if (token) void getClientDeliveryChat(token, orderId).then(setMessages).catch(() => setError('Не удалось открыть чат.')); }, [orderId, token]);
+  const send = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!body.trim() || !token) return; try { await sendClientDeliveryChat(token, orderId, body); setBody(''); setMessages(await getClientDeliveryChat(token, orderId)); } catch { setError('Не удалось отправить сообщение.'); } };
+  return <section className="client-delivery-chat" role="dialog"><header><strong>Чат с водителем</strong><button type="button" onClick={onClose}><X /></button></header><div>{messages.map((message) => <p data-own={message.senderRole === 'client'} key={message.id}>{message.body}</p>)}</div>{error && <small className="form-error">{error}</small>}<form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} placeholder="Сообщение" maxLength={1000} /><button type="submit">Отправить</button></form></section>;
 }
 
 function OrderProgress({ status }: { status: ClientOrderStatus }) {

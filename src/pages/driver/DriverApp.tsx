@@ -77,6 +77,7 @@ import {
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
+import { getDriverDeliveryChat, sendDriverDeliveryChat, type DeliveryChatMessage } from '../../shared/api/deliveryChatApi';
 import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
 import './driver.css';
 
@@ -926,6 +927,7 @@ function DriverCurrentDeliveryPanel({
   const [qrSecondsLeft, setQrSecondsLeft] = useState(0);
   const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const nextAction = getDriverNextAction(offer.status, false, offer.businessType);
   const progress = getDriverDeliveryProgress(offer.status, false, offer.businessType);
   const qrPayload = buildDriverPickupQrPayload(offer);
@@ -1086,7 +1088,7 @@ function DriverCurrentDeliveryPanel({
             <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><Phone />Позвонить</button>
           )}
           {offer.clientPhone ? (
-            <a className="driver-secondary driver-current-block__contact-action" href={`https://wa.me/${offer.clientPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle />Написать</a>
+            <button className="driver-secondary driver-current-block__contact-action" type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать</button>
           ) : (
             <button className="driver-secondary driver-current-block__contact-action" type="button" disabled><MessageCircle />Написать</button>
           )}
@@ -1102,8 +1104,31 @@ function DriverCurrentDeliveryPanel({
           </Link>
         )}
       </div>
+      {isChatOpen && <DriverDeliveryChat deliveryId={offer.deliveryId} onClose={() => setIsChatOpen(false)} />}
     </section>
   );
+}
+
+function DriverDeliveryChat({ deliveryId, onClose }: { deliveryId: string; onClose: () => void }) {
+  const [messages, setMessages] = useState<DeliveryChatMessage[]>([]);
+  const [body, setBody] = useState('');
+  const [error, setError] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  useEffect(() => { void getDriverDeliveryChat(deliveryId).then(setMessages).catch((cause) => setError(cause instanceof Error ? cause.message : 'Не удалось открыть чат заказа.')); }, [deliveryId]);
+  const send = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!body.trim() || isSending) return;
+    setIsSending(true); setError('');
+    try { await sendDriverDeliveryChat(deliveryId, body); setBody(''); setMessages(await getDriverDeliveryChat(deliveryId)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Не удалось отправить сообщение.'); }
+    finally { setIsSending(false); }
+  };
+  return <section className="driver-delivery-chat" role="dialog" aria-label="Чат с клиентом">
+    <header><strong>Чат с клиентом</strong><button type="button" onClick={onClose} aria-label="Закрыть чат"><X /></button></header>
+    <div className="driver-delivery-chat__messages">{messages.length ? messages.map((message) => <p data-own={message.senderRole === 'driver'} key={message.id}>{message.body}</p>) : <small>Напишите клиенту по заказу — сообщение появится у него в статусе заказа.</small>}</div>
+    {error && <small className="driver-error">{error}</small>}
+    <form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} placeholder="Сообщение клиенту" /><button className="driver-primary" disabled={isSending || !body.trim()} type="submit">Отправить</button></form>
+  </section>;
 }
 
 function DriverStat({ label, value }: { label: string; value: string }) {
