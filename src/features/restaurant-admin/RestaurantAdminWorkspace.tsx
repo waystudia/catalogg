@@ -142,6 +142,10 @@ export function RestaurantAdminWorkspace({
     filter === 'all'
       ? orders
       : orders.filter((order) => activeFilter?.orderStatuses.includes(order.status));
+  const orderCountForFilter = (item: typeof adminOrderStatusFilters[number]) =>
+    item.status === 'all'
+      ? orders.length
+      : orders.filter((order) => item.orderStatuses.includes(order.status)).length;
   const selectedVisibleOrder = selectedOrder
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
     : null;
@@ -459,7 +463,8 @@ export function RestaurantAdminWorkspace({
                   key={item.status}
                   onClick={() => setFilter(item.status)}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  <b>{orderCountForFilter(item)}</b>
                 </button>
               ))}
             </div>
@@ -510,6 +515,9 @@ export function RestaurantAdminWorkspace({
                               </span>
                               <span className="admin-order-card__meta">
                                 {fulfillmentLabels[order.fulfillmentType]} · {getAdminOrderItemsCount(order)} поз.
+                              </span>
+                              <span className="admin-order-card__client">
+                                {order.clientName || 'Клиент'}{order.clientPhone ? ` · ${order.clientPhone}` : ''}
                               </span>
                               <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
                               <span className="admin-order-card__foot">

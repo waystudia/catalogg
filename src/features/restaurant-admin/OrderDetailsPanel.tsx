@@ -130,7 +130,7 @@ export function OrderDetailsPanel({
     setIsSearchingDriver(true);
     sendRestaurantOrderToDriverPool(order)
       .then(() => {
-        toast.success('Заказ отправлен всем доступным водителям');
+        toast.success('Заказ снова отправлен водителям платформы');
         refreshDriverDispatch();
       })
       .catch((error) => {

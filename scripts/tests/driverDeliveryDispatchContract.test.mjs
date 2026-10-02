@@ -30,6 +30,10 @@ const restaurantQrFallbackSql = readFileSync(
   resolve(repoRoot, 'supabase/migrations/20260730223000_add_restaurant_qr_token_fallback.sql'),
   'utf8'
 );
+const restaurantRedispatchSql = readFileSync(
+  resolve(repoRoot, 'supabase/migrations/20261002161519_redispatch_platform_drivers.sql'),
+  'utf8'
+);
 
 const extractFunction = (name) => {
   const marker = `create or replace function public.${name}`;
@@ -55,6 +59,22 @@ describe('restaurant to driver delivery contract', () => {
       'delivery must be created before the order is exposed as waiting_driver'
     );
     assert.match(restaurantApi, /rpc\('dispatch_restaurant_order_to_delivery'/);
+  });
+
+  it('re-dispatches an unassigned restaurant-courier offer to platform drivers atomically', () => {
+    assert.match(restaurantRedispatchSql, /create or replace function public\.redispatch_restaurant_order_to_platform/);
+    assert.match(restaurantRedispatchSql, /security definer/);
+    assert.match(restaurantRedispatchSql, /public\.is_catalog_member/);
+    assert.match(restaurantRedispatchSql, /for update/);
+    assert.match(restaurantRedispatchSql, /delivery_provider = 'platform'/);
+    assert.match(restaurantRedispatchSql, /status = 'waiting_courier'/);
+    assert.match(restaurantRedispatchSql, /driver_id is not null/);
+    assert.match(restaurantRedispatchSql, /revoke all on function public\.redispatch_restaurant_order_to_platform/);
+    assert.match(restaurantApi, /rpc\('redispatch_restaurant_order_to_platform'/);
+    assert.doesNotMatch(
+      restaurantApi.match(/export async function sendRestaurantOrderToDriverPool[\s\S]*?(?=export async function updateRestaurantOrderPaymentStatus)/)?.[0] ?? '',
+      /\.from\('deliveries'\)\s*\.update/
+    );
   });
 
   it('returns only eligible online offers and masks client PII until assignment', () => {

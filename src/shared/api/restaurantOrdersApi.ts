@@ -1133,28 +1133,16 @@ export async function sendRestaurantOrderToDriverPool(order: RestaurantOrder) {
     return;
   }
 
-  const deliveryResult = await supabase
-    .from('deliveries')
-    .update({
-      driver_id: null,
-      status: 'waiting_courier',
-      delivery_provider: 'platform',
-      assigned_at: null,
-      pickup_qr_token: null,
-      pickup_qr_expires_at: null
-    })
-    .eq('id', order.deliveryId)
-    .eq('order_id', order.id);
-
-  if (deliveryResult.error) throw deliveryResult.error;
-
-  const orderResult = await supabase
-    .from('orders')
-    .update({ status: 'waiting_driver' })
-    .eq('id', order.id)
-    .eq('catalog_id', order.catalogId);
-
-  if (orderResult.error) throw orderResult.error;
+  // Do not update deliveries directly here. With RLS an update that affects no rows
+  // returns no error, which used to produce a false “sent to drivers” confirmation.
+  // The RPC locks the order and delivery, verifies the restaurant membership and
+  // explicitly changes a restaurant-courier offer into a platform offer.
+  const { data, error } = await supabase.rpc('redispatch_restaurant_order_to_platform', {
+    target_order_id: order.id,
+    target_catalog_id: order.catalogId
+  });
+  if (error) throw error;
+  if (!data) throw new Error('Не удалось отправить заказ водителям платформы. Обновите заказ и попробуйте снова.');
 }
 
 export async function updateRestaurantOrderPaymentStatus(

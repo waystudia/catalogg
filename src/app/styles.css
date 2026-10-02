@@ -1558,6 +1558,7 @@
 }
 
 .admin-order-card__meta,
+.admin-order-card__client,
 .admin-order-card__address {
   min-width: 0;
   overflow: hidden;
