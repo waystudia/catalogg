@@ -2528,14 +2528,14 @@
 
 .client-driver-contact-actions { display: flex; gap: 8px; }
 .client-driver-contact-actions a, .client-driver-contact-actions button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #5b3df4; font: inherit; font-weight: 800; }
-.client-delivery-chat { display: grid; gap: 10px; padding: 14px; border: 1px solid #d9d1ff; border-radius: 18px; background: #f9f8ff; }
+.client-delivery-chat { display: grid; width: 100%; min-width: 0; box-sizing: border-box; gap: 10px; padding: 14px; border: 1px solid #d9d1ff; border-radius: 18px; background: #f9f8ff; }
 .client-delivery-chat header, .client-delivery-chat form { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .client-delivery-chat header button { border: 0; background: transparent; }
 .client-delivery-chat > div { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
 .client-delivery-chat p { width: fit-content; max-width: 88%; margin: 0; padding: 8px 10px; border-radius: 12px; background: #ffffff; }
 .client-delivery-chat p[data-own='true'] { justify-self: end; background: #5b3df4; color: #ffffff; }
-.client-delivery-chat input { min-width: 0; flex: 1; min-height: 40px; padding: 0 10px; border: 1px solid #d8deea; border-radius: 11px; font: inherit; }
-.client-delivery-chat form button { min-height: 40px; border: 0; border-radius: 11px; padding: 0 12px; background: #5b3df4; color: #ffffff; font: inherit; font-weight: 800; }
+.client-delivery-chat input { width: 0; min-width: 0; flex: 1 1 auto; min-height: 40px; padding: 0 10px; border: 1px solid #d8deea; border-radius: 11px; font: inherit; }
+.client-delivery-chat form button { width: auto; min-width: max-content; min-height: 40px; border: 0; border-radius: 11px; padding: 0 12px; background: #5b3df4; color: #ffffff; font: inherit; font-weight: 800; }
 
 @media (min-width: 1040px) {
   .platform-restaurant-cart-dock {

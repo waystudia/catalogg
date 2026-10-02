@@ -1219,6 +1219,9 @@
 
 .driver-delivery-chat {
   display: grid;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   gap: 10px;
   padding: 14px;
   border: 1px solid #d9d1ff;
@@ -1228,6 +1231,7 @@
 
 .driver-delivery-chat header,
 .driver-delivery-chat form {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1239,8 +1243,8 @@
 .driver-delivery-chat__messages p { width: fit-content; max-width: 88%; margin: 0; padding: 8px 10px; border-radius: 12px; background: #ffffff; color: #1d2939; font-size: 13px; }
 .driver-delivery-chat__messages p[data-own='true'] { justify-self: end; background: #5b3df4; color: #ffffff; }
 .driver-delivery-chat__messages small { color: #667085; }
-.driver-delivery-chat input { min-width: 0; flex: 1; min-height: 42px; padding: 0 11px; border: 1px solid #d8deea; border-radius: 12px; font: inherit; }
-.driver-delivery-chat form .driver-primary { min-height: 42px; padding: 0 12px; }
+.driver-delivery-chat input { width: 0; min-width: 0; flex: 1 1 auto; min-height: 42px; padding: 0 11px; border: 1px solid #d8deea; border-radius: 12px; font: inherit; }
+.driver-delivery-chat form .driver-primary { width: auto; min-width: max-content; min-height: 42px; padding: 0 12px; }
 
 .driver-swipe-action {
   position: relative;
