@@ -1159,6 +1159,30 @@
   color: #ffffff;
 }
 
+.admin-finance-page__custom-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-finance-page__custom-range label {
+  display: grid;
+  gap: 6px;
+  color: #475467;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-finance-page__custom-range input {
+  min-width: 0;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+}
+
 .admin-finance-page__metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1427,6 +1451,100 @@
   gap: 16px;
 }
 
+.admin-order-board {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-order-board__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-order-board__header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-order-board__header span,
+.admin-order-board__header small,
+.admin-order-board__empty {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.admin-order-board__header strong {
+  color: #111827;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-order-board__header small {
+  max-width: 230px;
+  text-align: right;
+}
+
+.admin-order-board__columns {
+  display: grid;
+  grid-auto-columns: minmax(250px, 1fr);
+  grid-auto-flow: column;
+  grid-template-rows: 1fr;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 2px 2px 12px;
+  scroll-snap-type: inline proximity;
+}
+
+.admin-order-board__column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 212px;
+  padding: 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 18px;
+  background: #f8fafc;
+  scroll-snap-align: start;
+}
+
+.admin-order-board__column > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-order-board__column > header strong {
+  color: #101828;
+  font-size: 15px;
+}
+
+.admin-order-board__column > header b {
+  display: grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: #ece9ff;
+  color: #5b3df4;
+  font-size: 12px;
+}
+
+.admin-order-board__column > div {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-order-board__empty {
+  margin: 18px 2px;
+  text-align: center;
+}
+
 .admin-orders-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1567,6 +1685,10 @@
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-order-card__client {
+  color: #344054;
 }
 
 .admin-order-card__address {

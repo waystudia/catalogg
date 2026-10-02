@@ -33,10 +33,10 @@ import { calculateRestaurantFinance } from './restaurantFinance';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
-  adminOrderStatusFilters, adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
-  getAdminOrderItemsCount, getAdminOrderLocationLabel, groupAdminOrdersByMonth,
-  playRestaurantAdminOrderSound, type AdminOrderFilter
+  adminOrderStatusLabels, adminOrderStatusTones, fulfillmentLabels,
+  getAdminOrderItemsCount, getAdminOrderLocationLabel, playRestaurantAdminOrderSound
 } from './orderPresentation';
+import { getRestaurantOrderBoardColumnId, getRestaurantOrderBoardColumns } from './orderBoard';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
 import type { RestaurantAdminModuleAccess } from '../platform-admin-modules/restaurantModuleAccess';
 
@@ -94,15 +94,15 @@ export function RestaurantAdminWorkspace({
         ? routeSection
       : 'home'
   );
-  const [filter, setFilter] = useState<AdminOrderFilter>('all');
-  const [financePeriod, setFinancePeriod] = useState<'today' | 'week' | 'month'>('month');
+  const [financePeriod, setFinancePeriod] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom'>('month');
+  const [financeRangeStart, setFinanceRangeStart] = useState('');
+  const [financeRangeEnd, setFinanceRangeEnd] = useState('');
   const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedOrdersRef = useRef(false);
-  const hasAutoOpenedOrderRef = useRef(false);
   const orderListScrollPositionRef = useRef(0);
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const logout = useAuthStore((state) => state.logout);
@@ -130,26 +130,33 @@ export function RestaurantAdminWorkspace({
   const financeOrders = useMemo(() => {
     const now = new Date();
     const start = new Date(now);
+    let end: Date | null = null;
     if (financePeriod === 'today') start.setHours(0, 0, 0, 0);
     if (financePeriod === 'week') start.setDate(now.getDate() - 6);
     if (financePeriod === 'month') start.setDate(1);
-    if (financePeriod !== 'today') start.setHours(0, 0, 0, 0);
-    return orders.filter((order) => new Date(order.createdAt) >= start);
-  }, [financePeriod, orders]);
+    if (financePeriod === 'quarter') start.setMonth(now.getMonth() - 2, 1);
+    if (financePeriod === 'year') start.setMonth(0, 1);
+    if (financePeriod === 'custom') {
+      const customStart = financeRangeStart ? new Date(`${financeRangeStart}T00:00:00`) : null;
+      const customEnd = financeRangeEnd ? new Date(`${financeRangeEnd}T23:59:59.999`) : null;
+      if (customStart && !Number.isNaN(customStart.getTime())) start.setTime(customStart.getTime());
+      if (customEnd && !Number.isNaN(customEnd.getTime())) end = customEnd;
+    }
+    if (financePeriod !== 'today' && financePeriod !== 'custom') start.setHours(0, 0, 0, 0);
+    return orders.filter((order) => {
+      const createdAt = new Date(order.createdAt);
+      return createdAt >= start && (!end || createdAt <= end);
+    });
+  }, [financePeriod, financeRangeEnd, financeRangeStart, orders]);
   const finance = useMemo(() => calculateRestaurantFinance(financeOrders, billingTariff), [billingTariff, financeOrders]);
-  const activeFilter = adminOrderStatusFilters.find((item) => item.status === filter);
-  const filteredOrders =
-    filter === 'all'
-      ? orders
-      : orders.filter((order) => activeFilter?.orderStatuses.includes(order.status));
-  const orderCountForFilter = (item: typeof adminOrderStatusFilters[number]) =>
-    item.status === 'all'
-      ? orders.length
-      : orders.filter((order) => item.orderStatuses.includes(order.status)).length;
-  const selectedVisibleOrder = selectedOrder
-    ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
-    : null;
-  const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
+  const orderBoardColumns = useMemo(() => getRestaurantOrderBoardColumns(), []);
+  const orderBoard = useMemo(
+    () => orderBoardColumns.map((column) => ({
+      ...column,
+      orders: orders.filter((order) => getRestaurantOrderBoardColumnId(order.status) === column.id)
+    })),
+    [orderBoardColumns, orders]
+  );
   const nextPosGuestNumber = useMemo(() => orders.reduce((highest, order) => {
     const match = order.clientName.match(/^Гость\s*№\s*(\d+)$/i);
     return match ? Math.max(highest, Number(match[1])) : highest;
@@ -173,6 +180,14 @@ export function RestaurantAdminWorkspace({
     setSelectedOrder(null);
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
+    });
+  };
+  const moveOrderToBoardColumn = (order: RestaurantOrder, status: RestaurantOrderStatus) => {
+    setSelectedOrder(null);
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-order-board-column="${getRestaurantOrderBoardColumnId(status)}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
   };
   const deleteOrder = async (order: RestaurantOrder) => {
@@ -252,15 +267,8 @@ export function RestaurantAdminWorkspace({
     const order = orders.find((item) => item.id === routeOrderId);
     if (order) {
       setSelectedOrder(order);
-      setFilter('all');
     }
   }, [orders, routeOrderId]);
-
-  useEffect(() => {
-    if (hasAutoOpenedOrderRef.current || tab !== 'orders' || filteredOrders.length === 0) return;
-    hasAutoOpenedOrderRef.current = true;
-    setSelectedOrder(filteredOrders[0]);
-  }, [filteredOrders, tab]);
 
   useEffect(() => {
     const knownIds = knownOrderIdsRef.current;
@@ -270,10 +278,6 @@ export function RestaurantAdminWorkspace({
 
     if (newOrderIds.length > 0) {
       const newOrders = orders.filter((order) => newOrderIds.includes(order.id));
-      if (tab === 'orders' && newOrders[0]) {
-        setFilter('new');
-        setSelectedOrder(newOrders[0]);
-      }
       setRecentOrderIds((current) => new Set([...current, ...newOrderIds]));
       toast.success(newOrderIds.length === 1 ? 'Новый заказ' : `Новых заказов: ${newOrderIds.length}`);
       playRestaurantAdminOrderSound();
@@ -431,10 +435,16 @@ export function RestaurantAdminWorkspace({
               <CalendarDays />
             </header>
             <div className="admin-finance-page__periods" role="group" aria-label="Период отчёта">
-              {([['today', 'Сегодня'], ['week', '7 дней'], ['month', 'Месяц']] as const).map(([period, label]) => (
+              {([['today', 'Сегодня'], ['week', '7 дней'], ['month', 'Месяц'], ['quarter', 'Квартал'], ['year', 'Год'], ['custom', 'Период']] as const).map(([period, label]) => (
                 <button className={financePeriod === period ? 'is-active' : ''} key={period} type="button" onClick={() => setFinancePeriod(period)}>{label}</button>
               ))}
             </div>
+            {financePeriod === 'custom' && (
+              <div className="admin-finance-page__custom-range">
+                <label>С <input type="date" value={financeRangeStart} onChange={(event) => setFinanceRangeStart(event.target.value)} /></label>
+                <label>По <input type="date" value={financeRangeEnd} min={financeRangeStart || undefined} onChange={(event) => setFinanceRangeEnd(event.target.value)} /></label>
+              </div>
+            )}
             <div className="admin-finance-page__metrics">
               <article><span>Выручка</span><strong>{formatPrice(finance.grossRevenue)}</strong><small>{financeOrders.length} заказов</small></article>
               <article><span>Комиссия платформы</span><strong>{formatPrice(finance.platformDebt)}</strong><small>{billingTariff ? 'По действующему тарифу' : 'Тариф не задан'}</small></article>
@@ -455,56 +465,44 @@ export function RestaurantAdminWorkspace({
 
         {tab === 'orders' && (
           <section className="restaurant-admin__content">
-            <div className="admin-order-filters">
-              {adminOrderStatusFilters.map((item) => (
-                <button
-                  className={filter === item.status ? 'is-active' : ''}
-                  type="button"
-                  key={item.status}
-                  onClick={() => setFilter(item.status)}
-                >
-                  <span>{item.label}</span>
-                  <b>{orderCountForFilter(item)}</b>
-                </button>
-              ))}
-            </div>
             <div className="admin-orders-layout">
-              {selectedVisibleOrder && (
+              {selectedOrder && (
                 <OrderDetailsPanel
-                  order={selectedVisibleOrder}
+                  order={selectedOrder}
                   catalogSlug={catalogSlug}
                   businessType={restaurant.business_type}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
                   onStatus={async (status, reason) => {
-                    await onOrderStatus(selectedVisibleOrder, status, reason);
-                    setSelectedOrder((current) => (current ? { ...current, status } : current));
+                    await onOrderStatus(selectedOrder, status, reason);
+                    moveOrderToBoardColumn(selectedOrder, status);
                   }}
                   onRefreshOrders={onRefreshOrders}
-                  onDelete={() => deleteOrder(selectedVisibleOrder)}
+                  onDelete={() => deleteOrder(selectedOrder)}
                 />
               )}
-              <div className="admin-order-list">
-                {filteredOrders.length === 0 && (
+              <section className="admin-order-board" aria-label="Воронка заказов">
+                <header className="admin-order-board__header">
+                  <div><span>Все заказы</span><strong>{orders.length}</strong></div>
+                  <small>Карточка переходит в следующий этап после действия.</small>
+                </header>
+                {orders.length === 0 && (
                   <section className="admin-empty-orders">
                     <ClipboardList />
                     <strong>Заказов пока нет</strong>
                     <span>Новые заказы появятся здесь автоматически.</span>
                   </section>
                 )}
-                {orderGroups.map((group, index) => (
-                  <section className="admin-order-group" key={group.key}>
-                    <details open={index === 0}>
-                      <summary>
-                        <span>{group.label}</span>
-                        <b>{group.orders.length} заказов</b>
-                      </summary>
+                {orders.length > 0 && <div className="admin-order-board__columns">
+                  {orderBoard.map((column) => (
+                    <section className="admin-order-board__column" data-order-board-column={column.id} key={column.id}>
+                      <header><strong>{column.label}</strong><b>{column.orders.length}</b></header>
                       <div>
-                        {group.orders.map((order) => (
+                        {column.orders.map((order) => (
                           <div className="admin-order-card-shell" key={order.id}>
                             <button
                               className="admin-order-card"
-                              data-active={selectedVisibleOrder?.id === order.id}
+                              data-active={selectedOrder?.id === order.id}
                               data-highlighted={recentOrderIds.has(order.id)}
                               type="button"
                               onClick={() => openOrderFromList(order)}
@@ -544,11 +542,12 @@ export function RestaurantAdminWorkspace({
                             </button>
                           </div>
                         ))}
+                        {column.orders.length === 0 && <p className="admin-order-board__empty">Нет заказов</p>}
                       </div>
-                    </details>
-                  </section>
-                ))}
-              </div>
+                    </section>
+                  ))}
+                </div>}
+              </section>
             </div>
           </section>
         )}

@@ -71,6 +71,10 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(restaurantRedispatchSql, /driver_id is not null/);
     assert.match(restaurantRedispatchSql, /revoke all on function public\.redispatch_restaurant_order_to_platform/);
     assert.match(restaurantApi, /rpc\('redispatch_restaurant_order_to_platform'/);
+    assert.match(
+      restaurantApi.match(/export async function sendRestaurantOrderToDriverPool[\s\S]*?(?=export async function updateRestaurantOrderPaymentStatus)/)?.[0] ?? '',
+      /if \(!order\.deliveryId\) \{[\s\S]*updateRestaurantOrderStatus\(order, 'waiting_driver'\)[\s\S]*\}[\s\S]*redispatch_restaurant_order_to_platform/
+    );
     assert.doesNotMatch(
       restaurantApi.match(/export async function sendRestaurantOrderToDriverPool[\s\S]*?(?=export async function updateRestaurantOrderPaymentStatus)/)?.[0] ?? '',
       /\.from\('deliveries'\)\s*\.update/

@@ -1130,7 +1130,6 @@ export async function sendRestaurantOrderToDriverPool(order: RestaurantOrder) {
   if (!supabase) return;
   if (!order.deliveryId) {
     await updateRestaurantOrderStatus(order, 'waiting_driver');
-    return;
   }
 
   // Do not update deliveries directly here. With RLS an update that affects no rows
