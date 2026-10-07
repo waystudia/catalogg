@@ -39,17 +39,20 @@ const mapCss = readFileSync(
 );
 
 describe('mobile operational interfaces', () => {
-  it('orders the driver home screen as stats, current delivery, urgent offer, and compact remainder', () => {
-    const stats = driverSource.indexOf('driver-today-strip');
+  it('orders the driver home screen as current delivery, urgent offer, and compact remainder', () => {
     const current = driverSource.indexOf('Текущая доставка');
     const urgent = driverSource.indexOf('<DriverIncomingOrderPanel');
     const others = driverSource.indexOf('Доступные заказы');
 
-    assert.ok(stats >= 0, 'single-row today statistics are missing');
-    assert.ok(current > stats, 'current delivery must follow today statistics');
+    assert.ok(current >= 0, 'current delivery is missing');
     assert.ok(urgent > current, 'urgent offer must follow the current delivery');
     assert.ok(others > urgent, 'compact offer list must follow the urgent offer');
     assert.match(driverSource, /Ещё \{hiddenOffersCount\} заказ/);
+    const homeScreen = driverSource.slice(
+      driverSource.indexOf('function DriverHomeScreen'),
+      driverSource.indexOf('function DriverIncomingOrderPanel')
+    );
+    assert.doesNotMatch(homeScreen, /driver-today-strip/);
   });
 
   it('renders the approved dark driver mode with an explicit offline entry point', () => {
@@ -65,6 +68,9 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-app--night/);
     assert.match(driverCss, /--driver-night:\s*#050d1b/);
     assert.match(driverCss, /\.driver-online-cta/);
+    assert.match(driverSource, /driver-current-block--home/);
+    assert.match(driverSource, /recentDeliveryIds\.has\(offer\.deliveryId\)/);
+    assert.match(driverCss, /\.driver-current-block--home/);
   });
 
   it('uses a readable left-to-right gradient sweep only on the urgent offer', () => {
@@ -105,20 +111,17 @@ describe('mobile operational interfaces', () => {
       driverSource.indexOf('function DriverCurrentDeliveryPanel'),
       driverSource.indexOf('function DriverStat')
     );
-    assert.match(driverSource, /driver-current-block__accepted/);
+    assert.match(currentPanel, /driver-current-block--home/);
+    assert.match(currentPanel, /driver-current-block__home-action/);
     assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
-    assert.match(driverSource, /driver-inline-qr/);
-    assert.match(driverSource, /Показать QR: \{terms\.placeDative\}/);
-    assert.match(driverSource, /Профиль загружается/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
-    assert.match(driverCss, /\.driver-current-block__accepted/);
-    assert.match(driverCss, /\.driver-inline-qr/);
+    assert.match(driverCss, /\.driver-current-block--home/);
     assert.match(driverCss, /\.driver-navigator-open/);
     assert.match(driverSource, /Открыть маршрут в Навигаторе/);
     assert.match(driverSource, /Вернуться в Навигатор/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
-    assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*6[0-9]px/);
+    assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*8[0-9]px/);
   });
 
   it('opens an accepted delivery at the beginning instead of keeping the offer-list scroll position', () => {
@@ -141,12 +144,16 @@ describe('mobile operational interfaces', () => {
       driverSource.indexOf('function DriverCurrentDeliveryPanel'),
       driverSource.indexOf('function DriverStat')
     );
+    const activeScreen = driverSource.slice(
+      driverSource.indexOf('function DriverActiveScreen'),
+      driverSource.indexOf('function DriverQrScreen')
+    );
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /<DriverYandexNavigationActions delivery=\{offer\}/);
-    assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*false,\s*offer\.businessType\)/);
-    assert.match(currentPanel, /nextAction\.label/);
+    assert.match(currentPanel, /to="\/driver\/active"/);
+    assert.match(activeScreen, /<DriverYandexNavigationActions delivery=\{delivery\}/);
+    assert.match(activeScreen, /getDriverNextAction\(delivery\.status/);
     assert.doesNotMatch(driverSource, /function DriverMapScreen/);
   });
 

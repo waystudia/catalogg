@@ -275,16 +275,27 @@ const demoOrder = (overrides: Partial<OrderLifecycleSnapshot> = {}): OrderLifecy
 
 const demoOffers: readonly DeliveryOffer[] = [
   {
-    ...buildDriverDeliveryView({ order: demoOrder(), assignment: null, viewerDriverId: demoDriverId }),
+    ...buildDriverDeliveryView({
+      order: demoOrder({
+        id: 'WC-DEMO-SUSHI',
+        restaurantName: 'Суши Парк',
+        restaurantAddress: 'ул. Гагарина, 25',
+        deliveryAddress: 'ул. Мира, 88',
+        deliveryFee: 320,
+        distanceKm: 2.1
+      }),
+      assignment: null,
+      viewerDriverId: demoDriverId
+    }),
     businessType: 'restaurant',
-    deliveryId: 'delivery-demo-1',
-    orderNumber: 'R2347',
+    deliveryId: 'delivery-demo-sushi-v3',
+    orderNumber: 'S5720',
     createdAt: new Date().toISOString(),
     itemsCount: 3,
-    orderTotal: 1640,
+    orderTotal: 1480,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
-    routeEtaMin: 15,
+    routeEtaMin: 14,
     paymentMethod: 'bank_transfer',
     restaurantPaymentConfirmed: true,
     pickupQrConfirmed: false
@@ -292,30 +303,53 @@ const demoOffers: readonly DeliveryOffer[] = [
   {
     ...buildDriverDeliveryView({
       order: demoOrder({
-        id: 'WC-12346',
-        restaurantName: 'Кафе Мангал',
-        restaurantAddress: 'ул. Мира, 56',
-        deliveryAddress: 'ул. Ленина, 123',
-        deliveryFee: 450,
-        distanceKm: 1.2
+        id: 'WC-DEMO-VKUSVILL',
+        restaurantName: 'ВкусВилл',
+        restaurantAddress: 'ул. Советская, 14',
+        deliveryAddress: 'ул. Набережная, 9',
+        deliveryFee: 480,
+        distanceKm: 4.7
       }),
       assignment: null,
       viewerDriverId: demoDriverId
     }),
-    businessType: 'restaurant',
-    deliveryId: 'delivery-demo-2',
-    orderNumber: 'M2346',
+    businessType: 'confectionery',
+    deliveryId: 'delivery-demo-vkusvill-v3',
+    orderNumber: 'V5719',
     createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
     itemsCount: 2,
-    orderTotal: 1180,
+    orderTotal: 2120,
     paymentLabel: 'Оплата онлайн',
     restaurantLogoUrl: '',
-    routeEtaMin: 12,
+    routeEtaMin: 28,
     paymentMethod: 'bank_transfer',
     restaurantPaymentConfirmed: true,
     pickupQrConfirmed: false
   }
 ];
+
+const demoActiveDelivery: DeliveryOffer = {
+  ...demoOffers[0],
+  orderId: 'WC-DEMO-CURRENT',
+  deliveryId: 'delivery-demo-current-v3',
+  orderNumber: 'M5712',
+  restaurantName: 'Мангал',
+  restaurantAddress: 'ул. Лесная, 12',
+  deliveryAddress: 'Цоци-Юрт, ул. Садовая, 3, кв. 12',
+  deliveryFee: 250,
+  distanceKm: 7.2,
+  routeEtaMin: 25,
+  status: 'assigned',
+  isAssignedToViewer: true,
+  itemsVisible: true,
+  restaurantLat: 43.318123,
+  restaurantLng: 45.698456,
+  deliveryLat: 43.242112,
+  deliveryLng: 46.001913,
+  clientName: 'Адам М.',
+  clientPhone: '+7 928 123-45-67',
+  deliveryComment: 'Подъезд 2, домофон 45К'
+};
 
 const demoHistory: readonly DriverEarning[] = [
   {
@@ -470,7 +504,7 @@ const loadCurrentDriverDeliveryHandoffs = async (): Promise<DriverDeliveryHandof
 
 const buildDemoSnapshot = (profile: DriverProfile = demoProfile): DriverDashboardSnapshot => ({
   profile,
-  activeDelivery: null,
+  activeDelivery: profile.isOnline ? demoActiveDelivery : null,
   availableDeliveries: profile.isOnline ? demoOffers : [],
   history: demoHistory,
   stats: {

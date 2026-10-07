@@ -3158,3 +3158,476 @@
     border-radius: 28px 28px 0 0;
   }
 }
+
+/* Reference-aligned compact driver home. Keep every row usable at 321px. */
+.driver-app--night .driver-phone {
+  padding: 14px 12px 86px;
+}
+
+.driver-app--night .driver-topbar {
+  grid-template-columns: minmax(74px, 1fr) auto;
+  gap: 6px;
+  min-height: 42px;
+  margin-bottom: 14px;
+}
+
+.driver-app--night .driver-topbar > div:first-child {
+  min-width: 0;
+}
+
+.driver-app--night .driver-topbar strong {
+  font-size: clamp(20px, 6.6vw, 25px);
+  letter-spacing: -0.045em;
+}
+
+.driver-app--night .driver-online-status {
+  flex-direction: row-reverse;
+  gap: 8px;
+  justify-content: flex-end;
+  font-size: clamp(21px, 7vw, 25px) !important;
+}
+
+.driver-app--night .driver-online-status > span {
+  width: 10px;
+  height: 10px;
+}
+
+.driver-app--night .driver-topbar__actions {
+  min-width: 0;
+  gap: 4px;
+}
+
+.driver-app--night .driver-topbar__actions .driver-online-button {
+  height: 38px;
+}
+
+.driver-app--night .driver-topbar__actions .driver-push-button,
+.driver-app--night .driver-topbar__actions .driver-refresh-button {
+  width: 38px;
+  padding: 0;
+}
+
+.driver-app--night .driver-availability-button {
+  min-width: 84px;
+  gap: 4px;
+  padding: 0 7px 0 10px;
+  font-size: 11px;
+}
+
+.driver-app--night .driver-availability-button svg {
+  width: 31px;
+  height: 31px;
+}
+
+.driver-app--night .driver-section-title {
+  min-height: 34px;
+  margin: 12px 0 7px;
+}
+
+.driver-app--night .driver-section-title h2 {
+  min-width: 0;
+  font-size: clamp(18px, 5.8vw, 22px);
+  letter-spacing: -0.035em;
+}
+
+.driver-app--night .driver-section-title a {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.driver-app--night .driver-empty-block--compact {
+  min-height: 174px;
+  grid-template-columns: 1fr;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  border-radius: 18px;
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.driver-app--night .driver-empty-block--compact svg {
+  width: 54px;
+  height: 54px;
+  color: #7650ff;
+  filter: drop-shadow(0 8px 18px rgba(118, 80, 255, 0.24));
+}
+
+.driver-app--night .driver-empty-block--compact > span {
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+}
+
+.driver-app--night .driver-empty-block--compact strong {
+  max-width: 240px;
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+.driver-app--night .driver-empty-block--compact small {
+  color: var(--driver-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.driver-app--night .driver-current-block--home {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 139, 34, 0.2);
+  border-radius: 18px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(255, 122, 23, 0.12), transparent 40%),
+    linear-gradient(145deg, #111e31, #0a1424);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+.driver-current-block__home-head {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.driver-current-block__home-head > span:not(.driver-current-block__home-icon) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.driver-current-block__home-head > span:last-child {
+  justify-items: end;
+}
+
+.driver-current-block__home-head strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driver-current-block__home-head small {
+  color: #ff9b31;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.driver-current-block__home-head b {
+  color: var(--driver-green);
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.driver-current-block__home-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 122, 23, 0.15);
+  color: #ff9a2d;
+}
+
+.driver-current-block__home-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.driver-current-block__home-route {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(134, 156, 192, 0.12);
+  padding-top: 10px;
+}
+
+.driver-current-block__home-route > span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.driver-current-block__home-route strong,
+.driver-current-block__home-route small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driver-current-block__home-route strong {
+  font-size: 13px;
+}
+
+.driver-current-block__home-route small {
+  color: var(--driver-muted);
+  font-size: 10px;
+}
+
+.driver-current-block__route-dots {
+  display: grid;
+  height: 56px;
+  align-content: space-between;
+  justify-items: center;
+  background: linear-gradient(var(--driver-purple-light), var(--driver-green)) center / 2px calc(100% - 14px) no-repeat;
+}
+
+.driver-current-block__route-dots i {
+  width: 11px;
+  height: 11px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  background: #0b1628;
+  color: var(--driver-purple-light);
+  box-shadow: 0 0 0 3px rgba(118, 71, 255, 0.13);
+}
+
+.driver-current-block__route-dots i:last-child {
+  color: var(--driver-green);
+}
+
+.driver-current-block__home-meta {
+  display: grid;
+  gap: 8px;
+  border-left: 1px solid rgba(134, 156, 192, 0.16);
+  padding-left: 8px;
+}
+
+.driver-current-block__home-meta small,
+.driver-app--night .driver-other-order-row__meta small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #c5d0e4;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.driver-current-block__home-meta svg,
+.driver-app--night .driver-other-order-row__meta svg {
+  width: 15px;
+  height: 15px;
+}
+
+.driver-app--night .driver-current-block__home-action {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
+.driver-app--night .driver-current-block__home-action svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.driver-app--night .driver-other-orders {
+  display: grid;
+  gap: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.driver-app--night .driver-other-order-row {
+  grid-template-columns: 36px minmax(0, 1fr) 68px 12px;
+  min-height: 86px;
+  gap: 7px;
+  border: 1px solid rgba(134, 156, 192, 0.14);
+  border-radius: 15px;
+  padding: 10px;
+  background: linear-gradient(145deg, rgba(17, 30, 50, 0.98), rgba(9, 19, 34, 0.98));
+}
+
+.driver-app--night .driver-other-order-row__icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(118, 71, 255, 0.2);
+  color: var(--driver-purple-light);
+}
+
+.driver-app--night .driver-other-order-row > .driver-other-order-row__icon {
+  position: static;
+  padding-left: 0;
+}
+
+.driver-app--night .driver-other-order-row > .driver-other-order-row__icon::before {
+  display: none;
+  content: none;
+}
+
+.driver-app--night .driver-other-order-row__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.driver-app--night .driver-other-order-row__route {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.driver-app--night .driver-other-order-row__route strong {
+  font-size: 13px;
+}
+
+.driver-app--night .driver-other-order-row__route small {
+  font-size: 9px;
+}
+
+.driver-app--night .driver-other-order-row__destination {
+  position: relative;
+  margin-top: 6px;
+  padding-left: 13px;
+}
+
+.driver-app--night .driver-other-order-row__destination::before {
+  position: absolute;
+  top: 2px;
+  left: 1px;
+  width: 8px;
+  height: 8px;
+  border: 3px solid var(--driver-green);
+  border-radius: 50%;
+  content: "";
+}
+
+.driver-app--night .driver-other-order-row__meta {
+  gap: 5px;
+  padding-left: 7px;
+}
+
+.driver-app--night .driver-other-order-row__meta small {
+  font-size: 9px;
+}
+
+.driver-app--night .driver-other-order-row__meta b {
+  font-size: 16px;
+}
+
+.driver-app--night .driver-other-order-row > svg {
+  width: 14px;
+}
+
+.driver-app--night .driver-urgent-offer {
+  align-content: center;
+  gap: 16px;
+}
+
+.driver-urgent-offer__intro {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.driver-urgent-offer__intro > span {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgba(255, 136, 26, 0.58);
+  border-radius: 50%;
+  background: rgba(255, 122, 23, 0.12);
+  color: #ff8618;
+  box-shadow: 0 0 28px rgba(255, 122, 17, 0.2);
+}
+
+.driver-urgent-offer__intro svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.driver-urgent-offer__intro h1,
+.driver-urgent-offer__intro p {
+  margin: 0;
+}
+
+.driver-urgent-offer__intro h1 {
+  font-size: 27px;
+  letter-spacing: -0.04em;
+}
+
+.driver-urgent-offer__intro p {
+  color: var(--driver-muted);
+  font-size: 12px;
+}
+
+.driver-urgent-offer__intro time {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  margin-top: 6px;
+  place-items: center;
+  border: 6px solid #ff8017;
+  border-radius: 50%;
+  color: #ff941f;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.driver-app--night .driver-urgent-offer__content::before,
+.driver-app--night .driver-urgent-offer__content > header {
+  display: none;
+}
+
+@media (max-width: 350px) {
+  .driver-app--night .driver-phone {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .driver-app--night .driver-topbar {
+    grid-template-columns: minmax(68px, 1fr) auto;
+    gap: 4px;
+  }
+
+  .driver-app--night .driver-topbar strong {
+    font-size: 20px;
+  }
+
+  .driver-app--night .driver-online-status {
+    font-size: 21px !important;
+  }
+
+  .driver-app--night .driver-availability-button {
+    min-width: 80px;
+    padding-right: 5px;
+    padding-left: 8px;
+    font-size: 10px;
+  }
+
+  .driver-app--night .driver-topbar__actions .driver-push-button,
+  .driver-app--night .driver-topbar__actions .driver-refresh-button {
+    width: 34px;
+  }
+
+  .driver-app--night .driver-section-title h2 {
+    font-size: 18px;
+  }
+
+  .driver-app--night .driver-other-order-row {
+    grid-template-columns: 34px minmax(0, 1fr) 64px 10px;
+    gap: 5px;
+    padding: 9px 7px;
+  }
+
+  .driver-current-block__home-head {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .driver-current-block__home-icon {
+    width: 38px;
+    height: 38px;
+  }
+}
