@@ -36,10 +36,7 @@ import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { useDriverStore } from '../../features/driver/store';
-import {
-  getDriverDeliveryProgress,
-  getDriverNextAction
-} from '../../features/driver/dashboardPresentation';
+import { getDriverNextAction } from '../../features/driver/dashboardPresentation';
 import {
   buildYandexNavigatorReturnUrl,
   calculateDriverCashHandover
@@ -67,7 +64,6 @@ import {
   DriverActionError,
   type DriverProfile
 } from '../../shared/api/deliveryApi';
-import { requestDriverDeliveryPrice } from '../../shared/api/deliveryPricingApi';
 import { getDeliverySettlements } from '../../shared/api/settlementsApi';
 import { formatOrderTime, groupOrdersByDate } from '../../shared/orderListGroups';
 import {
@@ -942,7 +938,7 @@ function DriverCurrentDeliveryPanel({
   const terms = getBusinessTerms(offer.businessType);
 
   return (
-    <section className="driver-current-block driver-current-block--home" aria-label={`Текущий заказ ${offer.orderNumber}`}>
+    <Link className="driver-current-block driver-current-block--home" to="/driver/active" aria-label={`Открыть текущий заказ ${offer.orderNumber}`}>
       <header className="driver-current-block__home-head">
         <span className="driver-current-block__home-icon"><Utensils /></span>
         <span><small>Текущий заказ</small><strong>Заказ {offer.orderNumber}</strong></span>
@@ -953,11 +949,11 @@ function DriverCurrentDeliveryPanel({
         <span><strong>{offer.restaurantName || terms.place}</strong><small>{formatDriverDeliveryAddress(offer.restaurantAddress)}</small><strong>{offer.clientName || 'Клиент'}</strong><small>{formatDriverDeliveryAddress(offer.deliveryAddress)}</small></span>
         <span className="driver-current-block__home-meta"><small><Car />{offer.distanceKm} км</small><small><Clock />{offer.routeEtaMin} мин</small></span>
       </div>
-      <Link className="driver-primary driver-current-block__home-action" to="/driver/active">
+      <span className="driver-primary driver-current-block__home-action">
         <Navigation />
         {terms.driverRoute}
-      </Link>
-    </section>
+      </span>
+    </Link>
   );
 }
 
@@ -1299,14 +1295,14 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
   const dismissDeliveryOffer = useDriverStore((state) => state.dismissDeliveryOffer);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [requestedAmount, setRequestedAmount] = useState(String(Math.round(offer.deliveryFee)));
-  const [priceComment, setPriceComment] = useState('');
-  const [isRequestingPrice, setIsRequestingPrice] = useState(false);
-  const [priceMessage, setPriceMessage] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(30);
   const [error, setError] = useState('');
-  const qrPayload = buildDriverPickupQrPayload(offer);
-  const restaurantPickupLabel = [offer.restaurantName, offer.restaurantAddress].filter(Boolean).join(' · ');
-  const displayDeliveryAddress = formatDriverDeliveryAddress(offer.deliveryAddress);
+  const terms = getBusinessTerms(offer.businessType);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setSecondsLeft((current) => current > 0 ? current - 1 : 0), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const accept = async () => {
     setIsAccepting(true);
@@ -1328,66 +1324,49 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
     navigate('/driver/orders');
   };
 
-  const requestPrice = async () => {
-    setIsRequestingPrice(true);
-    setError('');
-    setPriceMessage('');
-    try {
-      await requestDriverDeliveryPrice({
-        deliveryId: offer.deliveryId,
-        driverId,
-        amount: Number(requestedAmount),
-        comment: priceComment
-      });
-      setPriceMessage('Запрос отправлен супер-админу. Заказ останется доступным после решения.');
-    } catch (priceError) {
-      setError(priceError instanceof Error ? priceError.message : 'Не удалось отправить запрос цены');
-    } finally {
-      setIsRequestingPrice(false);
-    }
-  };
-
   return (
-    <>
-      <DriverHeader title="Новый заказ" action={<small>{offer.routeEtaMin} мин</small>} />
-      <section className="driver-order-panel">
-        <span className="driver-badge">Доставка</span>
-        <h2>Заказ {offer.orderNumber}</h2>
-        <DriverRouteLine icon={<Home />} label="Забрать из" value={restaurantPickupLabel || 'Адрес ресторана уточняется'} />
-        <DriverRouteLine icon={<MapPin />} label="Доставить в" value={displayDeliveryAddress} />
-        <DriverRouteLine icon={<Navigation />} label="Расстояние" value={`${offer.distanceKm} км от вас`} />
-        <DriverRouteLine icon={<CircleDollarSign />} label="Стоимость заказа" value={formatPrice(offer.orderTotal)} />
-        <DriverRouteLine icon={<WalletCards />} label="Выплата за доставку" value={formatPrice(offer.deliveryFee)} />
-        <small>{offer.paymentLabel}</small>
-        <div className="driver-action-row driver-action-row--order">
-          {qrPayload ? (
-            <Link to="/driver/qr">
-              <QrCode />
-              QR
-            </Link>
-          ) : (
-            <button type="button" disabled>
-              <QrCode />
-              QR после принятия
-            </button>
-          )}
+    <section className="driver-new-order-screen" aria-label={`Новый заказ ${offer.orderNumber}`}>
+      <button className="driver-new-order-screen__back" type="button" onClick={() => navigate('/driver/orders')} aria-label="Назад к заказам">
+        <ArrowLeft />
+      </button>
+      <div className="driver-urgent-offer__intro">
+        <span aria-hidden="true"><Bell /></span>
+        <h1>Новый заказ</h1>
+        <p>У вас есть 30 секунд, чтобы принять заказ</p>
+        <time aria-label={`Осталось ${secondsLeft} секунд`}>{secondsLeft}</time>
+      </div>
+      <div className="driver-new-order-card">
+        <header className="driver-new-order-card__head">
+          <span className="driver-current-block__home-icon"><Utensils /></span>
+          <strong>Заказ {offer.orderNumber}</strong>
+          <span><b>{formatPrice(offer.deliveryFee)}</b><small>Ваш доход</small></span>
+        </header>
+        <div className="driver-current-block__home-route driver-new-order-card__route">
+          <span className="driver-current-block__route-dots" aria-hidden="true"><i /><i /></span>
+          <span>
+            <strong>{offer.restaurantName || terms.place}</strong>
+            <small>{formatDriverDeliveryAddress(offer.restaurantAddress)}</small>
+            <strong>{offer.clientName || 'Клиент'}</strong>
+            <small>{formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
+          </span>
+          <span className="driver-current-block__home-meta">
+            <small><Car />{offer.distanceKm} км</small>
+            <small><Clock />{offer.routeEtaMin} мин</small>
+          </span>
         </div>
-        <div className="driver-price-request">
-          <label>Предложить свою цену<input type="number" min="0" step="1" value={requestedAmount} onChange={(event) => setRequestedAmount(event.target.value)} /></label>
-          <input value={priceComment} onChange={(event) => setPriceComment(event.target.value)} placeholder="Комментарий для супер-админа" />
-          <button className="driver-secondary" type="button" onClick={() => void requestPrice()} disabled={isRequestingPrice}>{isRequestingPrice ? 'Отправляем...' : 'Согласовать цену'}</button>
+        <div className="driver-new-order-card__payment">
+          <span><small>Стоимость заказа</small><strong>{formatPrice(offer.orderTotal)}</strong></span>
+          <span><small>Тип оплаты</small><strong>{offer.paymentLabel}</strong></span>
         </div>
-        {priceMessage && <p className="driver-success">{priceMessage}</p>}
         {error && <p className="driver-error">{error}</p>}
-        <button className="driver-primary" type="button" onClick={() => void accept()} disabled={isAccepting}>
-          {isAccepting ? 'Принимаем...' : 'Принять заказ'}
-        </button>
-        <button className="driver-secondary" type="button" onClick={rejectOffer}>
-          <X />
-          Отклонить
-        </button>
-      </section>
-    </>
+        <div className="driver-new-order-card__actions">
+          <button className="driver-secondary" type="button" onClick={rejectOffer}>Отклонить</button>
+          <button className="driver-primary" type="button" onClick={() => void accept()} disabled={isAccepting}>
+            {isAccepting ? 'Принимаем...' : 'Принять заказ'}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1410,7 +1389,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   }, [delivery?.deliveryId, delivery?.driverHandedToClientAt]);
 
   const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status, false, delivery.businessType) : null, [delivery]);
-  const progress = useMemo(() => delivery ? getDriverDeliveryProgress(delivery.status, false, delivery.businessType) : null, [delivery]);
+  const isHeadingToRestaurant = Boolean(delivery && ['assigned', 'waiting_courier'].includes(delivery.status));
   const waitingForCashConfirmation = Boolean(
     delivery?.status === 'arrived_to_restaurant' &&
     delivery.paymentMethod === 'cash' &&
@@ -1501,62 +1480,33 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     <>
       <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small>} />
       <section
-        className="driver-order-panel driver-current-block driver-current-block--details"
+        className="driver-current-block driver-current-block--details driver-active-order-card"
         aria-label={`Текущая доставка ${delivery.orderNumber}`}
       >
-        <div className="driver-current-block__accepted">
-          <strong>✓ ЗАКАЗ ПРИНЯТ</strong>
-        </div>
-        <header>
-          <span>
-            <strong>{delivery.orderNumber}</strong>
-            <small>Доставка · {delivery.itemsCount} поз.</small>
-          </span>
-          <span>
-            <small>Осталось ≈ {delivery.routeEtaMin} мин</small>
-          </span>
+        <header className="driver-active-order-card__head">
+          <span className="driver-current-block__home-icon"><Utensils /></span>
+          <span><strong>Заказ {delivery.orderNumber}</strong><small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small></span>
+          <span><b>{formatPrice(delivery.deliveryFee)}</b><small>Ваш доход</small></span>
         </header>
-        <p>
-          <Home />
+        <div className="driver-active-order-card__destination">
+          <span className="driver-current-block__route-dots" aria-hidden="true"><i /><i /></span>
           <span>
-            <small>Точка А</small>
-            <strong>{delivery.restaurantName} · {formatDriverDeliveryAddress(delivery.restaurantAddress)}</strong>
+            <strong>{isHeadingToRestaurant ? delivery.restaurantName : delivery.clientName || 'Клиент'}</strong>
+            <small>{isHeadingToRestaurant ? formatDriverDeliveryAddress(delivery.restaurantAddress) : displayDeliveryAddress}</small>
+            <small>{isHeadingToRestaurant ? 'Для получения заказа' : 'Для вручения заказа'}</small>
           </span>
-        </p>
-        <p>
-          <MapPin />
-          <span>
-            <small>Точка Б</small>
-            <strong>{displayDeliveryAddress}</strong>
-          </span>
-        </p>
-        <div className="driver-current-block__summary">
-          <span>Ваш заработок</span>
-          <strong>{formatPrice(delivery.deliveryFee)}</strong>
         </div>
-        {progress && (
-          <ol className="driver-delivery-progress" aria-label="Статус доставки">
-            {progress.labels.map((label, index) => {
-              const step = index + 1;
-              return (
-                <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
-                  <span>{step}</span>
-                  <small>{label}</small>
-                </li>
-              );
-            })}
-          </ol>
+        <DriverYandexNavigationActions delivery={delivery} />
+        {!isHeadingToRestaurant && delivery.clientPhone && (
+          <div className="driver-action-row driver-active-order-card__contacts">
+            <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить клиенту</a>
+            <button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать клиенту</button>
+          </div>
         )}
-        {delivery.clientName && <DriverRouteLine icon={<User />} label="Клиент" value={delivery.clientName} />}
-        {delivery.clientPhone && <DriverRouteLine icon={<Phone />} label="Телефон" value={delivery.clientPhone} />}
-        {delivery.deliveryComment && <DriverRouteLine icon={<ShieldCheck />} label="Комментарий" value={delivery.deliveryComment} />}
-        <div className="driver-action-row">
-          {delivery.clientPhone && <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить</a>}
-          {delivery.clientPhone && (
-            <button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать</button>
-          )}
-          {waitingForQr && <Link to="/driver/qr"><QrCode />QR ресторана</Link>}
-        </div>
+        {isHeadingToRestaurant && (
+          <p className="driver-active-order-card__note"><ShieldCheck />Свяжитесь с рестораном через диспетчера, если заказ не готов.</p>
+        )}
+        {waitingForQr && <Link className="driver-active-order-card__qr" to="/driver/qr"><QrCode />Показать QR ресторану</Link>}
         {waitingForCashConfirmation && (
           <DriverCashPaymentHandover
             businessType={delivery.businessType}
@@ -1582,7 +1532,6 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
             </button>
           )
         )}
-        <DriverYandexNavigationActions delivery={delivery} />
         {delivery.status === 'arrived_to_client' && !driverHandedAt && (
           <section className="driver-handoff-card">
             <strong>Вы передали заказ клиенту?</strong>
@@ -1981,18 +1930,6 @@ function DriverSupportScreen() {
         <a href="https://wa.me/79990000000" target="_blank" rel="noreferrer">Написать в WhatsApp</a>
       </section>
     </>
-  );
-}
-
-function DriverRouteLine({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return (
-    <div className="driver-route-line">
-      {icon}
-      <span>
-        <small>{label}</small>
-        <strong>{value || 'Не указано'}</strong>
-      </span>
-    </div>
   );
 }
 

@@ -113,7 +113,8 @@ describe('mobile operational interfaces', () => {
     );
     assert.match(currentPanel, /driver-current-block--home/);
     assert.match(currentPanel, /driver-current-block__home-action/);
-    assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
+    assert.match(currentPanel, /<Link[\s\S]*to="\/driver\/active"/);
+    assert.match(driverSource, /driver-active-order-card/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
     assert.match(driverCss, /\.driver-current-block--home/);
@@ -122,6 +123,21 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /Вернуться в Навигатор/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*8[0-9]px/);
+  });
+
+  it('uses the compact incoming-order layout without delivery-price negotiation', () => {
+    const newOrderScreen = driverSource.slice(
+      driverSource.indexOf('function DriverNewOrderScreen'),
+      driverSource.indexOf('export function DriverActiveScreen')
+    );
+
+    assert.match(newOrderScreen, /driver-new-order-screen/);
+    assert.match(newOrderScreen, /Стоимость заказа/);
+    assert.match(newOrderScreen, /Тип оплаты/);
+    assert.match(newOrderScreen, /Принять заказ/);
+    assert.match(newOrderScreen, /Отклонить/);
+    assert.doesNotMatch(newOrderScreen, /Предложить свою цену|Согласовать цену|requestDriverDeliveryPrice/);
+    assert.match(driverCss, /\.driver-new-order-card/);
   });
 
   it('opens an accepted delivery at the beginning instead of keeping the offer-list scroll position', () => {
@@ -133,6 +149,9 @@ describe('mobile operational interfaces', () => {
     assert.match(activeScreen, /useLayoutEffect/);
     assert.match(activeScreen, /window\.scrollTo\(\{\s*top:\s*0,\s*left:\s*0,\s*behavior:\s*'auto'\s*\}\)/s);
     assert.match(activeScreen, /\[delivery\?\.deliveryId\]/);
+    assert.match(activeScreen, /driver-active-order-card/);
+    assert.match(activeScreen, /Для получения заказа/);
+    assert.doesNotMatch(activeScreen, /driver-delivery-progress/);
   });
 
   it('keeps a newly accepted delivery on the driver home screen at stage one', () => {
@@ -195,6 +214,6 @@ describe('mobile operational interfaces', () => {
     assert.match(driverSource, /DriverCompletionSlider/);
     assert.match(driverCss, /\.driver-completion-slider/);
     assert.match(driverSource, /aria-label=\{`Текущая доставка \$\{delivery\.orderNumber\}`\}/);
-    assert.match(driverSource, /driver-order-panel driver-current-block driver-current-block--details/);
+    assert.match(driverSource, /driver-current-block driver-current-block--details driver-active-order-card/);
   });
 });
