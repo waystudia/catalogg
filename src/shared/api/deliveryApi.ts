@@ -217,6 +217,11 @@ type RestaurantLocationRow = {
   lng: number | null;
 };
 
+type RestaurantContactRow = {
+  restaurant_id: string;
+  whatsapp_phone: string | null;
+};
+
 const firstRelation = <T,>(value: MaybeArray<T> | null | undefined): T | null =>
   Array.isArray(value) ? value[0] ?? null : value ?? null;
 type DeliveryOrderRow = NonNullable<NonNullable<DeliveryRow['orders']> extends MaybeArray<infer T> ? T : never>;
@@ -268,6 +273,7 @@ const demoOrder = (overrides: Partial<OrderLifecycleSnapshot> = {}): OrderLifecy
   deliveryComment: 'Подъезд 2, домофон 45К',
   restaurantName: 'Rizih',
   restaurantAddress: 'пр-т Путина, 20',
+  restaurantPhone: '+7 928 555-12-12',
   deliveryFee: 520,
   distanceKm: 1.8,
   ...overrides
@@ -825,6 +831,7 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
       const catalogLocationsById = new Map<string, CatalogLocationRow>();
       const restaurantLocationsById = new Map<string, RestaurantLocationRow>();
       const restaurantLocationsByCatalogId = new Map<string, RestaurantLocationRow>();
+      const restaurantPhonesById = new Map<string, string>();
 
       if (catalogIds.length > 0) {
         const catalogLocationsResult = await supabase
@@ -859,6 +866,17 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
           ((restaurantLocationsResult.data ?? []) as RestaurantLocationRow[])
             .forEach((restaurantLocation) => restaurantLocationsById.set(restaurantLocation.id, restaurantLocation));
         }
+
+        const restaurantContactsResult = await supabase
+          .from('restaurant_socials')
+          .select('restaurant_id, whatsapp_phone')
+          .in('restaurant_id', restaurantIds);
+        if (!restaurantContactsResult.error) {
+          ((restaurantContactsResult.data ?? []) as RestaurantContactRow[])
+            .forEach((contact) => {
+              if (contact.whatsapp_phone?.trim()) restaurantPhonesById.set(contact.restaurant_id, contact.whatsapp_phone.trim());
+            });
+        }
       }
 
       offers = offers.map((offer) => {
@@ -887,6 +905,7 @@ export async function getDriverDashboard(): Promise<DriverDashboardSnapshot> {
           clientName: resolveOrderContactName(order) || offer.clientName,
           clientPhone: resolveOrderContactPhone(order) || offer.clientPhone,
           deliveryComment: resolveOrderDeliveryComment(order) || offer.deliveryComment,
+          restaurantPhone: order.restaurant_id ? restaurantPhonesById.get(order.restaurant_id) || offer.restaurantPhone : offer.restaurantPhone,
           restaurantAddress: restaurantLocation?.address_line || order.restaurant_address_snapshot || catalogLocation?.address || offer.restaurantAddress,
           restaurantLat,
           restaurantLng

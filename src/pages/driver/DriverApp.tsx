@@ -1005,8 +1005,8 @@ function DriverSwipeAction({
   const maximumOffset = 220;
   const confirmOffset = 150;
 
-  const finish = () => {
-    const shouldConfirm = offset >= confirmOffset && !disabled && !didConfirmRef.current;
+  const finish = (finalOffset = offset) => {
+    const shouldConfirm = finalOffset >= confirmOffset && !disabled && !didConfirmRef.current;
     startXRef.current = null;
     if (shouldConfirm) {
       didConfirmRef.current = true;
@@ -1033,12 +1033,19 @@ function DriverSwipeAction({
           if (startXRef.current === null || disabled) return;
           setOffset(Math.max(0, Math.min(maximumOffset, event.clientX - startXRef.current)));
         }}
-        onPointerUp={finish}
+        onPointerUp={(event) => {
+          const startX = startXRef.current;
+          const finalOffset = startX === null ? offset : Math.max(0, Math.min(maximumOffset, event.clientX - startX));
+          finish(finalOffset);
+        }}
         onPointerCancel={() => {
           startXRef.current = null;
           setOffset(0);
         }}
         aria-label={`${label}. Проведите вправо для подтверждения`}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') finish(confirmOffset);
+        }}
       >
         <ChevronRight />
       </button>
@@ -1174,7 +1181,7 @@ export function DriverYandexNavigationActions({
         >
           <Navigation />
           <span>
-            <strong>Вернуться в Навигатор</strong>
+            <strong>Маршрут</strong>
             <small>Маршрут уже создан — новая ссылка не расходуется</small>
           </span>
           <ChevronRight />
@@ -1188,7 +1195,7 @@ export function DriverYandexNavigationActions({
         >
           <Navigation />
           <span>
-            <strong>{isBuildingRoute ? 'Готовим маршрут...' : 'Открыть маршрут в Навигаторе'}</strong>
+            <strong>{isBuildingRoute ? 'Готовим маршрут...' : 'Маршрут'}</strong>
             <small>Бизнес → клиент, маршрут создаётся один раз</small>
           </span>
           <ChevronRight />
@@ -1378,7 +1385,13 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [driverHandedAt, setDriverHandedAt] = useState(delivery?.driverHandedToClientAt ?? null);
+  const [screenStatus, setScreenStatus] = useState<DeliveryStatus | null>(null);
+  const [contactTarget, setContactTarget] = useState<'restaurant' | 'client'>('restaurant');
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
+  const currentDelivery = useMemo(
+    () => delivery && screenStatus ? { ...delivery, status: screenStatus } : delivery,
+    [delivery, screenStatus]
+  );
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -1388,20 +1401,28 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     setDriverHandedAt(delivery?.driverHandedToClientAt ?? null);
   }, [delivery?.deliveryId, delivery?.driverHandedToClientAt]);
 
-  const nextAction = useMemo(() => delivery ? getDriverNextAction(delivery.status, false, delivery.businessType) : null, [delivery]);
-  const isHeadingToRestaurant = Boolean(delivery && ['assigned', 'waiting_courier'].includes(delivery.status));
+  useEffect(() => {
+    setScreenStatus(null);
+  }, [delivery?.deliveryId]);
+
+  const nextAction = useMemo(() => currentDelivery ? getDriverNextAction(currentDelivery.status, false, currentDelivery.businessType) : null, [currentDelivery]);
+  const isHeadingToRestaurant = Boolean(currentDelivery && ['assigned', 'waiting_courier', 'arrived_to_restaurant'].includes(currentDelivery.status));
+
+  useEffect(() => {
+    setContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
+  }, [currentDelivery?.deliveryId, isHeadingToRestaurant]);
   const waitingForCashConfirmation = Boolean(
-    delivery?.status === 'arrived_to_restaurant' &&
-    delivery.paymentMethod === 'cash' &&
-    !delivery.restaurantPaymentConfirmed
+    currentDelivery?.status === 'arrived_to_restaurant' &&
+    currentDelivery.paymentMethod === 'cash' &&
+    !currentDelivery.restaurantPaymentConfirmed
   );
   const waitingForQr = Boolean(
-    delivery?.status === 'arrived_to_restaurant' &&
-    !delivery.pickupQrConfirmed
+    currentDelivery?.status === 'arrived_to_restaurant' &&
+    !currentDelivery.pickupQrConfirmed
   );
   const pickupBlocked = waitingForCashConfirmation || waitingForQr;
   const updateStatus = async (status?: DeliveryStatus, to?: string) => {
-    if (!delivery || isUpdatingStatus) return;
+    if (!currentDelivery || isUpdatingStatus) return;
     if (to && !status) {
       navigate(to);
       return;
@@ -1411,19 +1432,20 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     setIsUpdatingStatus(true);
     try {
       if (status === 'delivered') {
-        await completeDeliveryProgress(delivery.deliveryId);
+        await completeDeliveryProgress(currentDelivery.deliveryId);
         updateLocalDeliveryStatus(status);
         completeLocalDelivery();
         navigate('/driver/earnings');
         return;
       }
 
-      if (delivery.status === 'arrived_to_restaurant' && status === 'handed_over') {
-        await confirmDriverPickup(delivery.deliveryId);
+      if (currentDelivery.status === 'arrived_to_restaurant' && status === 'handed_over') {
+        await confirmDriverPickup(currentDelivery.deliveryId);
       } else {
-        await updateDeliveryProgress(delivery.deliveryId, status);
+        await updateDeliveryProgress(currentDelivery.deliveryId, status);
       }
       updateLocalDeliveryStatus(status);
+      setScreenStatus(status);
       if (to) navigate(to);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : 'Не удалось обновить статус');
@@ -1433,11 +1455,11 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   };
 
   const confirmHandoff = async () => {
-    if (!delivery || isUpdatingStatus) return;
+    if (!currentDelivery || isUpdatingStatus) return;
     setError('');
     setIsUpdatingStatus(true);
     try {
-      const result = await confirmDriverDeliveryHandoff(delivery.deliveryId);
+      const result = await confirmDriverDeliveryHandoff(currentDelivery.deliveryId);
       setDriverHandedAt(result.driverHandedToClientAt);
     } catch (handoffError) {
       setError(handoffError instanceof Error ? handoffError.message : 'Не удалось сообщить клиенту о передаче заказа');
@@ -1447,11 +1469,11 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   };
 
   const finishDelivery = async () => {
-    if (!delivery || isUpdatingStatus) return;
+    if (!currentDelivery || isUpdatingStatus) return;
     setError('');
     setIsUpdatingStatus(true);
     try {
-      await completeDeliveryProgress(delivery.deliveryId);
+      await completeDeliveryProgress(currentDelivery.deliveryId);
       updateLocalDeliveryStatus('delivered');
       completeLocalDelivery();
       navigate('/driver/earnings');
@@ -1463,7 +1485,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
     }
   };
 
-  if (!delivery) {
+  if (!currentDelivery) {
     return (
       <>
         <DriverHeader title="Активный заказ" />
@@ -1478,41 +1500,52 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   return (
     <>
-      <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small>} />
+      <DriverHeader title={`Заказ ${currentDelivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(currentDelivery.status, currentDelivery.businessType)}</small>} />
       <section
         className="driver-current-block driver-current-block--details driver-active-order-card"
-        aria-label={`Текущая доставка ${delivery.orderNumber}`}
+        aria-label={`Текущая доставка ${currentDelivery.orderNumber}`}
       >
         <header className="driver-active-order-card__head">
           <span className="driver-current-block__home-icon"><Utensils /></span>
-          <span><strong>Заказ {delivery.orderNumber}</strong><small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small></span>
-          <span><b>{formatPrice(delivery.deliveryFee)}</b><small>Ваш доход</small></span>
+          <span><strong>Заказ {currentDelivery.orderNumber}</strong><small>{getDeliveryStatusLabel(currentDelivery.status, currentDelivery.businessType)}</small></span>
+          <span><b>{formatPrice(currentDelivery.deliveryFee)}</b><small>Ваш доход</small></span>
         </header>
         <div className="driver-active-order-card__destination">
           <span className="driver-current-block__route-dots" aria-hidden="true"><i /><i /></span>
           <span>
-            <strong>{isHeadingToRestaurant ? delivery.restaurantName : delivery.clientName || 'Клиент'}</strong>
-            <small>{isHeadingToRestaurant ? formatDriverDeliveryAddress(delivery.restaurantAddress) : displayDeliveryAddress}</small>
+            <strong>{isHeadingToRestaurant ? currentDelivery.restaurantName : currentDelivery.clientName || 'Клиент'}</strong>
+            <small>{isHeadingToRestaurant ? formatDriverDeliveryAddress(currentDelivery.restaurantAddress) : displayDeliveryAddress}</small>
             <small>{isHeadingToRestaurant ? 'Для получения заказа' : 'Для вручения заказа'}</small>
           </span>
         </div>
-        <DriverYandexNavigationActions delivery={delivery} />
-        {!isHeadingToRestaurant && delivery.clientPhone && (
+        <DriverYandexNavigationActions delivery={currentDelivery} />
+        <div className="driver-active-order-card__payment">
+          <span><small>Стоимость заказа</small><strong>{formatPrice(currentDelivery.orderTotal)}</strong></span>
+          <span><small>Тип оплаты</small><strong>{currentDelivery.paymentMethod === 'cash' ? 'Наличными' : 'Переводом'}</strong></span>
+          {currentDelivery.paymentMethod === 'cash' && <span><small>Передать заведению</small><strong>{formatPrice(calculateDriverCashHandover({ clientTotal: currentDelivery.orderTotal, courierPayout: currentDelivery.deliveryFee }))}</strong></span>}
+        </div>
+        <div className="driver-active-order-card__contact-tabs" role="tablist" aria-label="Контакты заказа">
+          <button className={contactTarget === 'restaurant' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'restaurant'} onClick={() => setContactTarget('restaurant')}>Заведение</button>
+          <button className={contactTarget === 'client' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'client'} onClick={() => setContactTarget('client')}>Клиент</button>
+        </div>
+        {contactTarget === 'restaurant' ? (
           <div className="driver-action-row driver-active-order-card__contacts">
-            <a href={`tel:${delivery.clientPhone}`}><Phone />Позвонить клиенту</a>
-            <button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать клиенту</button>
+            {currentDelivery.restaurantPhone ? <a href={`tel:${currentDelivery.restaurantPhone}`}><Phone />Позвонить заведению</a> : <button type="button" disabled><Phone />Телефон заведения</button>}
+            {currentDelivery.restaurantPhone ? <a href={`https://wa.me/${currentDelivery.restaurantPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle />Написать заведению</a> : <button type="button" disabled><MessageCircle />Написать заведению</button>}
           </div>
-        )}
-        {isHeadingToRestaurant && (
-          <p className="driver-active-order-card__note"><ShieldCheck />Свяжитесь с рестораном через диспетчера, если заказ не готов.</p>
+        ) : (
+          <div className="driver-action-row driver-active-order-card__contacts">
+            {currentDelivery.clientPhone ? <a href={`tel:${currentDelivery.clientPhone}`}><Phone />Позвонить клиенту</a> : <button type="button" disabled><Phone />Телефон клиента</button>}
+            {currentDelivery.clientPhone ? <button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать клиенту</button> : <button type="button" disabled><MessageCircle />Написать клиенту</button>}
+          </div>
         )}
         {waitingForQr && <Link className="driver-active-order-card__qr" to="/driver/qr"><QrCode />Показать QR ресторану</Link>}
         {waitingForCashConfirmation && (
           <DriverCashPaymentHandover
-            businessType={delivery.businessType}
-            deliveryId={delivery.deliveryId}
-            clientTotal={delivery.orderTotal}
-            courierPayout={delivery.deliveryFee}
+            businessType={currentDelivery.businessType}
+            deliveryId={currentDelivery.deliveryId}
+            clientTotal={currentDelivery.orderTotal}
+            courierPayout={currentDelivery.deliveryFee}
           />
         )}
         {!waitingForCashConfirmation && waitingForQr && (
@@ -1532,7 +1565,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
             </button>
           )
         )}
-        {delivery.status === 'arrived_to_client' && !driverHandedAt && (
+        {currentDelivery.status === 'arrived_to_client' && !driverHandedAt && (
           <section className="driver-handoff-card">
             <strong>Вы передали заказ клиенту?</strong>
             <small>После подтверждения клиент сразу увидит кнопку «Получил заказ».</small>
@@ -1542,17 +1575,17 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
             </button>
           </section>
         )}
-        {delivery.status === 'arrived_to_client' && driverHandedAt && !delivery.clientReceivedAt && (
+        {currentDelivery.status === 'arrived_to_client' && driverHandedAt && !currentDelivery.clientReceivedAt && (
           <section className="driver-handoff-card driver-handoff-card--waiting">
             <Check />
             <span><strong>Передача отмечена</strong><small>Ждём, когда клиент нажмёт «Получил заказ».</small></span>
           </section>
         )}
-        {delivery.status === 'arrived_to_client' && driverHandedAt && delivery.clientReceivedAt && (
+        {currentDelivery.status === 'arrived_to_client' && driverHandedAt && currentDelivery.clientReceivedAt && (
           <DriverCompletionSlider disabled={isUpdatingStatus} onComplete={finishDelivery} />
         )}
         {error && <p className="driver-error">{error}</p>}
-        {isChatOpen && <DriverDeliveryChat deliveryId={delivery.deliveryId} onClose={() => setIsChatOpen(false)} />}
+        {isChatOpen && <DriverDeliveryChat deliveryId={currentDelivery.deliveryId} onClose={() => setIsChatOpen(false)} />}
       </section>
     </>
   );

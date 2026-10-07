@@ -3815,6 +3815,63 @@
   font-size: 11px;
 }
 
+.driver-active-order-card__contacts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.driver-active-order-card__contact-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  border-radius: 12px;
+  padding: 4px;
+  background: rgba(5, 15, 29, 0.58);
+}
+
+.driver-active-order-card__contact-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--driver-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.driver-active-order-card__contact-tabs button.is-active {
+  background: rgba(118, 71, 255, 0.3);
+  color: #f8faff;
+  box-shadow: inset 0 0 0 1px rgba(155, 120, 255, 0.46);
+}
+
+.driver-active-order-card__payment {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.driver-active-order-card__payment > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border-radius: 11px;
+  padding: 8px 10px;
+  background: rgba(21, 38, 64, 0.74);
+}
+
+.driver-active-order-card__payment small {
+  color: var(--driver-muted);
+  font-size: 10px;
+}
+
+.driver-active-order-card__payment strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .driver-active-order-card__note {
   display: flex !important;
   align-items: center !important;

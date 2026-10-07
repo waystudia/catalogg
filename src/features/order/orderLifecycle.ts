@@ -67,6 +67,7 @@ export type OrderLifecycleSnapshot = {
   readonly deliveryComment: string;
   readonly restaurantName: string;
   readonly restaurantAddress: string;
+  readonly restaurantPhone?: string;
   readonly restaurantLat?: number | null;
   readonly restaurantLng?: number | null;
   readonly deliveryLat?: number | null;
@@ -88,6 +89,7 @@ export type DriverDeliveryView = {
   readonly orderId: string;
   readonly restaurantName: string;
   readonly restaurantAddress: string;
+  readonly restaurantPhone?: string;
   readonly deliveryAddress: string;
   readonly deliveryFee: number;
   readonly distanceKm: number;
@@ -365,6 +367,7 @@ export const buildDriverDeliveryView = ({
     orderId: order.id,
     restaurantName: order.restaurantName,
     restaurantAddress: order.restaurantAddress,
+    restaurantPhone: order.restaurantPhone,
     deliveryAddress: order.deliveryAddress,
     deliveryFee: order.deliveryFee,
     distanceKm: order.distanceKm,
