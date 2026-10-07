@@ -3840,6 +3840,16 @@
   display: none;
 }
 
+.driver-yandex-navigation.is-highlighted .driver-navigator-open,
+.driver-yandex-navigation.is-highlighted .driver-navigator-return {
+  animation: driver-route-action-highlight 1.2s ease-in-out 3;
+  box-shadow: 0 0 0 3px rgba(41, 217, 143, 0.72), 0 0 28px rgba(118, 71, 255, 0.72);
+}
+
+@keyframes driver-route-action-highlight {
+  50% { transform: scale(1.025); }
+}
+
 .driver-active-order-card__contacts {
   margin: 0;
 }
@@ -3894,6 +3904,55 @@
   border-radius: 11px;
   padding: 8px 10px;
   background: rgba(21, 38, 64, 0.74);
+}
+
+.driver-active-order-card__payment > span:only-child {
+  grid-column: 1 / -1;
+  justify-items: center;
+  text-align: center;
+}
+
+.driver-active-order-card__payment > span:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.driver-route-prompt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(88, 229, 161, 0.42);
+  border-radius: 12px;
+  padding: 9px;
+  background: rgba(20, 89, 70, 0.28);
+}
+
+.driver-route-prompt span {
+  display: grid;
+  gap: 2px;
+}
+
+.driver-route-prompt strong {
+  font-size: 12px;
+}
+
+.driver-route-prompt small {
+  color: var(--driver-muted);
+  font-size: 9px;
+}
+
+.driver-route-prompt button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+
+.driver-cash-handover__confirmed {
+  margin: 0;
+  color: var(--driver-green);
+  font-weight: 800;
+  text-align: center;
 }
 
 .driver-active-order-card__payment small {

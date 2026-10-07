@@ -120,7 +120,8 @@ describe('mobile operational interfaces', () => {
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
     assert.match(driverCss, /\.driver-current-block--home/);
     assert.match(driverCss, /\.driver-navigator-open/);
-    assert.match(driverSource, /<strong>Маршрут<\/strong>/);
+    assert.match(driverSource, /Маршрут к заведению/);
+    assert.match(driverSource, /Маршрут к клиенту/);
     assert.match(driverCss, /\.driver-topbar__actions[\s\S]*gap:\s*4px/);
     assert.match(driverCss, /\.driver-availability-button[\s\S]*min-width:\s*8[0-9]px/);
   });
@@ -166,7 +167,7 @@ describe('mobile operational interfaces', () => {
     assert.match(activeScreen, /const nextStop = currentDelivery/);
     assert.match(activeScreen, /hint: 'Для вручения заказа'/);
     assert.match(activeScreen, /'arrived_to_restaurant'/);
-    assert.match(driverSource, /<strong>Маршрут<\/strong>/);
+    assert.match(driverSource, /Маршрут к заведению/);
   });
 
   it('keeps a newly accepted delivery on the driver home screen at stage one', () => {
@@ -186,8 +187,11 @@ describe('mobile operational interfaces', () => {
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
     assert.match(currentPanel, /to="\/driver\/active"/);
-    assert.match(activeScreen, /<DriverYandexNavigationActions delivery=\{currentDelivery\}/);
+    assert.match(activeScreen, /<DriverYandexNavigationActions delivery=\{currentDelivery\} highlighted=\{showClientRoutePrompt\}/);
     assert.match(activeScreen, /getDriverNextAction\(currentDelivery\.status/);
+    assert.match(activeScreen, /label="Отдал заказ"/);
+    assert.match(activeScreen, /setShowClientRoutePrompt\(true\)/);
+    assert.match(driverSource, /Доставлено — проведите вправо/);
     assert.doesNotMatch(driverSource, /function DriverMapScreen/);
   });
 

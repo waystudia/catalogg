@@ -244,9 +244,16 @@ function DriverCashPaymentHandover({
           ? `Деньги переданы. Ожидайте подтверждения оплаты ${terms.placeInstrumental}.`
           : `Передайте ${terms.placeDative} ${formatPrice(restaurantCashAmount)}. Ваши ${formatPrice(courierPayout)} уже удержаны из суммы ${terms.placeGenitive}.`}
       </p>
-      <button type="button" disabled={moneyHandedOver} onClick={confirmMoneyHandedOver}>
-        {moneyHandedOver ? 'Деньги переданы ✓' : 'Я передал деньги'}
-      </button>
+      {moneyHandedOver ? (
+        <p className="driver-cash-handover__confirmed">Деньги переданы ✓</p>
+      ) : (
+        <DriverSwipeAction
+          disabled={false}
+          isLoading={false}
+          label="Я передал деньги"
+          onConfirm={confirmMoneyHandedOver}
+        />
+      )}
       <small>После подтверждения {terms.placeInstrumental} появится QR, затем станет доступна кнопка «Забрал заказ».</small>
     </section>
   );
@@ -1117,10 +1124,12 @@ type DriverYandexNavigationDelivery = Pick<
 
 export function DriverYandexNavigationActions({
   delivery,
-  onConfirmPickup
+  onConfirmPickup,
+  highlighted = false
 }: {
   delivery: DriverYandexNavigationDelivery;
   onConfirmPickup?: () => Promise<void> | void;
+  highlighted?: boolean;
 }) {
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
   const [isBuildingRoute, setIsBuildingRoute] = useState(false);
@@ -1131,6 +1140,9 @@ export function DriverYandexNavigationActions({
   );
   const restaurantCoordinatesAreReady = Number.isFinite(delivery.restaurantLat) && Number.isFinite(delivery.restaurantLng);
   const clientCoordinatesAreReady = Number.isFinite(delivery.deliveryLat) && Number.isFinite(delivery.deliveryLng);
+  const isHeadingToRestaurant = ['assigned', 'waiting_courier', 'arrived_to_restaurant'].includes(delivery.status);
+  const routeLabel = isHeadingToRestaurant ? 'Маршрут к заведению' : 'Маршрут к клиенту';
+  const routeActionId = `driver-route-action-${delivery.deliveryId}`;
 
   useEffect(() => {
     setHasLaunchedRoute(window.localStorage.getItem(routeStorageKey) === 'true');
@@ -1167,7 +1179,7 @@ export function DriverYandexNavigationActions({
   };
 
   return (
-    <section className="driver-yandex-navigation">
+    <section className={`driver-yandex-navigation${highlighted ? ' is-highlighted' : ''}`}>
       {delivery.status === 'arrived_to_restaurant' && onConfirmPickup && (
         <button className="driver-primary" type="button" disabled={isConfirmingPickup} onClick={() => void confirmPickup()}>
           <PackageCheck />
@@ -1178,23 +1190,25 @@ export function DriverYandexNavigationActions({
         <a
           className="driver-primary driver-navigator-return"
           href={buildYandexNavigatorReturnUrl()}
+          id={routeActionId}
         >
           <Navigation />
           <span>
-            <strong>Маршрут</strong>
+            <strong>{routeLabel}</strong>
             <small>Маршрут уже создан — новая ссылка не расходуется</small>
           </span>
         </a>
       ) : (
         <button
           className="driver-primary driver-navigator-open"
+          id={routeActionId}
           type="button"
           disabled={isBuildingRoute || !restaurantCoordinatesAreReady || !clientCoordinatesAreReady}
           onClick={() => void openInitialRoute()}
         >
           <Navigation />
           <span>
-            <strong>{isBuildingRoute ? 'Готовим маршрут...' : 'Маршрут'}</strong>
+            <strong>{isBuildingRoute ? 'Готовим маршрут...' : routeLabel}</strong>
             <small>Бизнес → клиент, маршрут создаётся один раз</small>
           </span>
         </button>
@@ -1387,6 +1401,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const [driverHandedAt, setDriverHandedAt] = useState(delivery?.driverHandedToClientAt ?? null);
   const [screenStatus, setScreenStatus] = useState<DeliveryStatus | null>(null);
   const [contactTarget, setContactTarget] = useState<'restaurant' | 'client'>('restaurant');
+  const [showClientRoutePrompt, setShowClientRoutePrompt] = useState(false);
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
   const currentDelivery = useMemo(
     () => delivery && screenStatus ? { ...delivery, status: screenStatus } : delivery,
@@ -1403,6 +1418,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   useEffect(() => {
     setScreenStatus(null);
+    setShowClientRoutePrompt(false);
   }, [delivery?.deliveryId]);
 
   const nextAction = useMemo(() => currentDelivery ? getDriverNextAction(currentDelivery.status, false, currentDelivery.businessType) : null, [currentDelivery]);
@@ -1457,6 +1473,9 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
       }
       updateLocalDeliveryStatus(status);
       setScreenStatus(status);
+      if (currentDelivery.status === 'arrived_to_restaurant' && status === 'handed_over') {
+        setShowClientRoutePrompt(true);
+      }
       if (to) navigate(to);
     } catch (statusError) {
       setError(statusError instanceof Error ? statusError.message : 'Не удалось обновить статус');
@@ -1529,7 +1548,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
             <small>{nextStop?.hint}</small>
           </span>
         </div>
-        <DriverYandexNavigationActions delivery={currentDelivery} />
+        <DriverYandexNavigationActions delivery={currentDelivery} highlighted={showClientRoutePrompt} />
         <div className="driver-active-order-card__payment">
           <span><small>Тип оплаты</small><strong>{currentDelivery.paymentMethod === 'cash' ? 'Наличными' : 'Переводом'}</strong></span>
           {currentDelivery.paymentMethod === 'cash' && <>
@@ -1564,28 +1583,37 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
         {!waitingForCashConfirmation && waitingForQr && (
           <p className="driver-handover-gate">Покажите QR ресторану. После сканирования можно забрать заказ.</p>
         )}
+        {showClientRoutePrompt && (
+          <section className="driver-route-prompt" role="status">
+            <span><strong>Заказ получен</strong><small>Постройте маршрут к клиенту перед выездом.</small></span>
+            <button
+              className="driver-secondary"
+              type="button"
+              onClick={() => {
+                document.getElementById(`driver-route-action-${currentDelivery.deliveryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setShowClientRoutePrompt(false);
+              }}
+            >Открыть маршрут к клиенту</button>
+          </section>
+        )}
         {nextAction && (
-          nextAction.label === 'Я в ресторане' ? (
-            <DriverSwipeAction
-              disabled={isUpdatingStatus || pickupBlocked}
-              isLoading={isUpdatingStatus}
-              label={nextAction.label}
-              onConfirm={() => void updateStatus(nextAction.status, nextAction.to)}
-            />
-          ) : (
-            <button className="driver-primary" type="button" onClick={() => void updateStatus(nextAction.status, nextAction.to)} disabled={isUpdatingStatus || pickupBlocked}>
-              {isUpdatingStatus ? 'Обновляем...' : nextAction.label}
-            </button>
-          )
+          <DriverSwipeAction
+            disabled={isUpdatingStatus || pickupBlocked}
+            isLoading={isUpdatingStatus}
+            label={nextAction.label}
+            onConfirm={() => void updateStatus(nextAction.status, nextAction.to)}
+          />
         )}
         {currentDelivery.status === 'arrived_to_client' && !driverHandedAt && (
           <section className="driver-handoff-card">
             <strong>Вы передали заказ клиенту?</strong>
             <small>После подтверждения клиент сразу увидит кнопку «Получил заказ».</small>
-            <button className="driver-primary" type="button" onClick={() => void confirmHandoff()} disabled={isUpdatingStatus}>
-              <PackageCheck />
-              {isUpdatingStatus ? 'Отправляем...' : 'Отдал заказ'}
-            </button>
+            <DriverSwipeAction
+              disabled={isUpdatingStatus}
+              isLoading={isUpdatingStatus}
+              label="Отдал заказ"
+              onConfirm={() => void confirmHandoff()}
+            />
           </section>
         )}
         {currentDelivery.status === 'arrived_to_client' && driverHandedAt && !currentDelivery.clientReceivedAt && (
@@ -1651,7 +1679,7 @@ export function DriverCompletionSlider({
             if (event.key === 'Enter' || event.key === ' ') void finishIfReady(Number(event.currentTarget.value));
           }}
         />
-        <span aria-hidden="true">{isCompleting ? 'Завершаем...' : 'сдвиньте, чтобы завершить'}</span>
+        <span aria-hidden="true">{isCompleting ? 'Завершаем...' : 'Доставлено — проведите вправо'}</span>
       </label>
     </section>
   );
