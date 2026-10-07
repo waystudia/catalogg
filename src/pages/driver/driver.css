@@ -2787,13 +2787,13 @@
 
 .driver-app--night .driver-swipe-action__hint {
   color: #bfaeff;
-  padding-left: 68px;
+  padding-inline: 64px;
   font-size: 9px;
   transform: translateY(12px);
 }
 
 .driver-app--night .driver-swipe-action strong {
-  padding-left: 68px;
+  padding-inline: 64px;
   font-size: 16px;
   transform: translateY(-9px);
 }
@@ -3453,6 +3453,7 @@
   border-radius: 15px;
   padding: 10px;
   background: linear-gradient(145deg, rgba(17, 30, 50, 0.98), rgba(9, 19, 34, 0.98));
+  overflow: hidden;
 }
 
 .driver-app--night .driver-other-order-row__icon {
@@ -3463,6 +3464,7 @@
   border-radius: 11px;
   background: rgba(118, 71, 255, 0.2);
   color: var(--driver-purple-light);
+  overflow: hidden;
 }
 
 .driver-app--night .driver-other-order-row > .driver-other-order-row__icon {
@@ -3476,6 +3478,8 @@
 }
 
 .driver-app--night .driver-other-order-row__icon svg {
+  display: block;
+  flex: none;
   width: 20px;
   height: 20px;
 }
@@ -3632,8 +3636,33 @@
   width: 54px;
   height: 54px;
   margin-top: 3px;
-  border-width: 5px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 0;
+  background: conic-gradient(#ff8017 var(--driver-order-countdown, 360deg), rgba(255, 128, 23, 0.18) 0);
+  padding: 5px;
   font-size: 20px;
+  transition: background 850ms linear;
+  animation: driver-order-countdown-pulse 1s ease-in-out infinite;
+}
+
+.driver-new-order-screen .driver-urgent-offer__intro time::before {
+  position: absolute;
+  z-index: 0;
+  inset: 5px;
+  border-radius: inherit;
+  background: #071222;
+  content: "";
+}
+
+.driver-new-order-screen .driver-urgent-offer__intro time span {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes driver-order-countdown-pulse {
+  50% { box-shadow: 0 0 18px rgba(255, 128, 23, 0.48); }
 }
 
 .driver-new-order-card {
@@ -3797,6 +3826,13 @@
   min-height: 54px;
   border-radius: 12px;
   padding: 8px 11px;
+  justify-content: center;
+  text-align: center;
+}
+
+.driver-active-order-card .driver-navigator-open > span,
+.driver-active-order-card .driver-navigator-return > span {
+  flex: 0;
 }
 
 .driver-active-order-card .driver-navigator-open small,

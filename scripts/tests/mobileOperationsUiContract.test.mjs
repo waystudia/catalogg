@@ -42,7 +42,7 @@ describe('mobile operational interfaces', () => {
   it('orders the driver home screen as current delivery, urgent offer, and compact remainder', () => {
     const current = driverSource.indexOf('Текущая доставка');
     const urgent = driverSource.indexOf('<DriverIncomingOrderPanel');
-    const others = driverSource.indexOf('Доступные заказы');
+    const others = driverSource.indexOf('Новые заказы');
 
     assert.ok(current >= 0, 'current delivery is missing');
     assert.ok(urgent > current, 'urgent offer must follow the current delivery');
@@ -114,6 +114,7 @@ describe('mobile operational interfaces', () => {
     assert.match(currentPanel, /driver-current-block--home/);
     assert.match(currentPanel, /driver-current-block__home-action/);
     assert.match(currentPanel, /<Link[\s\S]*to="\/driver\/active"/);
+    assert.match(currentPanel, /Открыть заказ/);
     assert.match(driverSource, /driver-active-order-card/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
@@ -135,6 +136,9 @@ describe('mobile operational interfaces', () => {
     assert.match(newOrderScreen, /Тип оплаты/);
     assert.match(newOrderScreen, /Принять заказ/);
     assert.match(newOrderScreen, /Отклонить/);
+    assert.match(newOrderScreen, /<h1>Новый заказ<\/h1>/);
+    assert.match(newOrderScreen, /current > 1 \? current - 1 : 30/);
+    assert.doesNotMatch(newOrderScreen, /У вас есть 30 секунд, чтобы принять заказ/);
     assert.doesNotMatch(newOrderScreen, /Предложить свою цену|Согласовать цену|requestDriverDeliveryPrice/);
     assert.match(driverCss, /\.driver-new-order-card/);
   });
@@ -151,13 +155,16 @@ describe('mobile operational interfaces', () => {
     assert.match(activeScreen, /driver-active-order-card/);
     assert.match(activeScreen, /Для получения заказа/);
     assert.doesNotMatch(activeScreen, /driver-delivery-progress/);
-    assert.match(activeScreen, /Стоимость заказа/);
+    assert.match(activeScreen, /Получить от клиента/);
+    assert.match(activeScreen, /currentDelivery\.paymentMethod === 'cash'/);
     assert.match(activeScreen, /Тип оплаты/);
     assert.match(activeScreen, /Позвонить заведению/);
     assert.match(activeScreen, /Написать клиенту/);
     assert.match(activeScreen, /Контакты заказа/);
     assert.match(activeScreen, /setContactTarget\(isHeadingToRestaurant \? 'restaurant' : 'client'\)/);
     assert.match(activeScreen, /setScreenStatus\(status\)/);
+    assert.match(activeScreen, /const nextStop = currentDelivery/);
+    assert.match(activeScreen, /hint: 'Для вручения заказа'/);
     assert.match(activeScreen, /'arrived_to_restaurant'/);
     assert.match(driverSource, /<strong>Маршрут<\/strong>/);
   });

@@ -822,7 +822,7 @@ function DriverHomeScreen({
             />
           )}
 
-          <DriverSectionTitle title="Доступные заказы" to="/driver/orders" />
+          <DriverSectionTitle title="Новые заказы" to="/driver/orders" />
           <section className="driver-other-orders">
             {otherOffers.map((offer) => (
               <Link className="driver-other-order-row" to={`/driver/orders/${offer.deliveryId}`} key={offer.deliveryId}>
@@ -951,7 +951,7 @@ function DriverCurrentDeliveryPanel({
       </div>
       <span className="driver-primary driver-current-block__home-action">
         <Navigation />
-        {terms.driverRoute}
+        Открыть заказ
       </span>
     </Link>
   );
@@ -1184,7 +1184,6 @@ export function DriverYandexNavigationActions({
             <strong>Маршрут</strong>
             <small>Маршрут уже создан — новая ссылка не расходуется</small>
           </span>
-          <ChevronRight />
         </a>
       ) : (
         <button
@@ -1198,7 +1197,6 @@ export function DriverYandexNavigationActions({
             <strong>{isBuildingRoute ? 'Готовим маршрут...' : 'Маршрут'}</strong>
             <small>Бизнес → клиент, маршрут создаётся один раз</small>
           </span>
-          <ChevronRight />
         </button>
       )}
       {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
@@ -1307,7 +1305,7 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   const terms = getBusinessTerms(offer.businessType);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setSecondsLeft((current) => current > 0 ? current - 1 : 0), 1000);
+    const timer = window.setInterval(() => setSecondsLeft((current) => current > 1 ? current - 1 : 30), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -1339,8 +1337,10 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
       <div className="driver-urgent-offer__intro">
         <span aria-hidden="true"><Bell /></span>
         <h1>Новый заказ</h1>
-        <p>У вас есть 30 секунд, чтобы принять заказ</p>
-        <time aria-label={`Осталось ${secondsLeft} секунд`}>{secondsLeft}</time>
+        <time
+          aria-label={`Осталось ${secondsLeft} секунд`}
+          style={{ '--driver-order-countdown': `${(secondsLeft / 30) * 360}deg` } as CSSProperties}
+        ><span>{secondsLeft}</span></time>
       </div>
       <div className="driver-new-order-card">
         <header className="driver-new-order-card__head">
@@ -1407,6 +1407,17 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   const nextAction = useMemo(() => currentDelivery ? getDriverNextAction(currentDelivery.status, false, currentDelivery.businessType) : null, [currentDelivery]);
   const isHeadingToRestaurant = Boolean(currentDelivery && ['assigned', 'waiting_courier', 'arrived_to_restaurant'].includes(currentDelivery.status));
+  const nextStop = currentDelivery && (isHeadingToRestaurant
+    ? {
+      name: currentDelivery.restaurantName || getBusinessTerms(currentDelivery.businessType).place,
+      address: formatDriverDeliveryAddress(currentDelivery.restaurantAddress),
+      hint: 'Для получения заказа'
+    }
+    : {
+      name: currentDelivery.clientName || 'Клиент',
+      address: displayDeliveryAddress,
+      hint: 'Для вручения заказа'
+    });
 
   useEffect(() => {
     setContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
@@ -1513,16 +1524,18 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
         <div className="driver-active-order-card__destination">
           <span className="driver-current-block__route-dots" aria-hidden="true"><i /><i /></span>
           <span>
-            <strong>{isHeadingToRestaurant ? currentDelivery.restaurantName : currentDelivery.clientName || 'Клиент'}</strong>
-            <small>{isHeadingToRestaurant ? formatDriverDeliveryAddress(currentDelivery.restaurantAddress) : displayDeliveryAddress}</small>
-            <small>{isHeadingToRestaurant ? 'Для получения заказа' : 'Для вручения заказа'}</small>
+            <strong>{nextStop?.name}</strong>
+            <small>{nextStop?.address}</small>
+            <small>{nextStop?.hint}</small>
           </span>
         </div>
         <DriverYandexNavigationActions delivery={currentDelivery} />
         <div className="driver-active-order-card__payment">
-          <span><small>Стоимость заказа</small><strong>{formatPrice(currentDelivery.orderTotal)}</strong></span>
           <span><small>Тип оплаты</small><strong>{currentDelivery.paymentMethod === 'cash' ? 'Наличными' : 'Переводом'}</strong></span>
-          {currentDelivery.paymentMethod === 'cash' && <span><small>Передать заведению</small><strong>{formatPrice(calculateDriverCashHandover({ clientTotal: currentDelivery.orderTotal, courierPayout: currentDelivery.deliveryFee }))}</strong></span>}
+          {currentDelivery.paymentMethod === 'cash' && <>
+            <span><small>Получить от клиента</small><strong>{formatPrice(currentDelivery.orderTotal)}</strong></span>
+            <span><small>Передать заведению</small><strong>{formatPrice(calculateDriverCashHandover({ clientTotal: currentDelivery.orderTotal, courierPayout: currentDelivery.deliveryFee }))}</strong></span>
+          </>}
         </div>
         <div className="driver-active-order-card__contact-tabs" role="tablist" aria-label="Контакты заказа">
           <button className={contactTarget === 'restaurant' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'restaurant'} onClick={() => setContactTarget('restaurant')}>Заведение</button>
