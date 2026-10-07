@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Bell,
+  Bike,
   CalendarDays,
   Car,
   ChevronRight,
@@ -560,7 +561,7 @@ export function DriverApp() {
     : [];
   if (!authChecked) {
     return (
-      <main className="driver-app">
+      <main className="driver-app driver-app--night">
         <section className="driver-phone driver-auth-state">
           <ClipboardList />
           <strong>Проверяем вход водителя...</strong>
@@ -571,7 +572,7 @@ export function DriverApp() {
 
   if (!hasDriverAccess) {
     return (
-      <main className="driver-app">
+      <main className="driver-app driver-app--night">
         <section className="driver-phone driver-auth-state">
           <User />
           <strong>Войдите как водитель</strong>
@@ -585,7 +586,7 @@ export function DriverApp() {
   }
 
   return (
-    <main className="driver-app">
+    <main className="driver-app driver-app--night">
       <section className="driver-phone">
         {route === 'profile' ? (
           <DriverProfileScreen profile={profile} snapshot={snapshot} error={error} />
@@ -745,7 +746,7 @@ function DriverHomeScreen({
 
   return (
     <>
-      <header className="driver-topbar">
+      {displayedOnline && <header className="driver-topbar">
         <div>
           <strong className="driver-online-status">
             {displayedOnline ? 'Вы в сети' : 'Вы не в сети'}
@@ -775,63 +776,83 @@ function DriverHomeScreen({
           </button>
           <button className="driver-online-button driver-availability-button" type="button" disabled={isUpdatingAvailability} onClick={() => void toggleOnline()} aria-label="Онлайн статус">
             {displayedOnline ? <ToggleRight /> : <ToggleLeft />}
-            <span>{displayedOnline ? 'Онлайн' : 'Офлайн'}</span>
+            <span>В сети</span>
           </button>
         </div>
-      </header>
+      </header>}
 
       {error && <p className="driver-error">{error}</p>}
       {availabilityError && <p className="driver-error">{availabilityError}</p>}
       {refreshMessage && <p className="driver-refresh-status" role="status">{refreshMessage}</p>}
 
-      <section className="driver-today-strip" aria-label="Статистика за сегодня">
-        <DriverStat label="Сегодня" value={formatPrice(snapshot.stats.earningsToday)} />
-        <DriverStat label="Принято" value={String(snapshot.stats.ordersToday)} />
-        <DriverStat label="Выполнено" value={String(snapshot.stats.completedToday)} />
-        <DriverStat label="Отменено" value={String(snapshot.stats.canceledToday)} />
-        <DriverStat label="Рейтинг" value={profile.rating.toFixed(1)} />
-      </section>
-
-      <DriverSectionTitle title="Текущая доставка" to="/driver/active" />
-      {activeDelivery ? (
-        <DriverCurrentDeliveryPanel offer={activeDelivery} onRefresh={onRefresh} />
-      ) : (
-        <section className="driver-empty-block driver-empty-block--compact">
-          <ClipboardList />
-          <strong>Сейчас активной доставки нет</strong>
+      {!displayedOnline ? (
+        <section className="driver-offline-hero" aria-label="Водитель не в сети">
+          <div className="driver-offline-hero__scene" aria-hidden="true">
+            <span className="driver-offline-hero__moon" />
+            <span className="driver-offline-hero__city" />
+            <Bike />
+          </div>
+          <div className="driver-offline-hero__copy">
+            <h1>Вы не в сети</h1>
+            <p>Включите статус, чтобы получать заказы</p>
+          </div>
+          <button className="driver-online-cta" type="button" disabled={isUpdatingAvailability} onClick={() => void toggleOnline()}>
+            <span aria-hidden="true" />
+            {isUpdatingAvailability ? 'Подключаем…' : 'В сеть'}
+          </button>
         </section>
-      )}
+      ) : (
+        <>
+          <section className="driver-today-strip" aria-label="Статистика за сегодня">
+            <DriverStat label="Сегодня" value={formatPrice(snapshot.stats.earningsToday)} />
+            <DriverStat label="Принято" value={String(snapshot.stats.ordersToday)} />
+            <DriverStat label="Выполнено" value={String(snapshot.stats.completedToday)} />
+            <DriverStat label="Отменено" value={String(snapshot.stats.canceledToday)} />
+            <DriverStat label="Рейтинг" value={profile.rating.toFixed(1)} />
+          </section>
 
-      {urgentOffer && (
-        <DriverIncomingOrderPanel
-          driverId={profile.id}
-          offer={urgentOffer}
-          onRefresh={onRefresh}
-          key={urgentOffer.deliveryId}
-        />
-      )}
+          <DriverSectionTitle title="Текущая доставка" to="/driver/active" />
+          {activeDelivery ? (
+            <DriverCurrentDeliveryPanel offer={activeDelivery} onRefresh={onRefresh} />
+          ) : (
+            <section className="driver-empty-block driver-empty-block--compact">
+              <ClipboardList />
+              <span><strong>Пока нет активной доставки</strong><small>Новый заказ появится здесь</small></span>
+            </section>
+          )}
 
-      <DriverSectionTitle title="Другие доступные заказы" to="/driver/orders" />
-      <section className="driver-other-orders">
-        {otherOffers.map((offer) => (
-          <Link className="driver-other-order-row" to={`/driver/orders/${offer.deliveryId}`} key={offer.deliveryId}>
-            <span>
-              <strong>{offer.orderNumber}</strong>
-              <small>{offer.restaurantName || getBusinessTerms(offer.businessType).place} → {formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
-              <small>{offer.distanceKm} км · ≈ {offer.routeEtaMin} мин</small>
-            </span>
-            <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
-            <ChevronRight aria-hidden="true" />
-          </Link>
-        ))}
-        {otherOffers.length === 0 && <p>Других заказов пока нет</p>}
-        {hiddenOffersCount > 0 && (
-          <Link className="driver-more-orders-link" to="/driver/orders">
-            Ещё {hiddenOffersCount} заказов
-            <ChevronRight aria-hidden="true" />
-          </Link>
-        )}
-      </section>
+          {urgentOffer && (
+            <DriverIncomingOrderPanel
+              driverId={profile.id}
+              offer={urgentOffer}
+              onRefresh={onRefresh}
+              key={urgentOffer.deliveryId}
+            />
+          )}
+
+          <DriverSectionTitle title="Доступные заказы" to="/driver/orders" />
+          <section className="driver-other-orders">
+            {otherOffers.map((offer) => (
+              <Link className="driver-other-order-row" to={`/driver/orders/${offer.deliveryId}`} key={offer.deliveryId}>
+                <span>
+                  <strong>{offer.restaurantName || getBusinessTerms(offer.businessType).place}</strong>
+                  <small>{formatDriverDeliveryAddress(offer.restaurantAddress)}</small>
+                  <small>{formatDriverDeliveryAddress(offer.deliveryAddress)}</small>
+                </span>
+                <span className="driver-other-order-row__meta"><small>{offer.distanceKm} км</small><small>≈ {offer.routeEtaMin} мин</small><b>{formatPrice(offer.deliveryFee)}</b></span>
+                <ChevronRight aria-hidden="true" />
+              </Link>
+            ))}
+            {otherOffers.length === 0 && <p>Других заказов пока нет</p>}
+            {hiddenOffersCount > 0 && (
+              <Link className="driver-more-orders-link" to="/driver/orders">
+                Ещё {hiddenOffersCount} заказов
+                <ChevronRight aria-hidden="true" />
+              </Link>
+            )}
+          </section>
+        </>
+      )}
     </>
   );
 }
@@ -886,12 +907,12 @@ function DriverIncomingOrderPanel({
     <section className="driver-urgent-offer" aria-label={`Новый заказ ${offer.orderNumber}`}>
       <div className="driver-urgent-offer__content">
         <header>
-          <strong>⚡ НОВЫЙ ЗАКАЗ</strong>
-          <time aria-label={`Осталось ${secondsLeft} секунд`}>{secondsLeft} сек</time>
+          <strong>Новый заказ</strong>
+          <time aria-label={`Осталось ${secondsLeft} секунд`}>{secondsLeft}</time>
         </header>
         <div className="driver-urgent-offer__headline">
           <strong>{offer.orderNumber}</strong>
-          <b>{formatPrice(offer.orderTotal > 0 ? offer.orderTotal : offer.deliveryFee)}</b>
+          <span><b>{formatPrice(offer.deliveryFee)}</b><small>Ваш доход</small></span>
         </div>
         <p><Home /><span><small>{terms.place}</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
         <p><MapPin /><span><small>Адрес доставки</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
@@ -1325,7 +1346,10 @@ export function DriverYandexNavigationActions({
           href={buildYandexNavigatorReturnUrl()}
         >
           <Navigation />
-          <span><strong>Вернуться в Навигатор</strong></span>
+          <span>
+            <strong>Вернуться в Навигатор</strong>
+            <small>Маршрут уже создан — новая ссылка не расходуется</small>
+          </span>
           <ChevronRight />
         </a>
       ) : (
@@ -1365,6 +1389,7 @@ function DriverOrdersScreen({
   error: string;
 }) {
   const location = useLocation();
+  const [orderTab, setOrderTab] = useState<'new' | 'active'>('new');
   const deliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
   const visibleOffers = useMemo(
     () =>
@@ -1374,7 +1399,11 @@ function DriverOrdersScreen({
     [activeDelivery, offers]
   );
   const selectedOffer = visibleOffers.find((offer) => offer.deliveryId === deliveryId) ?? null;
-  const offerGroups = useMemo(() => groupOrdersByDate(visibleOffers), [visibleOffers]);
+  const filteredOffers = useMemo(
+    () => visibleOffers.filter((offer) => orderTab === 'active' ? offer.isAssignedToViewer : !offer.isAssignedToViewer),
+    [orderTab, visibleOffers]
+  );
+  const offerGroups = useMemo(() => groupOrdersByDate(filteredOffers), [filteredOffers]);
 
   if (selectedOffer?.isAssignedToViewer) {
     return <DriverActiveScreen delivery={selectedOffer} />;
@@ -1399,6 +1428,14 @@ function DriverOrdersScreen({
     <>
       <DriverHeader title="Заказы" />
       {error && <p className="driver-error">{error}</p>}
+      <div className="driver-orders-tabs" role="tablist" aria-label="Статус заказов">
+        <button className={orderTab === 'new' ? 'is-active' : ''} type="button" role="tab" aria-selected={orderTab === 'new'} onClick={() => setOrderTab('new')}>
+          Новые <span>{offers.length}</span>
+        </button>
+        <button className={orderTab === 'active' ? 'is-active' : ''} type="button" role="tab" aria-selected={orderTab === 'active'} onClick={() => setOrderTab('active')}>
+          В работе <span>{activeDelivery ? 1 : 0}</span>
+        </button>
+      </div>
       <div className="driver-list driver-order-groups">
         {offerGroups.map((group) => (
           <section className="driver-order-group" key={group.key}>
@@ -1416,7 +1453,7 @@ function DriverOrdersScreen({
           </section>
         ))}
       </div>
-      {visibleOffers.length === 0 && (
+      {filteredOffers.length === 0 && (
         <section className="driver-empty-block">
           <ClipboardList />
           <strong>Нет доступных заказов</strong>
@@ -1809,7 +1846,7 @@ function DriverQrScreen({ delivery }: { delivery: DeliveryOffer | null }) {
 function DriverEarningsScreen({ snapshot }: { snapshot: DriverDashboardSnapshot }) {
   return (
     <>
-      <DriverHeader title="Заработок" />
+      <DriverHeader title="Баланс" />
       <div className="driver-period-tabs">
         <button className="is-active" type="button">День</button>
         <button type="button">Неделя</button>
@@ -1870,7 +1907,7 @@ function DriverProfileScreen({
         <strong>{profile.name}</strong>
         <small>{profile.phone}</small>
         <div>
-          <span>{profile.isOnline ? 'Онлайн' : 'Оффлайн'}</span>
+          <span>{profile.isOnline ? 'В сети' : 'Не в сети'}</span>
           <span>{profile.rating.toFixed(1)} ★</span>
         </div>
       </section>

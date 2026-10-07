@@ -43,13 +43,28 @@ describe('mobile operational interfaces', () => {
     const stats = driverSource.indexOf('driver-today-strip');
     const current = driverSource.indexOf('Текущая доставка');
     const urgent = driverSource.indexOf('<DriverIncomingOrderPanel');
-    const others = driverSource.indexOf('Другие доступные заказы');
+    const others = driverSource.indexOf('Доступные заказы');
 
     assert.ok(stats >= 0, 'single-row today statistics are missing');
     assert.ok(current > stats, 'current delivery must follow today statistics');
     assert.ok(urgent > current, 'urgent offer must follow the current delivery');
     assert.ok(others > urgent, 'compact offer list must follow the urgent offer');
     assert.match(driverSource, /Ещё \{hiddenOffersCount\} заказ/);
+  });
+
+  it('renders the approved dark driver mode with an explicit offline entry point', () => {
+    assert.match(driverSource, /driver-app driver-app--night/);
+    assert.match(driverSource, /driver-offline-hero/);
+    assert.match(driverSource, /Вы не в сети/);
+    assert.match(driverSource, /Включите статус, чтобы получать заказы/);
+    assert.match(driverSource, /'В сеть'/);
+    assert.doesNotMatch(driverSource, /На линии/);
+    assert.match(driverSource, /driver-orders-tabs/);
+    assert.match(driverSource, /Новые/);
+    assert.match(driverSource, /В работе/);
+    assert.match(driverCss, /\.driver-app--night/);
+    assert.match(driverCss, /--driver-night:\s*#050d1b/);
+    assert.match(driverCss, /\.driver-online-cta/);
   });
 
   it('uses a readable left-to-right gradient sweep only on the urgent offer', () => {
