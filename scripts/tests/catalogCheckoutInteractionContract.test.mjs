@@ -55,7 +55,7 @@ test('product photos use a finite carousel and settle on a real image index', ()
 test('mobile gestures lock single photos and enable only horizontal gallery swipes', () => {
   assert.match(
     indexSource,
-    /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no"/
+    /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/
   );
   assert.match(
     appSource,

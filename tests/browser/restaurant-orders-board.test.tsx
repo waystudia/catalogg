@@ -87,3 +87,41 @@ test('orders are arranged in a horizontal grey Trello board', async () => {
   await screen.getByRole('button', { name: /Заказ №1023/u }).click();
   expect(onSelect).toHaveBeenCalledWith('1023');
 });
+
+test('mobile order board centers one compact column and keeps both neighbours visible', async () => {
+  try {
+    await page.viewport(321, 618);
+    const screen = await render(
+      <RestaurantOrdersBoard
+        orders={[
+          order('1024', 'new'),
+          order('1023', 'preparing'),
+          order('1022', 'ready')
+        ]}
+        selectedOrderId="1023"
+        recentOrderIds={new Set()}
+        onSelectOrder={() => undefined}
+      />
+    );
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const board = screen.getByRole('region', { name: 'Доска заказов' }).element();
+    const columns = [
+      screen.getByRole('region', { name: 'Колонка Новые' }).element(),
+      screen.getByRole('region', { name: 'Колонка Готовятся' }).element(),
+      screen.getByRole('region', { name: 'Колонка Готовы' }).element()
+    ];
+    columns[1].scrollIntoView({ inline: 'center', block: 'nearest' });
+    await new Promise((resolve) => window.setTimeout(resolve, 180));
+
+    const boardBounds = board.getBoundingClientRect();
+    const bounds = columns.map((column) => column.getBoundingClientRect());
+    expect(bounds[1].width).toBeGreaterThanOrEqual(196);
+    expect(bounds[1].width).toBeLessThanOrEqual(224);
+    expect(bounds[0].right).toBeGreaterThan(boardBounds.left);
+    expect(bounds[2].left).toBeLessThan(boardBounds.right);
+    expect(getComputedStyle(board).scrollSnapType).toContain('x');
+  } finally {
+    await page.viewport(414, 896);
+  }
+});

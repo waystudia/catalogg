@@ -162,3 +162,66 @@
   background: #fef3f2;
   color: #b42318;
 }
+
+@media (max-width: 767px) {
+  .ra-order-board {
+    --ra-order-column-width: clamp(196px, 64vw, 224px);
+    grid-auto-columns: var(--ra-order-column-width);
+    gap: 8px;
+    padding: 8px max(8px, calc((100% - var(--ra-order-column-width)) / 2));
+    scroll-padding-inline: max(8px, calc((100% - var(--ra-order-column-width)) / 2));
+    scroll-snap-type: x mandatory;
+  }
+
+  .ra-order-board__column {
+    min-height: 238px;
+    gap: 6px;
+    padding: 7px;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+  }
+
+  .ra-order-board__column h3 {
+    font-size: 12px;
+  }
+
+  .ra-order-board__column > header span {
+    min-width: 22px;
+    height: 22px;
+    font-size: 10px;
+  }
+
+  .ra-order-board__cards {
+    gap: 6px;
+  }
+
+  .ra-order-board-card {
+    gap: 3px;
+    padding: 8px;
+  }
+
+  .ra-order-board-card__head,
+  .ra-order-board-card__foot {
+    gap: 5px;
+  }
+
+  .ra-order-board-card__head strong {
+    font-size: 12px;
+  }
+
+  .ra-order-board-card__head time,
+  .ra-order-board-card__meta,
+  .ra-order-board-card__address {
+    font-size: 10px;
+  }
+
+  .ra-order-board-card__foot strong {
+    font-size: 12px;
+  }
+
+  .ra-order-board-card__foot em {
+    max-width: 112px;
+    padding: 3px 5px;
+    font-size: 8px;
+  }
+}

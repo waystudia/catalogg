@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-react';
 import { Minus, Plus } from 'lucide-react';
 import '../../src/app/styles.css';
 
-test('food menu shows two 16:9 photo cards per row with a visible add action on mobile', async () => {
+test('food menu shows two 5:4 photo cards per row with a visible add action on mobile', async () => {
   try {
     const screen = await render(
       <div className="app-shell app-shell--food" style={{ '--accent': '#ffb533' } as CSSProperties}>
@@ -55,7 +55,7 @@ test('food menu shows two 16:9 photo cards per row with a visible add action on 
     expect(secondTile.top).toBeCloseTo(tile.top, 0);
     expect(secondTile.right).toBeLessThanOrEqual(grid.right);
     const body = document.querySelector<HTMLElement>('.product-tile__body')!.getBoundingClientRect();
-    expect(Math.abs(photo.width / photo.height - 16 / 9)).toBeLessThan(0.08);
+    expect(Math.abs(photo.width / photo.height - 5 / 4)).toBeLessThan(0.08);
     expect(Math.abs(photo.width - tile.width)).toBeLessThanOrEqual(2);
     expect(body.top).toBeGreaterThanOrEqual(photo.bottom - 1);
     expect(body.bottom).toBeLessThanOrEqual(tile.bottom + 1);

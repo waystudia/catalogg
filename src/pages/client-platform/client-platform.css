@@ -212,7 +212,7 @@
 .marketplace-feed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
 .marketplace-product-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 8%); }
 .marketplace-product-card__link, .marketplace-product-card__body { display: grid; min-width: 0; }
-.marketplace-product-card__media { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; background: #f4f5f8; }
+.marketplace-product-card__media { position: relative; display: block; aspect-ratio: 5 / 4; overflow: hidden; background: #f4f5f8; }
 .marketplace-product-card__media > img, .marketplace-product-card__media > .image-fallback { width: 100%; height: 100%; object-fit: cover; }
 .marketplace-product-card__body { gap: 3px; padding: 7px 8px 8px; }
 .marketplace-product-card__body > strong, .marketplace-product-card__body > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1086,7 +1086,7 @@
   gap: 2px;
   border-top: 1px solid #edf0f5;
   background: rgba(255, 255, 255, 0.96);
-  padding: 6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+  padding: 8px max(8px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
 }
 
@@ -1099,6 +1099,15 @@
   color: #667085;
   font-size: 11px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.bottom-nav a > span:last-child {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding-inline: 2px;
+  text-overflow: clip;
 }
 
 .bottom-nav a.is-active {
@@ -1109,6 +1118,7 @@
   position: relative;
   display: grid;
   place-items: center;
+  margin: 2px;
 }
 
 .bottom-nav__icon b {

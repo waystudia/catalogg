@@ -441,7 +441,8 @@
 
   .product-photo-carousel--hero,
   .product-hero {
-    height: 156px;
+    height: auto;
+    aspect-ratio: 5 / 4;
   }
 
   .product-heading h2 {
@@ -1812,8 +1813,13 @@
   font-size: 11px;
   font-weight: 900;
   line-height: 1.05;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   text-align: center;
+  white-space: nowrap;
+}
+
+.restaurant-admin-nav button svg {
+  margin: 2px;
 }
 
 .restaurant-admin-nav button.is-active {
@@ -1930,9 +1936,15 @@
 
   .restaurant-admin-nav {
     right: 16px;
-    bottom: calc(14px + env(safe-area-inset-bottom));
+    bottom: calc(18px + env(safe-area-inset-bottom));
     left: 16px;
     display: grid;
+  }
+
+  .restaurant-admin-nav button {
+    padding-inline: 2px;
+    font-size: clamp(9px, 2.85vw, 11px);
+    letter-spacing: -0.18px;
   }
 }
 
@@ -4590,7 +4602,8 @@ a {
 }
 
 .product-photo-carousel--hero {
-  height: 430px;
+  height: auto;
+  aspect-ratio: 5 / 4;
   border-radius: var(--radius);
   cursor: zoom-in;
 }
@@ -4887,7 +4900,7 @@ a {
   .app-shell--food .product-tile__image {
     width: 100%;
     height: auto;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 5 / 4;
   }
 
   .app-shell--food .product-tile__body {
@@ -5174,7 +5187,8 @@ a {
 
 .product-hero {
   width: 100%;
-  height: 430px;
+  height: auto;
+  aspect-ratio: 5 / 4;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   object-fit: cover;
@@ -9893,7 +9907,8 @@ a {
 
   .product-photo-carousel--hero,
   .product-hero {
-    height: 176px;
+    height: auto;
+    aspect-ratio: 5 / 4;
   }
 
   .product-screen { gap: 10px; }
