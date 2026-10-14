@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WayYaam — storyboard заказов</title>
+    <style>
+      :root {
+        --v: #5b3df4;
+        --vs: #f0edff;
+        --ink: #111827;
+        --muted: #667085;
+        --line: #e2e8f0;
+        --green: #0f8b61;
+        --gs: #e7f7f1;
+        --amber: #9a5b00;
+        --as: #fff4d8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f7f7fb;
+        color: var(--ink);
+        font:
+          15px/1.5 Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      .wrap {
+        max-width: 1320px;
+        margin: auto;
+        padding: 34px 24px 70px;
+      }
+      .back {
+        color: var(--v);
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .pill {
+        display: inline-flex;
+        margin-top: 28px;
+        border-radius: 99px;
+        padding: 7px 11px;
+        background: var(--vs);
+        color: var(--v);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      h1 {
+        max-width: 850px;
+        margin: 12px 0 8px;
+        font-size: clamp(34px, 5vw, 64px);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+      .lead {
+        max-width: 780px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+      .flow {
+        margin: 28px 0;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: #fff;
+        padding: 20px;
+        overflow: auto;
+        box-shadow: 0 12px 40px #1f19430f;
+      }
+      pre {
+        margin: 0;
+        color: #403482;
+        font:
+          700 14px/1.7 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 38px 0 16px;
+      }
+      .section-title h2 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .badge {
+        border-radius: 99px;
+        padding: 6px 10px;
+        background: var(--gs);
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 900;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .mock {
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        background: #fff;
+        padding: 14px;
+        box-shadow: 0 14px 44px #1f194312;
+      }
+      .mock-head {
+        padding: 4px 5px 13px;
+      }
+      .mock-head small {
+        color: var(--v);
+        font-weight: 900;
+      }
+      .mock h3 {
+        margin: 5px 0 4px;
+        font-size: 21px;
+      }
+      .mock p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .frame {
+        height: 790px;
+        overflow: hidden;
+        border: 1px solid #d9ddea;
+        border-radius: 24px;
+        background: #fff;
+      }
+      .frame iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+      .open {
+        display: block;
+        margin: 11px 4px 4px;
+        color: var(--v);
+        font-weight: 850;
+        text-decoration: none;
+      }
+      .audit {
+        margin-top: 12px;
+        border-radius: 18px;
+        background: #f8f8fc;
+        padding: 13px;
+      }
+      .audit strong {
+        display: block;
+        margin-bottom: 5px;
+      }
+      .audit ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .variants {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .choice {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #fff;
+        padding: 18px;
+      }
+      .choice.recommended {
+        border: 2px solid var(--v);
+        background: linear-gradient(145deg, #fff, #f7f5ff);
+      }
+      .choice span {
+        font-size: 11px;
+        color: var(--v);
+        font-weight: 900;
+      }
+      .choice h3 {
+        margin: 7px 0;
+      }
+      .choice p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .unclear {
+        margin-top: 30px;
+        border: 1px solid #f1d188;
+        border-radius: 22px;
+        background: var(--as);
+        padding: 20px;
+      }
+      .unclear h2 {
+        margin-top: 0;
+        color: var(--amber);
+      }
+      .unclear li {
+        margin: 6px 0;
+      }
+      .sequence {
+        margin-top: 28px;
+        border-radius: 24px;
+        background: #1f2030;
+        color: #fff;
+        padding: 24px;
+      }
+      .sequence h2 {
+        margin-top: 0;
+      }
+      .sequence li {
+        margin: 8px 0;
+        color: #d8d9e6;
+      }
+      @media (max-width: 980px) {
+        .grid,
+        .variants {
+          grid-template-columns: 1fr;
+        }
+        .frame {
+          height: 760px;
+        }
+      }
+      @media (max-width: 480px) {
+        .wrap {
+          padding: 22px 10px 50px;
+        }
+        h1 {
+          font-size: 38px;
+        }
+        .flow {
+          padding: 14px;
+        }
+        .mock {
+          padding: 8px;
+        }
+        .frame {
+          height: 720px;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="prototype.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <a class="back" href="README.md">← Описание макетов</a><br /><span
+        class="pill"
+        >Client orders · design only</span
+      >
+      <h1>Заказ всегда перед глазами</h1>
+      <p class="lead">
+        Цельный дизайн-сценарий: после оформления клиент видит спокойное
+        подтверждение, затем живой статус появляется на главной, а в «Моих
+        заказах» активные заказы складываются в компактный веер.
+      </p>
+      <p>
+        <a class="open" href="03-order-live.html"
+          >Отправить демонстрационный заказ →</a
+        >
+      </p>
+      <section class="flow">
+        <pre>
+[Корзина] → [Отправить заказ] → [Анимированное подтверждение]
+                                      ↓
+[Главная с живым статусом] ← [На главную] → [Мои заказы: веер]
+             └────────────────────────────→ [Подробнее: тот же экран заказа]</pre>
+      </section>
+      <div class="section-title">
+        <h2>Все экраны сценария</h2>
+        <span class="badge">3 live-макета</span>
+      </div>
+      <section class="grid">
+        <article class="mock">
+          <div class="mock-head">
+            <small>01 · HOME</small>
+            <h3>Заказ под баннерами</h3>
+            <p>
+              Компактный статус перед каталогом — видно этап, время, состав и
+              сумму.
+            </p>
+          </div>
+          <div class="frame">
+            <iframe
+              src="01-home-active-order.html"
+              title="Заказ на главной"
+            ></iframe>
+          </div>
+          <a class="open" href="01-home-active-order.html" target="_blank"
+            >Открыть отдельно ↗</a
+          >
+          <div class="audit">
+            <strong>Проверяем</strong>
+            <ul>
+              <li>не толкает товары слишком далеко вниз;</li>
+              <li>показывается только при активном заказе;</li>
+              <li>вся карточка ведёт в детали.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="mock">
+          <div class="mock-head">
+            <small>02 · ORDERS</small>
+            <h3>Веер активных заказов</h3>
+            <p>
+              Первый заказ открыт, остальные видны краями; веер разворачивается
+              в список.
+            </p>
+          </div>
+          <div class="frame">
+            <iframe src="02-orders-fan.html" title="Веер заказов"></iframe>
+          </div>
+          <a class="open" href="02-orders-fan.html" target="_blank"
+            >Открыть отдельно ↗</a
+          >
+          <div class="audit">
+            <strong>Проверяем</strong>
+            <ul>
+              <li>статус читается без открытия;</li>
+              <li>тап-зоны не конфликтуют с раскрытием;</li>
+              <li>завершённые отделены вкладкой.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="mock">
+          <div class="mock-head">
+            <small>03 · LIVE ORDER</small>
+            <h3>Заказ оформлен</h3>
+            <p>
+              Плавное подтверждение переходит в живую шкалу статуса и остаётся
+              экраном деталей.
+            </p>
+          </div>
+          <div class="frame">
+            <iframe
+              src="03-order-live.html"
+              title="Живой экран заказа"
+            ></iframe>
+          </div>
+          <a class="open" href="03-order-live.html" target="_blank"
+            >Открыть отдельно ↗</a
+          >
+          <div class="audit">
+            <strong>Проверяем</strong>
+            <ul>
+              <li>анимация не задерживает результат;</li>
+              <li>reduced-motion показывает финал сразу;</li>
+              <li>демо-состояния переключаются без перезагрузки.</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+      <div class="section-title">
+        <h2>Варианты «Моих заказов»</h2>
+        <span class="badge">выбрать направление</span>
+      </div>
+      <section class="variants">
+        <article class="choice recommended">
+          <span>РЕКОМЕНДУЮ · A</span>
+          <h3>Веер + мини-экран</h3>
+          <p>
+            Активный заказ раскрыт, остальные выглядывают снизу. Максимум
+            ясности при минимуме высоты.
+          </p>
+        </article>
+        <article class="choice">
+          <span>ВАРИАНТ B</span>
+          <h3>Горизонтальная колода</h3>
+          <p>
+            Заказы листаются вбок как карточки кошелька. Эффектно, но следующий
+            заказ менее заметен.
+          </p>
+        </article>
+        <article class="choice">
+          <span>ВАРИАНТ C</span>
+          <h3>Лента этапов</h3>
+          <p>
+            Обычный вертикальный список, где главный акцент — крупный этап и
+            ETA. Самый спокойный вариант.
+          </p>
+        </article>
+      </section>
+      <section class="unclear">
+        <h2>Решения перед внедрением</h2>
+        <ul>
+          <li>
+            Если активных заказов больше трёх: показывать «ещё N» или сразу
+            раскрывать список?
+          </li>
+          <li>
+            Нужна ли мини-карта курьера прямо в карточке после выхода в
+            доставку?
+          </li>
+          <li>
+            Для самовывоза основной CTA — «Построить маршрут» или «Позвонить
+            ресторану»?
+          </li>
+          <li>
+            После отмены оставлять заказ в веере на несколько секунд или сразу
+            переносить в завершённые?
+          </li>
+        </ul>
+      </section>
+      <section class="sequence">
+        <h2>После вашего выбора</h2>
+        <ol>
+          <li>Фиксируем вариант A, B или C и ответы по спорным состояниям.</li>
+          <li>
+            Дорисовываем состояния: ресторан отклонил, задержка, курьер в пути,
+            готов к выдаче.
+          </li>
+          <li>
+            Только после утверждения переносим дизайн в React-компоненты и
+            тесты.
+          </li>
+        </ol>
+      </section>
+    </main>
+    <script src="prototype.js"></script>
+  </body>
+</html>

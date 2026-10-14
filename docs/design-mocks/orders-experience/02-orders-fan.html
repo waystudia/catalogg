@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WayYaam — Мои заказы</title>
+    <style>
+      :root {
+        --v: #5b3df4;
+        --vs: #f0edff;
+        --ink: #111827;
+        --muted: #667085;
+        --line: #e2e8f0;
+        --green: #0f8b61;
+        --gs: #e7f7f1;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #fff;
+        font:
+          15px/1.35 Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      .phone {
+        width: min(100%, 390px);
+        min-height: 760px;
+        margin: auto;
+        padding: 18px 16px 100px;
+      }
+      .top {
+        display: grid;
+        grid-template-columns: 48px 1fr 48px;
+        align-items: center;
+      }
+      .top button {
+        width: 46px;
+        height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+        font-size: 24px;
+      }
+      .top h1 {
+        text-align: center;
+        font-size: 22px;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin: 18px 0;
+      }
+      .tabs button {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 16px;
+        background: #fff;
+        color: var(--muted);
+        font-weight: 850;
+      }
+      .tabs button.active {
+        border-color: var(--v);
+        background: var(--v);
+        color: #fff;
+      }
+      .label {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        margin: 20px 2px 14px;
+      }
+      .label h2 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .label span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .fan {
+        position: relative;
+        height: 380px;
+      }
+      .order {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        border: 1px solid #dcd5ff;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 18px 40px #1f194321;
+        transition: 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        cursor: pointer;
+      }
+      .order:nth-child(1) {
+        top: 0;
+        z-index: 3;
+      }
+      .order:nth-child(2) {
+        top: 248px;
+        transform: scale(0.96);
+        z-index: 2;
+        opacity: 0.96;
+      }
+      .order:nth-child(3) {
+        top: 302px;
+        transform: scale(0.91);
+        z-index: 1;
+        opacity: 0.75;
+      }
+      .fan.is-open .order {
+        position: relative;
+        top: auto !important;
+        transform: none !important;
+        margin-bottom: 12px;
+        opacity: 1;
+      }
+      .fan.is-open {
+        height: auto;
+      }
+      .order-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: 16px 18px 11px;
+      }
+      .order-head strong {
+        font-size: 19px;
+      }
+      .order-head small {
+        display: block;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .badge {
+        background: var(--gs);
+        color: var(--green);
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .mini-screen {
+        margin: 0 12px 12px;
+        border-radius: 18px;
+        background: linear-gradient(145deg, #f8f7ff, #eeebff);
+        padding: 14px;
+      }
+      .stage {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .stage strong {
+        font-size: 16px;
+      }
+      .stage span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .line {
+        height: 6px;
+        margin: 10px 0 12px;
+        border-radius: 99px;
+        background: linear-gradient(90deg, var(--v) 0 52%, #dcd8f5 52%);
+      }
+      .route {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .route b {
+        color: var(--ink);
+      }
+      .food {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .food i {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--v);
+        font-style: normal;
+        font-weight: 950;
+      }
+      .food div {
+        min-width: 0;
+      }
+      .food strong,
+      .food small {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .food small {
+        color: var(--muted);
+      }
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 52px;
+        gap: 8px;
+        padding: 0 12px 12px;
+      }
+      .details {
+        min-height: 48px;
+        border: 0;
+        border-radius: 15px;
+        background: var(--v);
+        color: #fff;
+        font-weight: 900;
+      }
+      .more {
+        border: 1px solid #dcd5ff;
+        border-radius: 15px;
+        background: var(--vs);
+        color: var(--v);
+        font-size: 22px;
+      }
+      .switch {
+        width: 100%;
+        min-height: 48px;
+        border: 0;
+        border-radius: 16px;
+        background: #f4f3f7;
+        color: var(--ink);
+        font-weight: 850;
+      }
+      .note {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: #faf9ff;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        transform: translateX(-50%);
+        width: min(100%, 390px);
+        height: 78px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        border-top: 1px solid var(--line);
+        background: #fffffff5;
+        padding: 11px 8px;
+      }
+      .nav span {
+        text-align: center;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .nav span:nth-child(4) {
+        color: var(--v);
+      }
+    </style>
+    <link rel="stylesheet" href="prototype.css" />
+  </head>
+  <body>
+    <main class="phone">
+      <header class="top">
+        <button aria-label="Назад">←</button>
+        <h1>Мои заказы</h1>
+        <button aria-label="Обновить">↻</button>
+      </header>
+      <div class="tabs">
+        <button class="active">Текущие · 3</button><button>Завершённые</button>
+      </div>
+      <div class="label">
+        <h2>Текущие</h2>
+        <span>обновляются автоматически</span>
+      </div>
+      <section class="fan" id="fan">
+        <article class="order" onclick="toggleFan()">
+          <div class="order-head">
+            <div><strong>Мангал</strong><small>№5712 · 150 ₽</small></div>
+            <span class="badge">Принят</span>
+          </div>
+          <div class="mini-screen">
+            <div class="stage">
+              <strong>Готовят заказ</strong><span>≈ 20–25 мин</span>
+            </div>
+            <div class="line"></div>
+            <div class="route">
+              <span>На вынос · Самовывоз</span><b>2 из 4</b>
+            </div>
+            <div class="food">
+              <i>А</i>
+              <div>
+                <strong>Айран · 1 шт.</strong><small>ул. Центральная, 12</small>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="details">Подробнее о заказе</button
+            ><button class="more" aria-label="Ещё действия">•••</button>
+          </div>
+        </article>
+        <article class="order" onclick="toggleFan()">
+          <div class="order-head">
+            <div><strong>Финик</strong><small>№5709 · 620 ₽</small></div>
+            <span class="badge">Собирают</span>
+          </div>
+          <div class="mini-screen">
+            <div class="stage">
+              <strong>Заказ в работе</strong><span>≈ 35 мин</span>
+            </div>
+            <div class="line"></div>
+            <div class="route"><span>Доставка курьером</span><b>2 из 5</b></div>
+          </div>
+        </article>
+        <article class="order" onclick="toggleFan()">
+          <div class="order-head">
+            <div><strong>Суши Парк</strong><small>№5701 · 890 ₽</small></div>
+            <span class="badge">В пути</span>
+          </div>
+        </article>
+      </section>
+      <button class="switch" onclick="toggleFan()" id="switch">
+        Развернуть веер
+      </button>
+      <p class="note">
+        Вариант A — рекомендуемый: верхний заказ раскрыт, остальные видны
+        краями. Нажмите на веер, чтобы развернуть весь список.
+      </p>
+    </main>
+    <nav class="nav">
+      <span>Главная</span><span>Категории</span><span>Корзина</span
+      ><span>Заказы</span><span>Профиль</span>
+    </nav>
+    <script>
+      function toggleFan() {
+        const fan = document.getElementById("fan");
+        fan.classList.toggle("is-open");
+        document.getElementById("switch").textContent = fan.classList.contains(
+          "is-open",
+        )
+          ? "Собрать в веер"
+          : "Развернуть веер";
+      }
+    </script>
+    <script src="prototype.js"></script>
+  </body>
+</html>
