@@ -20,5 +20,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests", "docs/design-mocks/orders-experience/project-preview.tsx"]
 }
