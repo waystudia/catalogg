@@ -11790,3 +11790,11 @@ a {
   font-size: 12px;
   line-height: 1.35;
 }
+
+.order-confirmation-animate { animation: order-confirmation-enter 350ms ease both; }
+@keyframes order-confirmation-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .order-confirmation-animate { animation: none; } }
+.public-order-status__progress { display: flex; gap: 6px; margin: 16px 0; }
+.public-order-status__progress span { display: grid; flex: 1; min-width: 0; gap: 5px; color: #667085; font-size: 10px; }
+.public-order-status__progress i { height: 5px; border-radius: 5px; background: #e4e7ec; }
+.public-order-status__progress .is-active i { background: #5b3df4; }

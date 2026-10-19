@@ -113,7 +113,7 @@ export function CheckoutScreen({
   deliverySettings: RestaurantDeliverySettings;
   paymentSettings: RestaurantPaymentSettings;
   onEditCart: () => void;
-  onSubmitOrder: () => void;
+  onSubmitOrder: (orderId: string) => void;
 }) {
   const {
     mode,
@@ -1226,7 +1226,7 @@ export function CheckoutScreen({
                   recordOrderConsent();
                   clearCart();
                   clearClientPlatformCart(catalogSlug);
-                  onSubmitOrder();
+                  onSubmitOrder(orderId);
                   toast.success('Заказ создан в системе ресторана');
                   openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
                   return;

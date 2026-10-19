@@ -159,7 +159,7 @@ test('successful checkout persists the profile and consent, then clears the cart
 
   const consentIndex = checkoutSource.indexOf('recordOrderConsent();');
   const clearIndex = checkoutSource.indexOf('clearCart();');
-  const submitIndex = checkoutSource.indexOf('onSubmitOrder();');
+  const submitIndex = checkoutSource.indexOf('onSubmitOrder(orderId);');
   const whatsappIndex = checkoutSource.indexOf('openCreatedOrderWhatsapp(buildWhatsappHref(orderId));');
 
   assert.ok(consentIndex > 0);

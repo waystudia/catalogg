@@ -634,6 +634,40 @@ function PageHeader({
   );
 }
 
+export function HomeActiveOrders() {
+  const orders = useClientPlatformStore((state) => state.orders);
+  const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
+  const activeOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
+  const orderIds = activeOrders.map((order) => order.id).sort().join('|');
+
+  useEffect(() => {
+    if (!orderIds) return undefined;
+    const unsubscribes = orderIds.split('|').map((id) => subscribeClientOrderRealtime(id, (patch) => {
+      syncOrderPatch(id, mergeClientOrderRealtimePatch({
+        status: resolveClientOrderRealtimeStatus(patch.status, patch.deliveryStatus),
+        paymentStatus: patch.paymentStatus,
+        driverName: patch.driverName,
+        driverPhone: patch.driverPhone,
+        driverLat: patch.driverLat,
+        driverLng: patch.driverLng,
+        driverLocationAt: patch.driverLocationAt,
+        driverHandedToClientAt: patch.driverHandedToClientAt,
+        clientReceivedAt: patch.clientReceivedAt
+      }));
+    }));
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [orderIds, syncOrderPatch]);
+
+  if (!activeOrders.length) return null;
+  return <section className="home-active-orders" aria-label="Активные заказы">
+    <div className="home-active-orders__heading"><strong>Ваши заказы</strong><Link to="/profile/orders">Все заказы</Link></div>
+    {activeOrders.map((order) => <Link className="home-active-order" key={order.id} to={`/${order.restaurantSlug}/order/${order.id}`}>
+      <span><strong>{order.restaurantName}</strong><small>{statusLabels[order.status]}</small></span>
+      <span>{formatPrice(order.totalAmount)} <ChevronRight /></span>
+    </Link>)}
+  </section>;
+}
+
 function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientPlatformSnapshot; isLoading: boolean; isError: boolean; onRetry: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -718,6 +752,7 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
+      <HomeActiveOrders />
 
       {businessTypes.length > 1 && (
         <div className="marketplace-filter-row" aria-label="Фильтр ленты">
@@ -2476,7 +2511,7 @@ function OrderStatusPage({
 
   return (
     <>
-      <RestaurantTopbar restaurant={restaurant} title="Заказ в доставке" />
+      <RestaurantTopbar restaurant={restaurant} title="Заказ" />
       <main className="restaurant-flow">
         <section className="order-status-head">
           <span className="restaurant-logo">{restaurant.name.slice(0, 1)}</span>
@@ -2493,8 +2528,13 @@ function OrderStatusPage({
           {order.status === 'waiting_payment_confirmation' && <p>{terms.paymentConfirmation}</p>}
           <OrderProgress status={order.status} />
         </section>
+        <section className="order-detail-items" aria-label="Состав заказа">
+          <h2>Состав заказа</h2>
+          {order.items.map((item, index) => <div key={`${item.dishId}-${index}`}><span>{item.name} × {item.quantity}</span><strong>{formatPrice(item.price * item.quantity)}</strong></div>)}
+          <div className="order-detail-items__total"><strong>Итого</strong><strong>{formatPrice(order.totalAmount)}</strong></div>
+        </section>
         <section className="delivery-info">
-          <h2>Информация о доставке</h2>
+          <h2>Информация о заказе</h2>
           <span>
             <strong>Кто доставляет</strong>
             <small>{getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</small>
@@ -3056,14 +3096,17 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       : '';
 
     return (
-    <article className="order-card" key={order.id}>
-      <span className="order-card__summary">
+    <details className="order-card order-card--compact" key={order.id}>
+      <summary className="order-card__summary">
+        <span className="order-card__summary-text">
         <strong>{order.restaurantName}</strong>
         <small>{new Date(order.createdAt).toLocaleDateString('ru-RU')} · {formatPrice(order.totalAmount)}</small>
         <em>{statusLabels[order.status]}</em>
-        <small>{orderTypeLabels[order.orderType]} · {getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</small>
-        <small>{order.addressLine}</small>
-      </span>
+        </span><ChevronDown />
+      </summary>
+      <div className="order-card__expanded">
+      <p>{orderTypeLabels[order.orderType]} · {getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</p>
+      {order.addressLine && <p>{order.addressLine}</p>}
       <div className="order-card__actions">
         <Link to={`/${order.restaurantSlug}/order/${order.id}`}>
           <ReceiptText />
@@ -3135,7 +3178,8 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           </button>
         </form>
       )}
-    </article>
+      </div>
+    </details>
     );
   };
 

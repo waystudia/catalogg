@@ -3310,3 +3310,27 @@
     border-radius: 24px 24px 0 0;
   }
 }
+
+.home-active-orders { display: grid; gap: 8px; margin: 16px 0; }
+.home-active-orders__heading, .home-active-order { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-active-orders__heading a { color: #5b3df4; font-weight: 700; }
+.home-active-order { padding: 13px; border: 1px solid #e4e7ec; border-radius: 14px; color: inherit; background: #fff; }
+.home-active-order > span:first-child { display: grid; min-width: 0; gap: 4px; }
+.home-active-order small { color: #16804a; }
+.home-active-order > span:last-child { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.home-active-order svg { width: 18px; height: 18px; color: #5b3df4; }
+.order-card--compact { display: block; }
+.order-card--compact summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
+.order-card--compact summary::-webkit-details-marker { display: none; }
+.order-card__summary-text { display: grid; gap: 5px; min-width: 0; }
+.order-card--compact summary > svg { color: #5b3df4; transition: transform 220ms ease; }
+.order-card--compact[open] summary > svg { transform: rotate(180deg); }
+.order-card__expanded { display: grid; gap: 8px; padding-top: 12px; animation: order-detail-appear 220ms ease both; }
+.order-card__expanded p { margin: 0; color: #667085; }
+.order-card__expanded .order-card__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; }
+.order-detail-items { display: grid; gap: 12px; padding: 16px; border: 1px solid #e4e7ec; border-radius: 14px; background: #fff; animation: order-detail-appear 300ms ease both; }
+.order-detail-items h2 { margin: 0; font-size: 18px; }
+.order-detail-items > div { display: flex; justify-content: space-between; gap: 12px; }
+.order-detail-items__total { padding-top: 12px; border-top: 1px solid #e4e7ec; }
+@keyframes order-detail-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .order-card__expanded, .order-detail-items { animation: none; } .order-card--compact summary > svg { transition: none; } }

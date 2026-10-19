@@ -27,10 +27,17 @@ export function PublicOrderStatusScreen({
   const order = statusQuery.data;
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <>
-      <section className="checkout-summary public-order-status">
+      <section className="checkout-summary public-order-status order-confirmation-animate">
         <div>
           <span>Заказ №{value.id.slice(0, 8).toUpperCase()}</span>
+          <p>Заказ отправлен в ресторан</p>
           <h2>{publicOrderStatusLabels[value.status] ?? value.status}</h2>
+          {!['canceled', 'cancelled'].includes(value.status) && <div className="public-order-status__progress" aria-label="Этапы заказа">
+            {['Отправлен', 'Готовится', 'Готов', 'Завершён'].map((label, index) => {
+              const current = ['completed', 'delivered'].includes(value.status) ? 3 : ['ready', 'waiting_driver', 'driver_assigned', 'assigned_driver', 'picked_up', 'on_the_way'].includes(value.status) ? 2 : ['accepted', 'confirmed', 'preparing', 'cooking'].includes(value.status) ? 1 : 0;
+              return <span className={index <= current ? 'is-active' : ''} key={label}><i /><small>{label}</small></span>;
+            })}
+          </div>}
           <p>
             {value.fulfillmentType === 'delivery'
               ? value.deliveryAddress || 'Адрес доставки не указан'

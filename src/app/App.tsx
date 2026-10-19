@@ -2994,10 +2994,11 @@ function AppContent({
               deliverySettings={deliverySettings ?? defaultRestaurantDeliverySettings}
               paymentSettings={paymentSettings}
               onEditCart={() => setIsCartOpen(true)}
-              onSubmitOrder={() => {
+              onSubmitOrder={(orderId) => {
                 setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
                 setScreen('home');
+                navigate(`/${catalogSlug}/order/${orderId}`, { replace: true });
               }}
             />
           )}
