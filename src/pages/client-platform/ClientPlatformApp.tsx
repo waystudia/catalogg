@@ -3019,8 +3019,8 @@ export function ProfilePage() {
                     onChange={(event) => setClientPassword(event.target.value)}
                     type="password"
                     autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
-                    minLength={6}
-                    maxLength={72}
+                    minLength={clientAuthMode === 'register' ? 6 : undefined}
+                    maxLength={clientAuthMode === 'register' ? 72 : undefined}
                     required
                   />
                 </label>
