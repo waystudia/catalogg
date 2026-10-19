@@ -99,6 +99,7 @@ export function RestaurantAdminWorkspace({
   const [financeRangeEnd, setFinanceRangeEnd] = useState('');
   const [settingsView, setSettingsView] = useState<'home' | 'delivery'>('home');
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
+  const currentSelectedOrder = orders.find((order) => order.id === selectedOrder?.id) ?? selectedOrder;
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -180,14 +181,6 @@ export function RestaurantAdminWorkspace({
     setSelectedOrder(null);
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: orderListScrollPositionRef.current, left: 0, behavior: 'auto' });
-    });
-  };
-  const moveOrderToBoardColumn = (order: RestaurantOrder, status: RestaurantOrderStatus) => {
-    setSelectedOrder(null);
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-order-board-column="${getRestaurantOrderBoardColumnId(status)}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     });
   };
   const deleteOrder = async (order: RestaurantOrder) => {
@@ -464,19 +457,19 @@ export function RestaurantAdminWorkspace({
         {tab === 'orders' && (
           <section className="restaurant-admin__content">
             <div className="admin-orders-layout">
-              {selectedOrder && (
+              {currentSelectedOrder && (
                 <OrderDetailsPanel
-                  order={selectedOrder}
+                  order={currentSelectedOrder}
                   catalogSlug={catalogSlug}
                   businessType={restaurant.business_type}
                   paymentSettings={paymentSettings}
                   onClose={closeOrderDetails}
                   onStatus={async (status, reason) => {
-                    await onOrderStatus(selectedOrder, status, reason);
-                    moveOrderToBoardColumn(selectedOrder, status);
+                    await onOrderStatus(currentSelectedOrder, status, reason);
+                    setSelectedOrder((current) => current?.id === currentSelectedOrder.id ? { ...current, status } : current);
                   }}
                   onRefreshOrders={onRefreshOrders}
-                  onDelete={() => deleteOrder(selectedOrder)}
+                  onDelete={() => deleteOrder(currentSelectedOrder)}
                 />
               )}
               <section className="admin-order-board" aria-label="Воронка заказов">

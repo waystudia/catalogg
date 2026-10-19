@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useRef } from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   MapPin,
@@ -16,8 +16,6 @@ import {
   Phone,
   Clock,
   Heart,
-  Repeat2,
-  Star,
   PackageCheck,
 } from "lucide-react";
 import "../../../src/app/styles.css";
@@ -151,47 +149,6 @@ function App() {
   const [stage, setStage] = useState<Stage>(
     initial === "detail" ? "waiting" : "cooking",
   );
-  const [variant, setVariant] = useState("fan");
-  const [expanded, setExpanded] = useState(false);
-  const stackRef = useRef<HTMLDivElement>(null);
-  const previousLayout = useRef<
-    { top: number; left: number; width: number }[] | null
-  >(null);
-  function toggleExpanded() {
-    previousLayout.current = Array.from(stackRef.current?.children ?? []).map(
-      (el) => {
-        const rect = el.getBoundingClientRect();
-        return { top: rect.top, left: rect.left, width: rect.width };
-      },
-    );
-    setExpanded((value) => !value);
-  }
-  useLayoutEffect(() => {
-    const previous = previousLayout.current;
-    previousLayout.current = null;
-    if (
-      !previous ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-    const animations = Array.from(stackRef.current?.children ?? []).map(
-      (el, i) => {
-        const next = el.getBoundingClientRect();
-        const before = previous[i];
-        return el.animate(
-          [
-            {
-              transform: `translate(${before.left - next.left}px, ${before.top - next.top}px) scaleX(${before.width / next.width})`,
-              transformOrigin: "top left",
-            },
-            { transform: "none", transformOrigin: "top left" },
-          ],
-          { duration: 600, easing: "cubic-bezier(.22,1,.36,1)" },
-        );
-      },
-    );
-    return () => animations.forEach((animation) => animation.cancel());
-  }, [expanded]);
   const [empty, setEmpty] = useState(false);
   const [history, setHistory] = useState(false);
   const [notice, setNotice] = useState("");
@@ -218,20 +175,7 @@ function App() {
     <>
       <aside className="preview-toolbar">
         <span>Макет на стилях проекта</span>
-        {screen === "orders" ? (
-          <select
-            aria-label="Вариант карточек"
-            value={variant}
-            onChange={(e) => {
-              setVariant(e.target.value);
-              setExpanded(false);
-            }}
-          >
-            <option value="fan">A · Веер</option>
-            <option value="deck">B · Горизонтально</option>
-            <option value="list">C · Список</option>
-          </select>
-        ) : screen === "detail" ? (
+        {screen === "detail" ? (
           <select
             aria-label="Состояние заказа"
             value={stage}
@@ -243,11 +187,11 @@ function App() {
               </option>
             ))}
           </select>
-        ) : (
+        ) : screen === "home" ? (
           <button onClick={() => setEmpty(!empty)}>
             {empty ? "Показать заказ" : "Без активного заказа"}
           </button>
-        )}
+        ) : null}
       </aside>
       <div className="client-platform platform-theme">
         <main className="platform-page">
@@ -397,85 +341,25 @@ function App() {
                   ) : (
                     <section className="plain-section">
                       <h2>Текущие</h2>
-                      <div
-                        ref={stackRef}
-                        className={`order-preview-stack ${variant} ${expanded ? "expanded" : ""}`}
-                      >
+                      <div className="order-preview-stack">
                         {samples.map((item, i) => (
-                          <article
-                            className="order-card order-preview-card"
+                          <button
+                            className="order-card compact-order-card"
                             key={item.id}
+                            onClick={() => open(i)}
+                            aria-label={`Открыть заказ ${item.id}, ${item.name}`}
                           >
                             <span className="order-card__summary">
                               <strong>{item.name}</strong>
-                              <small>15.10.2026 · {item.sum} ₽</small>
+                              <small>
+                                №{item.id} · {item.sum} ₽
+                              </small>
                               <em>{states[item.state as Stage].text}</em>
                             </span>
-                            <button
-                              className="order-preview-expand"
-                              aria-label={`Открыть заказ ${item.id}`}
-                              onClick={() => open(i)}
-                            >
-                              <ArrowRight />
-                            </button>
-                            <button
-                              className="order-mini-screen"
-                              onClick={() => open(i)}
-                            >
-                              <span className="order-mini-screen__title">
-                                <Clock />
-                                <strong>
-                                  {states[item.state as Stage].title}
-                                </strong>
-                              </span>
-                              {progress(states[item.state as Stage].step)}
-                              <small>{states[item.state as Stage].hint}</small>
-                              <span className="order-mini-screen__product">
-                                <img src={item.image} alt="" />
-                                <span>{item.item}</span>
-                                <ReceiptText />
-                              </span>
-                            </button>
-                            <div className="order-card__actions">
-                              <button onClick={() => open(i)}>
-                                <ReceiptText />
-                                Подробнее о заказе
-                              </button>
-                              <button
-                                onClick={() =>
-                                  setNotice(
-                                    "Повтор заказа доступен после внедрения",
-                                  )
-                                }
-                              >
-                                <Repeat2 />
-                                Повторить
-                              </button>
-                              <button
-                                onClick={() =>
-                                  setNotice(
-                                    "Отзыв доступен после получения заказа",
-                                  )
-                                }
-                              >
-                                <Star />
-                                Отзыв
-                              </button>
-                            </div>
-                          </article>
+                            <ArrowRight aria-hidden="true" />
+                          </button>
                         ))}
                       </div>
-                      {variant === "fan" && (
-                        <button
-                          className="marketplace-load-more"
-                          onClick={toggleExpanded}
-                        >
-                          {expanded
-                            ? "Свернуть заказы"
-                            : "Показать все 3 заказа"}
-                          <ChevronDown />
-                        </button>
-                      )}
                     </section>
                   )}
                 </>

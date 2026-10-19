@@ -410,3 +410,23 @@ select:focus-visible {
     transition: none !important;
   }
 }
+.compact-order-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.compact-order-card:hover {
+  border-color: #cfc6ff;
+  background: #faf9ff;
+}
+.compact-order-card > svg {
+  color: #5b3df4;
+  width: 18px;
+  height: 18px;
+}
+.compact-order-card .order-card__summary {
+  gap: 4px;
+}
