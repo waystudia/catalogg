@@ -104,7 +104,8 @@ import {
   normalizeDeliveryCoordinates,
   type DeliveryCoordinates
 } from '../../shared/deliveryLocation';
-import { clearPwaResumePath } from '../../shared/pwaSession';
+import { clearPwaResumePath, rememberPwaResumePath } from '../../shared/pwaSession';
+import { resolveUnifiedLogin } from '../../shared/api/loginRedirectApi';
 import {
   installGuideDismissedUntilKey,
   resolveInstallGuideDevice,
@@ -2792,7 +2793,7 @@ function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   );
 }
 
-function ProfilePage() {
+export function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const profile = useClientPlatformStore((state) => state.profile);
@@ -2845,10 +2846,6 @@ function ProfilePage() {
 
   const submitAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (clientAuthMode === 'login') {
-      navigate(`/login?returnTo=${encodeURIComponent(clientReturnTo)}`);
-      return;
-    }
     const identifier = accountIdentifier.trim();
     const nextProfile = { name: clientName.trim(), phone: identifier };
 
@@ -2875,6 +2872,24 @@ function ProfilePage() {
     }
 
     try {
+      if (clientAuthMode === 'login') {
+        const redirect = await resolveUnifiedLogin(identifier, clientPassword);
+        if (!redirect) throw new Error('Неверный телефон, email или пароль.');
+        const target = redirect === '/admin' ? '/admin/clients' : redirect === '/profile' ? clientReturnTo : redirect;
+        if (redirect === '/profile') {
+          const session = await restoreClientAccountSession();
+          if (session) {
+            saveProfile({ name: session.name, phone: session.phone });
+            setClientSession(session);
+            setClientName(session.name);
+            setAccountIdentifier(session.phone);
+          }
+        }
+        setClientPassword('');
+        rememberPwaResumePath(target);
+        navigate(target, { replace: true });
+        return;
+      }
       const session = await registerClientAccount({
         ...nextProfile,
         password: clientPassword,
@@ -2984,16 +2999,16 @@ function ProfilePage() {
                 />
               </label>
             )}
-            {clientAuthMode === 'register' && (
+            {(
               <>
                 <label className="field-label">
-                  <span>Телефон</span>
+                  <span>{clientAuthMode === 'login' ? 'Телефон или почта' : 'Телефон'}</span>
                   <input
                     value={accountIdentifier}
                     onChange={(event) => setAccountIdentifier(event.target.value)}
-                    placeholder="+7"
-                    inputMode="tel"
-                    autoComplete="tel"
+                    placeholder={clientAuthMode === 'login' ? 'Телефон или email' : '+7'}
+                    inputMode={clientAuthMode === 'login' ? 'text' : 'tel'}
+                    autoComplete="username"
                     required
                   />
                 </label>
@@ -3003,7 +3018,7 @@ function ProfilePage() {
                     value={clientPassword}
                     onChange={(event) => setClientPassword(event.target.value)}
                     type="password"
-                    autoComplete="new-password"
+                    autoComplete={clientAuthMode === 'register' ? 'new-password' : 'current-password'}
                     minLength={6}
                     maxLength={72}
                     required
@@ -3030,20 +3045,10 @@ function ProfilePage() {
             )}
             {clientError && <small className="form-error">{clientError}</small>}
             {clientMessage && <small className="form-success">{clientMessage}</small>}
-            {clientAuthMode === 'login' && (
-              <>
-                <small className="form-muted">Все типы аккаунтов входят через одну защищённую панель.</small>
-                <Link className="wide-action" to={`/login?returnTo=${encodeURIComponent(clientReturnTo)}`}>
-                  <UserRoundCheck /> Открыть единый вход
-                </Link>
-              </>
-            )}
-            {clientAuthMode === 'register' && (
-              <button className="wide-action" type="submit" disabled={isSavingClient}>
-                <UserRoundCheck />
-                {isSavingClient ? 'Проверяем...' : 'Зарегистрироваться'}
-              </button>
-            )}
+            <button className="wide-action" type="submit" disabled={isSavingClient}>
+              <UserRoundCheck />
+              {isSavingClient ? 'Проверяем...' : clientAuthMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+            </button>
             {clientAuthMode === 'register' && (
               <small className="form-muted">
                 Регистрация создаёт аккаунт клиента. Аккаунты ресторанов и водителей выдаёт администратор.
