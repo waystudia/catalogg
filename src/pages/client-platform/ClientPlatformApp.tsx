@@ -2706,10 +2706,65 @@ function ProfileArea({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     );
   }
 
+  if (location.pathname === '/profile/partners') {
+    return (
+      <PlatformLayout active="profile">
+        <PartnerEntryPage />
+      </PlatformLayout>
+    );
+  }
+
+  if (location.pathname === '/profile/partners/business') {
+    return (
+      <PlatformLayout active="profile">
+        <PartnerBusinessTypePage />
+      </PlatformLayout>
+    );
+  }
+
   return (
     <PlatformLayout active="profile">
       <ProfilePage />
     </PlatformLayout>
+  );
+}
+
+function PartnerEntryPage() {
+  return (
+    <>
+      <PageHeader title="Для бизнеса и курьеров" backTo="/profile" />
+      <section className="profile-partner-intro">
+        <h2>Работайте с WayYaam</h2>
+        <p>Выберите, как вы хотите пользоваться платформой.</p>
+      </section>
+      <nav className="profile-menu" aria-label="Выбор направления">
+        <Link to="/profile/partners/business">
+          <Store />
+          <span><strong>Для бизнеса</strong><small>Ресторан или магазин</small></span>
+          <ChevronRight />
+        </Link>
+        <Link to="/registration-preview?start=courier">
+          <Bike />
+          <span><strong>Для курьеров</strong><small>Посмотреть путь регистрации</small></span>
+          <ChevronRight />
+        </Link>
+      </nav>
+      <p className="profile-partner-note">Регистрация пока работает в демонстрационном режиме: данные не отправляются. Для подключения обратитесь в <Link to="/profile/support">поддержку</Link>.</p>
+    </>
+  );
+}
+
+function PartnerBusinessTypePage() {
+  return (
+    <>
+      <PageHeader title="Выберите бизнес" backTo="/profile/partners" />
+      <section className="profile-partner-intro"><h2>Какой у вас бизнес?</h2><p>Выберите тип, чтобы посмотреть путь регистрации.</p></section>
+      <nav className="profile-menu" aria-label="Тип бизнеса">
+        <Link to="/registration-preview?start=restaurant"><Store /><span><strong>Ресторан</strong><small>Заведение с готовыми блюдами</small></span><ChevronRight /></Link>
+        <Link to="/registration-preview?start=shop"><Building2 /><span><strong>Магазин</strong><small>Продажа товаров</small></span><ChevronRight /></Link>
+      </nav>
+      <p className="profile-partner-note">Это демонстрация регистрации: заявки пока не отправляются.</p>
+    </>
   );
 }
 
@@ -2764,7 +2819,8 @@ function ProfilePage() {
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
     { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/addresses', label: 'Адреса доставки', Icon: MapPin },
-    { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle }
+    { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle },
+    { to: '/profile/partners', label: 'Для бизнеса и курьеров', Icon: Building2 }
   ];
   const displayName = profile.name || 'Гость WayYaam';
   const displayPhone = profile.phone || 'Телефон не указан';

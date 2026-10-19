@@ -3334,3 +3334,32 @@
 .order-detail-items__total { padding-top: 12px; border-top: 1px solid #e4e7ec; }
 @keyframes order-detail-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .order-card__expanded, .order-detail-items { animation: none; } .order-card--compact summary > svg { transition: none; } }
+
+.profile-partner-intro {
+  margin: 4px 0 20px;
+}
+
+.profile-partner-intro h2 {
+  margin: 0 0 8px;
+}
+
+.profile-partner-intro p,
+.profile-partner-note {
+  color: #667085;
+  line-height: 1.5;
+}
+
+.profile-menu a:has(strong) span {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+}
+
+.profile-menu a:has(strong) small {
+  color: #667085;
+  font-weight: 500;
+}
+
+.profile-partner-note a {
+  color: #5b35f4;
+}

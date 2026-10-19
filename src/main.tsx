@@ -48,6 +48,11 @@ const RestaurantActivationPage = lazy(() =>
     default: module.RestaurantActivationPage
   }))
 );
+const PartnerRegistrationPreview = lazy(() =>
+  import('./features/partner-registration-preview/PartnerRegistrationPreview').then((module) => ({
+    default: module.PartnerRegistrationPreview
+  }))
+);
 
 const restoreGitHubPagesRedirect = () => {
   try {
@@ -83,6 +88,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
           <Route path="/profile/*" element={<ClientPlatformApp />} />
           <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/registration-preview" element={<PartnerRegistrationPreview />} />
           <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/scanner" element={<ScannerPage />} />
