@@ -66,7 +66,7 @@ describe('restaurant order action contract', () => {
     assert.doesNotMatch(app, /onOrderDelete=\{\(order\) => changeOrderStatus\(order, 'cancelled'/);
     assert.match(workspace, /const deleteOrder = async \(order: RestaurantOrder\)/);
     assert.match(workspace, /deleteRestaurantTestOrder\(order\)/);
-    assert.match(workspace, /onDelete=\{\(\) => deleteOrder\(selectedVisibleOrder\)\}/);
+    assert.match(workspace, /onDelete=\{\(\) => deleteOrder\(currentSelectedOrder\)\}/);
     assert.match(panel, /onDelete: \(\) => Promise<void>/);
     assert.match(panel, /await onDelete\(\)/);
     assert.match(panel, /Удалить заказ/);
@@ -94,7 +94,7 @@ describe('restaurant order action contract', () => {
   it('shows a confirmed trash action on every restaurant order card in production', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
 
-    assert.match(workspace, /group\.orders\.map\(\(order\) => \(/);
+    assert.match(workspace, /column\.orders\.map\(\(order\) => \(/);
     assert.match(workspace, /className="admin-order-card__delete"/);
     assert.match(workspace, /aria-label=\{`Удалить заказ \$\{order\.orderNumber\}`\}/);
     assert.match(workspace, /window\.confirm\(`Удалить заказ #\$\{order\.orderNumber\} безвозвратно\?`\)/);

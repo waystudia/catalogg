@@ -379,6 +379,18 @@ export const useClientPlatformStore = create<ClientPlatformStore>()(
   )
 );
 
+// Other tabs share this storage key. Rehydrate when one of them changes it so a
+// stale tab does not overwrite orders created in the other tab on its next edit.
+if (typeof window !== 'undefined') {
+  const syncClientPlatformStorage = (event: StorageEvent) => {
+    if (event.storageArea === window.localStorage && event.key === 'waycatalog-client-platform' && event.newValue !== null) {
+      void useClientPlatformStore.persist.rehydrate();
+    }
+  };
+  window.addEventListener('storage', syncClientPlatformStorage);
+  if (import.meta.hot) import.meta.hot.dispose(() => window.removeEventListener('storage', syncClientPlatformStorage));
+}
+
 export const selectCheckoutDraft = (
   drafts: Record<string, ClientCheckoutDraft>,
   restaurantSlug: string

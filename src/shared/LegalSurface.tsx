@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { legalDocumentReleases, legalDocuments } from './legalDocuments';
 
 const COOKIE_POLICY_VERSION = legalDocumentReleases.cookie_policy.version;
@@ -22,6 +22,12 @@ export function LegalSurface() {
       return null;
     }
   });
+
+  useEffect(() => {
+    const openSettings = () => setCookieChoice(null);
+    window.addEventListener('wayyaam:open-cookie-settings', openSettings);
+    return () => window.removeEventListener('wayyaam:open-cookie-settings', openSettings);
+  }, []);
 
   const choose = (choice: CookieChoice) => {
     saveCookieChoice(choice);

@@ -80,6 +80,7 @@ import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { RestaurantPaymentSettings } from '../../shared/paymentSettings';
 import { SafeImage } from '../../shared/SafeImage';
 import { loadCatalog } from '../../shared/supabase';
+import { buildRestaurantMapUrl } from '../../shared/restaurantLocation';
 import { getCartItemPrice } from '../../entities/productVariants';
 import { getCartLineId, getSelectedModifierDetails } from '../../entities/productModifiers';
 import { buildWhatsappOrderText } from '../../shared/whatsappOrder';
@@ -113,7 +114,7 @@ export function CheckoutScreen({
   deliverySettings: RestaurantDeliverySettings;
   paymentSettings: RestaurantPaymentSettings;
   onEditCart: () => void;
-  onSubmitOrder: (orderId: string) => void;
+  onSubmitOrder: (orderId: string, whatsappHref: string) => void;
 }) {
   const {
     mode,
@@ -522,12 +523,19 @@ export function CheckoutScreen({
 
     return `https://wa.me/${restaurant.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(lines.join('\n'))}`;
   };
+  const restaurantMapUrl = buildRestaurantMapUrl({
+    lat: restaurant.lat,
+    lng: restaurant.lng,
+    mapLink: restaurant.mapLink,
+    city: configuredCity,
+    address: restaurant.address
+  });
   const openRestaurantMap = () => {
-    if (!restaurant.mapLink) {
+    if (!restaurantMapUrl) {
       alert('Карта не указана');
       return;
     }
-    window.open(restaurant.mapLink, '_blank', 'noopener,noreferrer');
+    window.open(restaurantMapUrl, '_blank', 'noopener,noreferrer');
   };
   const paymentRecipient = paymentSettings.displayName || [paymentSettings.lastName, paymentSettings.firstName, paymentSettings.middleName].filter(Boolean).join(' ');
 
@@ -604,6 +612,7 @@ export function CheckoutScreen({
           </div>
           <div className="restaurant-address">
             <span>Адрес ресторана</span>
+            {configuredCity && <small className="restaurant-address__city">{configuredCity}</small>}
             <strong>{restaurant.address || 'Адрес не указан'}</strong>
             <button className="map-link-button" type="button" onClick={openRestaurantMap}>
               <MapPin />
@@ -1133,26 +1142,6 @@ export function CheckoutScreen({
               }
             }
 
-            let whatsappWindow: Window | null = null;
-            try {
-              whatsappWindow = window.open('about:blank', '_blank');
-            } catch {
-              whatsappWindow = null;
-            }
-            const openCreatedOrderWhatsapp = (href: string) => {
-              if (whatsappWindow && !whatsappWindow.closed) {
-                whatsappWindow.location.href = href;
-                return;
-              }
-              window.location.href = href;
-            };
-            const closeReservedWhatsappWindow = () => {
-              try {
-                whatsappWindow?.close();
-              } catch {
-                // The browser may block controlling a tab after opening it.
-              }
-            };
             void createRestaurantOrderFromCart({
               ...orderPayload,
               idempotencyKey: getOrderIdempotencyKey(orderPayload)
@@ -1218,6 +1207,7 @@ export function CheckoutScreen({
                     estimatedTimeMax: preparationMinutes + (orderType === 'delivery' ? 20 : 10),
                     items: items.map((item) => ({
                       dishId: item.product.id,
+                      imageUrl: item.product.image_url || undefined,
                       name: item.product.title,
                       price: getCartItemPrice(item),
                       quantity: item.quantity
@@ -1226,17 +1216,14 @@ export function CheckoutScreen({
                   recordOrderConsent();
                   clearCart();
                   clearClientPlatformCart(catalogSlug);
-                  onSubmitOrder(orderId);
+                  onSubmitOrder(orderId, buildWhatsappHref(orderId));
                   toast.success('Заказ создан в системе ресторана');
-                  openCreatedOrderWhatsapp(buildWhatsappHref(orderId));
                   return;
                 }
-                closeReservedWhatsappWindow();
                 toast.error('Не удалось создать заказ в системе ресторана. WhatsApp не открыт, чтобы не потерять и не продублировать заказ.');
               })
               .catch((error) => {
                 console.error('Order creation failed', error);
-                closeReservedWhatsappWindow();
                 toast.error(getRestaurantOrderCreationErrorMessage(error));
               })
               .finally(() => {

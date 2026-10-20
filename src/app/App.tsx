@@ -104,6 +104,7 @@ import {
 } from '../features/design-settings';
 import { CatalogLoadingScreen } from '../shared/CatalogLoadingScreen';
 import { PublicOrderStatusScreen } from '../features/order/PublicOrderStatusScreen';
+import { returnFromPublicOrder } from '../features/order/orderBackNavigation';
 import { persistDishProductChanges } from '../features/dish-editor/dishVariantCards';
 import {
   getProductCartQuantity,
@@ -165,7 +166,6 @@ import { getBusinessTerms } from '../shared/businessTerminology';
 import { getRestaurantCatalogBackTarget } from '../shared/roleSessionSafety';
 import { summarizeRestaurantReviews } from '../features/client-platform/clientPlatformLogic';
 import type { ClientRestaurantReview } from '../features/client-platform/types';
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -175,14 +175,12 @@ const queryClient = new QueryClient({
     }
   }
 });
-
 type CatalogSnapshot = Awaited<ReturnType<typeof loadCatalog>>;
 type CatalogCacheEntry = { savedAt: number; data: CatalogSnapshot };
 const CATALOG_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CATALOG_CACHE_MAX_BYTES = 1_800_000;
 const catalogCacheKey = (slug: string) => `waycatalog:catalog-cache:v2:${slug}`;
 const deliverySettingsCacheKey = (slug: string) => `waycatalog:delivery-settings-cache:${slug}`;
-
 const readCatalogCache = (slug: string): CatalogCacheEntry | undefined => {
   try {
     const raw = window.localStorage.getItem(catalogCacheKey(slug));
@@ -202,7 +200,6 @@ const readCatalogCache = (slug: string): CatalogCacheEntry | undefined => {
     return undefined;
   }
 };
-
 const writeCatalogCache = (slug: string, data: CatalogSnapshot) => {
   try {
     const serialized = JSON.stringify({ savedAt: Date.now(), data } satisfies CatalogCacheEntry);
@@ -212,7 +209,6 @@ const writeCatalogCache = (slug: string, data: CatalogSnapshot) => {
     // The live catalog remains usable when storage is full or unavailable.
   }
 };
-
 const readDeliverySettingsCache = (slug: string): RestaurantDeliverySettings | null => {
   try {
     const raw = window.localStorage.getItem(deliverySettingsCacheKey(slug));
@@ -227,7 +223,6 @@ const readDeliverySettingsCache = (slug: string): RestaurantDeliverySettings | n
     return null;
   }
 };
-
 const writeDeliverySettingsCache = (slug: string, data: RestaurantDeliverySettings) => {
   try {
     window.localStorage.setItem(
@@ -238,7 +233,6 @@ const writeDeliverySettingsCache = (slug: string, data: RestaurantDeliverySettin
     // Delivery settings still remain available for the current session.
   }
 };
-
 const CATALOG_REQUEST_TIMEOUT_MS = 8_000;
 const loadCatalogWithTimeout = (slug: string) =>
   new Promise<Awaited<ReturnType<typeof loadCatalog>>>((resolve, reject) => {
@@ -257,7 +251,6 @@ const loadCatalogWithTimeout = (slug: string) =>
       }
     );
   });
-
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 const formatReviewCount = (count: number) => {
   const lastTwoDigits = count % 100;
@@ -267,12 +260,10 @@ const formatReviewCount = (count: number) => {
   if (lastDigit >= 2 && lastDigit <= 4) return `${count} отзыва`;
   return `${count} отзывов`;
 };
-
 const loadCatalogReviews = async (catalogSlug: string): Promise<ClientRestaurantReview[]> => {
   if (!supabase) return [];
   const catalogId = await getCatalogIdBySlug(catalogSlug);
   if (!catalogId) return [];
-
   const { data, error } = await supabase
     .from('client_reviews')
     .select('id, restaurant_id, client_name, rating, comment, created_at')
@@ -281,7 +272,6 @@ const loadCatalogReviews = async (catalogSlug: string): Promise<ClientRestaurant
     .eq('is_visible', true)
     .order('created_at', { ascending: false });
   if (error) throw error;
-
   return (data ?? []).map((review) => ({
     id: String(review.id),
     restaurantId: String(review.restaurant_id),
@@ -327,10 +317,8 @@ const errorMessageFor = (error: unknown) => {
   }
   return error instanceof Error ? error.message : '';
 };
-
 const isPlatformRestaurantRlsError = (message: string) =>
   /row-level security/i.test(message) && /table ["']?restaurants["']?/i.test(message);
-
 const iconMap = {
   pot: ChefHat,
   chef: ChefHat,
@@ -368,7 +356,6 @@ const iconMap = {
   icecream: IceCreamBowl,
   home: Home
 };
-
 function applyTheme(theme: ThemeSettings) {
   const gradientFrom = theme.background_gradient_from ?? theme.background_color;
   const gradientTo = theme.background_gradient_to ?? theme.accent_secondary ?? theme.background_color;
@@ -404,7 +391,6 @@ function applyTheme(theme: ThemeSettings) {
         : undefined
   } as React.CSSProperties;
 }
-
 const settingsAccentStyle = {
   '--accent': '#7c3aed',
   '--accent-2': '#a78bfa',
@@ -412,7 +398,6 @@ const settingsAccentStyle = {
   '--primary-bg': 'linear-gradient(135deg, #a78bfa, #7c3aed)',
   '--primary-text': '#ffffff'
 } as React.CSSProperties;
-
 function TopBar({
   title,
   canBack,
@@ -445,7 +430,6 @@ function TopBar({
   const items = useCartStore((state) => state.items);
   const count = selectCartCount(items);
   const hasBackAction = Boolean(canBack || onPlatformBack);
-
   return (
     <header className={!title && !showBrand ? 'top-bar top-bar--minimal' : 'top-bar'}>
       <button
@@ -484,7 +468,6 @@ function TopBar({
     </header>
   );
 }
-
 function SiteCredit() {
   return (
     <footer className="site-credit">
@@ -493,7 +476,6 @@ function SiteCredit() {
     </footer>
   );
 }
-
 function CategoryPills({
   categories,
   active,
@@ -525,7 +507,6 @@ function CategoryPills({
     </div>
   );
 }
-
 function CartBar({
   deliverySettings,
   onCheckout,
@@ -1875,11 +1856,13 @@ function AppContent({
   catalogSlug,
   routeSection,
   routeOrderId,
+  routeOrderChatTarget,
   platformReturn
 }: {
   catalogSlug: string;
   routeSection?: string;
   routeOrderId?: string;
+  routeOrderChatTarget?: string;
   platformReturn?: { pathname: string; scrollY: number };
 }) {
   const navigate = useNavigate();
@@ -2137,15 +2120,20 @@ function AppContent({
       void queryClient.invalidateQueries({ queryKey: catalogQueryKey });
     };
     const channel = client.channel(`catalog-refresh-${catalogSlug}`);
-    ['category', 'categories', 'product', 'products', 'restaurant', 'catalogs', 'catalog_tag', 'tags', 'theme_settings', 'catalog_theme_settings'].forEach((table) => {
+    ['category', 'categories', 'product', 'products', 'restaurant', 'restaurants', 'catalogs', 'catalog_tag', 'tags', 'theme_settings', 'catalog_theme_settings'].forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, refreshCatalog);
     });
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'restaurant_delivery_settings' },
+      refreshDeliverySettings
+    );
     channel.subscribe();
 
     return () => {
       void client.removeChannel(channel);
     };
-  }, [catalogQueryKey, catalogSlug]);
+  }, [catalogQueryKey, catalogSlug, refreshDeliverySettings]);
 
   useEffect(() => {
     if ((focusProductId || focusProductTitle) && screen === 'home' && routeSection !== 'reviews') return;
@@ -2520,7 +2508,7 @@ function AppContent({
   const continueFromCartBar = () => {
     setIsCartOpen(false);
     if (screen === 'checkout') {
-      document.getElementById('checkout-submit-order')?.click();
+      document.getElementById('checkout-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     if (orderFlow.step !== 'done') {
@@ -2811,7 +2799,7 @@ function AppContent({
         <TopBar
           title="Статус заказа"
           canBack
-          onBack={() => navigate(`/${catalogSlug}`)}
+          onBack={() => returnFromPublicOrder(navigate, location.state, catalogSlug)}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
           onAdmin={() => navigate('/login')}
@@ -2819,8 +2807,8 @@ function AppContent({
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
         />
-        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} />
-        <SiteCredit />
+        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} restaurantWhatsapp={catalog.restaurant.whatsapp} restaurantName={catalog.restaurant.name} chatTarget={routeOrderChatTarget} />
+        {!routeOrderChatTarget && <SiteCredit />}
       </div>
     );
   }
@@ -2994,11 +2982,11 @@ function AppContent({
               deliverySettings={deliverySettings ?? defaultRestaurantDeliverySettings}
               paymentSettings={paymentSettings}
               onEditCart={() => setIsCartOpen(true)}
-              onSubmitOrder={(orderId) => {
+              onSubmitOrder={(orderId, whatsappHref) => {
                 setShowAfterOrderPanel(true);
                 setOrderFlow({ step: 'done', selectedByCategory: {} });
                 setScreen('home');
-                navigate(`/${catalogSlug}/order/${orderId}`, { replace: true });
+                navigate(`/${catalogSlug}/order/${orderId}`, { replace: true, state: { confirmationOrderId: orderId, whatsappHref, redirectAt: Date.now() + 15000 } });
               }}
             />
           )}
@@ -3077,6 +3065,7 @@ export function App() {
   const pathParts = location.pathname.split('/').filter(Boolean);
   const routeSection = pathParts[1];
   const routeOrderId = routeSection === 'order' ? pathParts[2] : undefined;
+  const routeOrderChatTarget = routeSection === 'order' && pathParts[3] === 'chat' ? pathParts[4] : undefined;
   const marketplaceReturnState = (location.state as {
     marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
   } | null)?.marketplaceReturn;
@@ -3098,6 +3087,7 @@ export function App() {
         catalogSlug={slug}
         routeSection={routeSection}
         routeOrderId={routeOrderId}
+        routeOrderChatTarget={routeOrderChatTarget}
         platformReturn={platformReturn}
       />
     </QueryClientProvider>

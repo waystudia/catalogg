@@ -31,7 +31,7 @@ test('client profile keeps registration and uses unified login', () => {
   assert.match(loginPageSource, /resolveUnifiedLogin/);
   assert.match(loginRedirectSource, /loginClientAccount/);
   assert.match(appSource, /Аккаунт защищён паролем/);
-  assert.match(appSource, /Гостевой профиль/);
+  assert.match(appSource, /Войдите, чтобы видеть заказы и сохранять адреса/);
 });
 
 test('client account session is restored from the server', () => {

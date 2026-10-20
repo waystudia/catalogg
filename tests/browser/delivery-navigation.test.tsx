@@ -1,4 +1,5 @@
 import { expect, test, vi } from 'vitest';
+import { useCallback, useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { cleanup, render } from 'vitest-browser-react';
 import { DeliveryTrackingMap } from '../../src/shared/DeliveryTrackingMap';
@@ -33,6 +34,39 @@ const navigationDelivery = (status: 'assigned' | 'arrived_to_restaurant' | 'hand
   deliveryLat: client.lat,
   deliveryLng: client.lng
 });
+
+const stationaryFixes = [
+  { lat: 43, lng: 45, accuracyM: 12, speedMps: 0, heading: null, recordedAtMs: 1_000 },
+  { lat: 43.00012, lng: 45.00014, accuracyM: 12, speedMps: 0, heading: 40, recordedAtMs: 6_000 }
+] as const;
+
+function StationaryNavigationHarness() {
+  const [fixIndex, setFixIndex] = useState(0);
+  const [remainingDistanceM, setRemainingDistanceM] = useState<number | null>(null);
+  const handleRouteSummaryChange = useCallback((summary: { distanceM: number } | null) => {
+    setRemainingDistanceM(summary?.distanceM ?? null);
+  }, []);
+  const loadStableRoute = useCallback(async () => ({
+    distanceM: 1_000,
+    durationS: 120,
+    geometry: [stationaryFixes[0], { lat: 43, lng: 45.01 }]
+  }), []);
+
+  return (
+    <>
+      <button type="button" onClick={() => setFixIndex(1)}>Следующая GPS-точка</button>
+      <DeliveryTrackingMap
+        driver={{ ...stationaryFixes[fixIndex], label: 'Моё местоположение' }}
+        routePoints={[stationaryFixes[0], { lat: 43, lng: 45.01 }]}
+        loadRoute={loadStableRoute}
+        navigationMode
+        followDriverHeading
+        onRouteSummaryChange={handleRouteSummaryChange}
+      />
+      <output aria-label="Остаток тестового маршрута">{remainingDistanceM?.toFixed(1) ?? '—'}</output>
+    </>
+  );
+}
 
 test('switches between street and labeled satellite maps and shows a routed summary', async () => {
   const loadRoute = vi.fn(async () => ({
@@ -224,6 +258,27 @@ test('keeps navigation controls compact and separates compass from driver follow
   expect(onRouteSummaryChange).toHaveBeenCalledWith({ distanceM: 32_200, durationS: 2_340 });
 });
 
+test('keeps the route facing forward while stationary GPS readings drift inside their accuracy', async () => {
+  const screen = await render(<StationaryNavigationHarness />);
+  await expect.element(screen.getByLabelText('Следующая подсказка маршрута')).toBeVisible();
+  const driverMarker = screen.getByRole('button', { name: 'Водитель: Моё местоположение' });
+  const rotator = driverMarker.element().parentElement;
+  if (!rotator) throw new Error('Слой поворота карты не найден.');
+  const readRotation = () => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(rotator).transform);
+    return Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+  };
+  const initialRotation = readRotation();
+  const remainingDistance = screen.getByLabelText('Остаток тестового маршрута');
+  await expect.element(remainingDistance).toHaveTextContent('1000.0');
+
+  await screen.getByRole('button', { name: 'Следующая GPS-точка' }).click();
+  await new Promise((resolve) => window.setTimeout(resolve, 750));
+
+  expect(Math.abs(readRotation() - initialRotation)).toBeLessThan(5);
+  await expect.element(remainingDistance).toHaveTextContent('1000.0');
+});
+
 test('keeps a wide upright restaurant destination label the same size while zooming', async () => {
   const screen = await render(
     <main className="driver-app">
@@ -327,10 +382,9 @@ test('shows an assigned order detail in the same accepted-delivery card used on 
 
   const card = screen.getByRole('region', { name: 'Текущая доставка M6714' });
   await expect.element(card).toHaveClass(/driver-current-block/);
-  await expect.element(card.getByText('✓ ЗАКАЗ ПРИНЯТ')).toBeVisible();
-  await expect.element(card.getByText('Точка А')).toBeVisible();
-  await expect.element(card.getByText('Точка Б')).toBeVisible();
-  await expect.element(card.getByText('Ваш заработок')).toBeVisible();
+  await expect.element(card.getByText('Принят')).toBeVisible();
+  await expect.element(card.getByText('Ресторан')).toBeVisible();
+  await expect.element(card.getByText('Ваш доход')).toBeVisible();
   await expect.element(card.getByText('200 ₽')).toBeVisible();
 });
 
@@ -340,13 +394,13 @@ test('shows one Navigator route action and then a quota-free return action', asy
     <DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />
   );
 
-  await expect.element(assignedScreen.getByRole('button', { name: /Открыть маршрут в Навигаторе/ })).toBeVisible();
+  await expect.element(assignedScreen.getByRole('button', { name: /Маршрут к заведению/ })).toBeVisible();
   await expect.element(assignedScreen.getByText('Бизнес → клиент, маршрут создаётся один раз')).toBeVisible();
   await cleanup();
 
   window.localStorage.setItem('wayyaam-navigator-launched:delivery-assigned', 'true');
   const returnScreen = await render(<DriverYandexNavigationActions delivery={navigationDelivery('assigned')} />);
-  const returnLink = returnScreen.getByRole('link', { name: /Вернуться в Навигатор/ });
+  const returnLink = returnScreen.getByRole('link', { name: /Маршрут к заведению/ });
   await expect.element(returnLink).toHaveAttribute('href', 'yandexnavi://');
   await expect.element(returnScreen.getByText('Маршрут уже создан — новая ссылка не расходуется')).toBeVisible();
 });

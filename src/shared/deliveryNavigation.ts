@@ -52,6 +52,31 @@ export type RoadRouteProgress = {
   readonly nextManeuver?: RoadRoute['nextManeuver'];
 };
 
+export type DriverLocationReading = DeliveryMapCoordinates & {
+  readonly accuracyM?: number | null;
+  readonly heading?: number | null;
+  readonly speedMps?: number | null;
+  readonly recordedAtMs: number;
+};
+
+type DriverMovementAnchor = DeliveryMapCoordinates & {
+  readonly accuracyM: number | null;
+  readonly recordedAtMs: number;
+};
+
+export type DriverMovementState = {
+  readonly anchor: DriverMovementAnchor;
+  readonly lastReadingAtMs?: number;
+  readonly candidateHeading: number | null;
+  readonly candidateReadings: number;
+  readonly heading: number | null;
+  readonly isMoving: boolean;
+};
+
+export type TimedDriverLocation = DeliveryMapCoordinates & {
+  readonly recordedAtMs: number;
+};
+
 type ParseRoadRouteResult =
   | { readonly success: true; readonly data: RoadRoute }
   | { readonly success: false; readonly error: string };
@@ -82,9 +107,20 @@ const maneuverInstruction = (type: string, modifier?: string) => {
 };
 
 const earthRadiusM = 6_371_000;
+const minimumReliableMovementSpeedMps = 1.5;
+const minimumReliableMovementDistanceM = 12;
+const fallbackReliableMovementDistanceM = 18;
+const maximumCandidateHeadingDifference = 45;
+const reverseRouteHeadingDifference = 110;
+const routeHeadingLookAheadM = 30;
 const toRadians = (value: number) => (value * Math.PI) / 180;
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
+const finiteOrNull = (value: number | null | undefined) =>
+  Number.isFinite(value) ? value as number : null;
+const normalizeHeading = (value: number) => ((value % 360) + 360) % 360;
+const headingDifference = (first: number, second: number) =>
+  Math.abs(((first - second + 540) % 360) - 180);
 
 const distanceM = (from: DeliveryMapCoordinates, to: DeliveryMapCoordinates) => {
   const latitudeDelta = toRadians(to.lat - from.lat);
@@ -95,6 +131,101 @@ const distanceM = (from: DeliveryMapCoordinates, to: DeliveryMapCoordinates) => 
     Math.sin(latitudeDelta / 2) ** 2 +
     Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDelta / 2) ** 2;
   return earthRadiusM * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
+
+const movementAnchor = (reading: DriverLocationReading): DriverMovementAnchor => ({
+  lat: reading.lat,
+  lng: reading.lng,
+  accuracyM: finiteOrNull(reading.accuracyM),
+  recordedAtMs: reading.recordedAtMs
+});
+
+export const updateDriverMovementState = (
+  previous: DriverMovementState | null,
+  reading: DriverLocationReading
+): DriverMovementState => {
+  if (!previous) {
+    return {
+      anchor: movementAnchor(reading),
+      lastReadingAtMs: reading.recordedAtMs,
+      candidateHeading: null,
+      candidateReadings: 0,
+      heading: null,
+      isMoving: false
+    };
+  }
+
+  if (previous.lastReadingAtMs === reading.recordedAtMs) return previous;
+
+  const speedMps = finiteOrNull(reading.speedMps);
+  if (speedMps !== null && speedMps < minimumReliableMovementSpeedMps) {
+    return {
+      ...previous,
+      anchor: movementAnchor(reading),
+      lastReadingAtMs: reading.recordedAtMs,
+      candidateHeading: null,
+      candidateReadings: 0,
+      isMoving: false
+    };
+  }
+
+  const reportedHeading = speedMps === null ? null : finiteOrNull(reading.heading);
+  let nextHeading: number | null = reportedHeading === null ? null : normalizeHeading(reportedHeading);
+  if (nextHeading === null) {
+    const currentAccuracyM = finiteOrNull(reading.accuracyM);
+    const requiredDistanceM = previous.anchor.accuracyM !== null && currentAccuracyM !== null
+      ? Math.max(minimumReliableMovementDistanceM, previous.anchor.accuracyM + currentAccuracyM)
+      : fallbackReliableMovementDistanceM;
+    if (distanceM(previous.anchor, reading) < requiredDistanceM) {
+      return { ...previous, lastReadingAtMs: reading.recordedAtMs, isMoving: false };
+    }
+    nextHeading = calculateBearing(previous.anchor, reading);
+  }
+
+  const agreesWithCandidate = previous.candidateHeading !== null &&
+    headingDifference(previous.candidateHeading, nextHeading) <= maximumCandidateHeadingDifference;
+  const candidateReadings = agreesWithCandidate ? previous.candidateReadings + 1 : 1;
+  const isMoving = candidateReadings >= 2;
+
+  return {
+    anchor: movementAnchor(reading),
+    lastReadingAtMs: reading.recordedAtMs,
+    candidateHeading: nextHeading,
+    candidateReadings,
+    heading: isMoving ? nextHeading : previous.heading,
+    isMoving
+  };
+};
+
+export const resolveDriverNavigationHeading = ({
+  routeHeading,
+  fallbackHeading,
+  movement,
+  isOnRoute
+}: {
+  readonly routeHeading: number | null;
+  readonly fallbackHeading: number;
+  readonly movement: DriverMovementState | null;
+  readonly isOnRoute: boolean;
+}) => {
+  const reliableMovementHeading = movement?.isMoving ? movement.heading : null;
+  if (!isOnRoute) return reliableMovementHeading ?? fallbackHeading;
+  if (reliableMovementHeading !== null && (
+    routeHeading === null ||
+    headingDifference(reliableMovementHeading, routeHeading) >= reverseRouteHeadingDifference
+  )) {
+    return reliableMovementHeading;
+  }
+  return routeHeading ?? fallbackHeading;
+};
+
+export const getFreshestDriverLocation = <TStored extends TimedDriverLocation, TLocal extends TimedDriverLocation>(
+  stored: TStored | null,
+  local: TLocal | null
+): TStored | TLocal | null => {
+  if (!stored) return local;
+  if (!local) return stored;
+  return local.recordedAtMs >= stored.recordedAtMs ? local : stored;
 };
 
 const interpolateCoordinates = (
@@ -252,6 +383,13 @@ export const getRoadRouteProgress = ({
     ? 0
     : geometryDistanceM * traveledDistanceM / route.distanceM;
   const snapped = getCoordinateAtGeometryDistance(geometry, geometryProgressM);
+  const headingTarget = getCoordinateAtGeometryDistance(
+    geometry,
+    Math.min(geometryDistanceM, geometryProgressM + routeHeadingLookAheadM)
+  );
+  const routeHeading = distanceM(snapped.coordinates, headingTarget.coordinates) >= 1
+    ? calculateBearing(snapped.coordinates, headingTarget.coordinates)
+    : snapped.heading;
   const nextManeuver = route.maneuvers
     ?.find((maneuver) => maneuver.distanceFromStartM >= traveledDistanceM - 1);
   const legacyNextManeuver = !route.maneuvers && route.nextManeuver &&
@@ -270,7 +408,7 @@ export const getRoadRouteProgress = ({
       ? 0
       : route.durationS * remainingDistanceM / route.distanceM,
     snappedPosition: snapped.coordinates,
-    heading: snapped.heading,
+    heading: routeHeading,
     distanceFromRouteM: closestDistanceM,
     isOnRoute,
     ...((nextManeuver || legacyNextManeuver) ? {

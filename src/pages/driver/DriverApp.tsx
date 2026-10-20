@@ -75,7 +75,7 @@ import {
 import { redirectToClientHome } from '../../shared/appNavigation';
 import { supabase } from '../../shared/supabase';
 import { getBusinessTerms } from '../../shared/businessTerminology';
-import { getDriverDeliveryChat, sendDriverDeliveryChat, type DeliveryChatMessage } from '../../shared/api/deliveryChatApi';
+import { getDriverOrderConversation, sendDriverOrderConversation, type OrderConversationMessage } from '../../shared/api/deliveryChatApi';
 import { confirmRoleSignOut, getDriverBackTarget } from '../../shared/roleSessionSafety';
 import './driver.css';
 
@@ -964,25 +964,25 @@ function DriverCurrentDeliveryPanel({
   );
 }
 
-function DriverDeliveryChat({ deliveryId, onClose }: { deliveryId: string; onClose: () => void }) {
-  const [messages, setMessages] = useState<DeliveryChatMessage[]>([]);
+function DriverDeliveryChat({ orderId, target, recipientName, onClose }: { orderId: string; target: 'restaurant' | 'client'; recipientName: string; onClose: () => void }) {
+  const [messages, setMessages] = useState<OrderConversationMessage[]>([]);
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
   const [isSending, setIsSending] = useState(false);
-  useEffect(() => { void getDriverDeliveryChat(deliveryId).then(setMessages).catch((cause) => setError(cause instanceof Error ? cause.message : 'Не удалось открыть чат заказа.')); }, [deliveryId]);
+  useEffect(() => { void getDriverOrderConversation(orderId).then(setMessages).catch((cause) => setError(cause instanceof Error ? cause.message : 'Не удалось открыть чат заказа.')); }, [orderId]);
   const send = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!body.trim() || isSending) return;
     setIsSending(true); setError('');
-    try { await sendDriverDeliveryChat(deliveryId, body); setBody(''); setMessages(await getDriverDeliveryChat(deliveryId)); }
+    try { await sendDriverOrderConversation(orderId, body); setBody(''); setMessages(await getDriverOrderConversation(orderId)); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Не удалось отправить сообщение.'); }
     finally { setIsSending(false); }
   };
-  return <section className="driver-delivery-chat" role="dialog" aria-label="Чат с клиентом">
-    <header><strong>Чат с клиентом</strong><button type="button" onClick={onClose} aria-label="Закрыть чат"><X /></button></header>
-    <div className="driver-delivery-chat__messages">{messages.length ? messages.map((message) => <p data-own={message.senderRole === 'driver'} key={message.id}>{message.body}</p>) : <small>Напишите клиенту по заказу — сообщение появится у него в статусе заказа.</small>}</div>
+  return <section className="driver-delivery-chat" role="dialog" aria-label={`Чат с ${recipientName}`}>
+    <header><strong>{`Чат с ${recipientName}`}</strong><button type="button" onClick={onClose} aria-label="Закрыть чат"><X /></button></header>
+    <div className="driver-delivery-chat__messages">{messages.length ? messages.map((message) => <p data-own={message.senderRole === 'driver'} key={message.id}>{message.body}</p>) : <small>Клиент и заведение увидят сообщения по этому заказу.</small>}</div>
     {error && <small className="driver-error">{error}</small>}
-    <form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} placeholder="Сообщение клиенту" /><button className="driver-primary" disabled={isSending || !body.trim()} type="submit">Отправить</button></form>
+    <form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} placeholder={`Сообщение для ${target === 'restaurant' ? 'заведения' : 'клиента'}`} /><button className="driver-primary" disabled={isSending || !body.trim()} type="submit">Отправить</button></form>
   </section>;
 }
 
@@ -1004,7 +1004,7 @@ function DriverSwipeAction({
   label: string;
   disabled: boolean;
   isLoading: boolean;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }) {
   const [offset, setOffset] = useState(0);
   const startXRef = useRef<number | null>(null);
@@ -1012,13 +1012,18 @@ function DriverSwipeAction({
   const maximumOffset = 220;
   const confirmOffset = 150;
 
-  const finish = (finalOffset = offset) => {
+  const finish = async (finalOffset = offset) => {
     const shouldConfirm = finalOffset >= confirmOffset && !disabled && !didConfirmRef.current;
     startXRef.current = null;
     if (shouldConfirm) {
       didConfirmRef.current = true;
       setOffset(maximumOffset);
-      onConfirm();
+      try {
+        await onConfirm();
+      } finally {
+        didConfirmRef.current = false;
+        setOffset(0);
+      }
       return;
     }
     setOffset(0);
@@ -1043,7 +1048,7 @@ function DriverSwipeAction({
         onPointerUp={(event) => {
           const startX = startXRef.current;
           const finalOffset = startX === null ? offset : Math.max(0, Math.min(maximumOffset, event.clientX - startX));
-          finish(finalOffset);
+          void finish(finalOffset);
         }}
         onPointerCancel={() => {
           startXRef.current = null;
@@ -1051,7 +1056,7 @@ function DriverSwipeAction({
         }}
         aria-label={`${label}. Проведите вправо для подтверждения`}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') finish(confirmOffset);
+          if (event.key === 'Enter' || event.key === ' ') void finish(confirmOffset);
         }}
       >
         <ChevronRight />
@@ -1398,6 +1403,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const [error, setError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatTarget, setChatTarget] = useState<'restaurant' | 'client'>('restaurant');
   const [driverHandedAt, setDriverHandedAt] = useState(delivery?.driverHandedToClientAt ?? null);
   const [screenStatus, setScreenStatus] = useState<DeliveryStatus | null>(null);
   const [contactTarget, setContactTarget] = useState<'restaurant' | 'client'>('restaurant');
@@ -1563,12 +1569,12 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
         {contactTarget === 'restaurant' ? (
           <div className="driver-action-row driver-active-order-card__contacts">
             {currentDelivery.restaurantPhone ? <a href={`tel:${currentDelivery.restaurantPhone}`}><Phone />Позвонить заведению</a> : <button type="button" disabled><Phone />Телефон заведения</button>}
-            {currentDelivery.restaurantPhone ? <a href={`https://wa.me/${currentDelivery.restaurantPhone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"><MessageCircle />Написать заведению</a> : <button type="button" disabled><MessageCircle />Написать заведению</button>}
+            <button type="button" onClick={() => { setChatTarget('restaurant'); setIsChatOpen(true); }}><MessageCircle />Написать заведению</button>
           </div>
         ) : (
           <div className="driver-action-row driver-active-order-card__contacts">
             {currentDelivery.clientPhone ? <a href={`tel:${currentDelivery.clientPhone}`}><Phone />Позвонить клиенту</a> : <button type="button" disabled><Phone />Телефон клиента</button>}
-            {currentDelivery.clientPhone ? <button type="button" onClick={() => setIsChatOpen(true)}><MessageCircle />Написать клиенту</button> : <button type="button" disabled><MessageCircle />Написать клиенту</button>}
+            <button type="button" onClick={() => { setChatTarget('client'); setIsChatOpen(true); }}><MessageCircle />Написать клиенту</button>
           </div>
         )}
         {waitingForQr && <Link className="driver-active-order-card__qr" to="/driver/qr"><QrCode />Показать QR ресторану</Link>}
@@ -1596,12 +1602,13 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
             >Открыть маршрут к клиенту</button>
           </section>
         )}
-        {nextAction && (
+        {nextAction && !pickupBlocked && (
           <DriverSwipeAction
-            disabled={isUpdatingStatus || pickupBlocked}
+            key={`${currentDelivery.deliveryId}:${currentDelivery.status}:${nextAction.label}`}
+            disabled={isUpdatingStatus}
             isLoading={isUpdatingStatus}
             label={nextAction.label}
-            onConfirm={() => void updateStatus(nextAction.status, nextAction.to)}
+            onConfirm={() => updateStatus(nextAction.status, nextAction.to)}
           />
         )}
         {currentDelivery.status === 'arrived_to_client' && !driverHandedAt && (
@@ -1612,7 +1619,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
               disabled={isUpdatingStatus}
               isLoading={isUpdatingStatus}
               label="Отдал заказ"
-              onConfirm={() => void confirmHandoff()}
+              onConfirm={confirmHandoff}
             />
           </section>
         )}
@@ -1626,7 +1633,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
           <DriverCompletionSlider disabled={isUpdatingStatus} onComplete={finishDelivery} />
         )}
         {error && <p className="driver-error">{error}</p>}
-        {isChatOpen && <DriverDeliveryChat deliveryId={currentDelivery.deliveryId} onClose={() => setIsChatOpen(false)} />}
+        {isChatOpen && <DriverDeliveryChat orderId={currentDelivery.orderId} target={chatTarget} recipientName={chatTarget === 'restaurant' ? currentDelivery.restaurantName : currentDelivery.clientName || 'клиент'} onClose={() => setIsChatOpen(false)} />}
       </section>
     </>
   );

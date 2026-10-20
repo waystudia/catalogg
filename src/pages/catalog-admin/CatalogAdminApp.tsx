@@ -87,7 +87,7 @@ function CatalogDashboard({
   );
 }
 
-function ConsentModal({
+export function ConsentModal({
   slug,
   onConfirmed
 }: {

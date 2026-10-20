@@ -96,6 +96,10 @@ export function getAdminOrderItemsCount(order: RestaurantOrder) {
   return order.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
 }
 
+export function formatAdminOrderItemCalculation(item: { quantity: number; unitPrice: number }) {
+  return `${item.quantity} × ${new Intl.NumberFormat('ru-RU').format(item.unitPrice)} ₽`;
+}
+
 export function getAdminOrderLocationLabel(order: RestaurantOrder) {
   return (
     order.deliverySettlement ||

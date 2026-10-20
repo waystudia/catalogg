@@ -10,7 +10,7 @@ import {
   Truck,
   User
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import {
   assignRestaurantOrderDriver,
@@ -32,6 +32,7 @@ import {
 import {
   adminOrderStatusLabels,
   adminOrderStatusTones,
+  formatAdminOrderItemCalculation,
   fulfillmentLabels,
   getAdminOrderItemsCount,
   getAdminOrderLocationLabel,
@@ -44,6 +45,7 @@ import {
   paymentStatusLabels
 } from './orderPresentation';
 import { calculateDriverCashHandover } from '../order/orderLifecycle';
+import { getRestaurantOrderConversation, sendRestaurantOrderConversation, type OrderConversationMessage } from '../../shared/api/deliveryChatApi';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -350,6 +352,7 @@ export function OrderDetailsPanel({
         </section>
 
         {visibleComment && <p className="admin-order-comment">{visibleComment}</p>}
+        <RestaurantOrderConversation orderId={order.id} />
 
         {order.fulfillmentType === 'delivery' && (
           <section className="admin-order-delivery-route" aria-label="Этап доставки">
@@ -368,8 +371,10 @@ export function OrderDetailsPanel({
         <div className="admin-order-items">
           {order.items.map((item) => (
             <div key={item.id}>
-              <span>{item.title}</span>
-              <small>×{item.quantity}</small>
+              <span className="admin-order-item__summary">
+                <span>{item.title}</span>
+                <small>{formatAdminOrderItemCalculation(item)}</small>
+              </span>
               <strong>{formatPrice(item.lineTotal)}</strong>
             </div>
           ))}
@@ -547,4 +552,22 @@ export function OrderDetailsPanel({
       </section>
     </aside>
   );
+}
+
+function RestaurantOrderConversation({ orderId }: { orderId: string }) {
+  const [messages, setMessages] = useState<OrderConversationMessage[]>([]);
+  const [body, setBody] = useState('');
+  const [error, setError] = useState('');
+  const load = useCallback(() => {
+    void getRestaurantOrderConversation(orderId)
+      .then((items) => { setMessages(items); setError(''); })
+      .catch(() => setError('Чат пока недоступен.'));
+  }, [orderId]);
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 10_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+  const send = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!body.trim()) return; try { await sendRestaurantOrderConversation(orderId, body); setBody(''); load(); } catch { setError('Не удалось отправить сообщение.'); } };
+  return <section className="admin-order-chat" aria-label="Чат по заказу"><header><MessageCircle /><span><strong>Чат по заказу</strong><small>Клиент и курьер увидят сообщения здесь</small></span></header><div>{messages.map((message) => <p data-own={message.senderRole === 'restaurant'} key={message.id}><b>{message.senderRole === 'restaurant' ? 'Вы' : message.senderRole === 'client' ? 'Клиент' : 'Курьер'}: </b>{message.body}</p>)}</div>{error && <small className="form-error">{error}</small>}<form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} maxLength={1000} placeholder="Сообщение"/><button type="submit" disabled={!body.trim()}>Отправить</button></form></section>;
 }

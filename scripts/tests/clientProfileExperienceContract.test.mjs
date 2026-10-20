@@ -17,7 +17,7 @@ test('client profile keeps registration fields compact and removes inactive menu
   const profileSource = appSource.slice(appSource.indexOf('function ProfilePage()'), appSource.indexOf('function OrdersPage'));
   assert.equal(profileSource.indexOf('<span>Пароль</span>') < profileSource.indexOf('aria-label="Условия регистрации"'), true);
   assert.doesNotMatch(profileSource, /profile\/payments|Способы оплаты/);
-  assert.doesNotMatch(profileSource, /profile\/settings|Настройки/);
+  assert.match(profileSource, /profile\/settings/);
   assert.doesNotMatch(profileSource, /Согласия подтверждены/);
   assert.match(profileSource, /await Promise\.allSettled\(\[logoutClientAccount\(\), signOutPlatformAdmin\(\)\]\)/);
 });

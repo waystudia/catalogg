@@ -41,6 +41,9 @@ import {
   getRemainingRoadRouteGeometry,
   getRoadRouteProgress,
   loadRoadRoute,
+  resolveDriverNavigationHeading,
+  updateDriverMovementState,
+  type DriverMovementState,
   type RoadRoute
 } from './deliveryNavigation';
 import './delivery-tracking-map.css';
@@ -49,6 +52,10 @@ type TrackingPoint = DeliveryMapCoordinates & {
   label: string;
   address?: string;
   details?: readonly string[];
+  accuracyM?: number | null;
+  heading?: number | null;
+  speedMps?: number | null;
+  recordedAtMs?: number;
 };
 
 type DeliveryTrackingMapProps = {
@@ -80,7 +87,6 @@ const webMercatorMetersPerPixel = 156_543.03392;
 const standardRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) => loadRoadRoute({ points });
 const asphaltPreferredRouteLoader = (points: ReadonlyArray<DeliveryMapCoordinates>) =>
   loadAsphaltPreferredRoadRoute({ points });
-const minimumDriverHeadingMoveM = 10;
 const maximumOnRouteDistanceM = 15;
 const offRouteReadingsBeforeReroute = 2;
 const minimumRerouteIntervalMs = 12_000;
@@ -132,7 +138,6 @@ export function DeliveryTrackingMap({
   const wheelDeltaRef = useRef(0);
   const routeRequestIdRef = useRef(0);
   const userAdjustedViewRef = useRef(false);
-  const lastDriverHeadingPointRef = useRef<DeliveryMapCoordinates | null>(null);
   const lastResetViewKeyRef = useRef('');
   const latestRoutePointsRef = useRef<ReadonlyArray<DeliveryMapCoordinates>>([]);
   const spokenManeuverStagesRef = useRef<Set<string>>(new Set());
@@ -157,7 +162,7 @@ export function DeliveryTrackingMap({
   const [isLocating, setIsLocating] = useState(false);
   const [locatedPosition, setLocatedPosition] = useState<DeliveryMapCoordinates | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [movementHeading, setMovementHeading] = useState<number | null>(null);
+  const [movementState, setMovementState] = useState<DriverMovementState | null>(null);
   const [audioGuidanceEnabled, setAudioGuidanceEnabled] = useState(false);
   const [routeRevision, setRouteRevision] = useState(0);
   const baseRoutePoints = useMemo(
@@ -210,6 +215,10 @@ export function DeliveryTrackingMap({
   const [manualRotation, setManualRotation] = useState(0);
   mapZoomRef.current = mapZoom;
   const mapScaleLabel = `${mapZoom.toFixed(1)} · ${formatMapViewportWidth(center.lat, mapZoom)}`;
+  const movementForCurrentReading = movementState && driver &&
+    movementState.lastReadingAtMs === (driver.recordedAtMs ?? 0)
+    ? movementState
+    : null;
 
   const cancelZoomAnimation = () => {
     if (zoomAnimationFrameRef.current === null) return;
@@ -282,11 +291,13 @@ export function DeliveryTrackingMap({
       position: driver,
       minimumTraveledDistanceM: previous?.traveledDistanceM ?? 0,
       maximumTraveledDistanceM: previous
-        ? previous.traveledDistanceM + Math.max(40, elapsedSeconds * 55)
+        ? movementForCurrentReading?.isMoving
+          ? previous.traveledDistanceM + Math.max(40, elapsedSeconds * 55)
+          : previous.traveledDistanceM
         : loadedRoadRoute.distanceM,
       maximumSnapDistanceM: maximumOnRouteDistanceM
     });
-  }, [driver, loadedRoadRoute, navigationMode, roadRouteRequestKey]);
+  }, [driver, loadedRoadRoute, movementForCurrentReading, navigationMode, roadRouteRequestKey]);
   useEffect(() => {
     if (!routeProgress) return;
     routeProgressRef.current = {
@@ -327,9 +338,19 @@ export function DeliveryTrackingMap({
     if (routeTarget) return calculateBearing(driver, routeTarget);
     return client ? calculateBearing(driver, client) : 0;
   }, [client, driver, effectiveRoutePoints]);
-  const driverHeading = movementHeading ?? routeProgress?.heading ?? routeHeading;
-  const isDrivingAgainstRoute = movementHeading !== null && routeProgress !== null &&
-    Math.abs(((movementHeading - routeProgress.heading + 540) % 360) - 180) >= 110;
+  const driverHeading = resolveDriverNavigationHeading({
+    routeHeading: routeProgress?.heading ?? null,
+    fallbackHeading: routeHeading,
+    movement: movementForCurrentReading,
+    isOnRoute: routeProgress?.isOnRoute ?? false
+  });
+  const isDrivingAgainstRoute = Boolean(
+    routeProgress?.isOnRoute &&
+    movementForCurrentReading?.isMoving &&
+    movementForCurrentReading.heading !== null &&
+    driverHeading === movementForCurrentReading.heading &&
+    driverHeading !== routeProgress.heading
+  );
   const automaticMapRotation = followDriverHeading && driver
     ? getNearestEquivalentAngle(automaticRotationRef.current, -driverHeading)
     : 0;
@@ -469,21 +490,18 @@ export function DeliveryTrackingMap({
 
   useEffect(() => {
     if (!driver) {
-      lastDriverHeadingPointRef.current = null;
-      setMovementHeading(null);
+      setMovementState(null);
       return;
     }
 
-    const nextPoint = { lat: driver.lat, lng: driver.lng };
-    const previousPoint = lastDriverHeadingPointRef.current;
-    if (!previousPoint) {
-      lastDriverHeadingPointRef.current = nextPoint;
-      return;
-    }
-
-    if (getApproximateDistanceM(previousPoint, nextPoint) < minimumDriverHeadingMoveM) return;
-    setMovementHeading(calculateBearing(previousPoint, nextPoint));
-    lastDriverHeadingPointRef.current = nextPoint;
+    setMovementState((previous) => updateDriverMovementState(previous, {
+      lat: driver.lat,
+      lng: driver.lng,
+      accuracyM: driver.accuracyM,
+      heading: driver.heading,
+      speedMps: driver.speedMps,
+      recordedAtMs: driver.recordedAtMs ?? 0
+    }));
   }, [driver]);
 
   useEffect(() => {

@@ -52,9 +52,9 @@ test('renders the no-map handoff and swipe-completion flow', async () => {
     </MemoryRouter>
   );
 
-  await expect.element(screen.getByRole('button', { name: /Открыть маршрут в Навигаторе/ })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: /Маршрут к заведению|Маршрут к клиенту/ })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Отдал заказ' })).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: /Вернуться в Навигатор/ })).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: /Маршрут к заведению|Маршрут к клиенту/ })).toBeVisible();
   await expect.element(screen.getByRole('slider', { name: 'Сдвиньте вправо, чтобы завершить заказ' })).toBeVisible();
   await page.screenshot({ path: '../../output/wayyaam-driver-no-map-flow.png' });
 });

@@ -187,6 +187,7 @@ export type ClientCheckoutDraft = {
 
 export type ClientOrderItem = {
   dishId: string;
+  imageUrl?: string;
   name: string;
   price: number;
   quantity: number;

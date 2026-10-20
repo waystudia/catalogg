@@ -29,6 +29,7 @@ import {
   Repeat2,
   RefreshCw,
   Search,
+  Settings as SettingsIcon,
   ShoppingCart,
   Star,
   Store,
@@ -81,10 +82,11 @@ import {
   hasStoredClientSession,
   logoutClientAccount,
   registerClientAccount,
-  restoreClientAccountSession
+  restoreClientAccountSession,
+  updateClientAccountName
 } from '../../shared/api/clientAccountApi';
 import type { ClientAccountSession } from '../../shared/api/clientAccountApi';
-import { getClientDeliveryChat, sendClientDeliveryChat, type DeliveryChatMessage } from '../../shared/api/deliveryChatApi';
+import { getClientOrderConversation, sendClientOrderConversation, type OrderConversationMessage } from '../../shared/api/deliveryChatApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
 import type { DeliveryLocationSearchResult } from '../../shared/deliveryGeocoder';
 import { submitSettlementRequest } from '../../shared/api/settlementsApi';
@@ -702,7 +704,11 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
     }
     setIsLocating(true);
     setLocationMessage('');
-    navigator.geolocation.getCurrentPosition(
+    const finish = () => {
+      navigator.geolocation.clearWatch(watchId);
+      setIsLocating(false);
+    };
+    const watchId = navigator.geolocation.watchPosition(
       () => {
         const nearestCity = snapshot.cities
           .slice()
@@ -711,14 +717,15 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
         if (nearestCity) {
           setSelectedCity(nearestCity.id);
           setShowLocationPrompt(false);
+          finish();
           return;
         }
         setLocationMessage('Пока нет доступных заведений рядом. Выберите населённый пункт вручную.');
-        setIsLocating(false);
+        finish();
       },
       () => {
-        setIsLocating(false);
         setLocationMessage('Не удалось получить геолокацию. Разрешите доступ или выберите город вручную.');
+        finish();
       },
       { enableHighAccuracy: false, maximumAge: 300_000, timeout: 10_000 }
     );
@@ -2630,11 +2637,11 @@ function OrderStatusPage({
 
 function ClientDeliveryChat({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const token = getStoredClientSessionToken();
-  const [messages, setMessages] = useState<DeliveryChatMessage[]>([]);
+  const [messages, setMessages] = useState<OrderConversationMessage[]>([]);
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
-  useEffect(() => { if (token) void getClientDeliveryChat(token, orderId).then(setMessages).catch(() => setError('Не удалось открыть чат.')); }, [orderId, token]);
-  const send = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!body.trim() || !token) return; try { await sendClientDeliveryChat(token, orderId, body); setBody(''); setMessages(await getClientDeliveryChat(token, orderId)); } catch { setError('Не удалось отправить сообщение.'); } };
+  useEffect(() => { if (token) void getClientOrderConversation(token, orderId).then(setMessages).catch(() => setError('Не удалось открыть чат.')); }, [orderId, token]);
+  const send = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!body.trim() || !token) return; try { await sendClientOrderConversation(token, orderId, body); setBody(''); setMessages(await getClientOrderConversation(token, orderId)); } catch { setError('Не удалось отправить сообщение.'); } };
   return <section className="client-delivery-chat" role="dialog"><header><strong>Чат с водителем</strong><button type="button" onClick={onClose}><X /></button></header><div>{messages.map((message) => <p data-own={message.senderRole === 'client'} key={message.id}>{message.body}</p>)}</div>{error && <small className="form-error">{error}</small>}<form onSubmit={send}><input value={body} onChange={(event) => setBody(event.target.value)} placeholder="Сообщение" maxLength={1000} /><button type="submit">Отправить</button></form></section>;
 }
 
@@ -2707,6 +2714,14 @@ function ProfileArea({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     );
   }
 
+  if (location.pathname === '/profile/settings') {
+    return (
+      <PlatformLayout active="profile">
+        <ClientSettingsPage />
+      </PlatformLayout>
+    );
+  }
+
   if (location.pathname === '/profile/partners') {
     return (
       <PlatformLayout active="profile">
@@ -2769,6 +2784,25 @@ function PartnerBusinessTypePage() {
   );
 }
 
+function ClientSettingsPage() {
+  const [advertising, setAdvertising] = useState(() => window.localStorage.getItem('wayyaam:advertising-preference:1.0') === 'granted');
+  return (
+    <>
+      <PageHeader title="Настройки" backTo="/profile" />
+      <section className="client-settings-card">
+        <label>
+          <span><strong>Акции и предложения</strong><small>Получать рекламные уведомления WayYaam</small></span>
+          <input type="checkbox" checked={advertising} onChange={(event) => {
+            setAdvertising(event.target.checked);
+            window.localStorage.setItem('wayyaam:advertising-preference:1.0', event.target.checked ? 'granted' : 'denied');
+          }} />
+        </label>
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('wayyaam:open-cookie-settings'))}>Настройки cookies</button>
+      </section>
+    </>
+  );
+}
+
 function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   return (
     <>
@@ -2806,21 +2840,24 @@ export function ProfilePage() {
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
   const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
   const clientAuthRequested = searchParams.get('clientAuth') === '1';
+  const loginRequested = searchParams.get('login') === '1';
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
     clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
   );
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
-  const [accountOpen, setAccountOpen] = useState(clientAuthRequested);
+  const [accountOpen, setAccountOpen] = useState(clientAuthRequested || loginRequested);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const items = [
     { to: '/profile/orders', label: 'Мои заказы', Icon: ReceiptText },
-    { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/addresses', label: 'Адреса доставки', Icon: MapPin },
+    { to: '/profile/favorites', label: 'Избранное', Icon: Heart },
     { to: '/profile/support', label: 'Поддержка', Icon: MessageCircle },
+    { to: '/profile/settings', label: 'Настройки', Icon: SettingsIcon },
     { to: '/profile/partners', label: 'Для бизнеса и курьеров', Icon: Building2 }
   ];
   const displayName = profile.name || 'Гость WayYaam';
@@ -2891,12 +2928,12 @@ export function ProfilePage() {
         return;
       }
       const session = await registerClientAccount({
-        ...nextProfile,
-        password: clientPassword,
-        acceptedAgreement: acceptedClientAgreement,
-        acceptedPersonalData: acceptedClientConsent,
-        acceptedAdvertising
-      });
+          ...nextProfile,
+          password: clientPassword,
+          acceptedAgreement: acceptedClientAgreement,
+          acceptedPersonalData: acceptedClientConsent,
+          acceptedAdvertising
+        });
       saveProfile({ name: session.name, phone: session.phone });
       setClientSession(session);
       setClientName(session.name);
@@ -2907,6 +2944,25 @@ export function ProfilePage() {
       navigate(clientReturnTo, { replace: true });
     } catch (error) {
       setClientError(error instanceof Error ? error.message : 'Не удалось войти.');
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
+
+  const saveAccountName = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setClientError('');
+    setClientMessage('');
+    setIsSavingClient(true);
+    try {
+      const session = await updateClientAccountName(clientName);
+      setClientSession(session);
+      saveProfile({ name: session.name, phone: session.phone });
+      setClientName(session.name);
+      setClientMessage('Имя сохранено');
+      setProfileOpen(false);
+    } catch (error) {
+      setClientError(error instanceof Error ? error.message : 'Не удалось сохранить имя.');
     } finally {
       setIsSavingClient(false);
     }
@@ -2932,37 +2988,41 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader title="Профиль" />
-      <section className="profile-card">
+      <section className="profile-card profile-card--unified">
         <span className="avatar"><CircleUserRound /></span>
         <span>
           <strong>{displayName}</strong>
-          <small>{displayPhone}</small>
+          {clientSession && <small>{displayPhone}</small>}
           <small className={clientSession ? 'profile-card__consent' : undefined}>
             {isClientSessionChecking
               ? 'Проверяем вход…'
               : clientSession
                 ? 'Аккаунт защищён паролем'
-                : 'Гостевой профиль · аккаунт ещё не создан'}
+                : 'Войдите, чтобы видеть заказы и сохранять адреса'}
           </small>
           {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
         </span>
-        <ChevronRight />
+        {!clientSession && (
+          <button className="profile-signin-button" type="button" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>
+            {accountOpen ? 'Скрыть вход и регистрацию' : 'Войти или зарегистрироваться'}
+          </button>
+        )}
+        {clientSession && (
+          <>
+            <button className="profile-cabinet-button profile-cabinet-button--inside" type="button" aria-expanded={profileOpen} onClick={() => { setProfileOpen((value) => !value); setClientError(''); }}>
+              <span><strong>Личный кабинет</strong><small>Изменить имя</small></span><ChevronRight />
+            </button>
+            {profileOpen && <form className="profile-inline-form profile-name-form" onSubmit={saveAccountName}>
+              <label className="field-label"><span>Имя</span><input value={clientName} onChange={(event) => setClientName(event.target.value)} autoComplete="name" minLength={2} maxLength={80} required /></label>
+              {clientError && <p role="alert">{clientError}</p>}
+              <button className="profile-signin-button" type="submit" disabled={isSavingClient}>{isSavingClient ? 'Сохраняем…' : 'Сохранить имя'}</button>
+            </form>}
+            {clientMessage && !profileOpen && <small className="profile-name-message" role="status">{clientMessage}</small>}
+          </>
+        )}
       </section>
 
-      <button
-        className="profile-cabinet-button"
-        type="button"
-        onClick={() => setAccountOpen((value) => !value)}
-      >
-        <CircleUserRound />
-        <span>
-          <strong>Личный кабинет</strong>
-          <small>Единый вход по телефону или почте</small>
-        </span>
-        <ChevronRight />
-      </button>
-
-      {accountOpen && (
+      {!clientSession && accountOpen && (
         <section className="profile-account-panel">
           <form className="profile-inline-form" onSubmit={submitAccount}>
             <div className="segment-control">
@@ -3066,18 +3126,32 @@ export function ProfilePage() {
             <ChevronRight />
           </Link>
         ))}
-        <button type="button" onClick={() => void logout()} disabled={isSigningOut}>
+        {clientSession && <button type="button" onClick={() => void logout()} disabled={isSigningOut}>
           <LogOut />
           <span>{isSigningOut ? 'Выходим…' : 'Выйти'}</span>
           <ChevronRight />
-        </button>
+        </button>}
       </nav>
     </>
   );
 }
 
-function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const manageOrderId = searchParams.get('manage');
+  const history = searchParams.get('tab') === 'history';
+  useEffect(() => {
+    const key = `wayyaam:orders-return:${location.key}`;
+    try {
+      const position = window.sessionStorage.getItem(key);
+      if (position !== null) {
+        window.sessionStorage.removeItem(key);
+        window.requestAnimationFrame(() => window.scrollTo(0, Number(position) || 0));
+      }
+    } catch { /* Navigation remains available when storage is disabled. */ }
+  }, [location.key]);
   const queryClient = useQueryClient();
   const profile = useClientPlatformStore((state) => state.profile);
   const orders = useClientPlatformStore((state) => state.orders);
@@ -3157,7 +3231,7 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       : '';
 
     return (
-    <details className="order-card order-card--compact" key={order.id}>
+    <details className="order-card order-card--compact" key={order.id} open={manageOrderId === order.id}>
       <summary className="order-card__summary">
         <span className="order-card__summary-text">
         <strong>{order.restaurantName}</strong>
@@ -3246,32 +3320,29 @@ function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
   return (
     <>
-      <PageHeader title="Мои заказы" backTo="/profile" />
-      <OrderGroup title="Текущие" orders={currentOrders} renderOrder={renderOrder} />
-      <OrderGroup title="Завершённые" orders={finishedOrders} renderOrder={renderOrder} />
-      <OrderGroup title="Отменённые" orders={canceledOrders} renderOrder={renderOrder} />
-      {reviewMessage && <p className="form-success">{reviewMessage}</p>}
-      {orders.length === 0 && <EmptyState title="Заказов пока нет" linkTo="/restaurants" linkText="Выбрать ресторан" />}
+      <PageHeader title={manageOrderId ? 'Действия с заказом' : 'Мои заказы'} backTo={manageOrderId ? '/profile/orders' : '/profile'} />
+      {manageOrderId ? (
+        <section className="plain-section"><div className="order-list">{orders.filter((order) => order.id === manageOrderId).map(renderOrder)}</div>{reviewMessage && <p className="form-success">{reviewMessage}</p>}</section>
+      ) : (
+        <>
+          <div className="orders-view-tabs" role="tablist" aria-label="Заказы">
+            <button type="button" role="tab" aria-selected={!history} className={!history ? 'is-active' : ''} onClick={() => setSearchParams({}, { replace: true })}>Текущие · {currentOrders.length}</button>
+            <button type="button" role="tab" aria-selected={history} className={history ? 'is-active' : ''} onClick={() => setSearchParams({ tab: 'history' }, { replace: true })}>Завершённые</button>
+          </div>
+          <section className="plain-section">
+            <h2>{history ? 'Завершённые' : 'Текущие'}</h2>
+            <div className="order-list">{(history ? [...finishedOrders, ...canceledOrders] : currentOrders).map((order) => (
+              <Link className="order-card order-compact-link" to={`/${order.restaurantSlug}/order/${order.id}`} key={order.id} state={{ ordersOriginKey: location.key }} onClick={() => {
+                try { window.sessionStorage.setItem(`wayyaam:orders-return:${location.key}`, String(window.scrollY)); } catch { /* Direct-entry fallback remains available. */ }
+              }}>
+                <span className="order-card__summary"><strong>{order.restaurantName}</strong><small>№{order.id.slice(0, 8).toUpperCase()} · {formatPrice(order.totalAmount)}</small><em>{statusLabels[order.status]}</em></span><ArrowRight aria-hidden="true" />
+              </Link>
+            ))}</div>
+            {(history ? finishedOrders.length + canceledOrders.length : currentOrders.length) === 0 && <p className="orders-empty">{history ? 'Завершённых заказов пока нет' : 'Текущих заказов пока нет'}</p>}
+          </section>
+        </>
+      )}
     </>
-  );
-}
-
-function OrderGroup({
-  title,
-  orders,
-  renderOrder
-}: {
-  title: string;
-  orders: ClientOrder[];
-  renderOrder: (order: ClientOrder) => ReactNode;
-}) {
-  if (orders.length === 0) return null;
-
-  return (
-    <section className="plain-section">
-      <h2>{title}</h2>
-      <div className="order-list">{orders.map(renderOrder)}</div>
-    </section>
   );
 }
 

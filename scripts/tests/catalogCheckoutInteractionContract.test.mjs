@@ -151,7 +151,7 @@ test('order submission requires contacts and consents only for a new client sess
   assert.match(checkoutSource, /if \(!hasRequiredOrderConsent\)/);
 });
 
-test('successful checkout persists the profile and consent, then clears the cart before opening WhatsApp', () => {
+test('successful checkout persists the profile and consent, then opens confirmation with a WhatsApp link', () => {
   assert.match(checkoutSource, /saveClientProfile\(\{ name: profileName, phone: profilePhone \}\)/);
   const saveProfileIndex = checkoutSource.indexOf('saveClientProfile({ name: profileName, phone: profilePhone });');
   const orderPayloadIndex = checkoutSource.indexOf('const orderPayload: CreateRestaurantOrderFromCartInput');
@@ -159,13 +159,11 @@ test('successful checkout persists the profile and consent, then clears the cart
 
   const consentIndex = checkoutSource.indexOf('recordOrderConsent();');
   const clearIndex = checkoutSource.indexOf('clearCart();');
-  const submitIndex = checkoutSource.indexOf('onSubmitOrder(orderId);');
-  const whatsappIndex = checkoutSource.indexOf('openCreatedOrderWhatsapp(buildWhatsappHref(orderId));');
+  const submitIndex = checkoutSource.indexOf('onSubmitOrder(orderId, buildWhatsappHref(orderId));');
 
   assert.ok(consentIndex > 0);
   assert.ok(clearIndex > consentIndex);
   assert.ok(submitIndex > clearIndex);
-  assert.ok(whatsappIndex > submitIndex);
 });
 
 test('order consent is restored by legal-document version without exposing legal evidence in the profile card', () => {

@@ -104,8 +104,8 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.doesNotMatch(activeScreen, /<DeliveryTrackingMap/);
     assert.doesNotMatch(driverApp, /function DriverMapScreen/);
     assert.doesNotMatch(driverApp, /Открыть карту маршрута/);
-    assert.match(driverApp, /Открыть маршрут в Навигаторе/);
-    assert.match(driverApp, /Вернуться в Навигатор/);
+    assert.match(driverApp, /Маршрут к заведению|Маршрут к клиенту/);
+    assert.match(driverApp, /Маршрут к заведению|Маршрут к клиенту/);
     assert.match(driverApp, /buildYandexNavigatorReturnUrl/);
   });
 
@@ -120,7 +120,7 @@ describe('driver capacity and restaurant priority dispatch', () => {
     assert.match(driverApp, /confirmDriverDeliveryHandoff/);
     assert.match(driverApp, /Отдал заказ/);
     assert.match(driverApp, /Ждём, когда клиент нажмёт «Получил заказ»/);
-    assert.match(driverApp, /driverHandedAt && delivery\.clientReceivedAt/);
+    assert.match(driverApp, /driverHandedAt && currentDelivery\.clientReceivedAt/);
     assert.match(driverApp, /DriverCompletionSlider/);
     assert.match(driverCss, /\.driver-completion-slider/);
     assert.match(driverCss, /::-webkit-slider-thumb/);

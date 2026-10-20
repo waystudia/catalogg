@@ -180,11 +180,12 @@ describe('restaurant to driver delivery contract', () => {
     assert.match(driverApi, /rpc\('confirm_delivery_pickup_qr_by_token'/);
   });
 
-  it('returns handover gates to the assigned driver and renders the status progress bar', () => {
+  it('returns handover gates to the assigned driver and keeps completion state explicit', () => {
     assert.match(cashHandoverSql, /'pickup_qr_confirmed_at'/);
     assert.match(cashHandoverSql, /'restaurant_payment_confirmed_at'/);
     assert.match(cashHandoverSql, /'payment_method'/);
-    assert.match(driverApp, /driver-delivery-progress/);
-    assert.match(driverApp, /getDriverDeliveryProgress/);
+    assert.match(driverApp, /driverHandedToClientAt/);
+    assert.match(driverApp, /clientReceivedAt/);
+    assert.match(driverApp, /DriverCompletionSlider/);
   });
 });

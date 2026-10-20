@@ -8,7 +8,8 @@ import type { ClientOrder } from '../../src/features/client-platform/types';
 import '../../src/pages/client-platform/client-platform.css';
 
 const previousOrders = useClientPlatformStore.getState().orders;
-afterEach(() => useClientPlatformStore.setState({ orders: previousOrders }));
+const previousProfile = useClientPlatformStore.getState().profile;
+afterEach(() => useClientPlatformStore.setState({ orders: previousOrders, profile: previousProfile }));
 const order = (id: string, name: string, status: ClientOrder['status']): ClientOrder => ({
   id, restaurantSlug: id, restaurantName: name, orderType: 'pickup', deliveryProvider: 'pickup',
   paymentMethod: 'cash', status, paymentStatus: 'unpaid', totalAmount: 550, addressLine: '',
@@ -25,4 +26,17 @@ test('home shows separate active orders with links and hides completed orders', 
   useClientPlatformStore.setState({ orders: [order('one', 'Мангал', 'ready')] });
   await expect.element(screen.getByText('Готов')).toBeVisible();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+});
+
+test('updates saved orders when another tab changes client storage', async () => {
+  const storageKey = 'waycatalog-client-platform';
+  useClientPlatformStore.setState({ orders: [] });
+  const saved = JSON.parse(window.localStorage.getItem(storageKey) || '{}');
+  saved.state.orders = [order('cross-tab-order', 'Мангал', 'new')];
+  const updated = JSON.stringify(saved);
+  window.localStorage.setItem(storageKey, updated);
+  window.dispatchEvent(new StorageEvent('storage', { key: storageKey, newValue: updated, storageArea: window.localStorage }));
+  await expect.poll(() => useClientPlatformStore.getState().orders.map((item) => item.id)).toEqual(['cross-tab-order']);
+  useClientPlatformStore.getState().saveProfile({ name: 'Тест', phone: '' });
+  expect(JSON.parse(window.localStorage.getItem(storageKey) || '{}').state.orders[0].id).toBe('cross-tab-order');
 });

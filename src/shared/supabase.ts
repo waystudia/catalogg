@@ -382,6 +382,9 @@ const productConfigKeys = [
   'allow_inscription',
   'allow_decoration_comment',
   'allow_production_schedule',
+  'publish_choice_cards',
+  'generated_from_choice',
+  'generated_choice_index',
   'placeholder_kind'
 ] as const satisfies ReadonlyArray<keyof Product>;
 
@@ -1152,6 +1155,9 @@ export async function saveProductToSupabase(product: Product) {
   }
   const legacyProduct: Record<string, unknown> = { ...product };
   delete legacyProduct.choice_options;
+  delete legacyProduct.publish_choice_cards;
+  delete legacyProduct.generated_from_choice;
+  delete legacyProduct.generated_choice_index;
   await throwOnError(supabase.from('product').upsert(legacyProduct, { onConflict: 'id' }));
   await saveProductChoices(product);
 }

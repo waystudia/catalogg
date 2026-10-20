@@ -19,9 +19,9 @@ describe('restaurant admin mobile order details', () => {
     assert.match(adminWorkspaceSource, /onClick=\{\(\) => openOrderFromList\(order\)\}/);
   });
 
-  it('automatically opens the first visible order and a newly arrived order', () => {
-    assert.match(adminWorkspaceSource, /hasAutoOpenedOrderRef/);
-    assert.match(adminWorkspaceSource, /setSelectedOrder\(filteredOrders\[0\]\)/);
-    assert.match(adminWorkspaceSource, /setSelectedOrder\(newOrders\[0\]\)/);
+  it('keeps incoming orders compact until the restaurant selects one', () => {
+    assert.match(adminWorkspaceSource, /recentOrderIds/);
+    assert.match(adminWorkspaceSource, /hasLoadedOrdersRef/);
+    assert.doesNotMatch(adminWorkspaceSource, /hasAutoOpenedOrderRef/);
   });
 });

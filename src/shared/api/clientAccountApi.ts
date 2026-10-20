@@ -135,3 +135,15 @@ export async function logoutClientAccount() {
   if (!token || !supabase) return;
   await supabase.rpc('logout_client_account', { client_session_token: token });
 }
+
+export async function updateClientAccountName(name: string) {
+  const token = getStoredClientSessionToken();
+  if (!token || !supabase) throw new Error('Войдите в аккаунт заново.');
+  const { data, error } = await supabase.rpc('update_client_account_name', {
+    client_session_token: token, client_name: name.trim()
+  });
+  if (error) throw new Error(getRpcErrorMessage(error));
+  const session = mapSession(data);
+  if (!session) throw new Error('Сессия истекла. Войдите в аккаунт заново.');
+  return session;
+}
