@@ -779,6 +779,57 @@ function PageHeader({
   );
 }
 
+export function HomeActiveOrders({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+  const orders = useClientPlatformStore((state) => state.orders);
+  const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
+  const activeOrders = orders.filter(orderIsCurrent);
+  const orderIds = activeOrders.map((order) => order.id).sort().join('|');
+
+  useEffect(() => {
+    if (!orderIds) return undefined;
+    const unsubscribes = orderIds.split('|').map((orderId) =>
+      subscribeClientOrderRealtime(orderId, (patch) => {
+        syncOrderPatch(orderId, mergeClientOrderRealtimePatch({
+          status: resolveClientOrderRealtimeStatus(patch.status, patch.deliveryStatus),
+          paymentStatus: patch.paymentStatus,
+          driverName: patch.driverName,
+          driverPhone: patch.driverPhone,
+          driverLat: patch.driverLat,
+          driverLng: patch.driverLng,
+          driverLocationAt: patch.driverLocationAt
+        }));
+      })
+    );
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [orderIds, syncOrderPatch]);
+
+  if (activeOrders.length === 0) return null;
+
+  return (
+    <section className="home-active-orders" aria-label="Текущие заказы">
+      <div className="home-active-orders__heading">
+        <strong>Текущие заказы</strong>
+        <Link to="/profile/orders">Все заказы</Link>
+      </div>
+      {activeOrders.map((order) => {
+        const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+        const orderPathPrefix = restaurant?.businessType === 'grocery' ? '/r' : '';
+        const orderPath = `${orderPathPrefix}/${order.restaurantSlug}/order/${order.id}`;
+        return (
+          <Link className="home-active-order" key={order.id} to={orderPath}>
+            <span>
+              <strong>{order.restaurantName}</strong>
+              <small>№{formatPublicOrderNumber(order.id, order.restaurantName)} · {formatPrice(order.totalAmount)}</small>
+              <em>{statusLabels[order.status]}</em>
+            </span>
+            <ChevronRight aria-hidden="true" />
+          </Link>
+        );
+      })}
+    </section>
+  );
+}
+
 function HomePage({
   snapshot,
   isLoading,
@@ -836,6 +887,7 @@ function HomePage({
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
+      <HomeActiveOrders snapshot={snapshot} />
 
       {availableBusinessTypes.length > 1 && (
         <div className="marketplace-filter-row" aria-label="Фильтр ленты">

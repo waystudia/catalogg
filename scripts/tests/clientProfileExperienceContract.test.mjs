@@ -50,6 +50,14 @@ test('favorites, repeat checkout and reviews expose complete client actions', ()
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);
 });
 
+test('the marketplace home gives every current order one compact path to its details', () => {
+  assert.match(appSource, /function HomeActiveOrders\(\{ snapshot \}/);
+  assert.match(appSource, /aria-label="Текущие заказы"/);
+  assert.match(appSource, /<HomeActiveOrders snapshot=\{snapshot\} \/>/);
+  assert.match(appSource, /className="home-active-order"/);
+  assert.match(appSource, /to=\{orderPath\}/);
+});
+
 test('review submission is tied to a real client session and order', () => {
   assert.match(migrationSource, /create or replace function public\.submit_client_review/i);
   assert.match(migrationSource, /client_account_sessions/i);
