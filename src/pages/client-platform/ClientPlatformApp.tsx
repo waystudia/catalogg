@@ -43,7 +43,7 @@ import {
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, calculateClientDeliveryFee, calculateClientDishLineAmount, filterRestaurants, formatClientDishQuantity, getClientDishInitialQuantity, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { buildCityPickerPath, getRestaurantClientBackFallback, resolveCityPickerReturnTo } from '../../features/client-platform/clientPlatformNavigation';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
@@ -2880,6 +2880,10 @@ function ProfileArea({
     );
   }
 
+  if (location.pathname === '/profile' && /(?:^|[?&])(?:clientAuth|login)=1(?:&|$)/.test(location.search)) {
+    return <Navigate replace to={`/profile/cabinet${location.search}`} />;
+  }
+
   if (location.pathname === '/profile/orders') {
     return (
       <PlatformLayout active="orders">
@@ -2953,7 +2957,9 @@ function SupportPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
 
 function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const isCabinetPage = location.pathname === '/profile/cabinet';
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
@@ -2971,14 +2977,12 @@ function ProfilePage() {
   const [acceptedClientConsent, setAcceptedClientConsent] = useState(false);
   const [acceptedAdvertising, setAcceptedAdvertising] = useState(false);
   const clientAuthRequested = searchParams.get('clientAuth') === '1';
-  const loginRequested = searchParams.get('login') === '1';
   const [clientAuthMode, setClientAuthMode] = useState<'login' | 'register'>(
     clientAuthRequested && !hasStoredClientSession() ? 'register' : 'login'
   );
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [clientMessage, setClientMessage] = useState('');
   const [clientError, setClientError] = useState('');
-  const [accountOpen, setAccountOpen] = useState(clientAuthRequested || loginRequested);
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
@@ -3001,9 +3005,9 @@ function ProfilePage() {
   }, [clientReturnTo, expectedLoginRole]);
 
   useEffect(() => {
-    if (!accountOpen || clientAuthMode !== 'login') return;
+    if (!isCabinetPage || clientAuthMode !== 'login') return;
     void refreshStaleAuthClient();
-  }, [accountOpen, clientAuthMode]);
+  }, [isCabinetPage, clientAuthMode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -3074,8 +3078,7 @@ function ProfilePage() {
             setAccountIdentifier(session.phone);
             setClientPassword('');
             setClientMessage('Вы вошли в аккаунт');
-            setAccountOpen(false);
-          }
+                  }
         }
 
         rememberPwaResumePath(targetPath);
@@ -3150,7 +3153,6 @@ function ProfilePage() {
     setClientError('');
     setClientSession(null);
     setIsClientSessionChecking(false);
-    setAccountOpen(false);
     await Promise.allSettled([logoutClientAccount(), signOutPlatformAdmin()]);
     setIsSigningOut(false);
     navigate('/profile', { replace: true });
@@ -3164,13 +3166,13 @@ function ProfilePage() {
     setClientPassword('');
     setClientMessage('Вы вошли по Face ID');
     setClientError('');
-    setAccountOpen(false);
     navigate(clientReturnTo, { replace: true });
   };
 
   return (
     <>
-      <PageHeader title="Профиль" />
+      <PageHeader title={isCabinetPage ? 'Личный кабинет' : 'Профиль'} backTo={isCabinetPage ? '/profile' : undefined} />
+      {!isCabinetPage && <>
       <section className="profile-card">
         <span className="avatar"><CircleUserRound /></span>
         <span>
@@ -3193,21 +3195,17 @@ function ProfilePage() {
         Зарегистрировать бизнес или курьера
       </button>
 
-      <button
-        className={`profile-cabinet-button${accountOpen ? ' is-open' : ''}`}
-        type="button"
-        aria-expanded={accountOpen}
-        onClick={() => setAccountOpen((value) => !value)}
-      >
+      <Link className="profile-cabinet-button" to="/profile/cabinet">
         <CircleUserRound />
         <span>
           <strong>Личный кабинет</strong>
-          <small>Единый вход по телефону или почте</small>
+          <small>Войти или зарегистрироваться</small>
         </span>
         <ChevronRight />
-      </button>
+      </Link>
+      </>}
 
-      {accountOpen && (
+      {isCabinetPage && (
         <section className="profile-account-panel">
           <form className="profile-inline-form" onSubmit={submitAccount}>
             <div className="profile-auth-mode-switch" aria-label="Действие с аккаунтом">
@@ -3385,7 +3383,7 @@ function ProfilePage() {
         </section>
       )}
 
-      {clientSession && (
+      {isCabinetPage && clientSession && (
         <>
           <ClientPasskeyCard accountId={clientSession.accountId} />
           {appIsRunningStandalone() && (
@@ -3397,7 +3395,7 @@ function ProfilePage() {
         </>
       )}
 
-      <nav className="profile-menu">
+      {!isCabinetPage && <nav className="profile-menu">
         {items.map(({ to, label, Icon }) => (
           <Link to={to} key={to}>
             <Icon />
@@ -3410,7 +3408,7 @@ function ProfilePage() {
           <span>{isSigningOut ? 'Выходим…' : 'Выйти'}</span>
           <ChevronRight />
         </button>
-      </nav>
+      </nav>}
     </>
   );
 }

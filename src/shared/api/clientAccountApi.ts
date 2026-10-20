@@ -138,7 +138,7 @@ const clearClientSession = () => {
 };
 
 export const buildClientAuthPath = (returnTo: string) =>
-  `/profile?clientAuth=1&returnTo=${encodeURIComponent(returnTo)}`;
+  `/profile/cabinet?clientAuth=1&returnTo=${encodeURIComponent(returnTo)}`;
 
 type ClientRegistrationLegalChoices = {
   acceptedAgreement: boolean;

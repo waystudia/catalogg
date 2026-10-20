@@ -19,6 +19,7 @@ export function ExactScrollRestoration() {
       '',
       window.location.href
     );
+    window.scrollTo({ left: 0, top: 0, behavior: 'auto' });
     window.dispatchEvent(new Event(exactHistoryPushEvent));
   }, [location.key, navigationType]);
 

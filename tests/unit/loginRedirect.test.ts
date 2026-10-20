@@ -64,10 +64,10 @@ describe('staff login role selection', () => {
 
   it('opens every role login inside the client profile and rejects unsafe return paths', () => {
     expect(buildProfileLoginPath('/business/finik')).toBe(
-      '/profile?login=1&returnTo=%2Fbusiness%2Ffinik'
+      '/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik'
     );
     expect(buildProfileLoginPath('//external.example')).toBe(
-      '/profile?login=1&returnTo=%2Fprofile'
+      '/profile/cabinet?login=1&returnTo=%2Fprofile'
     );
   });
 
@@ -108,7 +108,7 @@ describe('staff login role selection', () => {
       configurable: true,
       value: {
         location: {
-          href: 'https://wayyaam.ru/?auth-refresh=index-current123#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          href: 'https://wayyaam.ru/?auth-refresh=index-current123#/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik',
           search: '?auth-refresh=index-current123',
           reload: () => {
             reloadCalls += 1;
@@ -154,7 +154,7 @@ describe('staff login role selection', () => {
       configurable: true,
       value: {
         location: {
-          href: 'https://wayyaam.ru/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+          href: 'https://wayyaam.ru/#/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik',
           reload: () => {
             reloadCalls += 1;
           },

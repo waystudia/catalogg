@@ -3874,3 +3874,24 @@
   margin: 0;
   color: #667085;
 }
+
+
+.profile-account-panel .profile-auth-mode-switch {
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #d9d2ff;
+  background: #ffffff;
+}
+
+.profile-account-panel .profile-auth-mode-switch button {
+  border-radius: 0;
+}
+
+.profile-account-panel .profile-auth-mode-switch button + button {
+  border-left: 1px solid #d9d2ff;
+}
+
+.profile-account-panel .profile-auth-mode-switch button.is-active {
+  box-shadow: none;
+}

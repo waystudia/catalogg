@@ -14,11 +14,11 @@ describe('production auth client version guard', () => {
   it('forces a document reload while preserving the requested Finik cabinet', () => {
     expect(getStaleAuthClientRefreshUrl({
       hostname: 'wayyaam.ru',
-      pageUrl: 'https://wayyaam.ru/#/profile?login=1&returnTo=%2Fbusiness%2Ffinik',
+      pageUrl: 'https://wayyaam.ru/#/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik',
       currentAssetUrl: 'https://wayyaam.ru/assets/index-old123.js',
       latestShellHtml: '<script type="module" src="/assets/index-current123.js"></script>'
     })).toBe(
-      'https://wayyaam.ru/?auth-refresh=index-current123#/profile?login=1&returnTo=%2Fbusiness%2Ffinik'
+      'https://wayyaam.ru/?auth-refresh=index-current123#/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik'
     );
   });
 

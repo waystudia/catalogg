@@ -13,13 +13,13 @@ test('legacy standalone login opens the embedded profile login instead', async (
     <MemoryRouter initialEntries={['/login']}>
       <Routes>
         <Route path="/login" element={<LegacyLoginRedirect />} />
-        <Route path="/profile" element={<LocationProbe />} />
+        <Route path="/profile/*" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>
   );
 
   await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent(
-    '/profile?login=1&returnTo=%2Fprofile'
+    '/profile/cabinet?login=1&returnTo=%2Fprofile'
   );
 });
 
@@ -28,12 +28,12 @@ test('legacy login preserves a safe requested role route', async () => {
     <MemoryRouter initialEntries={['/login?returnTo=%2Fbusiness%2Ffinik']}>
       <Routes>
         <Route path="/login" element={<LegacyLoginRedirect />} />
-        <Route path="/profile" element={<LocationProbe />} />
+        <Route path="/profile/*" element={<LocationProbe />} />
       </Routes>
     </MemoryRouter>
   );
 
   await expect.element(screen.getByLabelText('Текущий маршрут')).toHaveTextContent(
-    '/profile?login=1&returnTo=%2Fbusiness%2Ffinik'
+    '/profile/cabinet?login=1&returnTo=%2Fbusiness%2Ffinik'
   );
 });

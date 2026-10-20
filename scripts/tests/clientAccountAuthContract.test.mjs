@@ -7,6 +7,7 @@ const legacyCheckoutSource = fs.readFileSync('src/features/checkout/CheckoutScre
 const restaurantAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientAccountApi.ts', 'utf8');
 const loginRedirectSource = fs.readFileSync('src/shared/api/loginRedirectApi.ts', 'utf8');
+const appNavigationSource = fs.readFileSync('src/shared/appNavigation.ts', 'utf8');
 const migrationFiles = fs
   .readdirSync('supabase/migrations')
   .filter((name) => name.endsWith('_add_client_password_accounts.sql'));
@@ -22,7 +23,7 @@ test('client checkout can create a real account session without leaving checkout
   assert.match(restaurantAppSource, /routeSection === 'checkout'/);
 });
 
-test('client profile keeps registration and embeds the unified login panel', () => {
+test('client profile opens its login and registration form on a separate cabinet page', () => {
   assert.match(appSource, /registerClientAccount/);
   assert.match(appSource, /type=\{isPasswordVisible \? 'text' : 'password'\}/);
   assert.match(appSource, /Зарегистрироваться/);
@@ -38,6 +39,12 @@ test('client profile keeps registration and embeds the unified login panel', () 
   assert.doesNotMatch(appSource, /Открыть единый вход/);
   assert.match(loginRedirectSource, /loginClientAccount/);
   assert.match(appSource, /Аккаунт защищён паролем/);
+  assert.match(appSource, /to="\/profile\/cabinet"/);
+  assert.match(appSource, /title=\{isCabinetPage \? 'Личный кабинет' : 'Профиль'\}/);
+  assert.match(appSource, /\{isCabinetPage && \(/);
+  assert.match(appSource, /<Navigate replace to=\{`\/profile\/cabinet\$\{location\.search\}`\}/);
+  assert.match(apiSource, /`\/profile\/cabinet\?clientAuth=1/);
+  assert.match(appNavigationSource, /`\/profile\/cabinet\?login=1/);
   assert.match(appSource, /Гостевой профиль/);
 });
 

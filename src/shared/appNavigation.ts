@@ -74,7 +74,7 @@ export const buildProfileLoginPath = (returnTo = '/profile') => {
   const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//')
     ? returnTo
     : '/profile';
-  return `/profile?login=1&returnTo=${encodeURIComponent(safeReturnTo)}`;
+  return `/profile/cabinet?login=1&returnTo=${encodeURIComponent(safeReturnTo)}`;
 };
 
 export const hasPreviousAppHistoryEntry = (state: unknown) => {
