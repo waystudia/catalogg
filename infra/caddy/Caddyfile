@@ -40,6 +40,13 @@ wayyaam.ru, www.wayyaam.ru {
     @appShell path / /index.html /sw.js /manifest.webmanifest
     header @appShell Cache-Control "no-store"
 
+    # Keep the browser on the public WayYaam host for API calls. Some VPNs
+    # route api.wayyaam.ru differently even though the application itself is
+    # reachable, which otherwise leaves city and catalog data unavailable.
+    handle_path /api/* {
+        reverse_proxy kong:8000
+    }
+
     # Public catalog photos previously pointed directly at Unsplash, which is
     # unreliable for Russian mobile networks. Keep the client on this domain
     # and let the production edge fetch the resized source image.

@@ -1,4 +1,5 @@
 import type { StorefrontContext } from '../entities/storefront';
+import { resolveSupabaseEndpoint } from './supabaseEndpoint';
 
 const upsertMeta = (name: string) => {
   let meta = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -21,7 +22,7 @@ const upsertLink = (rel: string) => {
 };
 
 export const buildStorefrontManifestUrl = (hostname: string) => {
-  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '');
+  const supabaseUrl = resolveSupabaseEndpoint(import.meta.env.VITE_SUPABASE_URL as string | undefined);
   return supabaseUrl
     ? `${supabaseUrl}/functions/v1/storefront-manifest?hostname=${encodeURIComponent(hostname)}`
     : `/manifest.webmanifest?hostname=${encodeURIComponent(hostname)}`;
