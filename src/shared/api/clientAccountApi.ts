@@ -191,6 +191,21 @@ export async function registerClientAccount(input: ClientProfile & { password: s
   return session;
 }
 
+export async function updateClientAccountName(name: string): Promise<ClientAccountSession> {
+  const token = getStoredClientSessionToken();
+  if (!token) throw new Error('Войдите в аккаунт, чтобы изменить имя.');
+  if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
+  const { data, error } = await supabase.rpc('update_client_account_name', {
+    client_session_token: token,
+    client_name: name.trim()
+  });
+  if (error) throw new Error(getRpcErrorMessage(error));
+  const session = mapSession(data);
+  if (!session) throw new Error('Не удалось сохранить имя.');
+  saveClientSession(token, session);
+  return session;
+}
+
 export async function loginClientAccount(input: { phone: string; password: string }) {
   if (!supabase) throw new Error('Сервис аккаунтов не настроен.');
   const { data, error } = await supabase.rpc('login_client_account', {

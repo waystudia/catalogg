@@ -55,7 +55,7 @@
   width: min(100%, 1120px);
   min-height: 100vh;
   margin: 0 auto;
-  padding: 18px 16px 108px;
+  padding: 18px 16px calc(118px + max(12px, env(safe-area-inset-bottom)));
   overflow-x: hidden;
 }
 
@@ -1886,7 +1886,7 @@
   gap: 2px;
   border-top: 1px solid var(--wy-border, #edf0f5);
   background: rgba(255, 255, 255, 0.96);
-  padding: 6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+  padding: 8px max(8px, env(safe-area-inset-left)) calc(12px + max(12px, env(safe-area-inset-bottom))) max(8px, env(safe-area-inset-right));
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
 }
 
@@ -3894,4 +3894,122 @@
 
 .profile-account-panel .profile-auth-mode-switch button.is-active {
   box-shadow: none;
+}
+
+.profile-partner-registration {
+  width: 100%;
+  min-height: 50px;
+  margin: 14px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #5b3fff;
+  border-radius: 14px;
+  background: #fff;
+  color: #5b3fff;
+  font-weight: 800;
+}
+
+.profile-partner-registration svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
+.profile-partner-registration--compact {
+  min-height: 44px;
+  justify-content: flex-start;
+  padding: 0 14px;
+  color: var(--wy-text-secondary, #667085);
+  border-color: var(--wy-border, #e2e8f0);
+  font-size: 13px;
+}
+
+.profile-partner-registration--compact svg:last-child {
+  margin-left: auto;
+  color: var(--wy-primary, #5b3fff);
+}
+
+.profile-account-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid var(--wy-border, #e2e8f0);
+  border-radius: var(--wy-radius-card, 20px);
+  background: var(--wy-surface, #fff);
+}
+
+.profile-account-details > div {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-account-details small {
+  color: var(--wy-text-secondary, #667085);
+}
+
+.profile-details-form {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--wy-border, #e2e8f0);
+  border-radius: var(--wy-radius-card, 20px);
+  background: var(--wy-surface, #fff);
+}
+
+.profile-details-form label {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.profile-details-form input {
+  min-height: 48px;
+  border: 1px solid var(--wy-border, #d9e0ea);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--wy-text-primary, #111827);
+}
+
+.profile-details-form input[readonly] {
+  color: var(--wy-text-secondary, #667085);
+  background: var(--wy-surface-secondary, #f4f5f8);
+}
+
+.profile-details-form button,
+.city-list-empty button {
+  min-height: 48px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--wy-primary, #5b3df4);
+  color: #fff;
+  font-weight: 800;
+}
+
+.profile-details-form button:disabled {
+  opacity: .55;
+}
+
+.city-list-empty {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--wy-text-secondary, #667085);
+  text-align: left;
+}
+
+.city-list-empty strong {
+  color: var(--wy-text-primary, #111827);
+}
+
+.city-list-empty p {
+  margin: 0;
 }

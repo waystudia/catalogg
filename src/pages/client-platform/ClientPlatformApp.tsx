@@ -103,7 +103,8 @@ import {
   hasStoredClientSession,
   logoutClientAccount,
   registerClientAccount,
-  restoreClientAccountSession
+  restoreClientAccountSession,
+  updateClientAccountName
 } from '../../shared/api/clientAccountApi';
 import type { ClientAccountSession } from '../../shared/api/clientAccountApi';
 import { DeliveryMapPicker } from '../../shared/DeliveryMapPicker';
@@ -644,7 +645,7 @@ function ClientPlatformContent() {
   if (location.pathname === '/city') {
     return (
       <PlatformLayout active="home">
-        <CityPage snapshot={snapshot} />
+        <CityPage snapshot={snapshot} isLoading={isLoading && !data} isError={isError && !data} onRetry={() => void refetch()} />
       </PlatformLayout>
     );
   }
@@ -1240,7 +1241,17 @@ function ContentPageScreen({
   );
 }
 
-export function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
+export function CityPage({
+  snapshot,
+  isLoading = false,
+  isError = false,
+  onRetry
+}: {
+  snapshot: ClientPlatformSnapshot;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
+}) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const selectedCityId = useClientPlatformStore((state) => state.selectedCityId);
@@ -1340,7 +1351,11 @@ export function CityPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
             ))}
           </div>
         ) : (
-          <p className="city-list-empty">Населённые пункты не найдены.</p>
+          <div className="city-list-empty" role={isError ? 'alert' : undefined}>
+            <strong>{isLoading ? 'Загружаем населённые пункты…' : isError ? 'Не удалось загрузить населённые пункты' : 'Населённые пункты пока не добавлены'}</strong>
+            <p>{isError ? 'Проверьте соединение и повторите загрузку.' : 'Напишите свой город или село ниже — мы добавим его в справочник.'}</p>
+            {isError && onRetry && <button type="button" onClick={onRetry}>Повторить</button>}
+          </div>
         )}
       </section>
       <section className="plain-section city-other-section">
@@ -2960,6 +2975,7 @@ function ProfilePage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const isCabinetPage = location.pathname === '/profile/cabinet';
+  const isAccountPage = location.pathname === '/profile/account';
   const profile = useClientPlatformStore((state) => state.profile);
   const addresses = useClientPlatformStore((state) => state.addresses);
   const saveProfile = useClientPlatformStore((state) => state.saveProfile);
@@ -2985,6 +3001,8 @@ function ProfilePage() {
   const [clientError, setClientError] = useState('');
   const [isSavingClient, setIsSavingClient] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileSaveMessage, setProfileSaveMessage] = useState('');
   const [clientSession, setClientSession] = useState<ClientAccountSession | null>(null);
   const [isClientSessionChecking, setIsClientSessionChecking] = useState(true);
   const items = [
@@ -3158,6 +3176,28 @@ function ProfilePage() {
     navigate('/profile', { replace: true });
   };
 
+  const saveAccountName = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = clientName.trim();
+    if (!name) {
+      setProfileSaveMessage('Введите имя.');
+      return;
+    }
+    setIsSavingProfile(true);
+    setProfileSaveMessage('');
+    try {
+      const session = await updateClientAccountName(name);
+      saveProfile({ name: session.name, phone: session.phone });
+      setClientSession(session);
+      setClientName(session.name);
+      setProfileSaveMessage('Имя сохранено.');
+    } catch (error) {
+      setProfileSaveMessage(error instanceof Error ? error.message : 'Не удалось сохранить имя.');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const completePasskeySignIn = (session: ClientAccountSession) => {
     setClientSession(session);
     saveProfile({ name: session.name, phone: session.phone });
@@ -3169,11 +3209,34 @@ function ProfilePage() {
     navigate(clientReturnTo, { replace: true });
   };
 
+  if (isAccountPage) {
+    return (
+      <>
+        <PageHeader title="Личные данные" backTo="/profile" />
+        <section className="profile-account-details">
+          <span className="avatar"><CircleUserRound /></span>
+          <div>
+            <strong>{displayName}</strong>
+            <small>{clientSession ? 'Данные аккаунта' : 'Войдите, чтобы сохранить изменения'}</small>
+          </div>
+        </section>
+        <form className="profile-details-form" onSubmit={(event) => void saveAccountName(event)}>
+          <label htmlFor="profile-display-name">Имя</label>
+          <input id="profile-display-name" value={clientName} onChange={(event) => setClientName(event.target.value)} autoComplete="name" required />
+          <label htmlFor="profile-display-phone">Телефон</label>
+          <input id="profile-display-phone" value={displayPhone} readOnly aria-readonly="true" />
+          <button type="submit" disabled={isSavingProfile || !clientSession}>{isSavingProfile ? 'Сохраняем…' : 'Сохранить изменения'}</button>
+          {profileSaveMessage && <p className={profileSaveMessage === 'Имя сохранено.' ? 'form-success' : 'form-error'}>{profileSaveMessage}</p>}
+        </form>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title={isCabinetPage ? 'Личный кабинет' : 'Профиль'} backTo={isCabinetPage ? '/profile' : undefined} />
       {!isCabinetPage && <>
-      <section className="profile-card">
+      <Link className="profile-card" to="/profile/account" aria-label="Открыть личные данные">
         <span className="avatar"><CircleUserRound /></span>
         <span>
           <strong>{displayName}</strong>
@@ -3182,18 +3245,13 @@ function ProfilePage() {
             {isClientSessionChecking
               ? 'Проверяем вход…'
               : clientSession
-                ? 'Аккаунт защищён паролем'
+                ? 'Аккаунт защищён паролем · изменить имя'
                 : 'Гостевой профиль · аккаунт ещё не создан'}
           </small>
           {displayAddress && <small className="profile-card__address"><MapPin /> {displayAddress}</small>}
         </span>
         <ChevronRight />
-      </section>
-
-      <button className="profile-partner-registration" type="button" onClick={() => navigate('/partner-registration')}>
-        <Building2 />
-        Зарегистрировать бизнес или курьера
-      </button>
+      </Link>
 
       <Link className="profile-cabinet-button" to="/profile/cabinet">
         <CircleUserRound />
@@ -3409,6 +3467,11 @@ function ProfilePage() {
           <ChevronRight />
         </button>
       </nav>}
+      {!isCabinetPage && <button className="profile-partner-registration profile-partner-registration--compact" type="button" onClick={() => navigate('/partner-registration')}>
+        <Building2 />
+        Регистрация бизнеса или курьера
+        <ChevronRight />
+      </button>}
     </>
   );
 }

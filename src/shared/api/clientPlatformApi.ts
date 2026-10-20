@@ -647,8 +647,19 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
 
   if (catalogsResult.error) throw catalogsResult.error;
   if (!catalogsResult.data?.length) {
+    const settlementsResult = await supabase
+      .from('delivery_settlements')
+      .select('city_name, settlement_name')
+      .eq('is_active', true)
+      .order('city_name', { ascending: true })
+      .order('settlement_name', { ascending: true });
+    const cities = unique(((settlementsResult.data ?? []) as Pick<DeliverySettlementRow, 'city_name' | 'settlement_name'>[])
+      .flatMap((settlement) => [settlement.city_name, settlement.settlement_name])
+      .map((name) => name.trim())
+      .filter(Boolean))
+      .map((name) => ({ id: getCityId(name), slug: getCityId(name), name, region: '', isActive: true }));
     return {
-      cities: [],
+      cities,
       categories: [],
       restaurants: [],
       reviews: [],
