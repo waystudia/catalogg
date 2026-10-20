@@ -43,8 +43,8 @@ test('favorites, repeat checkout and reviews expose complete client actions', ()
   assert.match(appSource, /navigate\(checkoutPath\)/);
   assert.match(appSource, /useCartStore\.setState/);
   assert.match(appSource, /useOrderStore\.getState\(\)\.setOrder/);
-  assert.match(clientOrdersSource, /to=\{detailsPath\}>Подробнее<\/Link>/);
-  assert.match(clientOrdersSource, /Повторить заказ/);
+  assert.match(clientOrdersSource, /className="client-order-card__link" to=\{detailsPath\}/);
+  assert.match(appSource, /onRepeat=\{\(\) => requestRepeat\(order\)\}/);
   assert.match(appSource, /restaurant\.businessType === 'grocery'[\s\S]*`\/r\/\$\{restaurant\.slug\}\/reviews`/);
   assert.match(appSource, /function RestaurantReviewsPage/);
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);

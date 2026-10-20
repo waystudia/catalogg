@@ -1,11 +1,9 @@
 import {
   Bike,
+  ChevronRight,
   CheckCircle2,
-  Clock3,
-  MapPin,
   MessageCircle,
   PackageCheck,
-  Repeat2,
   Store
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -148,14 +146,9 @@ export function DeliveryProgressCard({
 
 export function ClientOrderCard({
   order,
-  restaurant,
   orderNumber,
-  statusLabel,
   detailsPath,
-  chatPath,
-  trackingHref,
-  unreadCount = 0,
-  onRepeat
+  unreadCount = 0
 }: {
   order: ClientOrder;
   restaurant?: ClientRestaurant;
@@ -168,57 +161,21 @@ export function ClientOrderCard({
   onRepeat: () => void;
 }) {
   const isCurrent = orderIsCurrent(order);
-  const targetTime = formatClientOrderTargetTime(order);
-  const merchantInitial = order.restaurantName.trim().slice(0, 1).toLocaleUpperCase('ru-RU') || 'W';
+  const compactDate = formatClientOrderDate(order.createdAt).split(' ·')[0];
   return (
     <article className="client-order-card" data-state={isCurrent ? 'current' : order.status}>
-      <header className="client-order-card__head">
-        <span className="client-order-card__logo" aria-hidden="true">
-          {restaurant?.logoUrl
-            ? <img src={restaurant.logoUrl} alt="" loading="lazy" />
-            : merchantInitial}
-        </span>
-        <span className="client-order-card__merchant">
+      <Link className="client-order-card__link" to={detailsPath} aria-label={`Открыть заказ ${orderNumber} в заведении ${order.restaurantName}`}>
+        <span className="client-order-card__content">
           <strong>{order.restaurantName}</strong>
-          <small>Заказ №{orderNumber}</small>
-          <time dateTime={order.createdAt}>{formatClientOrderDate(order.createdAt)}</time>
+          <span>№{orderNumber} · {new Intl.NumberFormat('ru-RU').format(order.totalAmount)} ₽</span>
+          <time dateTime={order.createdAt}>{compactDate}</time>
+          <OrderStatusBadge status={order.status} label={getClientOrderBadgeLabel(order.status)} />
         </span>
-        <span className="client-order-card__amount">
-          <strong>{new Intl.NumberFormat('ru-RU').format(order.totalAmount)} ₽</strong>
-          <small>{statusLabel}</small>
+        <span className="client-order-card__aside">
+          {unreadCount > 0 && <span className="client-order-card__unread" aria-label={`Новых сообщений: ${Math.min(unreadCount, 99)}`}><MessageCircle /> {Math.min(unreadCount, 99)}</span>}
+          <ChevronRight aria-hidden="true" />
         </span>
-      </header>
-
-      <div className="client-order-card__badge-row">
-        <OrderStatusBadge status={order.status} label={getClientOrderBadgeLabel(order.status)} />
-        {unreadCount > 0 && <span className="client-order-card__unread"><MessageCircle /> {Math.min(unreadCount, 99)}</span>}
-      </div>
-
-      <section className="client-order-card__facts">
-        <span>
-          <Clock3 aria-hidden="true" />
-          <small>{order.status === 'completed' ? 'Заказ доставлен' : order.orderType === 'delivery' && targetTime ? `Доставка к ${targetTime}` : 'Заказ оформлен'}</small>
-        </span>
-        <span>
-          <MapPin aria-hidden="true" />
-          <small>{order.addressLine || 'Адрес не указан'}</small>
-        </span>
-      </section>
-
-      {isCurrent && <DeliveryProgressCard order={order} statusLabel={statusLabel} trackingHref={trackingHref} />}
-
-      <footer className="client-order-card__actions" data-layout={isCurrent ? 'current' : 'history'}>
-        <Link to={detailsPath}>Подробнее</Link>
-        <Link className="is-primary" to={chatPath}>
-          <MessageCircle /> Чат с {restaurant?.businessType === 'grocery' ? 'магазином' : 'рестораном'}
-          {unreadCount > 0 && <b>{Math.min(unreadCount, 99)}</b>}
-        </Link>
-        {!isCurrent && (
-          <button className="client-order-card__repeat" type="button" onClick={onRepeat}>
-            <Repeat2 /> Повторить заказ
-          </button>
-        )}
-      </footer>
+      </Link>
     </article>
   );
 }

@@ -31,7 +31,7 @@ const restaurant = {
   businessType: 'restaurant'
 } as ClientRestaurant;
 
-test('renders a compact active order with only details and its order-scoped chat actions', async () => {
+test('renders a compact active order as one card that opens its details', async () => {
   const screen = await render(
     <MemoryRouter>
       <ClientOrderCard
@@ -48,17 +48,15 @@ test('renders a compact active order with only details and its order-scoped chat
   );
 
   await expect.element(screen.getByText('Мангал')).toBeVisible();
-  await expect.element(screen.getByText('Заказ №M3719')).toBeVisible();
-  await expect.element(screen.getByText('Курьер в пути')).toBeVisible();
-  await expect.element(screen.getByText('ул. Мира, 12, 2 подъезд, кв. 45')).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: 'Подробнее' })).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: /Чат с рестораном/ })).toBeVisible();
-  expect(document.querySelectorAll('.client-order-card__actions > *')).toHaveLength(2);
-  expect(document.body.textContent).not.toContain('43.');
+  await expect.element(screen.getByText(/№M3719 · 1\s?840 ₽/)).toBeVisible();
+  await expect.element(screen.getByText('Заказ у курьера')).toBeVisible();
+  const cardLink = screen.getByRole('link', { name: /Открыть заказ M3719 в заведении Мангал/ });
+  await expect.element(cardLink).toBeVisible();
+  await expect.element(cardLink).toHaveAttribute('href', '/mangal/order/111');
+  expect(document.querySelectorAll('.client-order-card a')).toHaveLength(1);
 });
 
-test('keeps the order chat in history and renders repeat as a separate action', async () => {
-  const onRepeat = vi.fn();
+test('keeps completed orders equally compact and opens their details', async () => {
   const screen = await render(
     <MemoryRouter>
       <ClientOrderCard
@@ -68,19 +66,16 @@ test('keeps the order chat in history and renders repeat as a separate action', 
         statusLabel="Доставлен"
         detailsPath="/finik/order/111"
         chatPath="/profile/orders/111/chat"
-        onRepeat={onRepeat}
+        onRepeat={vi.fn()}
       />
     </MemoryRouter>
   );
 
-  await expect.element(screen.getByRole('link', { name: 'Подробнее' })).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: /Чат с магазином/ })).toBeVisible();
-  const repeatButton = screen.getByRole('button', { name: /Повторить заказ/ });
-  await expect.element(repeatButton).toBeVisible();
-  await repeatButton.click();
-  expect(onRepeat).toHaveBeenCalledTimes(1);
-  expect(document.querySelector('.client-order-card__actions')).toHaveAttribute('data-layout', 'history');
-  expect(document.querySelectorAll('.client-order-card__actions > *')).toHaveLength(3);
+  await expect.element(screen.getByText('Заказ завершён')).toBeVisible();
+  const cardLink = screen.getByRole('link', { name: /Открыть заказ F8364 в заведении Мангал/ });
+  await expect.element(cardLink).toBeVisible();
+  await expect.element(cardLink).toHaveAttribute('href', '/finik/order/111');
+  expect(document.querySelectorAll('.client-order-card button')).toHaveLength(0);
 });
 
 test('filter chips expose all real order states without a separate chats tab', async () => {
