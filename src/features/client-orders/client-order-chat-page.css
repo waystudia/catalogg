@@ -62,14 +62,14 @@
 .client-order-chat-header strong {
   overflow: hidden;
   color: #171a24;
-  font-size: 16px;
+  font-size: var(--wy-type-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .client-order-chat-header small {
   color: #16a05d;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 750;
 }
 
@@ -102,15 +102,15 @@
   gap: 3px;
 }
 
-.client-order-chat-context header strong { font-size: 16px; }
-.client-order-chat-context header b { flex: 0 0 auto; font-size: 17px; }
+.client-order-chat-context header strong { font-size: var(--wy-type-body); }
+.client-order-chat-context header b { flex: 0 0 auto; font-size: var(--wy-type-body); }
 
 .client-order-chat-context header small {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: #697386;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
 }
 
 .client-order-chat-context header svg { width: 13px; height: 13px; }
@@ -127,7 +127,7 @@
   border-radius: 11px;
   padding: 0 14px;
   color: #5b3df4;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 850;
   text-decoration: none;
 }

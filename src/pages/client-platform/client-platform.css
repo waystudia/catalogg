@@ -1,3 +1,17 @@
+/* Shared outside the application shell too: isolated dialogs and test mounts retain the same hierarchy. */
+:root {
+  --wy-type-micro: 11px;
+  --wy-type-caption: 12px;
+  --wy-type-label: 14px;
+  --wy-type-body: 16px;
+  --wy-type-title: 20px;
+  --wy-type-section: 24px;
+  --wy-type-display: 28px;
+  --wy-leading-tight: 1.15;
+  --wy-leading-title: 1.25;
+  --wy-leading-body: 1.45;
+}
+
 .client-platform {
   --wy-primary: #5b3df4;
   --wy-primary-soft: #f0edff;
@@ -13,10 +27,23 @@
   --wy-radius-card: 20px;
   --wy-radius-control: 16px;
   --wy-shadow-card: 0 8px 24px rgba(15, 23, 42, 0.08);
+  /* Unified type scale: one size for each text role across the client app. */
+  --wy-type-micro: 11px;
+  --wy-type-caption: 12px;
+  --wy-type-label: 14px;
+  --wy-type-body: 16px;
+  --wy-type-title: 20px;
+  --wy-type-section: 24px;
+  --wy-type-display: 28px;
+  --wy-leading-tight: 1.15;
+  --wy-leading-title: 1.25;
+  --wy-leading-body: 1.45;
   min-height: 100vh;
   color-scheme: light;
   background: var(--wy-background);
   color: var(--wy-text-primary);
+  font-size: var(--wy-type-body);
+  line-height: var(--wy-leading-body);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -81,8 +108,8 @@
 
 .platform-header h1 {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.15;
+  font-size: var(--wy-type-display);
+  line-height: var(--wy-leading-tight);
   text-align: center;
 }
 
@@ -134,7 +161,7 @@
   gap: 7px;
   border: 0;
   padding: 0;
-  font-size: 18px;
+  font-size: var(--wy-type-body);
   font-weight: 900;
 }
 
@@ -227,7 +254,7 @@
   padding: 0 15px;
   background: var(--wy-surface, #ffffff);
   color: var(--wy-text-secondary, #667085);
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 850;
 }
 
@@ -251,13 +278,13 @@
 }
 
 .marketplace-section-heading h2 {
-  font-size: 22px;
+  font-size: var(--wy-type-section);
   line-height: 1.12;
 }
 
 .marketplace-section-heading p {
   color: var(--wy-text-secondary, #667085);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 750;
   text-align: right;
 }
@@ -317,7 +344,7 @@
   padding: 5px 8px;
   background: #f93877;
   color: #ffffff;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   line-height: 1;
 }
 
@@ -362,13 +389,13 @@
 
 .marketplace-product-card__body > strong {
   color: var(--wy-text-primary, #111827);
-  font-size: 15px;
+  font-size: var(--wy-type-label);
   line-height: 1.2;
 }
 
 .marketplace-product-card__body > small {
   color: var(--wy-text-secondary, #667085);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 700;
 }
 
@@ -382,7 +409,7 @@
   min-width: 0;
   gap: 8px;
   color: var(--wy-text-secondary, #667085);
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   font-weight: 750;
   white-space: nowrap;
 }
@@ -415,14 +442,14 @@
 
 .marketplace-product-card__price b {
   color: var(--wy-primary, #5b3df4);
-  font-size: 16px;
+  font-size: var(--wy-type-body);
   line-height: 1.1;
   white-space: nowrap;
 }
 
 .marketplace-product-card__price del {
   color: #98a2b3;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
 }
 
 .marketplace-product-card__action {
@@ -482,21 +509,21 @@
   }
 
   .marketplace-product-card__body {
-    gap: 3px;
+    gap: 2px;
     padding: 8px;
   }
 
   .marketplace-product-card__body > strong {
-    font-size: 14px;
+    font-size: var(--wy-type-label);
   }
 
   .marketplace-product-card__body > small {
-    font-size: 11px;
+    font-size: var(--wy-type-micro);
   }
 
   .marketplace-product-card__meta {
     gap: 5px;
-    font-size: 9px;
+    font-size: var(--wy-type-micro);
   }
 
   .marketplace-product-card__bottom {
@@ -505,7 +532,7 @@
   }
 
   .marketplace-product-card__price b {
-    font-size: 15px;
+    font-size: var(--wy-type-label);
   }
 
   .marketplace-product-card__action {
@@ -564,7 +591,7 @@
   outline: 0;
   background: transparent;
   color: var(--wy-text-primary);
-  font-size: 14px;
+  font-size: var(--wy-type-label);
 }
 
 .categories-search input::placeholder {
@@ -617,7 +644,7 @@
 .business-categories-section > h2 {
   margin: 0;
   color: var(--wy-text-primary);
-  font-size: 20px;
+  font-size: var(--wy-type-section);
   line-height: 1.15;
   letter-spacing: -0.025em;
 }
@@ -628,7 +655,7 @@
   align-items: center;
   gap: 2px;
   color: var(--wy-primary);
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 850;
   white-space: nowrap;
 }
@@ -693,7 +720,7 @@
   display: grid;
   place-items: center;
   color: #8b92a5;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   text-align: center;
 }
 
@@ -705,7 +732,7 @@
   padding: 4px 6px;
   background: #f53576;
   color: #ffffff;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   line-height: 1;
 }
 
@@ -751,20 +778,20 @@
 }
 
 .business-discovery-card__body > strong {
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   line-height: 1.2;
 }
 
 .business-discovery-card__body > small {
   color: var(--wy-text-secondary);
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
 }
 
 .business-discovery-card__rating {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   font-weight: 850;
 }
 
@@ -776,7 +803,7 @@
 
 .business-discovery-card__terms {
   color: #343949;
-  font-size: 9px;
+  font-size: var(--wy-type-micro);
   font-weight: 730;
 }
 
@@ -788,7 +815,7 @@
   padding: 4px 5px;
   background: #eaf9ef;
   color: #168753;
-  font-size: 8px;
+  font-size: var(--wy-type-micro);
   font-style: normal;
   font-weight: 850;
   line-height: 1;
@@ -889,7 +916,7 @@
   display: grid;
   place-items: center;
   color: #7d8494;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
 }
 
 .business-category-card__fade {
@@ -936,7 +963,7 @@
 
 .business-category-card__content strong {
   overflow-wrap: anywhere;
-  font-size: clamp(12px, 3.4vw, 15px);
+  font-size: var(--wy-type-label);
   line-height: 1.05;
 }
 
@@ -944,7 +971,7 @@
   display: -webkit-box;
   overflow: hidden;
   color: #4f586b;
-  font-size: clamp(8px, 2.2vw, 10px);
+  font-size: var(--wy-type-micro);
   line-height: 1.25;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1028,7 +1055,7 @@
 }
 
 .business-filters-sheet h2 {
-  font-size: 22px;
+  font-size: var(--wy-type-title);
 }
 
 .business-filters-sheet header button {
@@ -1079,7 +1106,7 @@
   padding: 0 13px;
   background: #ffffff;
   color: #555d70;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 800;
 }
 
@@ -1229,7 +1256,7 @@
 
 .promo-band strong {
   max-width: min(72%, 520px);
-  font-size: clamp(20px, 3.1vw, 34px);
+  font-size: var(--wy-type-display);
   line-height: 1.02;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.78), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
@@ -1237,7 +1264,7 @@
 .promo-band span {
   margin-top: 5px;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 700;
   text-shadow: 0 2px 9px rgba(0, 0, 0, 0.82), 0 1px 2px rgba(0, 0, 0, 0.9);
 }
@@ -1263,7 +1290,7 @@
   background: rgba(91, 63, 255, 0.48);
   backdrop-filter: blur(8px);
   color: #ffffff;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
   white-space: nowrap;
 }
@@ -1344,7 +1371,7 @@
   padding: 5px 10px;
   background: #f0edff;
   color: #5b3df4;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
 }
 
@@ -1355,7 +1382,7 @@
 
 .promo-detail h2 {
   color: #111827;
-  font-size: 24px;
+  font-size: var(--wy-type-section);
   line-height: 1.12;
 }
 
@@ -1392,7 +1419,7 @@
 .flow-section h2,
 .delivery-info h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--wy-type-section);
   line-height: 1.2;
 }
 
@@ -1401,7 +1428,7 @@
   align-items: center;
   gap: 4px;
   color: #5b3fff;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 900;
 }
 
@@ -1513,7 +1540,7 @@
 }
 
 .restaurant-card strong {
-  font-size: 14px;
+  font-size: var(--wy-type-label);
   line-height: 1.18;
 }
 
@@ -1524,7 +1551,7 @@
 .payment-method small,
 .profile-card small {
   color: #667085;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   line-height: 1.35;
 }
 
@@ -1536,7 +1563,7 @@
 
 .restaurant-card b {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1550,7 +1577,7 @@
   padding: 4px 7px;
   background: #eaf8ef;
   color: #087443;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   font-style: normal;
   font-weight: 900;
 }
@@ -1563,7 +1590,7 @@
   align-content: center;
   padding: 5px 8px;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   line-height: 1.15;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1625,7 +1652,7 @@
 }
 
 .category-quick-card span {
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   line-height: 1.2;
 }
 
@@ -1700,7 +1727,7 @@
 
 .filter-chip small {
   color: inherit;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   line-height: 1.1;
   opacity: 0.76;
 }
@@ -1766,7 +1793,7 @@
 .form-message {
   margin: 0;
   color: #667085;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   line-height: 1.4;
 }
 
@@ -1862,17 +1889,17 @@
 }
 
 .platform-restaurant-cart-dock strong {
-  font-size: 13px;
+  font-size: var(--wy-type-label);
 }
 
 .platform-restaurant-cart-dock small {
   color: #667085;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
 }
 
 .platform-restaurant-cart-dock b {
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--wy-type-label);
 }
 
 .bottom-nav {
@@ -1897,7 +1924,7 @@
   place-items: center;
   gap: 2px;
   color: var(--wy-text-secondary, #667085);
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   font-weight: 800;
 }
 
@@ -1922,7 +1949,7 @@
   border-radius: 999px;
   background: #ef4444;
   color: #ffffff;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   line-height: 1;
 }
 
@@ -1949,7 +1976,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
 }
 
 .restaurant-icon-button,
@@ -1980,7 +2007,7 @@
   padding: 0 10px;
   background: #ffffff;
   color: var(--restaurant-button);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
 }
 
@@ -2031,7 +2058,7 @@
   border-radius: 50%;
   background: var(--restaurant-button, #5b3df4);
   color: var(--restaurant-button-text, #ffffff);
-  font-size: 24px;
+  font-size: var(--wy-type-section);
   font-weight: 900;
 }
 
@@ -2058,7 +2085,7 @@
 
 .restaurant-hero h1 {
   margin: 2px 0 0;
-  font-size: 28px;
+  font-size: var(--wy-type-display);
   line-height: 1.05;
 }
 
@@ -2084,7 +2111,7 @@
   padding: 0 9px;
   background: color-mix(in srgb, var(--restaurant-accent) 11%, white);
   color: var(--restaurant-text);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
 }
 
@@ -2095,7 +2122,7 @@
 
 .restaurant-rating-link small {
   color: var(--restaurant-muted);
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
 }
 
 .restaurant-facts svg {
@@ -2139,7 +2166,7 @@
 }
 
 .restaurant-review-summary strong {
-  font-size: 24px;
+  font-size: var(--wy-type-section);
 }
 
 .restaurant-review-summary span,
@@ -2279,7 +2306,7 @@
 
 .dish-card small {
   color: var(--restaurant-muted);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   line-height: 1.25;
 }
 
@@ -2290,7 +2317,7 @@
 
 .dish-card em {
   color: var(--restaurant-accent);
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   font-style: normal;
   font-weight: 900;
 }
@@ -2334,7 +2361,7 @@
   border-radius: 8px;
   background: #ffffff;
   color: var(--restaurant-button);
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
 }
 
@@ -2399,7 +2426,7 @@
   width: 100%;
   align-self: end;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--wy-type-micro);
   font-style: normal;
   font-weight: 900;
   line-height: 1.15;
@@ -2428,7 +2455,7 @@
 
 .quantity-stepper b {
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   text-align: center;
   white-space: nowrap;
 }
@@ -2480,7 +2507,7 @@
 
 .cart-total strong,
 .payment-total strong {
-  font-size: 22px;
+  font-size: var(--wy-type-title);
 }
 
 .restaurant-primary-button,
@@ -2612,7 +2639,7 @@
   padding: 0 9px;
   background: #f0edff;
   color: #5b3df4;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
 }
 
@@ -2638,7 +2665,7 @@
   padding: 10px 12px;
   background: #fff7ed;
   color: #9a3412;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 800;
 }
 
@@ -2649,7 +2676,7 @@
 
 .delivery-tracking-section h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--wy-type-body);
 }
 
 .address-details-grid {
@@ -2726,7 +2753,7 @@
 }
 
 .payment-confirm > strong {
-  font-size: 30px;
+  font-size: var(--wy-type-display);
 }
 
 .qr-image {
@@ -2780,7 +2807,7 @@
 .status-panel h1 {
   margin: 0;
   color: var(--restaurant-button);
-  font-size: 24px;
+  font-size: var(--wy-type-display);
 }
 
 .status-panel p {
@@ -2799,7 +2826,7 @@
   gap: 6px;
   justify-items: center;
   color: #98a2b3;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   font-weight: 900;
   text-align: center;
 }
@@ -2924,7 +2951,7 @@
   border-radius: 999px;
   background: #fff0c9;
   color: #684200;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 900;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -2955,14 +2982,14 @@
 .install-guide h2 {
   margin: 0 42px 6px 0;
   color: #13121a;
-  font-size: clamp(22px, 6.2vw, 30px);
+  font-size: var(--wy-type-display);
   line-height: 1.08;
 }
 
 .install-guide__lead {
   margin: 0 0 12px;
   color: #5f6170;
-  font-size: 14px;
+  font-size: var(--wy-type-label);
   line-height: 1.35;
 }
 
@@ -2994,12 +3021,12 @@
 
 .install-guide__slide strong {
   color: #17131f;
-  font-size: 17px;
+  font-size: var(--wy-type-body);
 }
 
 .install-guide__slide small {
   color: #696777;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   line-height: 1.3;
 }
 
@@ -3038,7 +3065,7 @@
   gap: 6px;
   padding: 0 16px;
   border-radius: 15px;
-  font-size: 15px;
+  font-size: var(--wy-type-label);
   font-weight: 900;
 }
 
@@ -3067,7 +3094,7 @@
   }
 
   .install-guide__lead {
-    font-size: 13px;
+    font-size: var(--wy-type-label);
   }
 
   .install-guide__slide img {
@@ -3154,13 +3181,13 @@
 
 .profile-auth-copy h2 {
   color: #111827;
-  font-size: clamp(22px, 7vw, 28px);
+  font-size: var(--wy-type-display);
   line-height: 1.12;
 }
 
 .profile-auth-copy p {
   color: #667085;
-  font-size: 14px;
+  font-size: var(--wy-type-label);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -3354,7 +3381,7 @@
   padding: 0 6px;
   background: #f0edff;
   color: #5b3df4;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
 }
 
 .order-review-form {
@@ -3369,7 +3396,7 @@
   display: grid;
   gap: 6px;
   color: #667085;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 700;
 }
 
@@ -3480,7 +3507,7 @@
   background: transparent;
   color: #171a24;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--wy-type-label);
 }
 
 .client-orders-list {
@@ -3503,12 +3530,12 @@
 
 .home-active-orders__heading strong {
   color: #171a24;
-  font-size: 19px;
+  font-size: var(--wy-type-title);
 }
 
 .home-active-orders__heading a {
   color: #5b3df4;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 850;
   text-decoration: none;
 }
@@ -3542,13 +3569,13 @@
 
 .home-active-order strong {
   color: #171a24;
-  font-size: 18px;
+  font-size: var(--wy-type-body);
   line-height: 1.2;
 }
 
 .home-active-order small {
   color: #697386;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
 }
 
 .home-active-order em {
@@ -3557,7 +3584,7 @@
   padding: 4px 8px;
   background: #eaf8ef;
   color: #087443;
-  font-size: 11px;
+  font-size: var(--wy-type-micro);
   font-style: normal;
   font-weight: 850;
 }
@@ -3584,7 +3611,7 @@
 }
 
 .client-orders-error strong,
-.client-orders-filter-empty strong { color: #171a24; font-size: 18px; }
+.client-orders-filter-empty strong { color: #171a24; font-size: var(--wy-type-body); }
 .client-orders-error p,
 .client-orders-filter-empty p { margin: 0; }
 
@@ -3605,7 +3632,7 @@
   padding: 11px 13px;
   background: #fff4e5;
   color: #9a4500;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
 }
 
 .client-orders-repeat-backdrop {
@@ -3630,7 +3657,7 @@
   box-shadow: 0 22px 70px rgba(15, 23, 42, .25);
 }
 
-.client-orders-repeat-dialog > strong { font-size: 18px; }
+.client-orders-repeat-dialog > strong { font-size: var(--wy-type-body); }
 .client-orders-repeat-dialog > p { margin: 0; color: #667085; line-height: 1.45; }
 
 .client-orders-repeat-dialog > div {
@@ -3648,7 +3675,7 @@
   background: #f2f4f7;
   color: #344054;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--wy-type-caption);
   font-weight: 850;
 }
 
@@ -3720,7 +3747,7 @@
 
 .empty-state strong {
   color: #111827;
-  font-size: 20px;
+  font-size: var(--wy-type-title);
 }
 
 .empty-state a {
@@ -3819,13 +3846,13 @@
 
 .client-content-page h1 {
   color: #111827;
-  font-size: 28px;
+  font-size: var(--wy-type-display);
   line-height: 1.15;
 }
 
 .client-content-page h2 {
   color: #19213a;
-  font-size: 21px;
+  font-size: var(--wy-type-section);
 }
 
 .client-content-page p {
@@ -3923,7 +3950,7 @@
   padding: 0 14px;
   color: var(--wy-text-secondary, #667085);
   border-color: var(--wy-border, #e2e8f0);
-  font-size: 13px;
+  font-size: var(--wy-type-label);
 }
 
 .profile-partner-registration--compact svg:last-child {
@@ -3962,7 +3989,7 @@
 
 .profile-details-form label {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--wy-type-label);
   font-weight: 800;
 }
 
