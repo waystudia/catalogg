@@ -56,6 +56,7 @@ import { selectCartCount, selectCartTotal, useCartStore, useOrderStore } from '.
 import type {
   ClientAddress,
   ClientCartLine,
+  ClientCity,
   ClientCheckoutDraft,
   ClientDeliveryProvider,
   ClientDish,
