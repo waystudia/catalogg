@@ -618,6 +618,22 @@ export function subscribeClientPlatformSnapshotRealtime(onChange: () => void) {
   };
 }
 
+export async function getClientCityDirectory(): Promise<ClientCity[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('delivery_settlements')
+    .select('city_name, settlement_name')
+    .eq('is_active', true)
+    .order('city_name', { ascending: true })
+    .order('settlement_name', { ascending: true });
+  if (error) throw error;
+  return unique(((data ?? []) as Pick<DeliverySettlementRow, 'city_name' | 'settlement_name'>[])
+    .flatMap((settlement) => [settlement.city_name, settlement.settlement_name])
+    .map((name) => name.trim())
+    .filter(Boolean))
+    .map((name) => ({ id: getCityId(name), slug: getCityId(name), name, region: '', isActive: true }));
+}
+
 export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapshot> {
   if (!supabase) {
     return {

@@ -87,6 +87,7 @@ import { scopeSnapshotToStorefront } from '../../entities/storefront';
 import { useStorefrontContext } from '../../features/storefront/storefrontContext';
 import {
   createClientPlatformOrder,
+  getClientCityDirectory,
   getClientPlatformSnapshot,
   saveClientReview,
   subscribeClientOrderRealtime,
@@ -1261,7 +1262,23 @@ export function CityPage({
   const [otherSettlement, setOtherSettlement] = useState('');
   const [requestMessage, setRequestMessage] = useState('');
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
-  const citiesWithRestaurantsFirst = snapshot.cities
+  const [cityDirectory, setCityDirectory] = useState<ClientCity[] | null>(null);
+  const [isCityDirectoryLoading, setIsCityDirectoryLoading] = useState(true);
+  const [cityDirectoryError, setCityDirectoryError] = useState(false);
+  const loadCityDirectory = useCallback(async () => {
+    setIsCityDirectoryLoading(true);
+    setCityDirectoryError(false);
+    try {
+      setCityDirectory(await getClientCityDirectory());
+    } catch {
+      setCityDirectoryError(true);
+    } finally {
+      setIsCityDirectoryLoading(false);
+    }
+  }, []);
+  useEffect(() => { void loadCityDirectory(); }, [loadCityDirectory]);
+  const availableCities = cityDirectory?.length ? cityDirectory : snapshot.cities;
+  const citiesWithRestaurantsFirst = availableCities
     .slice()
     .sort((left, right) => countRestaurantsForCity(snapshot, right.id) - countRestaurantsForCity(snapshot, left.id));
   const nearestCityId = citiesWithRestaurantsFirst.find((city) => countRestaurantsForCity(snapshot, city.id) > 0)?.id ??
@@ -1271,7 +1288,7 @@ export function CityPage({
     `${city.name} ${city.region}`.toLocaleLowerCase('ru-RU').includes(query.toLocaleLowerCase('ru-RU').trim())
   );
   const recentCities = recentCityIds
-    .map((cityId) => snapshot.cities.find((city) => city.id === cityId))
+    .map((cityId) => availableCities.find((city) => city.id === cityId))
     .filter((city): city is NonNullable<typeof city> => Boolean(city));
 
   const chooseCity = (cityId: string) => {
@@ -1351,10 +1368,10 @@ export function CityPage({
             ))}
           </div>
         ) : (
-          <div className="city-list-empty" role={isError ? 'alert' : undefined}>
-            <strong>{isLoading ? 'Загружаем населённые пункты…' : isError ? 'Не удалось загрузить населённые пункты' : 'Населённые пункты пока не добавлены'}</strong>
-            <p>{isError ? 'Проверьте соединение и повторите загрузку.' : 'Напишите свой город или село ниже — мы добавим его в справочник.'}</p>
-            {isError && onRetry && <button type="button" onClick={onRetry}>Повторить</button>}
+          <div className="city-list-empty" role={isError || cityDirectoryError ? 'alert' : undefined}>
+            <strong>{isLoading || isCityDirectoryLoading ? 'Загружаем населённые пункты…' : isError || cityDirectoryError ? 'Не удалось загрузить населённые пункты' : 'Населённые пункты пока не добавлены'}</strong>
+            <p>{isError || cityDirectoryError ? 'Проверьте соединение и повторите загрузку.' : 'Напишите свой город или село ниже — мы добавим его в справочник.'}</p>
+            {(isError || cityDirectoryError) && <button type="button" onClick={() => { onRetry?.(); void loadCityDirectory(); }}>Повторить</button>}
           </div>
         )}
       </section>
