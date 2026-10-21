@@ -44,6 +44,7 @@ type CatalogRow = {
   description: string;
   logo_url: string;
   banner_url: string;
+  whatsapp: string | null;
   status: 'draft' | 'published' | 'archived';
   business_type: string | null;
 };
@@ -660,7 +661,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
 
   const catalogsResult = await supabase
     .from('catalogs')
-    .select('id, slug, name, description, logo_url, banner_url, status, business_type')
+    .select('id, slug, name, description, logo_url, banner_url, whatsapp, status, business_type')
     .eq('status', 'published')
     .order('name');
 
@@ -946,6 +947,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
       slug: catalog.slug,
       name: catalog.name,
       description: catalog.description,
+      phone: catalog.whatsapp?.trim() || undefined,
       addressLine: restaurantProfile?.address_line ?? catalog.description,
       lat: restaurantProfile?.lat ?? null,
       lng: restaurantProfile?.lng ?? null,

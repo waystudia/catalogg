@@ -47,6 +47,7 @@ export type ClientRestaurant = {
   slug: string;
   name: string;
   description: string;
+  phone?: string;
   addressLine: string;
   lat: number | null;
   lng: number | null;

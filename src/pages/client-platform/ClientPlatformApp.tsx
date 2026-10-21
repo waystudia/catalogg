@@ -2685,7 +2685,7 @@ function OrderStatusPage({
     return { item, dish };
   });
   const orderPreviewImage = orderItemViews.find(({ dish }) => dish?.imageUrl)?.dish?.imageUrl || restaurantImage;
-  const contactPhone = order.restaurantPhone || snapshot.supportPhone;
+  const contactPhone = order.restaurantPhone || restaurant.phone || snapshot.supportPhone;
 
   const canCancel = restaurant.businessType === 'grocery' && [
     'new',
