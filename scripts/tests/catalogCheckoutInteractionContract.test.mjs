@@ -120,7 +120,7 @@ test('the platform cart opens the catalog cart and closes back to its origin', (
   assert.match(cartPageSource, /<span>Товары<\/span>/);
   assert.match(cartPageSource, /Доставка/);
   assert.match(appSource, /if \(routeSection === 'cart'\) \{[\s\S]*setIsCartOpen\(true\)/);
-  assert.match(appSource, /if \(routeSection === 'cart'\) \{[\s\S]*navigateBackOrFallback\(navigate, '\/cart'\)/);
+  assert.match(appSource, /routeSection === 'cart' \? navigateBackOrFallback\(navigate, '\/cart'\)/);
 });
 
 test('continue on checkout scrolls to the final order review', () => {
