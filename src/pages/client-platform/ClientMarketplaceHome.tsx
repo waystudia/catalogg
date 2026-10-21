@@ -7,14 +7,55 @@ import {
   Star,
   User
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { MarketplaceItem } from '../../features/client-platform/types';
 import { SafeImage } from '../../shared/SafeImage';
+import { buildClientNavigationState } from '../../shared/appNavigation';
+import { captureCurrentScroll, readExactScroll } from '../../shared/exactScrollState';
 import './client-platform.css';
 
 type MarketplaceNavigationTab = 'home' | 'categories' | 'cart' | 'orders' | 'profile';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
+
+function MarketplaceNavigationLink({
+  active,
+  to,
+  label,
+  Icon,
+  badge
+}: {
+  active: boolean;
+  to: string;
+  label: string;
+  Icon: typeof Home;
+  badge?: number;
+}) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const originPath = `${location.pathname}${location.search}${location.hash}`;
+
+  return (
+    <Link
+      className={active ? 'is-active' : ''}
+      to={to}
+      onClick={(event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        captureCurrentScroll();
+        navigate(to, {
+          state: buildClientNavigationState(location.state, originPath, readExactScroll(window.history.state))
+        });
+      }}
+    >
+      <span className="bottom-nav__icon">
+        <Icon aria-hidden="true" />
+        {badge && <b>{badge}</b>}
+      </span>
+      <span>{label}</span>
+    </Link>
+  );
+}
 
 export function MarketplaceBottomNavigation({
   active,
@@ -36,14 +77,14 @@ export function MarketplaceBottomNavigation({
   return (
     <nav className="bottom-nav" aria-label="Основная навигация">
       {items.map(({ id, label, to, Icon }) => (
-        <Link className={active === id ? 'is-active' : ''} to={to} key={id}>
-          <span className="bottom-nav__icon">
-            <Icon aria-hidden="true" />
-            {id === 'cart' && cartCount > 0 && <b>{cartCount}</b>}
-            {id === 'orders' && ordersUnreadCount > 0 && <b>{Math.min(ordersUnreadCount, 99)}</b>}
-          </span>
-          <span>{label}</span>
-        </Link>
+        <MarketplaceNavigationLink
+          active={active === id}
+          badge={id === 'cart' ? cartCount : id === 'orders' ? Math.min(ordersUnreadCount, 99) : 0}
+          Icon={Icon}
+          key={id}
+          label={label}
+          to={to}
+        />
       ))}
     </nav>
   );

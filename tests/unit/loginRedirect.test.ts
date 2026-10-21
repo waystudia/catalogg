@@ -10,8 +10,11 @@ import {
   buildProfileLoginPath,
   buildRoleAppUrl,
   buildExactRouteBackState,
+  buildClientNavigationState,
+  getClientNavigationOrigin,
   hasExactRouteBackOrigin,
   hasPreviousAppHistoryEntry,
+  navigateClientBackOrFallback,
   navigateBackOrFallback,
   redirectToRoleApp,
   resolveProfileLoginTarget
@@ -31,6 +34,24 @@ describe('staff login role selection', () => {
 
     navigateBackOrFallback(navigate, '/profile/orders', { idx: 0 });
     expect(navigate).toHaveBeenLastCalledWith('/profile/orders', { replace: true });
+  });
+
+  it('returns a bottom-navigation destination to its precise source when history has no prior entry', () => {
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    const state = buildClientNavigationState({}, '/categories?search=coffee', { x: 0, y: 480 });
+
+    expect(getClientNavigationOrigin(state)).toEqual({ path: '/categories?search=coffee', scroll: { x: 0, y: 480 } });
+    navigateClientBackOrFallback(navigate, '/profile', state, { idx: 0 });
+    expect(navigate).toHaveBeenLastCalledWith('/categories?search=coffee', { replace: true });
+  });
+
+  it('uses browser history for a bottom-navigation return when the source is still available', () => {
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    const state = buildClientNavigationState({}, '/?section=nearby', { x: 0, y: 860 });
+
+    navigateClientBackOrFallback(navigate, '/profile', state, { idx: 4 });
+
+    expect(navigate).toHaveBeenLastCalledWith(-1);
   });
 
   it('trusts exact route origins only inside the same role and tenant scope', () => {

@@ -121,7 +121,7 @@ import {
   resolveUnifiedLogin
 } from '../../shared/api/loginRedirectApi';
 import { refreshStaleAuthClient } from '../../shared/authClientVersion';
-import { navigateBackOrFallback, redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
+import { navigateBackOrFallback, navigateClientBackOrFallback, redirectToRoleApp, resolveProfileLoginTarget } from '../../shared/appNavigation';
 import { createRestaurantOrderIdempotencyKey } from '../../shared/api/restaurantOrderPayload';
 import { cancelClientCatalogOrder } from '../../shared/api/clientOrderActionsApi';
 import { getPromoAutoAdvanceDelay, getPromoLoopResetIndex } from '../../features/client-platform/promoCarousel';
@@ -761,12 +761,13 @@ function PageHeader({
   action?: ReactNode;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   return (
     <header className="platform-header">
       <button
         className="icon-button"
         type="button"
-        onClick={() => navigateBackOrFallback(navigate, backTo)}
+        onClick={() => navigateClientBackOrFallback(navigate, backTo, location.state)}
         aria-label="Назад"
       >
         <ArrowLeft />
