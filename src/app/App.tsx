@@ -777,7 +777,7 @@ function CartSheet({
               </p>
               <p>
                 <span>Доставка</span>
-                <strong>{formatPrice(delivery)}</strong>
+                <strong>{delivery > 0 ? formatPrice(delivery) : 'Рассчитаем при оформлении'}</strong>
               </p>
               <p className="cart-summary__total">
                 <span>Итого</span>
@@ -1950,6 +1950,13 @@ function AppContent({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
+  const closeCartSheet = useCallback(() => {
+    if (routeSection === 'cart') {
+      navigateBackOrFallback(navigate, '/cart');
+      return;
+    }
+    setIsCartOpen(false);
+  }, [navigate, routeSection]);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
   const [categoryEditor, categoryEditorHistory] = useBrowserBackedState<{ mode: CategoryEditorMode; categoryId?: string }>(`restaurant:${catalogSlug}:category-editor`, { mode: 'list' });
@@ -2170,6 +2177,10 @@ function AppContent({
   }, [cartCount]);
 
   useEffect(() => {
+    if (routeSection === 'cart') {
+      setIsCartOpen(true);
+      return;
+    }
     if (routeSection === 'checkout' && !isAdmin) {
       setScreen('checkout');
       return;
@@ -3062,11 +3073,11 @@ function AppContent({
       <CartSheet
         isOpen={isCartOpen}
         isLoading={isLoading}
-        onClose={() => setIsCartOpen(false)}
+        onClose={closeCartSheet}
         onCheckout={checkoutFromCart}
         onMenu={() => {
           setIsCartOpen(false);
-          setScreen('catalog');
+          navigate(`/${catalogSlug}`);
         }}
       />
     </div>

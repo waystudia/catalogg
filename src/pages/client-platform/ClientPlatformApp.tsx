@@ -740,7 +740,7 @@ function PlatformRestaurantCartDock() {
   if (count === 0) return null;
 
   return (
-    <Link className="platform-restaurant-cart-dock" to="/mangal/checkout">
+    <Link className="platform-restaurant-cart-dock" to="/mangal/cart">
       <ShoppingCart />
       <span>
         <strong>В корзине · {count}</strong>
@@ -3908,6 +3908,7 @@ function ProfilePaymentsPage() {
 
 function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
   const carts = useClientPlatformStore((state) => state.carts);
+  const checkoutDrafts = useClientPlatformStore((state) => state.checkoutDrafts);
   const restaurantCartItems = useCartStore((state) => state.items);
   const restaurantCartCount = selectCartCount(restaurantCartItems);
   const restaurantCartTotal = selectCartTotal(restaurantCartItems);
@@ -3915,12 +3916,17 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     if (restaurantSlug === 'mangal') return [];
     const restaurant = getRestaurantBySlug(snapshot, restaurantSlug);
     const dishes = getRestaurantDishes(snapshot, restaurantSlug);
-    const summary = calculateCartSummary(lines, dishes, 0);
-    if (!restaurant || summary.quantity <= 0) return [];
+    const draft = checkoutDrafts[restaurantSlug];
+    const withoutDelivery = calculateCartSummary(lines, dishes, 0);
+    if (!restaurant || withoutDelivery.quantity <= 0) return [];
+    const deliveryFee = draft ? getDeliveryFee(restaurant, draft, withoutDelivery) : 0;
+    const summary = calculateCartSummary(lines, dishes, deliveryFee);
     return [{
       restaurantSlug,
       restaurantName: restaurant.name,
       quantity: summary.quantity,
+      subtotal: summary.subtotal,
+      deliveryFee: draft?.orderType === 'delivery' ? summary.deliveryFee : null,
       total: summary.total,
       href: `/r/${restaurantSlug}/cart`
     }];
@@ -3931,8 +3937,10 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           restaurantSlug: 'mangal',
           restaurantName: getRestaurantBySlug(snapshot, 'mangal')?.name ?? 'Мангал',
           quantity: restaurantCartCount,
+          subtotal: restaurantCartTotal,
+          deliveryFee: null,
           total: restaurantCartTotal,
-          href: '/mangal/checkout'
+          href: '/mangal/cart'
         }]
       : []),
     ...platformCarts
@@ -3944,16 +3952,22 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       {activeCarts.length === 0 ? (
         <EmptyState title="Корзина пуста" linkTo="/restaurants" linkText="Выбрать ресторан" />
       ) : (
-        <div className="order-list">
+        <div className="order-list platform-cart-list">
           {activeCarts.map((cart) => (
-              <Link className="order-card order-card--link" to={cart.href} key={cart.restaurantSlug}>
-                <span>
+            <Link className="order-card order-card--link platform-cart-card" to={cart.href} key={cart.restaurantSlug}>
+              <span className="platform-cart-card__body">
+                <span className="platform-cart-card__heading">
                   <strong>{cart.restaurantName}</strong>
-                  <small>{cart.quantity} товара · {formatPrice(cart.total)}</small>
-                  <em>Корзина хранится отдельно</em>
+                  <small>{cart.quantity} {cart.quantity === 1 ? 'товар' : cart.quantity >= 2 && cart.quantity <= 4 ? 'товара' : 'товаров'}</small>
                 </span>
-                <ChevronRight />
-              </Link>
+                <span className="platform-cart-card__totals">
+                  <small><span>Товары</span><b>{formatPrice(cart.subtotal)}</b></small>
+                  {cart.deliveryFee !== null && <small><span>Доставка</span><b>{cart.deliveryFee === 0 ? 'Бесплатно' : formatPrice(cart.deliveryFee)}</b></small>}
+                  <em><span>Итого</span><b>{formatPrice(cart.total)}</b></em>
+                </span>
+              </span>
+              <ChevronRight />
+            </Link>
           ))}
         </div>
       )}

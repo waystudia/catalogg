@@ -108,7 +108,19 @@ test('the restaurant cart stays visible in the platform main menu', () => {
   assert.match(clientPlatformSource, /useCartStore/);
   assert.match(clientPlatformSource, /PlatformRestaurantCartDock/);
   assert.match(clientPlatformSource, /platform-restaurant-cart-dock/);
-  assert.match(clientPlatformSource, /to="\/mangal\/checkout"/);
+  assert.match(clientPlatformSource, /to="\/mangal\/cart"/);
+});
+
+test('the platform cart opens the catalog cart and closes back to its origin', () => {
+  const cartPageSource = clientPlatformSource.slice(
+    clientPlatformSource.indexOf('function PlatformCartPage'),
+    clientPlatformSource.indexOf('function EmptyState')
+  );
+  assert.match(cartPageSource, /href: '\/mangal\/cart'/);
+  assert.match(cartPageSource, /<span>Товары<\/span>/);
+  assert.match(cartPageSource, /Доставка/);
+  assert.match(appSource, /if \(routeSection === 'cart'\) \{[\s\S]*setIsCartOpen\(true\)/);
+  assert.match(appSource, /if \(routeSection === 'cart'\) \{[\s\S]*navigateBackOrFallback\(navigate, '\/cart'\)/);
 });
 
 test('continue on checkout scrolls to the final order review', () => {
@@ -220,5 +232,5 @@ test('the platform cart uses the live restaurant cart and hides zero-quantity sn
   assert.match(cartPageSource, /const restaurantCartItems = useCartStore\(\(state\) => state\.items\)/);
   assert.match(cartPageSource, /selectCartCount\(restaurantCartItems\)/);
   assert.match(cartPageSource, /selectCartTotal\(restaurantCartItems\)/);
-  assert.match(cartPageSource, /summary\.quantity <= 0/);
+  assert.match(cartPageSource, /withoutDelivery\.quantity <= 0/);
 });
