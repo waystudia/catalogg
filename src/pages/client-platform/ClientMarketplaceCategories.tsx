@@ -108,7 +108,7 @@ function BusinessCard({
             </span>
           </span>
           {hasDelivery && business.freeDeliveryFrom > 0 && (
-            <em>Бесплатная доставка</em>
+            <em>Бесплатно от {Math.round(business.freeDeliveryFrom).toLocaleString('ru-RU')} ₽</em>
           )}
         </span>
       </Link>

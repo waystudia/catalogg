@@ -812,7 +812,11 @@ export function HomeActiveOrders({ snapshot }: { snapshot: ClientPlatformSnapsho
 
   const featuredOrder = activeOrders[0];
   const restaurant = snapshot.restaurants.find((item) => item.slug === featuredOrder.restaurantSlug);
-  const previewDish = snapshot.dishes.find((dish) => dish.id === featuredOrder.items[0]?.dishId);
+  const previewDishes = featuredOrder.items
+    .map((item) => snapshot.dishes.find((dish) => dish.id === item.dishId))
+    .filter((dish): dish is ClientDish => Boolean(dish?.imageUrl))
+    .filter((dish, index, list) => list.findIndex((item) => item.imageUrl === dish.imageUrl) === index)
+    .slice(0, 3);
 
   return (
     <section className="home-active-orders" aria-label="Текущий заказ">
@@ -824,7 +828,15 @@ export function HomeActiveOrders({ snapshot }: { snapshot: ClientPlatformSnapsho
           <em>{statusLabels[featuredOrder.status]}</em>
         </span>
         <span className="home-active-order__preview" aria-hidden="true">
-          <SafeImage src={previewDish?.imageUrl || restaurant?.coverUrl || ''} alt="" width={160} height={160} />
+          {previewDishes.length > 0 ? (
+            <span className={previewDishes.length > 1 ? 'home-active-order__dish-fan is-stacked' : 'home-active-order__dish-fan'}>
+              {previewDishes.map((dish) => (
+                <SafeImage className="home-active-order__dish-image" key={dish.id} src={dish.imageUrl} alt="" width={160} height={160} />
+              ))}
+            </span>
+          ) : (
+            <SafeImage src={restaurant?.coverUrl || ''} alt="" width={160} height={160} />
+          )}
           <ChevronRight />
         </span>
       </Link>

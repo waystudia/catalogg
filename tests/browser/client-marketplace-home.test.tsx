@@ -128,5 +128,6 @@ test('permanent client navigation opens Categories from the second tab', async (
   await expect.element(screen.getByRole('navigation', { name: 'Основная навигация' })).toBeVisible();
   await expect.element(screen.getByRole('link', { name: /Категории/ })).toHaveAttribute('href', '/categories');
   await expect.element(screen.getByText('3', { exact: true })).toBeVisible();
+  expect(screen.getByRole('navigation', { name: 'Основная навигация' }).element().textContent).not.toContain('0');
   expect(screen.getByRole('link', { name: /Категории/ }).element().classList.contains('is-active')).toBe(true);
 });

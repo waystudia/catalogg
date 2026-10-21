@@ -57,7 +57,9 @@ test('the marketplace home shows one current-order preview that opens all orders
   assert.match(appSource, /className="home-active-order"/);
   assert.match(appSource, /to="\/profile\/orders"/);
   assert.match(appSource, /className="home-active-order__preview"/);
-  assert.match(appSource, /<SafeImage src=\{previewDish\?\.imageUrl/);
+  assert.match(appSource, /const previewDishes = featuredOrder\.items/);
+  assert.match(appSource, /home-active-order__dish-fan/);
+  assert.match(appSource, /previewDishes\.map\(\(dish\)/);
 });
 
 test('review submission is tied to a real client session and order', () => {

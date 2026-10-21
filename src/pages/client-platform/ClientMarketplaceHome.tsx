@@ -50,7 +50,7 @@ function MarketplaceNavigationLink({
     >
       <span className="bottom-nav__icon">
         <Icon aria-hidden="true" />
-        {badge && <b>{badge}</b>}
+        {badge && badge > 0 ? <b>{badge}</b> : null}
       </span>
       <span>{label}</span>
     </Link>

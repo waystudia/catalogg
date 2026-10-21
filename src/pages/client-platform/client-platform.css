@@ -3588,11 +3588,53 @@
   background: #f1f2f7;
 }
 
-.home-active-order__preview img,
-.home-active-order__preview .image-fallback {
+.home-active-order__preview > img,
+.home-active-order__preview > .image-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.home-active-order__dish-fan {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.home-active-order__dish-image,
+.home-active-order__dish-fan .image-fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-active-order__dish-fan.is-stacked .home-active-order__dish-image,
+.home-active-order__dish-fan.is-stacked .image-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 66px;
+  height: 66px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 3px 9px rgba(15, 23, 42, .18);
+  transform: translate(-50%, -50%);
+}
+
+.home-active-order__dish-fan.is-stacked > :nth-child(1) {
+  z-index: 1;
+  transform: translate(-59%, -46%) rotate(-11deg);
+}
+
+.home-active-order__dish-fan.is-stacked > :nth-child(2) {
+  z-index: 2;
+  transform: translate(-45%, -54%) rotate(10deg);
+}
+
+.home-active-order__dish-fan.is-stacked > :nth-child(3) {
+  z-index: 3;
+  transform: translate(-50%, -43%);
 }
 
 .home-active-order__preview > svg {
