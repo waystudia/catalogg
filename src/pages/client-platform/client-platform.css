@@ -4133,3 +4133,5 @@
 @keyframes client-order-check-in { from { opacity: 0; transform: scale(.65); } 70% { transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
 @keyframes client-order-check-stroke { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .client-order-status-screen__check, .client-order-status-screen__check svg { animation: none; stroke-dashoffset: 0; } }
+.client-order-status-screen__order > span { min-width: 0; display: grid; }
+.client-order-status-screen__order > span > small:last-child { white-space: nowrap; }
