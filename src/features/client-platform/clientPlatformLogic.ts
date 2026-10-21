@@ -54,7 +54,7 @@ type ClientReviewInput = {
 };
 
 type ClientOrderRealtimePatch = Partial<
-  Pick<ClientOrder, 'status' | 'paymentStatus' | 'driverName' | 'driverPhone' | 'driverLat' | 'driverLng' | 'driverLocationAt'>
+  Pick<ClientOrder, 'status' | 'paymentStatus' | 'restaurantPhone' | 'driverName' | 'driverPhone' | 'driverLat' | 'driverLng' | 'driverLocationAt'>
 >;
 
 const normalizeText = (value: string) => value.trim().toLocaleLowerCase('ru-RU');
@@ -207,6 +207,7 @@ export const mergeClientOrderRealtimePatch = (patch: ClientOrderRealtimePatch) =
 
   if (patch.status !== undefined) nextPatch.status = patch.status;
   if (patch.paymentStatus !== undefined) nextPatch.paymentStatus = patch.paymentStatus;
+  if (patch.restaurantPhone !== undefined) nextPatch.restaurantPhone = patch.restaurantPhone;
   if (patch.driverName !== undefined) nextPatch.driverName = patch.driverName;
   if (patch.driverPhone !== undefined) nextPatch.driverPhone = patch.driverPhone;
   if (patch.driverLat !== undefined) nextPatch.driverLat = patch.driverLat;

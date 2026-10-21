@@ -536,6 +536,7 @@ export type ClientOrderRealtimePatch = {
   readonly status?: string;
   readonly deliveryStatus?: string;
   readonly paymentStatus?: ClientPaymentStatus;
+  readonly restaurantPhone?: string;
   readonly driverName?: string;
   readonly driverPhone?: string;
   readonly driverLat?: number | null;
@@ -559,6 +560,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       status?: unknown;
       delivery_status?: unknown;
       payment_status?: unknown;
+      restaurant_phone?: unknown;
       driver_name?: unknown;
       driver_phone?: unknown;
     };
@@ -575,6 +577,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       status: String(status.status ?? 'new'),
       deliveryStatus: status.delivery_status ? String(status.delivery_status) : undefined,
       paymentStatus: status.payment_status as ClientPaymentStatus,
+      restaurantPhone: status.restaurant_phone ? String(status.restaurant_phone) : undefined,
       driverName: status.driver_name ? String(status.driver_name) : undefined,
       driverPhone: status.driver_phone ? String(status.driver_phone) : undefined,
       driverLat: tracking?.driver_lat ?? null,

@@ -232,6 +232,7 @@ export type ClientOrder = {
   createdAt: string;
   estimatedTimeMin: number;
   estimatedTimeMax: number;
+  restaurantPhone?: string;
   driverName?: string;
   driverPhone?: string;
   driverLat?: number | null;

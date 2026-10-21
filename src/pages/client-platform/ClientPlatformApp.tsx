@@ -2655,6 +2655,7 @@ function OrderStatusPage({
       syncOrderPatch(order.id, mergeClientOrderRealtimePatch({
         status: resolveClientOrderRealtimeStatus(patch.status, patch.deliveryStatus),
         paymentStatus: patch.paymentStatus,
+        restaurantPhone: patch.restaurantPhone,
         driverName: patch.driverName,
         driverPhone: patch.driverPhone,
         driverLat: patch.driverLat,
@@ -2684,7 +2685,7 @@ function OrderStatusPage({
     return { item, dish };
   });
   const orderPreviewImage = orderItemViews.find(({ dish }) => dish?.imageUrl)?.dish?.imageUrl || restaurantImage;
-  const contactPhone = snapshot.supportPhone;
+  const contactPhone = order.restaurantPhone || snapshot.supportPhone;
 
   const canCancel = restaurant.businessType === 'grocery' && [
     'new',
