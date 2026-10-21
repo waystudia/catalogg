@@ -1950,13 +1950,7 @@ function AppContent({
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
-  const closeCartSheet = useCallback(() => {
-    if (routeSection === 'cart') {
-      navigateBackOrFallback(navigate, '/cart');
-      return;
-    }
-    setIsCartOpen(false);
-  }, [navigate, routeSection]);
+  const closeCartSheet = useCallback(() => routeSection === 'cart' ? navigateBackOrFallback(navigate, '/cart') : setIsCartOpen(false), [navigate, routeSection]);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
   const [categoryEditor, categoryEditorHistory] = useBrowserBackedState<{ mode: CategoryEditorMode; categoryId?: string }>(`restaurant:${catalogSlug}:category-editor`, { mode: 'list' });
