@@ -4,7 +4,7 @@ import { render } from 'vitest-browser-react';
 import { Minus, Plus } from 'lucide-react';
 import '../../src/app/styles.css';
 
-test('catalog product uses its photo as the card background with details and quantity controls at the bottom', async () => {
+test('catalog product keeps its five-by-four photo separate from a compact white price bar', async () => {
   await page.viewport(390, 844);
   try {
     const screen = await render(
@@ -21,13 +21,10 @@ test('catalog product uses its photo as the card background with details and qua
             </div>
             <span className="product-photo-carousel__dots" aria-label="Фото 1 из 2"><i className="is-active" /><i /></span>
           </div>
+          <h3 className="product-tile__title">Комбо шаурма</h3>
           <b className="product-tile__quantity-badge">2</b>
         </div>
         <div className="product-tile__body">
-          <div>
-            <h3>Комбо шаурма</h3>
-            <p>Шаурма с сочным мясом, овощами и картофелем.</p>
-          </div>
           <div className="product-tile__bottom">
             <strong>400 ₽</strong>
             <div className="product-tile__stepper has-quantity">
@@ -56,17 +53,18 @@ test('catalog product uses its photo as the card background with details and qua
     expect(Math.abs(photoRect.left - cardRect.left)).toBeLessThanOrEqual(2);
     expect(Math.abs(photoRect.top - cardRect.top)).toBeLessThanOrEqual(2);
     expect(Math.abs(photoRect.right - cardRect.right)).toBeLessThanOrEqual(2);
-    expect(Math.abs(photoRect.bottom - cardRect.bottom)).toBeLessThanOrEqual(2);
-    expect(cardRect.width / cardRect.height).toBeCloseTo(5 / 4, 2);
+    expect(photoRect.width / photoRect.height).toBeCloseTo(5 / 4, 2);
+    expect(photoRect.bottom).toBeLessThan(cardRect.bottom);
     for (const detail of visibleDetails) {
       const detailRect = detail.getBoundingClientRect();
-      expect(detailRect.left).toBeGreaterThanOrEqual(photoRect.left);
-      expect(detailRect.right).toBeLessThanOrEqual(photoRect.right);
-      expect(detailRect.top).toBeGreaterThanOrEqual(photoRect.top);
-      expect(detailRect.bottom).toBeLessThanOrEqual(photoRect.bottom);
+      expect(detailRect.left).toBeGreaterThanOrEqual(cardRect.left);
+      expect(detailRect.right).toBeLessThanOrEqual(cardRect.right);
+      expect(detailRect.top).toBeGreaterThanOrEqual(cardRect.top);
+      expect(detailRect.bottom).toBeLessThanOrEqual(cardRect.bottom);
     }
+    const titleRect = screen.getByRole('heading', { name: 'Комбо шаурма' }).element().getBoundingClientRect();
+    expect(titleRect.bottom).toBeLessThanOrEqual(photoRect.bottom);
     expect(getComputedStyle(screen.getByRole('heading', { name: 'Комбо шаурма' }).element()).color).toBe('rgb(255, 255, 255)');
-    await expect.element(screen.getByText('Шаурма с сочным мясом, овощами и картофелем.')).not.toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }
@@ -117,7 +115,7 @@ test('selected product uses equal compact quantity buttons on mobile cards', asy
       const addBox = add.element().getBoundingClientRect();
       const bottomBox = document.querySelector<HTMLElement>('.product-tile__bottom')!.getBoundingClientRect();
 
-      expect(minusBox.width).toBe(40);
+      expect(minusBox.width).toBe(32);
       expect(addBox.width).toBe(minusBox.width);
       expect(addBox.height).toBe(minusBox.height);
       expect(addBox.right).toBeLessThanOrEqual(bottomBox.right);
@@ -127,7 +125,7 @@ test('selected product uses equal compact quantity buttons on mobile cards', asy
     await new Promise((resolve) => requestAnimationFrame(resolve));
     const desktopMinusBox = minus.element().getBoundingClientRect();
     const desktopAddBox = add.element().getBoundingClientRect();
-    expect(desktopMinusBox.width).toBe(40);
+    expect(desktopMinusBox.width).toBe(32);
     expect(desktopAddBox.width).toBe(desktopMinusBox.width);
   } finally {
     await page.viewport(414, 896);

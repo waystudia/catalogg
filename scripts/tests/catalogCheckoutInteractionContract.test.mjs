@@ -53,8 +53,10 @@ test('product controls suppress native text selection and touch callouts', () =>
   assert.match(appStyles, /\.product-tile[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*user-select:\s*none;/);
 });
 
-test('customer product imagery uses a shared five-by-four frame and one quantity-control scale', () => {
-  assert.match(appStyles, /Shared customer catalog scale:[\s\S]*\.product-tile[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
+test('customer product imagery uses a shared five-by-four frame with a separate compact price bar', () => {
+  assert.match(appStyles, /Catalog card: the 5:4 rule belongs to the photograph[\s\S]*\.product-tile__image\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
+  assert.match(appSource, /<h3 className="product-tile__title">\{product\.title\}<\/h3>/);
+  assert.match(appStyles, /\.product-tile__body\s*\{[\s\S]*background:\s*#fff/);
   assert.match(appStyles, /\.product-photo-carousel--hero,[\s\S]*\.product-hero\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
   assert.match(clientPlatformStyles, /\.marketplace-product-card__media\s*\{[^}]*aspect-ratio:\s*5\s*\/\s*4/);
   assert.match(clientMarketplaceSource, /width=\{500\}\s+height=\{400\}/);

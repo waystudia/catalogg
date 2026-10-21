@@ -1,4 +1,4 @@
-import { Edit3, Eye, EyeOff, Minus, Plus, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Edit3, Eye, EyeOff, Heart, Minus, Plus, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../entities/models';
 import { getProductChoiceOptions } from '../../entities/productVariants';
@@ -320,7 +320,8 @@ export function ProductTile({
     >
       <div className="product-tile__image">
         <ProductImageCarousel product={product} />
-        {product.is_popular && <span className="product-state product-state--popular"><Star /></span>}
+        <h3 className="product-tile__title">{product.title}</h3>
+        {product.is_popular && <span className="product-state product-state--popular" aria-label="В избранном"><Heart aria-hidden="true" /></span>}
         {(product.badges ?? []).slice(0, 2).length > 0 && (
           <span className="product-tile__badges">
             {(product.badges ?? []).slice(0, 2).map((badge) => <b key={badge}>{badge}</b>)}
@@ -357,10 +358,6 @@ export function ProductTile({
         )}
       </div>
       <div className="product-tile__body">
-        <div>
-          <h3>{product.title}</h3>
-          <p>{soldOut ? 'Закончилось' : product.description}</p>
-        </div>
         <div className="product-tile__bottom">
           <strong>
             {formatCatalogProductPrice(product)}
