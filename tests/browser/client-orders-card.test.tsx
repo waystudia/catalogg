@@ -39,8 +39,9 @@ test('renders a compact active order as one card that opens its details', async 
         restaurant={restaurant}
         orderNumber="M3719"
         statusLabel="В пути"
-        detailsPath="/mangal/order/111"
+        detailsPath="/profile/orders/111"
         chatPath="/profile/orders/111/chat"
+        previewDishes={[{ dishId: 'dish-1', name: 'Айран', imageUrl: 'https://example.com/ayran.jpg' }]}
         unreadCount={1}
         onRepeat={vi.fn()}
       />
@@ -52,7 +53,8 @@ test('renders a compact active order as one card that opens its details', async 
   await expect.element(screen.getByText('Заказ у курьера')).toBeVisible();
   const cardLink = screen.getByRole('link', { name: /Открыть заказ M3719 в заведении Мангал/ });
   await expect.element(cardLink).toBeVisible();
-  await expect.element(cardLink).toHaveAttribute('href', '/mangal/order/111');
+  await expect.element(cardLink).toHaveAttribute('href', '/profile/orders/111');
+  expect(document.querySelector('.client-order-card__dish-image')).toHaveAttribute('src', 'https://example.com/ayran.jpg');
   expect(document.querySelectorAll('.client-order-card a')).toHaveLength(1);
 });
 
@@ -64,7 +66,7 @@ test('keeps completed orders equally compact and opens their details', async () 
         restaurant={{ ...restaurant, businessType: 'grocery' }}
         orderNumber="F8364"
         statusLabel="Доставлен"
-        detailsPath="/finik/order/111"
+        detailsPath="/profile/orders/111"
         chatPath="/profile/orders/111/chat"
         onRepeat={vi.fn()}
       />
@@ -74,7 +76,7 @@ test('keeps completed orders equally compact and opens their details', async () 
   await expect.element(screen.getByText('Заказ завершён')).toBeVisible();
   const cardLink = screen.getByRole('link', { name: /Открыть заказ F8364 в заведении Мангал/ });
   await expect.element(cardLink).toBeVisible();
-  await expect.element(cardLink).toHaveAttribute('href', '/finik/order/111');
+  await expect.element(cardLink).toHaveAttribute('href', '/profile/orders/111');
   expect(document.querySelectorAll('.client-order-card button')).toHaveLength(0);
 });
 

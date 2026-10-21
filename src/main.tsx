@@ -16,6 +16,7 @@ import { deletePublicAnalyticsSession, recordPublicAnalyticsEvent } from './shar
 import {
   BusinessAdminRoute,
   CatalogAdminRoute,
+  LegacyClientOrderRedirect,
   LegacyLoginRedirect,
   PwaHomeRoute,
   PwaResumeTracker,
@@ -151,6 +152,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
               <Route path="/profile/*" element={<ClientPlatformApp />} />
               <Route path="/partner-registration" element={<PartnerRegistrationPage />} />
               <Route path="/partner-registration/documents" element={<SellerApplicationPage />} />
+              <Route path="/:slug/order/:orderId" element={<LegacyClientOrderRedirect />} />
               <Route path="/r/:slug/*" element={<RestaurantRouteRedirect />} />
               <Route path="/login" element={<LegacyLoginRedirect />} />
               <Route path="/restaurant/activation" element={<RestaurantActivationPage />} />

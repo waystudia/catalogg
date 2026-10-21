@@ -2904,6 +2904,7 @@ function ProfileArea({
   const queryClient = useQueryClient();
   const orders = useClientPlatformStore((state) => state.orders);
   const chatRoute = location.pathname.match(/^\/profile\/orders\/([^/]+)\/chat\/?$/);
+  const orderDetailsRoute = location.pathname.match(/^\/profile\/orders\/([^/]+)\/?$/);
 
   if (chatRoute) {
     const orderId = decodeURIComponent(chatRoute[1]);
@@ -2917,15 +2918,33 @@ function ProfileArea({
       );
     }
     const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-    const detailsPrefix = restaurant?.businessType === 'grocery' ? `/r/${order.restaurantSlug}` : `/${order.restaurantSlug}`;
     return (
       <ClientOrderChatPage
         order={order}
         restaurant={restaurant}
         orderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
-        detailsPath={`${detailsPrefix}/order/${order.id}`}
+        detailsPath={`/profile/orders/${encodeURIComponent(order.id)}`}
         onRead={() => void queryClient.invalidateQueries({ queryKey: ['client-order-chat-unread'] })}
       />
+    );
+  }
+
+  if (orderDetailsRoute) {
+    const orderId = decodeURIComponent(orderDetailsRoute[1]);
+    const order = orders.find((item) => item.id === orderId);
+    const restaurant = order && snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
+    if (!order || !restaurant) {
+      return (
+        <PlatformLayout active="orders">
+          <PageHeader title="Статус заказа" backTo="/profile/orders" />
+          <EmptyState title="Заказ не найден" linkTo="/profile/orders" linkText="К моим заказам" />
+        </PlatformLayout>
+      );
+    }
+    return (
+      <div className="restaurant-client" style={restaurantCssVars(restaurant)}>
+        <OrderStatusPage snapshot={snapshot} restaurant={restaurant} orderId={orderId} />
+      </div>
     );
   }
 
@@ -3640,7 +3659,17 @@ function OrdersPage({
         <div className="client-orders-list">
           {visibleOrders.map((order) => {
             const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-            const orderPathPrefix = restaurant?.businessType === 'grocery' ? `/r/${order.restaurantSlug}` : `/${order.restaurantSlug}`;
+            const previewDishes = order.items
+              .map((item) => snapshot.dishes.find((dish) =>
+                dish.id === item.dishId || (
+                  dish.restaurantSlug === order.restaurantSlug &&
+                  dish.name.trim().toLocaleLowerCase('ru-RU') === item.name.trim().toLocaleLowerCase('ru-RU')
+                )
+              ))
+              .filter((dish): dish is ClientDish => Boolean(dish?.imageUrl))
+              .filter((dish, index, list) => list.findIndex((item) => item.imageUrl === dish.imageUrl) === index)
+              .slice(0, 3)
+              .map((dish) => ({ dishId: dish.id, name: dish.name, imageUrl: dish.imageUrl }));
             const trackingHref = order.orderType === 'delivery' &&
               typeof order.driverLat === 'number' && Number.isFinite(order.driverLat) &&
               typeof order.driverLng === 'number' && Number.isFinite(order.driverLng) &&
@@ -3657,11 +3686,13 @@ function OrdersPage({
                 restaurant={restaurant}
                 orderNumber={formatPublicOrderNumber(order.id, order.restaurantName)}
                 statusLabel={statusLabels[order.status]}
-                detailsPath={`${orderPathPrefix}/order/${order.id}`}
+                detailsPath={`/profile/orders/${encodeURIComponent(order.id)}`}
                 chatPath={`/profile/orders/${encodeURIComponent(order.id)}/chat`}
                 trackingHref={trackingHref}
                 unreadCount={unreadByOrder.get(order.id) ?? 0}
                 onRepeat={() => requestRepeat(order)}
+                previewDishes={previewDishes}
+                previewFallbackUrl={restaurant?.coverUrl}
                 key={order.id}
               />
             );

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { ClientOrder, ClientOrderStatus, ClientRestaurant } from '../client-platform/types';
+import { SafeImage } from '../../shared/SafeImage';
 import './client-orders.css';
 
 export type ClientOrderFilter = 'all' | 'current' | 'completed' | 'canceled';
@@ -148,6 +149,8 @@ export function ClientOrderCard({
   order,
   orderNumber,
   detailsPath,
+  previewDishes = [],
+  previewFallbackUrl = '',
   unreadCount = 0
 }: {
   order: ClientOrder;
@@ -159,21 +162,41 @@ export function ClientOrderCard({
   trackingHref?: string;
   unreadCount?: number;
   onRepeat: () => void;
+  previewDishes?: Array<Pick<ClientOrder['items'][number], 'dishId' | 'name'> & { imageUrl: string }>;
+  previewFallbackUrl?: string;
 }) {
   const isCurrent = orderIsCurrent(order);
   const compactDate = formatClientOrderDate(order.createdAt).split(' ·')[0];
+  const fulfillmentLabel = order.orderType === 'delivery'
+    ? 'Доставка'
+    : order.orderType === 'pickup'
+      ? 'Самовывоз'
+      : 'В заведении';
+  const visibleDishes = previewDishes.slice(0, 3);
   return (
     <article className="client-order-card" data-state={isCurrent ? 'current' : order.status}>
       <Link className="client-order-card__link" to={detailsPath} aria-label={`Открыть заказ ${orderNumber} в заведении ${order.restaurantName}`}>
         <span className="client-order-card__content">
+          <small className="client-order-card__eyebrow">{isCurrent ? 'Текущий заказ' : 'Заказ'}</small>
           <strong>{order.restaurantName}</strong>
           <span>№{orderNumber} · {new Intl.NumberFormat('ru-RU').format(order.totalAmount)} ₽</span>
-          <time dateTime={order.createdAt}>{compactDate}</time>
+          <time dateTime={order.createdAt}>{compactDate} · {fulfillmentLabel}</time>
           <OrderStatusBadge status={order.status} label={getClientOrderBadgeLabel(order.status)} />
         </span>
         <span className="client-order-card__aside">
           {unreadCount > 0 && <span className="client-order-card__unread" aria-label={`Новых сообщений: ${Math.min(unreadCount, 99)}`}><MessageCircle /> {Math.min(unreadCount, 99)}</span>}
-          <ChevronRight aria-hidden="true" />
+          <span className="client-order-card__preview" aria-hidden="true">
+            {visibleDishes.length > 0 ? (
+              <span className={visibleDishes.length > 1 ? 'client-order-card__dish-fan is-stacked' : 'client-order-card__dish-fan'}>
+                {visibleDishes.map((dish) => (
+                  <SafeImage className="client-order-card__dish-image" key={dish.dishId} src={dish.imageUrl} alt="" width={140} height={140} />
+                ))}
+              </span>
+            ) : previewFallbackUrl ? (
+              <SafeImage src={previewFallbackUrl} alt="" width={140} height={140} />
+            ) : null}
+            <ChevronRight />
+          </span>
         </span>
       </Link>
     </article>

@@ -29,8 +29,19 @@ export function RestaurantRouteRedirect() {
   const location = useLocation();
   const cleanSlug = decodeURIComponent(slug);
   const suffix = location.pathname.replace(/^\/r\/[^/]+/, '');
+  const clientOrderMatch = suffix.match(/^\/order\/([^/]+)\/?$/);
+
+  if (clientOrderMatch) {
+    return <Navigate replace to={`/profile/orders/${encodeURIComponent(decodeURIComponent(clientOrderMatch[1]))}${location.search}`} />;
+  }
 
   return <Navigate replace to={`/${cleanSlug}${suffix}${location.search}`} />;
+}
+
+export function LegacyClientOrderRedirect() {
+  const { orderId = '' } = useParams();
+  const location = useLocation();
+  return <Navigate replace to={`/profile/orders/${encodeURIComponent(orderId)}${location.search}`} />;
 }
 
 export function RestaurantPublicRoute() {
