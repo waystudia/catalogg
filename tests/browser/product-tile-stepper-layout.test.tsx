@@ -57,6 +57,7 @@ test('catalog product uses its photo as the card background with details and qua
     expect(Math.abs(photoRect.top - cardRect.top)).toBeLessThanOrEqual(2);
     expect(Math.abs(photoRect.right - cardRect.right)).toBeLessThanOrEqual(2);
     expect(Math.abs(photoRect.bottom - cardRect.bottom)).toBeLessThanOrEqual(2);
+    expect(cardRect.width / cardRect.height).toBeCloseTo(5 / 4, 2);
     for (const detail of visibleDetails) {
       const detailRect = detail.getBoundingClientRect();
       expect(detailRect.left).toBeGreaterThanOrEqual(photoRect.left);
@@ -116,7 +117,7 @@ test('selected product uses equal compact quantity buttons on mobile cards', asy
       const addBox = add.element().getBoundingClientRect();
       const bottomBox = document.querySelector<HTMLElement>('.product-tile__bottom')!.getBoundingClientRect();
 
-      expect(minusBox.width).toBe(30);
+      expect(minusBox.width).toBe(40);
       expect(addBox.width).toBe(minusBox.width);
       expect(addBox.height).toBe(minusBox.height);
       expect(addBox.right).toBeLessThanOrEqual(bottomBox.right);
@@ -126,7 +127,7 @@ test('selected product uses equal compact quantity buttons on mobile cards', asy
     await new Promise((resolve) => requestAnimationFrame(resolve));
     const desktopMinusBox = minus.element().getBoundingClientRect();
     const desktopAddBox = add.element().getBoundingClientRect();
-    expect(desktopMinusBox.width).toBe(38);
+    expect(desktopMinusBox.width).toBe(40);
     expect(desktopAddBox.width).toBe(desktopMinusBox.width);
   } finally {
     await page.viewport(414, 896);

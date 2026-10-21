@@ -20,6 +20,14 @@ const clientPlatformSource = await readFile(
   new URL('../../src/pages/client-platform/ClientPlatformApp.tsx', import.meta.url),
   'utf8'
 );
+const clientMarketplaceSource = await readFile(
+  new URL('../../src/pages/client-platform/ClientMarketplaceHome.tsx', import.meta.url),
+  'utf8'
+);
+const clientPlatformStyles = await readFile(
+  new URL('../../src/pages/client-platform/client-platform.css', import.meta.url),
+  'utf8'
+);
 
 test('the product animation targets the lower cart bar and addition remains immediate', () => {
   assert.match(appSource, /data-cart-animation-target/);
@@ -43,6 +51,20 @@ test('product controls suppress native text selection and touch callouts', () =>
   assert.match(appSource, /onDoubleClick=\{\(event\) => event\.preventDefault\(\)\}/);
   assert.match(appSource, /className=\{quantity > 0 \? 'product-tile__stepper has-quantity'/);
   assert.match(appStyles, /\.product-tile[\s\S]*-webkit-touch-callout:\s*none;[\s\S]*user-select:\s*none;/);
+});
+
+test('customer product imagery uses a shared five-by-four frame and one quantity-control scale', () => {
+  assert.match(appStyles, /Shared customer catalog scale:[\s\S]*\.product-tile[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
+  assert.match(appStyles, /\.product-photo-carousel--hero,[\s\S]*\.product-hero\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
+  assert.match(clientPlatformStyles, /\.marketplace-product-card__media\s*\{[^}]*aspect-ratio:\s*5\s*\/\s*4/);
+  assert.match(clientMarketplaceSource, /width=\{500\}\s+height=\{400\}/);
+  assert.match(appStyles, /\.product-tile__stepper-button,[\s\S]*\.product-tile \.add-button,[\s\S]*\.product-tile__stepper\.has-quantity \.add-button\s*\{/);
+});
+
+test('merchant headers and product details keep a compact mobile hierarchy', () => {
+  assert.match(appStyles, /Compact, predictable merchant header[\s\S]*\.top-bar \.brand-logo span\s*\{[^}]*letter-spacing:\s*0/);
+  assert.match(appStyles, /Product details share the platform's compact type[\s\S]*\.primary-wide,[\s\S]*min-height:\s*52px/);
+  assert.match(appStyles, /\.product-weight-stepper\s*\{[^}]*grid-template-columns:\s*44px minmax\(0, 1fr\) 44px/);
 });
 
 test('product photos repeat at both edges and normalize after scrolling', () => {

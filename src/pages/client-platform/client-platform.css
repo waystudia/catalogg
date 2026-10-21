@@ -316,7 +316,7 @@
 .marketplace-product-card__media {
   position: relative;
   display: block;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 5 / 4;
   overflow: hidden;
   background: var(--wy-surface-secondary, #f4f5f8);
 }
@@ -3579,9 +3579,10 @@
 .home-active-order__preview {
   position: relative;
   display: grid;
-  width: 70px;
-  height: 70px;
-  flex: 0 0 70px;
+  width: 75px;
+  height: auto;
+  aspect-ratio: 5 / 4;
+  flex: 0 0 75px;
   place-items: center;
   overflow: hidden;
   border-radius: 15px;

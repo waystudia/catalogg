@@ -105,7 +105,7 @@ function MarketplaceProductCard({
     <article className="marketplace-product-card" role="listitem">
       <Link className="marketplace-product-card__link" to={item.href} aria-label={linkLabel}>
         <span className="marketplace-product-card__media">
-          <SafeImage src={item.imageUrl} alt={item.title} width={480} height={480} />
+          <SafeImage src={item.imageUrl} alt={item.title} width={500} height={400} />
           {item.discountPercent !== null && (
             <b className="marketplace-product-card__discount">-{item.discountPercent}%</b>
           )}

@@ -11589,3 +11589,301 @@ a {
   width: 20px;
   height: 20px;
 }
+
+/* Shared customer catalog scale: every product photo uses the same 5:4 frame. */
+.product-tile,
+.product-tile--large,
+.product-tile--drink,
+.app-shell--confectionery .product-tile {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 5 / 4;
+}
+
+.product-tile__image,
+.product-tile__image .product-photo-carousel,
+.product-tile__image .product-photo-carousel__track,
+.product-tile__image .product-photo-carousel__slide {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 5 / 4;
+}
+
+.product-photo-carousel--hero,
+.product-hero {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+}
+
+.product-tile__body {
+  gap: 4px;
+  padding: 44px 9px 8px;
+}
+
+.product-tile h3 {
+  font-size: clamp(12px, 3.8vw, 15px);
+  line-height: 1.12;
+}
+
+.product-tile strong {
+  font-size: clamp(14px, 4vw, 16px);
+}
+
+.product-tile__bottom {
+  min-height: 40px;
+  gap: 6px;
+}
+
+.product-tile__stepper,
+.product-tile__stepper.has-quantity {
+  width: auto;
+  min-width: 0;
+  gap: 4px;
+}
+
+.product-tile__stepper-button,
+.product-tile .add-button,
+.product-tile__stepper.has-quantity .add-button {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid rgb(255 255 255 / 76%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 94%);
+  color: var(--accent-2);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+  touch-action: manipulation;
+}
+
+.product-tile__stepper-button svg,
+.product-tile .add-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.product-tile__stepper-count {
+  min-width: 18px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.product-photo-carousel__dots {
+  bottom: 49px;
+}
+
+.product-tile__quantity-badge {
+  bottom: 47px;
+}
+
+/* Compact, predictable merchant header at phone widths. */
+.top-bar {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.top-bar__actions {
+  gap: 8px;
+}
+
+.top-bar .icon-button {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.top-bar .brand-logo {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  justify-content: start;
+  gap: 8px;
+  text-align: left;
+}
+
+.top-bar .brand-logo > img {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+
+.top-bar .brand-logo > div {
+  min-width: 0;
+}
+
+.top-bar .brand-logo strong {
+  overflow: hidden;
+  font-size: clamp(22px, 7vw, 30px);
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-bar .brand-logo span {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Product details share the platform's compact type and spacing rhythm. */
+.product-screen {
+  gap: 10px;
+}
+
+.product-heading {
+  gap: 10px;
+}
+
+.product-heading h2 {
+  font-family: inherit;
+  font-size: clamp(24px, 7vw, 32px);
+  font-weight: 850;
+  line-height: 1.08;
+}
+
+.product-heading strong {
+  margin-top: 5px;
+  font-size: clamp(20px, 5.8vw, 25px);
+}
+
+.hit-badge {
+  gap: 6px;
+  min-height: 40px;
+  border-radius: 13px;
+  padding: 7px 11px;
+  font-size: 14px;
+}
+
+.hit-badge svg {
+  width: 18px;
+  height: 18px;
+}
+
+.product-description {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.product-choice-group {
+  gap: 6px;
+  margin: 6px 0;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.product-choice-group label {
+  min-height: 40px;
+  gap: 8px;
+}
+
+.product-weight-stepper {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+
+.product-weight-stepper button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.product-weight-stepper output {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 5px 8px;
+}
+
+.product-weight-stepper output strong {
+  font-size: 18px;
+}
+
+.facts {
+  border-radius: 16px;
+  padding: 6px 12px;
+}
+
+.facts div {
+  padding: 8px 0;
+}
+
+.facts dt,
+.facts dd {
+  font-size: 14px;
+}
+
+.quantity {
+  width: min(280px, 100%);
+  border-radius: 14px;
+}
+
+.quantity button {
+  height: 48px;
+}
+
+.quantity strong {
+  font-size: 21px;
+}
+
+.primary-wide,
+.ghost-wide {
+  min-height: 52px;
+  border-radius: 14px;
+  padding: 9px 14px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.subhead {
+  margin: 10px 0 0;
+  font-size: clamp(22px, 6.5vw, 28px);
+  line-height: 1.12;
+}
+
+/* Product imagery in platform cards, baskets, checkout and order previews. */
+.cart-item-card > img,
+.cart-item-card > .image-fallback,
+.checkout-order-card img,
+.checkout-order-card .image-fallback {
+  height: auto;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+}
+
+@media (max-width: 360px) {
+  .top-bar .brand-logo {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .top-bar .brand-logo > img {
+    width: 46px;
+    height: 46px;
+  }
+
+  .top-bar .brand-logo strong {
+    font-size: 22px;
+  }
+
+  .product-tile__body {
+    padding: 38px 8px 7px;
+  }
+
+  .product-tile__stepper-button,
+  .product-tile .add-button,
+  .product-tile__stepper.has-quantity .add-button {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+  }
+}
