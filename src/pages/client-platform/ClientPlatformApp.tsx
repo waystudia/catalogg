@@ -813,7 +813,12 @@ export function HomeActiveOrders({ snapshot }: { snapshot: ClientPlatformSnapsho
   const featuredOrder = activeOrders[0];
   const restaurant = snapshot.restaurants.find((item) => item.slug === featuredOrder.restaurantSlug);
   const previewDishes = featuredOrder.items
-    .map((item) => snapshot.dishes.find((dish) => dish.id === item.dishId))
+    .map((item) => snapshot.dishes.find((dish) =>
+      dish.id === item.dishId || (
+        dish.restaurantSlug === featuredOrder.restaurantSlug &&
+        dish.name.trim().toLocaleLowerCase('ru-RU') === item.name.trim().toLocaleLowerCase('ru-RU')
+      )
+    ))
     .filter((dish): dish is ClientDish => Boolean(dish?.imageUrl))
     .filter((dish, index, list) => list.findIndex((item) => item.imageUrl === dish.imageUrl) === index)
     .slice(0, 3);
