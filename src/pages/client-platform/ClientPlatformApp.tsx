@@ -79,6 +79,7 @@ import {
 import {
   ClientOrderCard,
   ClientOrdersSkeleton,
+  formatClientOrderDate,
   OrderFilterChips,
   orderIsCurrent,
   type ClientOrderFilter
@@ -2674,6 +2675,17 @@ function OrderStatusPage({
     );
   }
 
+  const orderItemViews = order.items.map((item) => {
+    const dish = snapshot.dishes.find((candidate) => candidate.id === item.dishId)
+      ?? snapshot.dishes.find((candidate) => (
+        candidate.restaurantSlug === order.restaurantSlug
+        && candidate.name.trim().toLocaleLowerCase('ru-RU') === item.name.trim().toLocaleLowerCase('ru-RU')
+      ));
+    return { item, dish };
+  });
+  const orderPreviewImage = orderItemViews.find(({ dish }) => dish?.imageUrl)?.dish?.imageUrl || restaurantImage;
+  const contactPhone = snapshot.supportPhone;
+
   const canCancel = restaurant.businessType === 'grocery' && [
     'new',
     'waiting_payment_confirmation',
@@ -2737,7 +2749,7 @@ function OrderStatusPage({
             <strong>{order.restaurantName}</strong>
             <small>№{formatPublicOrderNumber(order.id, order.restaurantName)} · {formatPrice(order.totalAmount)}</small>
           </span>
-          {restaurantImage && <img src={restaurantImage} alt="" />}
+          {orderPreviewImage && <SafeImage src={orderPreviewImage} alt="" width={128} />}
         </section>
         <section className="status-panel client-order-status-screen__hero" aria-live="polite">
           <span className="client-order-status-screen__check" aria-hidden="true"><Check /></span>
@@ -2750,8 +2762,40 @@ function OrderStatusPage({
             ? <p className="order-cancelled-note"><XCircle /> Заказ отменён. Если оплата уже подтверждена, магазин согласует возврат в чате.</p>
             : <OrderProgress status={order.status} />}
         </section>
-        <section className="delivery-info">
-          <h2>Информация о доставке</h2>
+        <section className="client-order-status-screen__items" aria-labelledby="order-items-title">
+          <header>
+            <h2 id="order-items-title">Состав заказа</h2>
+            <small>{order.items.length} {order.items.length === 1 ? 'позиция' : 'позиций'}</small>
+          </header>
+          {orderItemViews.map(({ item, dish }, index) => (
+            <article key={`${item.dishId}-${index}`}>
+              <SafeImage src={dish?.imageUrl} alt="" width={112} fallbackKind="dessert" />
+              <span>
+                <strong>{item.name}</strong>
+                <small>{dish ? formatClientDishQuantity(dish, item.quantity) : `${item.quantity} шт.`} · {formatPrice(item.price)}</small>
+              </span>
+              <b>{formatPrice(item.price * item.quantity)}</b>
+            </article>
+          ))}
+          <footer><span>Итого</span><strong>{formatPrice(order.totalAmount)}</strong></footer>
+        </section>
+        <section className="delivery-info client-order-status-screen__details">
+          <h2>Информация о заказе</h2>
+          <span>
+            <strong>Получение</strong>
+            <small>{orderTypeLabels[order.orderType]}</small>
+          </span>
+          <span>
+            <strong>Оплата</strong>
+            <small>{paymentMethodLabels[order.paymentMethod]}</small>
+          </span>
+          <span>
+            <strong>Оформлен</strong>
+            <small>{formatClientOrderDate(order.createdAt)}</small>
+          </span>
+        </section>
+        <section className="delivery-info client-order-status-screen__details">
+          <h2>{order.orderType === 'delivery' ? 'Информация о доставке' : 'Информация о получении'}</h2>
           <span>
             <strong>Кто доставляет</strong>
             <small>{getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</small>
@@ -2815,9 +2859,14 @@ function OrderStatusPage({
               />
             </section>
           )}
-        <Link className="restaurant-primary-button order-chat-route-button" to={`/profile/orders/${encodeURIComponent(order.id)}/chat`}>
-          <MessageCircle /> Чат с {restaurant.businessType === 'grocery' ? 'магазином' : 'рестораном'}
-        </Link>
+        <section className="client-order-status-screen__actions" aria-label="Связь с заведением">
+          <a className="client-order-status-screen__call" href={contactPhone ? `tel:${contactPhone}` : undefined} aria-disabled={!contactPhone}>
+            <Phone /> Позвонить
+          </a>
+          <Link className="client-order-status-screen__write" to={`/profile/orders/${encodeURIComponent(order.id)}/chat`}>
+            <MessageCircle /> Написать
+          </Link>
+        </section>
         {order.status === 'completed' && reviewState !== 'sent' && (
           <section className="order-details-review">
             <button className="secondary-flow-button" type="button" onClick={() => setReviewOpen((value) => !value)}>
@@ -2853,18 +2902,6 @@ function OrderStatusPage({
           </button>
         )}
         {cancellationError && <p className="form-error">{cancellationError}</p>}
-        <a
-          className="secondary-flow-button"
-          href={buildSupportWhatsappUrl(snapshot.supportWhatsapp)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <MessageCircle />
-          Связаться с поддержкой
-        </a>
-        <Link className="restaurant-primary-button restaurant-primary-button--soft" to="/">
-          Вернуться на главную
-        </Link>
       </main>
     </>
   );
