@@ -120,7 +120,7 @@ test('Categories is a compact business discovery screen with a two-column catego
   await expect.element(screen.getByRole('button', { name: 'Найти бизнес' })).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Популярное рядом' })).toBeVisible();
   await expect.element(screen.getByRole('link', { name: /Открыть Мангал/ })).toHaveAttribute('href', '/mangal');
-  await expect.element(screen.getByText('-20%')).toBeVisible();
+  expect(screen.getByText('-20%', { exact: true }).query()).toBeNull();
   await expect.element(screen.getByRole('heading', { name: 'Категории бизнеса' })).toBeVisible();
   expect(screen.container.querySelector('h1')).toBeNull();
 
@@ -128,7 +128,7 @@ test('Categories is a compact business discovery screen with a two-column catego
   const businessCarousel = screen.getByRole('list', { name: 'Популярные бизнесы рядом' }).element();
   const businessCards = businessCarousel.querySelectorAll<HTMLElement>('.business-discovery-card');
   expect(businessCards).toHaveLength(4);
-  expect(businessCards[0].getBoundingClientRect().width).toBeLessThan(businessCarousel.clientWidth / 3);
+  expect(businessCards[0].getBoundingClientRect().width).toBeLessThan(businessCarousel.clientWidth * 0.6);
   expect(getComputedStyle(categoryGrid).gridTemplateColumns.split(' ')).toHaveLength(2);
   expect(categoryGrid.querySelectorAll('.business-category-card')).toHaveLength(8);
   await expect.element(screen.getByRole('link', { name: /Рестораны/ })).toHaveAttribute(

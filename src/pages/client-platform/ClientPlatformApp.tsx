@@ -72,6 +72,7 @@ import type {
 import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { formatPublicOrderNumber } from '../../shared/publicOrderNumber';
+import { SafeImage } from '../../shared/SafeImage';
 import {
   getClientOrderChatUnreadCounts
 } from '../../shared/api/orderConversationApi';
@@ -808,27 +809,24 @@ export function HomeActiveOrders({ snapshot }: { snapshot: ClientPlatformSnapsho
 
   if (activeOrders.length === 0) return null;
 
+  const featuredOrder = activeOrders[0];
+  const restaurant = snapshot.restaurants.find((item) => item.slug === featuredOrder.restaurantSlug);
+  const previewDish = snapshot.dishes.find((dish) => dish.id === featuredOrder.items[0]?.dishId);
+
   return (
-    <section className="home-active-orders" aria-label="Текущие заказы">
-      <div className="home-active-orders__heading">
-        <strong>Текущие заказы</strong>
-        <Link to="/profile/orders">Все заказы</Link>
-      </div>
-      {activeOrders.map((order) => {
-        const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-        const orderPathPrefix = restaurant?.businessType === 'grocery' ? '/r' : '';
-        const orderPath = `${orderPathPrefix}/${order.restaurantSlug}/order/${order.id}`;
-        return (
-          <Link className="home-active-order" key={order.id} to={orderPath}>
-            <span>
-              <strong>{order.restaurantName}</strong>
-              <small>№{formatPublicOrderNumber(order.id, order.restaurantName)} · {formatPrice(order.totalAmount)}</small>
-              <em>{statusLabels[order.status]}</em>
-            </span>
-            <ChevronRight aria-hidden="true" />
-          </Link>
-        );
-      })}
+    <section className="home-active-orders" aria-label="Текущий заказ">
+      <Link className="home-active-order" to="/profile/orders" aria-label="Открыть текущие заказы">
+        <span className="home-active-order__details">
+          <small>Текущий заказ</small>
+          <strong>{featuredOrder.restaurantName}</strong>
+          <span>№{formatPublicOrderNumber(featuredOrder.id, featuredOrder.restaurantName)} · {formatPrice(featuredOrder.totalAmount)}</span>
+          <em>{statusLabels[featuredOrder.status]}</em>
+        </span>
+        <span className="home-active-order__preview" aria-hidden="true">
+          <SafeImage src={previewDish?.imageUrl || restaurant?.coverUrl || ''} alt="" width={160} height={160} />
+          <ChevronRight />
+        </span>
+      </Link>
     </section>
   );
 }

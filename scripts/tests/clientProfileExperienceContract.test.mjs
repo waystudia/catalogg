@@ -50,12 +50,14 @@ test('favorites, repeat checkout and reviews expose complete client actions', ()
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);
 });
 
-test('the marketplace home gives every current order one compact path to its details', () => {
+test('the marketplace home shows one current-order preview that opens all orders', () => {
   assert.match(appSource, /function HomeActiveOrders\(\{ snapshot \}/);
-  assert.match(appSource, /aria-label="Текущие заказы"/);
+  assert.match(appSource, /aria-label="Текущий заказ"/);
   assert.match(appSource, /<HomeActiveOrders snapshot=\{snapshot\} \/>/);
   assert.match(appSource, /className="home-active-order"/);
-  assert.match(appSource, /to=\{orderPath\}/);
+  assert.match(appSource, /to="\/profile\/orders"/);
+  assert.match(appSource, /className="home-active-order__preview"/);
+  assert.match(appSource, /<SafeImage src=\{previewDish\?\.imageUrl/);
 });
 
 test('review submission is tied to a real client session and order', () => {

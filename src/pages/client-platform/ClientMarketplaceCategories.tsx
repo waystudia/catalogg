@@ -30,7 +30,7 @@ import {
 import { buildCityPickerPath } from '../../features/client-platform/clientPlatformNavigation';
 import { buildRestaurantPublicPath } from '../../features/client-platform/clientPlatformLogic';
 import { useClientPlatformStore } from '../../features/client-platform/store';
-import type { ClientDish, ClientPlatformSnapshot, ClientRestaurant } from '../../features/client-platform/types';
+import type { ClientPlatformSnapshot, ClientRestaurant } from '../../features/client-platform/types';
 import { SafeImage } from '../../shared/SafeImage';
 import './client-platform.css';
 
@@ -51,16 +51,6 @@ const categoryIcons: Record<BusinessCategoryIcon, typeof Utensils> = {
   pet: PawPrint,
   gift: Gift
 };
-
-const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
-
-const getBusinessDiscount = (business: ClientRestaurant, dishes: readonly ClientDish[]) =>
-  dishes
-    .filter((dish) => dish.restaurantSlug === business.slug && dish.oldPrice && dish.oldPrice > dish.price)
-    .reduce((maximum, dish) => Math.max(
-      maximum,
-      Math.round((((dish.oldPrice ?? dish.price) - dish.price) / (dish.oldPrice ?? dish.price)) * 100)
-    ), 0);
 
 function DiscoveryHeader({ cityName }: { cityName: string }) {
   return (
@@ -83,16 +73,13 @@ function DiscoveryHeader({ cityName }: { cityName: string }) {
 
 function BusinessCard({
   business,
-  dishes,
   isFavorite,
   onToggleFavorite
 }: {
   business: ClientRestaurant;
-  dishes: readonly ClientDish[];
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }) {
-  const discount = getBusinessDiscount(business, dishes);
   const category = getBusinessCategoryForType(business.businessType);
   const subtitle = business.description.trim() || category?.description || 'Каталог бизнеса';
   const hasDelivery = business.orderTypes.includes('delivery') &&
@@ -107,20 +94,21 @@ function BusinessCard({
       >
         <span className="business-discovery-card__media">
           <SafeImage src={business.coverUrl} alt="" width={320} height={220} />
-          {discount > 0 && <b className="business-discovery-card__discount">-{discount}%</b>}
         </span>
         <span className="business-discovery-card__body">
           <strong>{business.name}</strong>
           <small>{subtitle}</small>
-          <span className="business-discovery-card__rating">
-            <Star aria-hidden="true" fill="currentColor" />
-            {business.rating.toFixed(1)}
-          </span>
-          <span className="business-discovery-card__terms">
-            {business.deliveryTimeFrom}–{business.deliveryTimeTo} мин · от {formatPrice(business.minOrderAmount)}
+          <span className="business-discovery-card__meta">
+            <span className="business-discovery-card__rating">
+              <Star aria-hidden="true" fill="currentColor" />
+              {business.rating.toFixed(1)}
+            </span>
+            <span className="business-discovery-card__terms">
+              {business.deliveryTimeFrom}–{business.deliveryTimeTo} мин
+            </span>
           </span>
           {hasDelivery && business.freeDeliveryFrom > 0 && (
-            <em>Бесплатно от {formatPrice(business.freeDeliveryFrom)}</em>
+            <em>Бесплатная доставка</em>
           )}
         </span>
       </Link>
@@ -357,11 +345,16 @@ export function ClientMarketplaceCategories({
             <button type="button" onClick={onRetry}>Повторить</button>
           </div>
         ) : popularBusinesses.length > 0 ? (
-          <div className="business-discovery-carousel" role="list" aria-label="Популярные бизнесы рядом">
+          <div
+            className={popularBusinesses.length <= 3
+              ? 'business-discovery-carousel business-discovery-carousel--centered'
+              : 'business-discovery-carousel'}
+            role="list"
+            aria-label="Популярные бизнесы рядом"
+          >
             {popularBusinesses.map((business) => (
               <BusinessCard
                 business={business}
-                dishes={snapshot.dishes}
                 isFavorite={favoriteRestaurantIds.includes(business.id)}
                 onToggleFavorite={() => toggleFavoriteRestaurant(business.id)}
                 key={business.id}
