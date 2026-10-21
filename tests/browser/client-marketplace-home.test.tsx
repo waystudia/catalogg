@@ -112,7 +112,10 @@ test('marketplace home fits a two-by-three product grid above the mobile navigat
     expect(Math.abs(cards[4].getBoundingClientRect().top - cards[5].getBoundingClientRect().top)).toBeLessThanOrEqual(1);
     expect(thirdRowBottom).toBeLessThanOrEqual(navigationTop);
     await expect.element(screen.getByRole('link', { name: 'Открыть Товар 6 в Мангал' })).toBeVisible();
-    await expect.element(screen.getByRole('button', { name: 'Добавить Товар 6 в избранное' })).toBeVisible();
+    const favoriteButton = screen.getByRole('button', { name: 'Добавить Товар 6 в избранное' });
+    await expect.element(favoriteButton).toBeVisible();
+    expect(favoriteButton.element().getBoundingClientRect().width).toBe(36);
+    expect(favoriteButton.element().getBoundingClientRect().height).toBe(36);
   } finally {
     await page.viewport(414, 896);
   }
