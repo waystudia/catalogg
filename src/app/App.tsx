@@ -1722,15 +1722,13 @@ function UpsellReminder({
   products,
   onSelect,
   onConfirm,
-  onSkip,
-  onDismiss
+  onSkip
 }: {
   category: Category;
   products: Product[];
   onSelect: (product: Product) => void;
   onConfirm: () => void;
   onSkip: () => void;
-  onDismiss: () => void;
 }) {
   const items = useCartStore((state) => state.items);
   const add = useCartStore((state) => state.add);
@@ -1760,15 +1758,16 @@ function UpsellReminder({
   };
 
   return (
-    <div className="modal-backdrop flow-backdrop flow-backdrop--upsell">
-      <section className="flow-modal" role="dialog" aria-modal="true" aria-labelledby="flow-title">
-        <div className="modal-handle" />
-        <button className="flow-modal__close" type="button" onClick={onDismiss} aria-label="Закрыть">
-          <X />
-        </button>
-        {isDrinks ? <Coffee className="modal-icon" /> : <ChefHat className="modal-icon" />}
-        <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
-        <p>Можно добавить к заказу одну или несколько позиций перед оформлением.</p>
+    <main className="flow-upsell-page" aria-labelledby="flow-title">
+      <section className="flow-upsell-page__content">
+        <header className="flow-upsell-head">
+          <span>{isDrinks ? <Coffee /> : <ChefHat />}</span>
+          <div>
+            <h2 id="flow-title">{getUpsellReminderTitle(category)}</h2>
+            <p>Добавьте к заказу или сразу пропустите.</p>
+          </div>
+          <button type="button" onClick={onSkip}>Пропустить</button>
+        </header>
         <div className="flow-products">
           {suggestions.map((product) => {
             const quantity = getProductCartQuantity(items, product.id);
@@ -1809,15 +1808,14 @@ function UpsellReminder({
             В этой категории пока нет товаров.
           </p>
         )}
-        {hasSelectedSuggestions && <p className="flow-selected">Добавлено позиций: {selectedSuggestionCount}</p>}
-        <button className="primary-wide" type="button" disabled={!hasSelectedSuggestions} onClick={onConfirm}>
-          Выбрать «{category.name}»
-        </button>
-        <button className="ghost-wide" type="button" onClick={onSkip}>
-          Продолжить без выбора
-        </button>
+        {hasSelectedSuggestions && (
+          <footer className="flow-upsell-footer">
+            <span>Добавлено: {selectedSuggestionCount}</span>
+            <button type="button" onClick={onConfirm}>Продолжить</button>
+          </footer>
+        )}
       </section>
-    </div>
+    </main>
   );
 }
 
@@ -2512,9 +2510,16 @@ function AppContent({
     setScreen('checkout');
   };
 
+  const hasSelectedFlowCategory = (category: Category) => items.some((item) => isProductInCategory(item.product, category.id) || (isSauceCategory(category) && isSauceProduct(item.product)));
+  const nextUnselectedFlowCategory = (afterCategoryId?: string) => {
+    const startIndex = afterCategoryId
+      ? Math.max(-1, flowCategories.findIndex((category) => category.id === afterCategoryId)) + 1
+      : 0;
+    return flowCategories.slice(startIndex).find((category) => !hasSelectedFlowCategory(category));
+  };
+
   const continueOrderFlow = () => {
-    const currentIndex = flowCategories.findIndex((category) => category.id === orderFlow.categoryId);
-    const nextCategory = currentIndex >= 0 ? flowCategories[currentIndex + 1] : undefined;
+    const nextCategory = nextUnselectedFlowCategory(orderFlow.categoryId);
     if (!nextCategory) {
       finishOrderFlow();
       return;
@@ -2526,7 +2531,7 @@ function AppContent({
     if (screen === 'checkout') {
       return;
     }
-    const firstCategory = flowCategories[0];
+    const firstCategory = nextUnselectedFlowCategory();
     if (!firstCategory) {
       finishOrderFlow();
       return;
@@ -3059,9 +3064,6 @@ function AppContent({
           onSelect={selectFlowProduct}
           onConfirm={continueOrderFlow}
           onSkip={continueOrderFlow}
-          onDismiss={() => {
-            setOrderFlow({ step: 'done', selectedByCategory: {} });
-          }}
         />
       )}
       <CartSheet

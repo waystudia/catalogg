@@ -223,10 +223,11 @@ test('catalog removes the redundant order-information chip row and sauces have a
   assert.match(appSource, /categorySuggestions\.length > 0[\s\S]*isSauceCategory[\s\S]*isSauceProduct\(product\)/);
 });
 
-test('upsell modal covers sticky catalog UI and uses compact two-column mobile controls', () => {
-  assert.match(appStyles, /\.flow-backdrop\s*\{[^}]*z-index:\s*60;/);
-  assert.match(appStyles, /\.flow-modal > \.primary-wide,[\s\S]*min-height:\s*50px;[\s\S]*font-size:\s*16px;/);
-  assert.match(appStyles, /@media \(max-width: 360px\)[\s\S]*\.flow-products\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
+test('upsell opens as a scrollable page, not a modal over the catalog', () => {
+  assert.match(appSource, /<main className="flow-upsell-page"/);
+  assert.doesNotMatch(appSource.slice(appSource.indexOf('function UpsellReminder'), appSource.indexOf('function AdminPanel')), /flow-backdrop--upsell/);
+  assert.match(appStyles, /\.flow-upsell-page\s*\{[\s\S]*position:\s*fixed;[\s\S]*overflow-y:\s*auto;/);
+  assert.match(appStyles, /\.flow-upsell-footer\s*\{[\s\S]*position:\s*sticky;/);
 });
 
 test('upsell quantities support several products and the sauce fallback can be selected', () => {
@@ -235,8 +236,16 @@ test('upsell quantities support several products and the sauce fallback can be s
   assert.match(upsellSource, /const quantity = getProductCartQuantity\(items, product\.id\)/);
   assert.match(upsellSource, /<span>\{quantity\}<\/span>/);
   assert.doesNotMatch(upsellSource, /<span>1<\/span>/);
-  assert.match(upsellSource, /disabled=\{!hasSelectedSuggestions\}/);
+  assert.match(upsellSource, /className="flow-upsell-footer"/);
   assert.match(appSource, /isProductInCategory\(product, category\.id\) \|\|[\s\S]*isSauceCategory\(category\)[\s\S]*isSauceProduct\(product\)/);
+  assert.match(appSource, /nextUnselectedFlowCategory[\s\S]*!hasSelectedFlowCategory\(category\)/);
+});
+
+test('choice dishes open a compact picker from the add button instead of their full product page', () => {
+  assert.match(appSource, /const \[isChoiceMenuOpen, setIsChoiceMenuOpen\] = useState\(false\)/);
+  assert.match(appSource, /if \(choiceOptions\.length > 0\) \{[\s\S]*setIsChoiceMenuOpen/);
+  assert.match(appSource, /product-tile__choice-menu/);
+  assert.match(appStyles, /\.product-tile__choice-menu\s*\{[\s\S]*position:\s*absolute;/);
 });
 
 test('checkout creates or opens the client account in place and clears both cart stores after success', () => {

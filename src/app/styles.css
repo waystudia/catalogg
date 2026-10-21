@@ -7040,6 +7040,168 @@ a {
   }
 }
 
+/* Customer fixes: compact header, choice picker, and a full upsell page. */
+@media (max-width: 380px) {
+  .top-bar {
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 5px !important;
+  }
+
+  .top-bar__actions { gap: 2px !important; }
+
+  .top-bar .icon-button {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .top-bar .brand-logo { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+  .top-bar .brand-logo > img { display: none !important; }
+  .top-bar .brand-logo strong { font-size: 20px !important; }
+  .top-bar .brand-logo span { margin-top: 2px !important; font-size: 10px !important; }
+
+  .product-tile__choice-menu {
+    min-width: 0 !important;
+    width: 136px !important;
+  }
+
+  .product-tile__choice-menu button { gap: 4px; padding: 6px; }
+  .product-tile__choice-menu b { font-size: 11px; }
+  .product-tile__choice-menu small { font-size: 11px; }
+}
+
+.product-tile__stepper { position: relative; }
+
+.product-tile__choice-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 8;
+  display: grid;
+  min-width: min(224px, calc(100vw - 32px));
+  gap: 5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  padding: 8px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(15 23 42 / 18%);
+}
+
+.product-tile__choice-menu > span {
+  padding: 1px 3px 3px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.product-tile__choice-menu button {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 8px;
+  background: #f8fafc;
+  color: #171a24;
+  text-align: left;
+}
+
+.product-tile__choice-menu b { font-size: 13px; }
+.product-tile__choice-menu small { color: #5b3df4; font-size: 12px; font-weight: 800; white-space: nowrap; }
+
+.cart-summary p {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) !important;
+  align-items: start !important;
+}
+
+.cart-summary p span { min-width: 0; }
+.cart-summary p strong {
+  max-width: 154px !important;
+  overflow-wrap: anywhere !important;
+  text-align: right !important;
+}
+
+.flow-upsell-page {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(124px + env(safe-area-inset-bottom));
+  background: var(--background, #f8f6f1);
+}
+
+.flow-upsell-page__content {
+  display: grid;
+  width: min(720px, 100%);
+  gap: 16px;
+  margin: 0 auto;
+}
+
+.flow-upsell-head {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.flow-upsell-head > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 16%, #fff);
+  color: var(--accent);
+}
+
+.flow-upsell-head > div { min-width: 0; }
+.flow-upsell-head h2,
+.flow-upsell-head p { margin: 0; }
+.flow-upsell-head h2 { font-size: 20px; line-height: 1.1; }
+.flow-upsell-head p { margin-top: 3px; color: #667085; font-size: 13px; line-height: 1.25; }
+.flow-upsell-head > button,
+.flow-upsell-footer > button {
+  min-height: 38px;
+  border: 1px solid #ddd9ff;
+  border-radius: 11px;
+  padding: 0 11px;
+  background: #fff;
+  color: #5b3df4;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.flow-upsell-page .flow-products { max-height: none; overflow: visible; }
+.flow-upsell-footer {
+  position: sticky;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #ddd9ff;
+  border-radius: 14px;
+  padding: 9px 10px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 360px) {
+  .flow-upsell-page { padding-right: 12px; padding-left: 12px; }
+  .flow-upsell-head { grid-template-columns: 38px minmax(0, 1fr) auto; gap: 8px; }
+  .flow-upsell-head > span { width: 38px; height: 38px; }
+  .flow-upsell-head h2 { font-size: 18px; }
+  .flow-upsell-head p { font-size: 12px; }
+  .flow-upsell-head > button { padding: 0 8px; font-size: 12px; }
+}
+
 /* Keep this at the end: older catalog themes also style these shared classes. */
 .product-tile,
 .product-tile--large,

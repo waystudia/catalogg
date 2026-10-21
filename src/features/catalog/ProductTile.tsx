@@ -252,6 +252,7 @@ export function ProductTile({
     .filter((item) => item.product.id === product.id)
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
+  const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useState(false);
   const requiresConfiguration = choiceOptions.length > 0
     || isWeightPricedProduct(product)
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
@@ -311,6 +312,15 @@ export function ProductTile({
     const cleanup = () => flyer.remove();
     flyer.addEventListener('animationend', cleanup, { once: true });
     window.setTimeout(cleanup, 1200);
+  };
+
+  const addChoice = (choice: string, button: HTMLButtonElement) => {
+    const animationSnapshot = captureCartAnimation(button);
+    add(product, choice);
+    onAdd?.(product);
+    playAddSound();
+    setIsChoiceMenuOpen(false);
+    window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));
   };
 
   return (
@@ -393,6 +403,10 @@ export function ProductTile({
               aria-label={`Добавить ${product.title}`}
               onClick={(event) => {
                 const button = event.currentTarget;
+                if (choiceOptions.length > 0) {
+                  setIsChoiceMenuOpen((value) => !value);
+                  return;
+                }
                 if (requiresConfiguration) {
                   onOpen(product);
                   return;
@@ -406,6 +420,24 @@ export function ProductTile({
             >
               <Plus />
             </button>
+            {isChoiceMenuOpen && (
+              <div className="product-tile__choice-menu" role="group" aria-label={`Варианты ${product.title}`}>
+                <span>Выберите вариант</span>
+                {choiceOptions.map((choice) => (
+                  <button
+                    type="button"
+                    key={choice.name}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      addChoice(choice.name, event.currentTarget);
+                    }}
+                  >
+                    <b>{choice.name}</b>
+                    <small>{formatRublePrice(choice.price)}</small>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
