@@ -2632,6 +2632,7 @@ function OrderStatusPage({
   orderId?: string;
 }) {
   const terms = getBusinessTerms(restaurant.businessType);
+  const navigate = useNavigate();
   const orders = useClientPlatformStore((state) => state.orders);
   const profile = useClientPlatformStore((state) => state.profile);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
@@ -2724,21 +2725,27 @@ function OrderStatusPage({
 
   return (
     <>
-      <RestaurantTopbar restaurant={restaurant} title="Заказ в доставке" />
-      <main className="restaurant-flow">
-        <section className="order-status-head">
-          <span className="restaurant-logo">{restaurant.name.slice(0, 1)}</span>
+      <header className="client-order-status-topbar">
+        <button type="button" aria-label="Назад к заказам" onClick={() => navigateBackOrFallback(navigate, '/profile/orders')}><ArrowLeft /></button>
+        <strong>Заказ</strong>
+        <Link to="/" aria-label="Главная"><Home /></Link>
+      </header>
+      <main className="restaurant-flow client-order-status-screen">
+        <section className="order-status-head client-order-status-screen__order">
           <span>
-            <strong>{order.restaurantName}</strong>
-            <small>Заказ №{order.id}</small>
             <small>{orderTypeLabels[order.orderType]}</small>
+            <strong>{order.restaurantName}</strong>
+            <small>№{formatPublicOrderNumber(order.id, order.restaurantName)} · {formatPrice(order.totalAmount)}</small>
           </span>
           {restaurantImage && <img src={restaurantImage} alt="" />}
         </section>
-        <section className="status-panel">
-          <small>Статус заказа</small>
+        <section className="status-panel client-order-status-screen__hero" aria-live="polite">
+          <span className="client-order-status-screen__check" aria-hidden="true"><Check /></span>
+          <small>{order.status === 'completed' ? 'Заказ завершён' : 'Заказ оформлен'}</small>
           <h1>{statusLabels[order.status]}</h1>
-          {order.status === 'waiting_payment_confirmation' && <p>{terms.paymentConfirmation}</p>}
+          {order.status === 'waiting_payment_confirmation'
+            ? <p>{terms.paymentConfirmation}</p>
+            : order.status === 'new' && <p>{restaurant.name} увидит заказ и подтвердит его.</p>}
           {order.status === 'canceled'
             ? <p className="order-cancelled-note"><XCircle /> Заказ отменён. Если оплата уже подтверждена, магазин согласует возврат в чате.</p>
             : <OrderProgress status={order.status} />}
@@ -2865,15 +2872,12 @@ function OrderStatusPage({
 
 function OrderProgress({ status }: { status: ClientOrderStatus }) {
   const steps: Array<{ id: ClientOrderStatus; label: string }> = [
+    { id: 'new', label: 'Оформлен' },
     { id: 'accepted', label: 'Принят' },
     { id: 'cooking', label: 'Готовится' },
-    { id: 'ready', label: 'Подтверждён' },
-    { id: 'assigned_driver', label: 'Курьер' },
-    { id: 'picked_up', label: 'Забран' },
-    { id: 'on_the_way', label: 'В пути' },
-    { id: 'completed', label: 'Доставлен' }
+    { id: 'ready', label: 'Готов' }
   ];
-  const normalizedStatus = status === 'payment_confirmed' ? 'accepted' : status === 'waiting_driver' ? 'ready' : status;
+  const normalizedStatus = status === 'payment_confirmed' ? 'accepted' : status === 'waiting_driver' || status === 'completed' || status === 'assigned_driver' || status === 'picked_up' || status === 'on_the_way' ? 'ready' : status;
   const statusIndex = steps.findIndex((step) => step.id === normalizedStatus);
   const activeIndex = status === 'waiting_payment_confirmation' || status === 'new' ? 0 : Math.max(statusIndex, 0);
 

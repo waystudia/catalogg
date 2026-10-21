@@ -4093,3 +4093,43 @@
 .city-list-empty p {
   margin: 0;
 }
+
+/* Client order status: calm confirmation screen with a lightweight success motion. */
+.client-order-status-topbar {
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 16px 10px;
+  background: #f7f8fc;
+}
+.client-order-status-topbar strong { text-align: center; color: #151823; font-size: var(--wy-type-title); }
+.client-order-status-topbar button,
+.client-order-status-topbar a { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #e1e5ec; border-radius: 14px; background: #fff; color: #25213d; }
+.client-order-status-topbar svg { width: 21px; height: 21px; }
+.client-order-status-screen { display: grid; gap: 14px; padding: 8px 16px calc(28px + env(safe-area-inset-bottom)); background: #f7f8fc; }
+.client-order-status-screen__order { min-height: 76px; grid-template-columns: minmax(0, 1fr) 64px; padding: 12px; border: 1px solid #e2e6ee; border-radius: 18px; background: #fff; box-shadow: none; }
+.client-order-status-screen__order > span { gap: 2px; }
+.client-order-status-screen__order > span > small:first-child { color: #7a8498; font-size: var(--wy-type-micro); font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.client-order-status-screen__order strong { font-size: var(--wy-type-title); }
+.client-order-status-screen__order img { width: 64px; height: 64px; border-radius: 15px; object-fit: cover; }
+.client-order-status-screen__hero { display: grid; justify-items: center; gap: 6px; padding: 20px 16px 16px; border: 0; border-radius: 22px; background: #fff; text-align: center; box-shadow: 0 8px 24px rgba(36, 40, 60, .06); }
+.client-order-status-screen__check { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; background: #e8f8f0; color: #087b4b; animation: client-order-check-in 560ms cubic-bezier(.22, 1, .36, 1) both; }
+.client-order-status-screen__check svg { width: 30px; height: 30px; stroke-width: 3; stroke-dasharray: 40; stroke-dashoffset: 40; animation: client-order-check-stroke 440ms 180ms ease-out forwards; }
+.client-order-status-screen__hero > small { color: #748096; font-size: var(--wy-type-caption); font-weight: 750; }
+.client-order-status-screen__hero h1 { margin: 0; color: #151823; font-size: clamp(24px, 7vw, 31px); line-height: 1.08; }
+.client-order-status-screen__hero p { margin: 0; max-width: 290px; color: #667085; font-size: var(--wy-type-caption); line-height: 1.35; }
+.client-order-status-screen .order-progress { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 8px 4px 0; background: transparent; }
+.client-order-status-screen .order-progress::before { top: 22px; left: 13%; right: 13%; }
+.client-order-status-screen .order-progress span b { width: 30px; height: 30px; font-size: var(--wy-type-micro); }
+.client-order-status-screen .order-progress small { font-size: 10px; line-height: 1.12; }
+.client-order-status-screen .delivery-info { border: 0; border-radius: 20px; padding: 16px; background: #fff; box-shadow: 0 6px 18px rgba(36, 40, 60, .045); }
+.client-order-status-screen .delivery-info h2 { margin-bottom: 8px; font-size: var(--wy-type-title); }
+.client-order-status-screen .delivery-info > span { padding: 10px 0; }
+.client-order-status-screen .order-chat-route-button { min-height: 52px; border-radius: 16px; background: linear-gradient(135deg, #6847ff, #4f2de7); }
+.client-order-status-screen > .secondary-flow-button,
+.client-order-status-screen > .restaurant-primary-button--soft { min-height: 48px; border-radius: 15px; background: #fff; color: #5635e8; border: 1px solid #e1dcff; box-shadow: none; }
+@keyframes client-order-check-in { from { opacity: 0; transform: scale(.65); } 70% { transform: scale(1.08); } to { opacity: 1; transform: scale(1); } }
+@keyframes client-order-check-stroke { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .client-order-status-screen__check, .client-order-status-screen__check svg { animation: none; stroke-dashoffset: 0; } }
