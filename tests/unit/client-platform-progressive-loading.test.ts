@@ -13,7 +13,9 @@ const makeSnapshot = (): ClientPlatformSnapshot => ({
   dishes: [
     {
       id: 'dish-1', restaurantSlug: 'mangal', categorySlug: 'pizza', name: 'Маргарита', description: '',
-      price: 500, imageUrl: '', tags: [], isPopular: true, stockCount: 10, weight: '500 г'
+      price: 500, imageUrl: '', tags: [], isPopular: true, stockCount: 10, stockQuantity: 10,
+      isUnlimited: false, saleUnit: 'piece', quantityUnit: 'piece', priceBasisQuantity: 1,
+      minimumQuantity: 1, quantityStep: 1, allowSubstitution: false, sku: '', barcode: '', weight: '500 г'
     }
   ],
   paymentSettings: [], banners: [], contentPages: [], supportWhatsapp: '', supportPhone: '',
