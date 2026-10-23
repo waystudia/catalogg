@@ -92,6 +92,8 @@ import {
   createClientPlatformOrder,
   getClientCityDirectory,
   getClientPlatformSnapshot,
+  getClientPlatformProductImages,
+  mergeClientPlatformProductImages,
   saveClientReview,
   subscribeClientOrderRealtime,
   subscribeClientPlatformSnapshotRealtime
@@ -361,12 +363,27 @@ const restoreRestaurantCartFromOrder = (snapshot: ClientPlatformSnapshot, order:
 };
 
 function usePlatformData() {
-  return useQuery({
+  const snapshotQuery = useQuery({
     queryKey: ['client-platform'],
     queryFn: getClientPlatformSnapshot,
     staleTime: 60_000,
     placeholderData: (previous) => previous
   });
+  const productIds = snapshotQuery.data?.dishes.map((dish) => dish.id) ?? [];
+  const imagesQuery = useQuery({
+    queryKey: ['client-platform-product-images', productIds],
+    queryFn: () => getClientPlatformProductImages(productIds),
+    enabled: productIds.length > 0,
+    staleTime: 5 * 60_000,
+    placeholderData: (previous) => previous
+  });
+
+  return {
+    ...snapshotQuery,
+    data: snapshotQuery.data && imagesQuery.data
+      ? mergeClientPlatformProductImages(snapshotQuery.data, imagesQuery.data)
+      : snapshotQuery.data
+  };
 }
 
 export function ClientPlatformApp() {

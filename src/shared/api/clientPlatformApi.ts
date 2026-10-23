@@ -703,7 +703,6 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   const [
     categoriesResult,
     productsResult,
-    productImagesResult,
     themeResult,
     photoQualityResult,
     deliveryResult,
@@ -727,11 +726,6 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         .select('id, catalog_id, category_id, title, status, price, old_price, description, weight, stock_count, stock_quantity, is_unlimited, sale_unit, quantity_unit, price_basis_quantity, minimum_quantity, quantity_step, allow_substitution, sku, barcode, is_popular')
         .in('catalog_id', catalogIds)
         .in('status', ['active', 'sold_out'])
-        .order('sort_order'),
-      supabase
-        .from('product_images')
-        .select('product_id, url, sort_order')
-        .in('catalog_id', catalogIds)
         .order('sort_order'),
       supabase.from('catalog_theme_settings').select('catalog_id, settings').in('catalog_id', catalogIds),
       supabase
@@ -784,7 +778,7 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
 
   let categories = (categoriesResult.data ?? []) as CategoryRow[];
   let products = (productsResult.data ?? []) as ProductRow[];
-  const productImages = (productImagesResult.data ?? []) as ProductImageRow[];
+  const productImages: ProductImageRow[] = [];
   const themes = (themeResult.data ?? []) as ThemeRow[];
   const photoQualityRows = (photoQualityResult.data ?? []) as PhotoQualityRow[];
   const deliverySettings = (deliveryResult.data ?? []) as DeliverySettingsRow[];
@@ -1069,5 +1063,47 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
     supportTelegram: settingsRow?.support_telegram || '',
     supportHours: settingsRow?.support_hours || '',
     supportHint: settingsRow?.support_hint || ''
+  };
+}
+
+export async function getClientPlatformProductImages(productIds: string[]): Promise<Record<string, string>> {
+  if (!supabase || productIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('product_images')
+    .select('product_id, url, sort_order')
+    .in('product_id', productIds)
+    .eq('sort_order', 0);
+
+  if (error) throw error;
+
+  return Object.fromEntries(
+    ((data ?? []) as ProductImageRow[]).map((image) => [image.product_id, image.url])
+  );
+}
+
+export function mergeClientPlatformProductImages(
+  snapshot: ClientPlatformSnapshot,
+  imagesByProductId: Record<string, string>
+): ClientPlatformSnapshot {
+  const dishes = snapshot.dishes.map((dish) => ({
+    ...dish,
+    imageUrl: imagesByProductId[dish.id] || dish.imageUrl
+  }));
+
+  const firstDishImageByCategory = new Map<string, string>();
+  dishes.forEach((dish) => {
+    if (dish.imageUrl && !firstDishImageByCategory.has(dish.categorySlug)) {
+      firstDishImageByCategory.set(dish.categorySlug, dish.imageUrl);
+    }
+  });
+
+  return {
+    ...snapshot,
+    dishes,
+    categories: snapshot.categories.map((category) => ({
+      ...category,
+      imageUrl: category.imageUrl || firstDishImageByCategory.get(category.slug) || ''
+    }))
   };
 }
