@@ -1073,10 +1073,11 @@ export const splitClientPlatformProductImageIds = (productIds: string[], batchSi
 
 export async function getClientPlatformProductImages(productIds: string[]): Promise<Record<string, string>> {
   if (!supabase || productIds.length === 0) return {};
+  const supabaseClient = supabase;
 
   const results = await Promise.all(
     splitClientPlatformProductImageIds(productIds).map((batch) =>
-      supabase
+      supabaseClient
         .from('product_images')
         .select('product_id, url, sort_order')
         .in('product_id', batch)
