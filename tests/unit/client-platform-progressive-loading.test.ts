@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientPlatformSnapshot } from '../../src/features/client-platform/types';
-import { mergeClientPlatformProductImages } from '../../src/shared/api/clientPlatformApi';
+import {
+  mergeClientPlatformProductImages,
+  splitClientPlatformProductImageIds
+} from '../../src/shared/api/clientPlatformApi';
 
 const makeSnapshot = (): ClientPlatformSnapshot => ({
   cities: [],
@@ -23,6 +26,16 @@ const makeSnapshot = (): ClientPlatformSnapshot => ({
 });
 
 describe('progressive marketplace image loading', () => {
+  it('splits a large catalog into URL-safe image request batches', () => {
+    const productIds = Array.from({ length: 121 }, (_, index) => `product-${index}`);
+
+    const batches = splitClientPlatformProductImageIds(productIds);
+
+    expect(batches.map((batch) => batch.length)).toEqual([50, 50, 21]);
+    expect(batches.flat()).toEqual(productIds);
+    expect(splitClientPlatformProductImageIds([])).toEqual([]);
+  });
+
   it('adds deferred product images without changing the lightweight snapshot', () => {
     const snapshot = makeSnapshot();
     const hydrated = mergeClientPlatformProductImages(snapshot, { 'dish-1': '/products/margarita.webp' });

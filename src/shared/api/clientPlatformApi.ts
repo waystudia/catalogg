@@ -1066,19 +1066,30 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
   };
 }
 
+export const splitClientPlatformProductImageIds = (productIds: string[], batchSize = 50) =>
+  Array.from({ length: Math.ceil(productIds.length / batchSize) }, (_, index) =>
+    productIds.slice(index * batchSize, (index + 1) * batchSize)
+  );
+
 export async function getClientPlatformProductImages(productIds: string[]): Promise<Record<string, string>> {
   if (!supabase || productIds.length === 0) return {};
+  const supabaseClient = supabase;
 
-  const { data, error } = await supabase
-    .from('product_images')
-    .select('product_id, url, sort_order')
-    .in('product_id', productIds)
-    .eq('sort_order', 0);
-
-  if (error) throw error;
+  const results = await Promise.all(
+    splitClientPlatformProductImageIds(productIds).map((batch) =>
+      supabaseClient
+        .from('product_images')
+        .select('product_id, url, sort_order')
+        .in('product_id', batch)
+        .eq('sort_order', 0)
+    )
+  );
+  const failedResult = results.find((result) => result.error);
+  if (failedResult?.error) throw failedResult.error;
 
   return Object.fromEntries(
-    ((data ?? []) as ProductImageRow[]).map((image) => [image.product_id, image.url])
+    results.flatMap((result) => (result.data ?? []) as ProductImageRow[])
+      .map((image) => [image.product_id, image.url])
   );
 }
 
