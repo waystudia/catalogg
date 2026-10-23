@@ -137,8 +137,8 @@ describe('client marketplace feed', () => {
         businessType: 'restaurant',
         title: 'Чизбургер',
         price: 320,
-        oldPrice: 400,
-        discountPercent: 20,
+        oldPrice: null,
+        discountPercent: null,
         estimatedTime: '30–40 мин',
         href: '/mangal'
       }),
@@ -255,7 +255,7 @@ describe('client marketplace feed', () => {
       .toEqual([expect.objectContaining({ businessType: 'restaurant', sourceType: 'dish' })]);
   });
 
-  it('orders a seller catalog by popularity, discount and then title before interleaving uneven catalogs', () => {
+  it('orders a seller catalog by popularity and then title while discounts are disabled', () => {
     const snapshot = getSnapshot({
       restaurants: [
         getRestaurant(),
@@ -273,7 +273,7 @@ describe('client marketplace feed', () => {
     });
 
     expect(selectMarketplaceFeed(snapshot, { cityId: 'tsotsi-yurt', businessType: 'all' }).map((item) => item.id))
-      .toEqual(['popular', 'finik-only', 'discount-20', 'discount-10', 'alpha', 'zeta']);
+      .toEqual(['popular', 'finik-only', 'alpha', 'discount-10', 'discount-20', 'zeta']);
   });
 
   it('returns an empty feed when no published seller items are available', () => {

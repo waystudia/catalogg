@@ -106,9 +106,6 @@ function MarketplaceProductCard({
       <Link className="marketplace-product-card__link" to={item.href} aria-label={linkLabel}>
         <span className="marketplace-product-card__media">
           <SafeImage src={item.imageUrl} alt={item.title} width={500} height={400} />
-          {item.discountPercent !== null && (
-            <b className="marketplace-product-card__discount">-{item.discountPercent}%</b>
-          )}
         </span>
         <span className="marketplace-product-card__body">
           <strong>{item.title}</strong>
@@ -120,7 +117,6 @@ function MarketplaceProductCard({
           <span className="marketplace-product-card__bottom">
             <span className="marketplace-product-card__price">
               <b>{formatPrice(item.price)}</b>
-              {item.oldPrice !== null && <del>{formatPrice(item.oldPrice)}</del>}
             </span>
             <span className="marketplace-product-card__action" aria-hidden="true">
               <ShoppingCart />

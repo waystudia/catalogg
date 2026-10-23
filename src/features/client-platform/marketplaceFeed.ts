@@ -17,23 +17,11 @@ type MarketplaceFeedFilters = {
 const hasAvailableStock = (dish: ClientDish) => dish.isAvailable !== false
   && (dish.isUnlimited || dish.stockQuantity >= dish.minimumQuantity);
 
-const getDiscount = (dish: ClientDish) => {
-  if (dish.oldPrice == null || dish.oldPrice <= dish.price) {
-    return { oldPrice: null, discountPercent: null };
-  }
-
-  return {
-    oldPrice: dish.oldPrice,
-    discountPercent: Math.round(((dish.oldPrice - dish.price) / dish.oldPrice) * 100)
-  };
-};
-
 const toMarketplaceItem = (
   dish: ClientDish,
   restaurant: ClientRestaurant
 ): MarketplaceItem => {
   const businessType = restaurant.businessType ?? 'restaurant';
-  const discount = getDiscount(dish);
 
   return {
     id: dish.id,
@@ -46,8 +34,8 @@ const toMarketplaceItem = (
     subtitle: dish.description,
     imageUrl: dish.imageUrl,
     price: dish.price,
-    oldPrice: discount.oldPrice,
-    discountPercent: discount.discountPercent,
+    oldPrice: null,
+    discountPercent: null,
     rating: restaurant.rating,
     availability: true,
     estimatedTime: `${restaurant.deliveryTimeFrom}–${restaurant.deliveryTimeTo} мин`,
@@ -61,9 +49,6 @@ const toMarketplaceItem = (
 
 const compareCatalogItems = (left: MarketplaceItem, right: MarketplaceItem) => {
   if (left.isPopular !== right.isPopular) return left.isPopular ? -1 : 1;
-  if (left.discountPercent !== right.discountPercent) {
-    return (right.discountPercent ?? 0) - (left.discountPercent ?? 0);
-  }
   return left.title.localeCompare(right.title, 'ru');
 };
 

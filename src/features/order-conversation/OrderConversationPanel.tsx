@@ -255,7 +255,7 @@ export function OrderConversationPanel({
             >
               {presentation === 'messenger' && startsNewDay && <time className="order-conversation__day">{formatMessageDay(item.createdAt)}</time>}
               {isSystem && presentation === 'messenger' ? (
-                <p className="order-conversation__system-message">{item.body} · {formatMessageTime(item.createdAt)}</p>
+                <p className={expectedViewer === 'client' ? 'order-conversation__system-message order-conversation__system-message--outgoing' : 'order-conversation__system-message'}>{item.body} · {formatMessageTime(item.createdAt)}</p>
               ) : (
                 <article data-sender={item.senderKind} data-state={deliveryState}>
                   {item.senderKind !== expectedViewer && presentation === 'messenger' && (
