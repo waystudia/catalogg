@@ -27,7 +27,7 @@ const conversation: OrderConversation = {
   ]
 };
 
-test('shows messenger bubbles, a separate system chip and optimistic client send', async () => {
+test('shows client-facing system messages on the right and optimistic client send', async () => {
   let resolveSend: ((value: string) => void) | undefined;
   const send = vi.fn(() => new Promise<string>((resolve) => { resolveSend = resolve; }));
   const screen = await render(
@@ -42,7 +42,10 @@ test('shows messenger bubbles, a separate system chip and optimistic client send
     />
   );
 
-  await expect.element(screen.getByText(/Курьер назначен ·/)).toBeVisible();
+  const systemMessage = screen.getByText(/Курьер назначен ·/u);
+  await expect.element(systemMessage).toBeVisible();
+  expect(systemMessage.element().classList.contains('order-conversation__system-message--outgoing')).toBe(true);
+  expect(getComputedStyle(systemMessage.element()).justifySelf).toBe('end');
   await expect.element(screen.getByText('Курьер уже в пути.')).toBeVisible();
   await expect.element(screen.getByText('Мангал')).toBeVisible();
 

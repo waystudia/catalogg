@@ -654,6 +654,13 @@
   text-align: left;
 }
 
+.order-conversation__system-message--outgoing {
+  justify-self: end;
+  border-radius: 16px 16px 5px 16px;
+  background: linear-gradient(135deg, #6847ff, #4f2de7);
+  color: #fff;
+}
+
 .order-conversation__retry {
   min-height: 0 !important;
   margin-top: 5px;
@@ -680,6 +687,9 @@
 .order-conversation[data-presentation='messenger'] .order-conversation__quick-replies {
   grid-column: 1 / -1;
   order: -1;
+  min-width: 0;
+  margin: 4px 0 2px;
+  padding: 4px 0 8px;
 }
 
 .order-conversation[data-presentation='messenger'] .order-conversation__composer-label {

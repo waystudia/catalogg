@@ -72,7 +72,8 @@ test('marketplace home keeps exactly two real product cards across a phone viewp
     expect(cards[0].getBoundingClientRect().width).toBeLessThan(gridBox.width / 1.8);
     await expect.element(screen.getByText('Мангал')).toBeVisible();
     await expect.element(screen.getByText('Финик', { exact: true })).toBeVisible();
-    await expect.element(screen.getByText('-20%')).toBeVisible();
+    expect(cards[0].querySelector('.marketplace-product-card__discount')).toBeNull();
+    expect(cards[0].querySelector('del')).toBeNull();
     await expect.element(screen.getByRole('link', { name: 'Открыть Чизбургер в Мангал' })).toHaveAttribute('href', '/mangal');
   } finally {
     await page.viewport(414, 896);

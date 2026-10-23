@@ -237,9 +237,11 @@
   gap: 8px;
   margin: 0 -16px 18px;
   overflow-x: auto;
-  padding: 0 16px 3px;
+  padding: 0 40px 3px 16px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 28px), transparent 100%);
 }
 
 .marketplace-filter-row::-webkit-scrollbar {
