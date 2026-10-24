@@ -55,7 +55,8 @@ test('product controls suppress native text selection and touch callouts', () =>
 
 test('customer product imagery uses a shared five-by-four frame with a separate compact price bar', () => {
   assert.match(appStyles, /Catalog card: the 5:4 rule belongs to the photograph[\s\S]*\.product-tile__image\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
-  assert.match(appSource, /<h3 className="product-tile__title">\{product\.title\}<\/h3>/);
+  assert.match(appSource, /product-tile__title\$\{product\.title\.trim\(\)\.length > 22 \? ' product-tile__title--long' : ''\}/);
+  assert.match(appStyles, /\.product-tile__title--long\s*\{[^}]*-webkit-line-clamp:\s*3/);
   assert.match(appStyles, /\.product-tile__body\s*\{[\s\S]*background:\s*#fff/);
   assert.match(appStyles, /\.product-photo-carousel--hero,[\s\S]*\.product-hero\s*\{[\s\S]*aspect-ratio:\s*5\s*\/\s*4/);
   assert.match(clientPlatformStyles, /\.marketplace-product-card__media\s*\{[^}]*aspect-ratio:\s*5\s*\/\s*4/);
