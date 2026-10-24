@@ -333,7 +333,9 @@ export function ProductTile({
     >
       <div className="product-tile__image">
         <ProductImageCarousel product={product} />
-        <h3 className="product-tile__title">{product.title}</h3>
+        <h3 className={`product-tile__title${product.title.trim().length > 22 ? ' product-tile__title--long' : ''}`}>
+          {product.title}
+        </h3>
         {product.is_popular && <span className="product-state product-state--popular" aria-label="В избранном"><Heart aria-hidden="true" /></span>}
         {(product.badges ?? []).slice(0, 2).length > 0 && (
           <span className="product-tile__badges">

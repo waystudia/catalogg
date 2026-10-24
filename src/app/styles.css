@@ -7055,7 +7055,7 @@ a {
 /* Customer fixes: compact header, choice picker, and a full upsell page. */
 @media (max-width: 380px) {
   .top-bar {
-    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    grid-template-columns: 40px minmax(0, 1fr) 40px !important;
     gap: 5px !important;
   }
 
@@ -7068,7 +7068,12 @@ a {
     min-height: 40px !important;
   }
 
-  .top-bar .brand-logo { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+  .top-bar .brand-logo {
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: center;
+    gap: 0 !important;
+    text-align: center;
+  }
   .top-bar .brand-logo > img { display: none !important; }
   .top-bar .brand-logo strong { font-size: 20px !important; }
   .top-bar .brand-logo span { margin-top: 2px !important; font-size: 10px !important; }
@@ -7126,15 +7131,16 @@ a {
 
 .cart-summary p {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) !important;
+  grid-template-columns: minmax(0, 42%) minmax(0, 58%) !important;
   align-items: start !important;
 }
 
 .cart-summary p span { min-width: 0; }
 .cart-summary p strong {
-  max-width: 154px !important;
+  max-width: none !important;
   overflow-wrap: anywhere !important;
   text-align: right !important;
+  white-space: normal !important;
 }
 
 .flow-upsell-page {
@@ -12427,6 +12433,11 @@ a {
   text-shadow: 0 1px 5px rgb(0 0 0 / 60%);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.product-tile__title--long {
+  font-size: clamp(11px, 3.4vw, 14px);
+  -webkit-line-clamp: 3;
 }
 
 .product-tile__body {
