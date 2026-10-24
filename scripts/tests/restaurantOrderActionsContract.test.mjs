@@ -57,7 +57,6 @@ describe('restaurant order action contract', () => {
 
   it('lets an authenticated restaurant irreversibly delete test or pre-activation orders', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
-    const board = await read('src/features/restaurant-admin/RestaurantOrdersBoard.tsx');
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const catalogShell = await read('src/pages/catalog-admin/RestaurantAdminShell.tsx');
     const app = await read('src/app/App.tsx');
@@ -102,6 +101,7 @@ describe('restaurant order action contract', () => {
 
   it('shows a confirmed trash action on test or pre-activation restaurant order cards', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
+    const board = await read('src/features/restaurant-admin/RestaurantOrdersBoard.tsx');
 
     assert.match(workspace, /<RestaurantOrdersBoard/);
     assert.match(workspace, /order\.isTestOrder \|\| canDeletePreactivationOrders/);
