@@ -99,7 +99,7 @@ export function OrderDetailsPanel({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [readyMinutes, setReadyMinutes] = useState<MerchantReadyMinutes>(15);
   const capabilities = getBusinessOrderCapabilities(businessType);
-  const customerDetailsLabel = capabilities.customerLabel === 'Покупатель' ? 'Данные покупателя' : 'Данные клиента';
+  const customerDetailsLabel = capabilities.customerLabel === 'Покупатель' ? 'Покупатель' : 'Клиент';
   const showDriverDispatch =
     order.fulfillmentType === 'delivery' &&
     !order.isAddon &&
@@ -301,16 +301,14 @@ export function OrderDetailsPanel({
           <button type="button" onClick={onClose} aria-label="Назад к списку заказов"><ArrowLeft /></button>
           <div>
             <span>Заказ #{order.orderNumber}</span>
-            <strong>{getAdminOrderStatusLabel(order.status, businessType)}</strong>
-            <i data-tone={adminOrderStatusTones[order.status]}>
-              <span aria-hidden="true" />
-              {getAdminOrderStatusLabel(order.status, businessType)}
-            </i>
           </div>
           <div className="admin-order-work-card__total">
             <strong>{formatPrice(order.total)}</strong>
             <small>{orderItemsCount} позиций</small>
           </div>
+          <i className="admin-order-work-card__status" data-tone={adminOrderStatusTones[order.status]}>
+            {getAdminOrderStatusLabel(order.status, businessType)}
+          </i>
           <details className="admin-order-more">
             <summary aria-label="Дополнительные действия"><MoreHorizontal /></summary>
             <div>
@@ -337,9 +335,9 @@ export function OrderDetailsPanel({
         <section className="admin-order-facts">
           <article>
             <Truck />
-            <span>{getAdminOrderFulfillmentLabel(order, businessType)}</span>
-            <strong>{order.fulfillmentType === 'delivery' ? order.deliverySettlement || order.deliveryCity || 'Доставка' : order.cabinLabel || getAdminOrderFulfillmentLabel(order, businessType)}</strong>
-            <small>{orderDate.toLocaleDateString('ru-RU')} · {orderDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
+            <span>Тип заказа</span>
+            <strong>{getAdminOrderFulfillmentLabel(order, businessType)}</strong>
+            <small>{order.fulfillmentType === 'delivery' ? order.deliverySettlement || order.deliveryCity || 'Адрес не указан' : order.cabinLabel || 'Без места'} · {orderDate.toLocaleDateString('ru-RU')} · {orderDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>
           </article>
           <article>
             <User />
@@ -387,7 +385,7 @@ export function OrderDetailsPanel({
                   {order.driverPhotoUrl ? <img src={order.driverPhotoUrl} alt="" /> : <Truck />}
                 </span>
                 <span>
-                  <small>Данные водителя</small>
+                  <small>Курьер</small>
                   <strong>{order.driverName}</strong>
                   <small>
                     {[order.driverVehicleInfo, order.driverCarNumber].filter(Boolean).join(' · ') || 'Автомобиль не указан'}
@@ -411,7 +409,7 @@ export function OrderDetailsPanel({
             <article className="admin-order-person-card admin-order-person-card--empty">
               <span className="admin-order-person-card__avatar"><Truck /></span>
               <span>
-                <small>Данные водителя</small>
+                <small>Курьер</small>
                 <strong>Водитель не назначен</strong>
                 <small>Карточка появится после принятия заказа</small>
               </span>

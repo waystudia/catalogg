@@ -129,8 +129,8 @@ describe('restaurant order action contract', () => {
     assert.match(panel, /order\.driverName && \(/);
     assert.match(panel, /admin-order-person-cards/);
     assert.match(panel, /admin-order-person-card/);
-    assert.match(panel, /Данные клиента/);
-    assert.match(panel, /Данные водителя/);
+    assert.match(panel, /<small>\{customerDetailsLabel\}<\/small>/);
+    assert.match(panel, /<small>Курьер<\/small>/);
     assert.match(panel, /Заказ принял водитель/);
     assert.match(panel, /order\.driverPhone/);
     assert.match(panel, /order\.driverVehicleInfo/);

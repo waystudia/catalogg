@@ -1434,6 +1434,18 @@
   font-size: 15px;
 }
 
+.admin-order-card__identity {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.admin-order-card__identity small {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .admin-order-card__head time {
   flex: 0 0 auto;
   color: #475467;
@@ -1874,30 +1886,25 @@
 
 .admin-order-work-card__header > div:nth-of-type(1) {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
-  gap: 3px 8px;
   min-width: 0;
 }
 
 .admin-order-work-card__header > div:nth-of-type(1) > span {
-  grid-column: 1 / -1;
+  grid-column: 1;
   color: #667085;
   font-size: 12px;
   font-weight: 800;
 }
 
-.admin-order-work-card__header > div:nth-of-type(1) > strong {
-  min-width: 0;
-  font-size: clamp(23px, 5vw, 29px);
-  line-height: 1;
-}
-
-.admin-order-work-card__header i {
+.admin-order-work-card__status {
+  position: absolute;
+  top: 0;
+  right: 36px;
   display: inline-flex;
   width: fit-content;
   align-items: center;
-  gap: 5px;
   border-radius: 999px;
   padding: 4px 7px;
   background: #ecfdf3;
@@ -1907,30 +1914,23 @@
   font-weight: 900;
 }
 
-.admin-order-work-card__header i > span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.admin-order-work-card__header i[data-tone='work'] {
+.admin-order-work-card__status[data-tone='work'] {
   background: #fff7ed;
   color: #c2410c;
 }
 
-.admin-order-work-card__header i[data-tone='ready'],
-.admin-order-work-card__header i[data-tone='delivery'] {
+.admin-order-work-card__status[data-tone='ready'],
+.admin-order-work-card__status[data-tone='delivery'] {
   background: #f0edff;
   color: #5b3df4;
 }
 
-.admin-order-work-card__header i[data-tone='done'] {
+.admin-order-work-card__status[data-tone='done'] {
   background: #f2f4f7;
   color: #475467;
 }
 
-.admin-order-work-card__header i[data-tone='danger'] {
+.admin-order-work-card__status[data-tone='danger'] {
   background: #fef3f2;
   color: #d92d20;
 }
@@ -1939,6 +1939,7 @@
   display: grid;
   justify-items: end;
   gap: 3px;
+  padding-top: 22px;
 }
 
 .admin-order-work-card__total strong {
@@ -2606,13 +2607,13 @@
     gap: 2px;
   }
 
-  .admin-order-work-card__header > div:nth-of-type(1) > span,
-  .admin-order-work-card__header > div:nth-of-type(1) > strong {
+  .admin-order-work-card__header > div:nth-of-type(1) > span {
     grid-column: 1;
   }
 
-  .admin-order-work-card__header i {
-    display: none;
+  .admin-order-work-card__status {
+    right: 29px;
+    font-size: 10px;
   }
 
   .admin-order-work-card__total strong {
