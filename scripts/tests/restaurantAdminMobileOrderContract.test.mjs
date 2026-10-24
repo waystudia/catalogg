@@ -16,7 +16,7 @@ describe('restaurant admin mobile order details', () => {
     assert.match(adminWorkspaceSource, /selectedOrderHistory\.open\(order\)/);
     assert.match(adminWorkspaceSource, /querySelector\('\.admin-order-details-panel'\)/);
     assert.match(adminWorkspaceSource, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
-    assert.match(adminWorkspaceSource, /onClick=\{\(\) => openOrderFromList\(order\)\}/);
+    assert.match(adminWorkspaceSource, /<RestaurantOrdersBoard[\s\S]*onSelectOrder=\{\(orderId\) => \{[\s\S]*if \(order\) openOrderFromList\(order\);/);
   });
 
   it('automatically opens the first visible order and a newly arrived order', () => {
