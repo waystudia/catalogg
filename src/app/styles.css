@@ -7325,6 +7325,23 @@ a {
 .product-tile__stepper.has-quantity { gap: 3px; }
 .product-tile__stepper-count { min-width: 14px; font-size: 12px; }
 
+/* The variant picker is a popover above its card, not content clipped inside it. */
+.product-tile:has(.product-tile__choice-menu) {
+  position: relative;
+  z-index: 20;
+  overflow: visible;
+}
+
+.product-tile__choice-menu {
+  right: auto;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 30;
+  width: min(208px, calc(100vw - 24px)) !important;
+  min-width: 0;
+  transform: translateX(-50%);
+}
+
 @media (max-width: 360px) {
   .product-tile__body { padding: 8px; }
   .product-tile__stepper-button,
