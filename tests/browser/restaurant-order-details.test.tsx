@@ -72,4 +72,7 @@ test('shows selected item quantity multiplied by its unit price', async () => {
 
   await expect.element(screen.getByText('Стейк на косточке')).toBeVisible();
   await expect.element(screen.getByText('3 × 380 ₽')).toBeVisible();
+  await expect.element(screen.getByText('Тип заказа')).toBeVisible();
+  await expect.element(screen.getByText('В зале')).toBeVisible();
+  await expect.element(screen.getByText('Клиент', { exact: true }).last()).toBeVisible();
 });

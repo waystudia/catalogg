@@ -600,11 +600,14 @@ export function RestaurantAdminWorkspace({
                               onClick={() => openOrderFromList(order)}
                             >
                               <span className="admin-order-card__head">
-                                <strong>#{order.orderNumber}</strong>
+                                <span className="admin-order-card__identity">
+                                  <strong>{order.clientName || 'Клиент'}</strong>
+                                  <small>Заказ #{order.orderNumber}</small>
+                                </span>
                                 <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
                               </span>
                               <span className="admin-order-card__meta">
-                                {getAdminOrderFulfillmentLabel(order, restaurant.business_type)} · {getAdminOrderItemsCount(order)} поз.
+                                Тип: {getAdminOrderFulfillmentLabel(order, restaurant.business_type)} · {getAdminOrderItemsCount(order)} поз.
                               </span>
                               <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
                               <span className="admin-order-card__foot">
