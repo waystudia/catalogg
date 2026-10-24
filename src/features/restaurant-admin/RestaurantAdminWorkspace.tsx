@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowRight, Bell, Calculator, ClipboardList, CreditCard, Home, Info, Package,
-  MessageCircle, Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Trash2, Utensils
+  MessageCircle, Paintbrush, Plus, QrCode, RefreshCcw, Settings, Store, Tags, Utensils
 } from 'lucide-react';
 import type { Cabin, Category, Product, Restaurant } from '../../entities/models';
 import { getBusinessOrderCapabilities } from '../../entities/businessOrderCapabilities';
@@ -20,7 +20,6 @@ import {
   type RestaurantOrder,
   type RestaurantOrderStatus
 } from '../../shared/api/restaurantOrdersApi';
-import { formatOrderTime } from '../../shared/orderListGroups';
 import {
   getRestaurantOrderNotificationPermission, requestRestaurantOrderNotificationPermission,
   restoreRestaurantOrderNotificationSubscription, showRestaurantOrderNotification
@@ -29,6 +28,7 @@ import { buildRestaurantAdminTabPath, type RestaurantAdminTab } from '../../shar
 import { BrandLogo } from '../../shared/BrandLogo';
 import { SafeImage } from '../../shared/SafeImage';
 import { OrderDetailsPanel } from './OrderDetailsPanel';
+import { RestaurantOrdersBoard } from './RestaurantOrdersBoard';
 import { getCurrentRestaurantBillingTariff } from '../../shared/api/subscriptionsApi';
 import { getCurrentBillingDebtStatus } from '../../shared/api/billingDebtApi';
 import { calculateRestaurantFinance } from './restaurantFinance';
@@ -36,8 +36,7 @@ import type { MerchantReadyMinutes } from './MerchantReadyEstimatePicker';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { confirmRoleSignOut } from '../../shared/roleSessionSafety';
 import {
-  adminOrderStatusFilters, adminOrderStatusTones, getAdminOrderFulfillmentLabel,
-  getAdminOrderItemsCount, getAdminOrderLocationLabel, getAdminOrderStatusLabel, groupAdminOrdersByMonth,
+  adminOrderStatusFilters, getAdminOrderStatusLabel,
   playRestaurantAdminOrderSound, type AdminOrderFilter
 } from './orderPresentation';
 import { RestaurantPosPage, type RestaurantPosOrderDraft } from '../restaurant-pos/RestaurantPosPage';
@@ -181,7 +180,6 @@ export function RestaurantAdminWorkspace({
   const selectedVisibleOrder = selectedOrder
     ? filteredOrders.find((order) => order.id === selectedOrder.id) ?? null
     : null;
-  const orderGroups = useMemo(() => groupAdminOrdersByMonth(filteredOrders), [filteredOrders]);
   const nextPosGuestNumber = useMemo(() => orders.reduce((highest, order) => {
     const match = order.clientName.match(/^Гость\s*№\s*(\d+)$/i);
     return match ? Math.max(highest, Number(match[1])) : highest;
@@ -582,64 +580,22 @@ export function RestaurantAdminWorkspace({
                     <span>Новые заказы появятся здесь автоматически.</span>
                   </section>
                 )}
-                {orderGroups.map((group, index) => (
-                  <section className="admin-order-group" key={group.key}>
-                    <details open={index === 0}>
-                      <summary>
-                        <span>{group.label}</span>
-                        <b>{group.orders.length} заказов</b>
-                      </summary>
-                      <div>
-                        {group.orders.map((order) => (
-                          <div className="admin-order-card-shell" key={order.id}>
-                            <button
-                              className="admin-order-card"
-                              data-active={selectedVisibleOrder?.id === order.id}
-                              data-highlighted={recentOrderIds.has(order.id)}
-                              type="button"
-                              onClick={() => openOrderFromList(order)}
-                            >
-                              <span className="admin-order-card__head">
-                                <span className="admin-order-card__identity">
-                                  <strong>{order.clientName || 'Клиент'}</strong>
-                                  <small>Заказ #{order.orderNumber}</small>
-                                </span>
-                                <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
-                              </span>
-                              <span className="admin-order-card__meta">
-                                Тип: {getAdminOrderFulfillmentLabel(order, restaurant.business_type)} · {getAdminOrderItemsCount(order)} поз.
-                              </span>
-                              <span className="admin-order-card__address">{getAdminOrderLocationLabel(order)}</span>
-                              <span className="admin-order-card__foot">
-                                <b>{formatPrice(order.total)}</b>
-                                <i data-tone={adminOrderStatusTones[order.status]}>
-                                  {order.status === 'new' && <span aria-hidden="true" />}
-                                  {getAdminOrderStatusLabel(order.status, restaurant.business_type)}
-                                </i>
-                              </span>
-                            </button>
-                            {(order.isTestOrder || canDeletePreactivationOrders) && (
-                              <button
-                                className="admin-order-card__delete"
-                                type="button"
-                                aria-label={`Удалить заказ ${order.orderNumber}`}
-                                title="Удалить заказ до активации"
-                                disabled={deletingOrderId === order.id}
-                                onClick={() => {
-                                  if (window.confirm(`Удалить заказ #${order.orderNumber} безвозвратно?`)) {
-                                    void deleteOrder(order);
-                                  }
-                                }}
-                              >
-                                <Trash2 aria-hidden="true" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  </section>
-                ))}
+                {filteredOrders.length > 0 && (
+                  <RestaurantOrdersBoard
+                    orders={filteredOrders}
+                    selectedOrderId={selectedVisibleOrder?.id ?? null}
+                    recentOrderIds={recentOrderIds}
+                    businessType={restaurant.business_type}
+                    onSelectOrder={(orderId) => {
+                      const order = filteredOrders.find((candidate) => candidate.id === orderId);
+                      if (order) openOrderFromList(order);
+                    }}
+                    canDeleteOrder={(order) => order.isTestOrder || canDeletePreactivationOrders}
+                    onDeleteOrder={(order) => {
+                      if (window.confirm(`Удалить заказ #${order.orderNumber} безвозвратно?`)) void deleteOrder(order);
+                    }}
+                  />
+                )}
               </div>
             </div>
           </section>

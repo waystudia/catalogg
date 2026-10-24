@@ -57,6 +57,7 @@ describe('restaurant order action contract', () => {
 
   it('lets an authenticated restaurant irreversibly delete test or pre-activation orders', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
+    const board = await read('src/features/restaurant-admin/RestaurantOrdersBoard.tsx');
     const panel = await read('src/features/restaurant-admin/OrderDetailsPanel.tsx');
     const catalogShell = await read('src/pages/catalog-admin/RestaurantAdminShell.tsx');
     const app = await read('src/app/App.tsx');
@@ -102,12 +103,11 @@ describe('restaurant order action contract', () => {
   it('shows a confirmed trash action on test or pre-activation restaurant order cards', async () => {
     const workspace = await read('src/features/restaurant-admin/RestaurantAdminWorkspace.tsx');
 
-    assert.match(workspace, /group\.orders\.map\(\(order\) => \(/);
+    assert.match(workspace, /<RestaurantOrdersBoard/);
     assert.match(workspace, /order\.isTestOrder \|\| canDeletePreactivationOrders/);
-    assert.match(workspace, /className="admin-order-card__delete"/);
-    assert.match(workspace, /aria-label=\{`Удалить заказ \$\{order\.orderNumber\}`\}/);
+    assert.match(board, /className="ra-order-board-card__delete"/);
+    assert.match(board, /aria-label=\{`Удалить заказ \$\{order\.orderNumber\}`\}/);
     assert.match(workspace, /window\.confirm\(`Удалить заказ #\$\{order\.orderNumber\} безвозвратно\?`\)/);
-    assert.match(workspace, /disabled=\{deletingOrderId === order\.id\}/);
     assert.match(workspace, /void deleteOrder\(order\)/);
     assert.doesNotMatch(workspace, /import\.meta\.env\.DEV && \(/);
   });

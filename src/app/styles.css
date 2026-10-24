@@ -1887,8 +1887,19 @@
 .admin-order-work-card__header > div:nth-of-type(1) {
   display: grid;
   grid-template-columns: 1fr;
+  gap: 2px;
   align-items: center;
   min-width: 0;
+}
+
+.admin-order-work-card__customer-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #101828;
+  font-size: clamp(18px, 4.5vw, 24px);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-order-work-card__header > div:nth-of-type(1) > span {

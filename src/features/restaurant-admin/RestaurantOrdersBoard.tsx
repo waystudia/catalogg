@@ -1,4 +1,5 @@
 import type { RestaurantOrder } from '../../shared/api/restaurantOrdersApi';
+import { Trash2 } from 'lucide-react';
 import { formatOrderTime } from '../../shared/orderListGroups';
 import { adminOrderStatusTones, getAdminOrderChannel, getAdminOrderFulfillmentLabel, getAdminOrderItemsCount, getAdminOrderLocationLabel, getAdminOrderStatusLabel, isGroceryStorePosOrder } from './orderPresentation';
 import { getRestaurantOrderBoardColumns, getRestaurantOrderBoardColumnId } from './orderBoard';
@@ -6,7 +7,7 @@ import './restaurant-orders-board.css';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
-export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds, businessType, onSelectOrder }: { orders: RestaurantOrder[]; selectedOrderId: string | null; recentOrderIds: Set<string>; businessType?: string; onSelectOrder: (id: string) => void }) {
+export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds, businessType, onSelectOrder, canDeleteOrder, onDeleteOrder }: { orders: RestaurantOrder[]; selectedOrderId: string | null; recentOrderIds: Set<string>; businessType?: string; onSelectOrder: (id: string) => void; canDeleteOrder?: (order: RestaurantOrder) => boolean; onDeleteOrder?: (order: RestaurantOrder) => void }) {
   return (
     <section className="ra-order-board" role="region" aria-label="Доска заказов">
       {getRestaurantOrderBoardColumns(businessType).map((column) => {
@@ -20,13 +21,17 @@ export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds,
             </header>
             <div className="ra-order-board__cards">
               {columnOrders.map((order) => (
-                <button className="ra-order-board-card" type="button" aria-label={`Заказ №${order.orderNumber}`} data-channel={getAdminOrderChannel(order, businessType)} data-active={selectedOrderId === order.id} data-highlighted={recentOrderIds.has(order.id)} key={order.id} onClick={() => onSelectOrder(order.id)}>
+                <div className="ra-order-board-card-shell" key={order.id}>
+                  <button className="ra-order-board-card" type="button" aria-label={`Заказ №${order.orderNumber}`} data-channel={getAdminOrderChannel(order, businessType)} data-active={selectedOrderId === order.id} data-highlighted={recentOrderIds.has(order.id)} onClick={() => onSelectOrder(order.id)}>
                   <span className="ra-order-board-card__head">
-                    <strong>#{order.orderNumber}</strong>
+                    <span className="ra-order-board-card__identity">
+                      <strong>{order.clientName || 'Клиент'}</strong>
+                      <small>Заказ #{order.orderNumber}</small>
+                    </span>
                     <time dateTime={order.createdAt}>{formatOrderTime(order.createdAt)}</time>
                   </span>
                   <span className="ra-order-board-card__meta">
-                    <b>{getAdminOrderFulfillmentLabel(order, businessType)}</b>
+                    <b>Тип: {getAdminOrderFulfillmentLabel(order, businessType)}</b>
                     <span>{getAdminOrderItemsCount(order)} поз.</span>
                   </span>
                   <span className="ra-order-board-card__address">{getAdminOrderLocationLabel(order, businessType)}</span>
@@ -34,7 +39,11 @@ export function RestaurantOrdersBoard({ orders, selectedOrderId, recentOrderIds,
                     <strong>{formatPrice(order.total)}</strong>
                     <em data-tone={adminOrderStatusTones[isGroceryStorePosOrder(order, businessType) ? 'completed' : order.status]}>{isGroceryStorePosOrder(order, businessType) ? 'Продажа завершена' : getAdminOrderStatusLabel(order.status, businessType)}</em>
                   </span>
-                </button>
+                  </button>
+                  {canDeleteOrder?.(order) && onDeleteOrder && (
+                    <button className="ra-order-board-card__delete" type="button" aria-label={`Удалить заказ ${order.orderNumber}`} onClick={() => onDeleteOrder(order)}><Trash2 /></button>
+                  )}
+                </div>
               ))}
               {columnOrders.length === 0 && <p>Нет заказов</p>}
             </div>

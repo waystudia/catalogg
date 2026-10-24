@@ -79,6 +79,33 @@
   text-align: left;
 }
 
+.ra-order-board-card-shell {
+  position: relative;
+}
+
+.ra-order-board-card-shell:has(.ra-order-board-card__delete) .ra-order-board-card {
+  padding-right: 42px;
+}
+
+.ra-order-board-card__delete {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #d92d20;
+}
+
+.ra-order-board-card__delete svg {
+  width: 16px;
+  height: 16px;
+}
+
 .ra-order-board-card:hover {
   border-color: #c8c1ff;
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.09);
@@ -117,6 +144,21 @@
 
 .ra-order-board-card__head strong {
   font-size: 14px;
+}
+
+.ra-order-board-card__identity {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.ra-order-board-card__identity small {
+  overflow: hidden;
+  color: #98a2b3;
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ra-order-board-card__head time,

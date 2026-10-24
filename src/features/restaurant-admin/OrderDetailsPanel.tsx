@@ -300,6 +300,7 @@ export function OrderDetailsPanel({
         <header className="admin-order-work-card__header">
           <button type="button" onClick={onClose} aria-label="Назад к списку заказов"><ArrowLeft /></button>
           <div>
+            <strong className="admin-order-work-card__customer-name">{order.clientName || capabilities.customerLabel}</strong>
             <span>Заказ #{order.orderNumber}</span>
           </div>
           <div className="admin-order-work-card__total">
