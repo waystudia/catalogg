@@ -1,5 +1,6 @@
 import { Edit3, Eye, EyeOff, Heart, Minus, Plus, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Product } from '../../entities/models';
 import { getProductChoiceOptions } from '../../entities/productVariants';
 import { formatCatalogProductPrice, formatRublePrice, isWeightPricedProduct } from '../../entities/productPricing';
@@ -253,6 +254,7 @@ export function ProductTile({
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
   const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useState(false);
+  const [choiceMenuAnchor, setChoiceMenuAnchor] = useState<{ left: number; top: number } | null>(null);
   const requiresConfiguration = choiceOptions.length > 0
     || isWeightPricedProduct(product)
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
@@ -320,6 +322,7 @@ export function ProductTile({
     onAdd?.(product);
     playAddSound();
     setIsChoiceMenuOpen(false);
+    setChoiceMenuAnchor(null);
     window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));
   };
 
@@ -404,7 +407,19 @@ export function ProductTile({
               onClick={(event) => {
                 const button = event.currentTarget;
                 if (choiceOptions.length > 0) {
-                  setIsChoiceMenuOpen((value) => !value);
+                  if (isChoiceMenuOpen) {
+                    setIsChoiceMenuOpen(false);
+                    setChoiceMenuAnchor(null);
+                    return;
+                  }
+                  const tile = button.closest('.product-tile');
+                  const rect = (tile ?? button).getBoundingClientRect();
+                  const halfMenuWidth = 104;
+                  setChoiceMenuAnchor({
+                    left: Math.max(halfMenuWidth + 12, Math.min(window.innerWidth - halfMenuWidth - 12, rect.left + rect.width / 2)),
+                    top: rect.top - 8
+                  });
+                  setIsChoiceMenuOpen(true);
                   return;
                 }
                 if (requiresConfiguration) {
@@ -420,8 +435,14 @@ export function ProductTile({
             >
               <Plus />
             </button>
-            {isChoiceMenuOpen && (
-              <div className="product-tile__choice-menu" role="group" aria-label={`Варианты ${product.title}`}>
+            {isChoiceMenuOpen && choiceMenuAnchor && createPortal(
+              <div
+                className="product-tile__choice-menu"
+                role="group"
+                aria-label={`Варианты ${product.title}`}
+                style={{ left: choiceMenuAnchor.left, top: choiceMenuAnchor.top }}
+                onClick={(event) => event.stopPropagation()}
+              >
                 <span>Выберите вариант</span>
                 {choiceOptions.map((choice) => (
                   <button
@@ -436,7 +457,8 @@ export function ProductTile({
                     <small>{formatRublePrice(choice.price)}</small>
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
