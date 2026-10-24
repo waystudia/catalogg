@@ -255,12 +255,38 @@ export function ProductTile({
   const choiceOptions = getProductChoiceOptions(product);
   const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useState(false);
   const [choiceMenuAnchor, setChoiceMenuAnchor] = useState<{ left: number; top: number } | null>(null);
+  const tileRef = useRef<HTMLElement | null>(null);
   const requiresConfiguration = choiceOptions.length > 0
     || isWeightPricedProduct(product)
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
     || product.allow_inscription
     || product.allow_decoration_comment
     || product.allow_production_schedule;
+
+  useEffect(() => {
+    if (!isChoiceMenuOpen) return;
+
+    const updateChoiceMenuAnchor = () => {
+      const rect = tileRef.current?.getBoundingClientRect();
+      if (!rect || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        setIsChoiceMenuOpen(false);
+        setChoiceMenuAnchor(null);
+        return;
+      }
+      const halfMenuWidth = 104;
+      setChoiceMenuAnchor({
+        left: Math.max(halfMenuWidth + 12, Math.min(window.innerWidth - halfMenuWidth - 12, rect.left + rect.width / 2)),
+        top: rect.top - 8
+      });
+    };
+
+    window.addEventListener('scroll', updateChoiceMenuAnchor, true);
+    window.addEventListener('resize', updateChoiceMenuAnchor);
+    return () => {
+      window.removeEventListener('scroll', updateChoiceMenuAnchor, true);
+      window.removeEventListener('resize', updateChoiceMenuAnchor);
+    };
+  }, [isChoiceMenuOpen]);
 
   const captureCartAnimation = (button: HTMLButtonElement) => {
     const buttonRect = button.getBoundingClientRect();
@@ -328,6 +354,7 @@ export function ProductTile({
 
   return (
     <article
+      ref={tileRef}
       className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}${soldOut ? ' is-sold-out' : ''}`}
       onClick={() => onOpen(product)}
     >
@@ -414,7 +441,7 @@ export function ProductTile({
                     setChoiceMenuAnchor(null);
                     return;
                   }
-                  const tile = button.closest('.product-tile');
+                  const tile = tileRef.current ?? button.closest('.product-tile');
                   const rect = (tile ?? button).getBoundingClientRect();
                   const halfMenuWidth = 104;
                   setChoiceMenuAnchor({
