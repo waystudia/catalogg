@@ -1858,7 +1858,7 @@ export function DriverYandexNavigationActions({
       ) : (
         <button className="driver-secondary" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
           <Navigation />
-          Дополнительно: Яндекс Карты
+          Использовать Яндекс Карты
         </button>
       )}
       {isOpen && (
