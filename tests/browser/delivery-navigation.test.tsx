@@ -383,7 +383,7 @@ test('shows an assigned order detail in the same accepted-delivery card used on 
   const card = screen.getByRole('region', { name: 'Текущая доставка M6714' });
   await expect.element(card).toHaveClass(/driver-current-block/);
   await expect.element(card.getByText('Принят')).toBeVisible();
-  await expect.element(card.getByText('Ресторан')).toBeVisible();
+  await expect.element(card.getByText('Ресторан', { exact: true })).toBeVisible();
   await expect.element(card.getByText('Ваш доход')).toBeVisible();
   await expect.element(card.getByText('200 ₽')).toBeVisible();
 });
