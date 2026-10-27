@@ -49,6 +49,7 @@ import {
 } from '../../features/driver/combinedDeliveryStops';
 import {
   buildYandexMapsRouteAppUrl,
+  buildYandexNavigatorReturnUrl,
   calculateDriverRestaurantSettlement,
   getDriverNavigationStage,
   getDriverRoutePoints
@@ -65,6 +66,7 @@ import {
   demoDriverId,
   getAuthenticatedDriverId,
   getDriverDashboard,
+  getDriverNavigatorRouteUrl,
   hasDriverAuthSession,
   refreshDriverPickupQr,
   saveDriverProfile,
@@ -875,7 +877,7 @@ export function DriverApp() {
 
   if (!authChecked) {
     return (
-      <main className="driver-app">
+      <main className="driver-app driver-app--night">
         <section className="driver-phone driver-auth-state">
           <ClipboardList />
           <strong>{error || 'Проверяем вход водителя...'}</strong>
@@ -887,7 +889,7 @@ export function DriverApp() {
 
   if (!hasDriverAccess) {
     return (
-      <main className="driver-app">
+      <main className="driver-app driver-app--night">
         <section className="driver-phone driver-auth-state">
           <User />
           <strong>Войдите как водитель</strong>
@@ -902,7 +904,7 @@ export function DriverApp() {
 
   if (!legalActivation) {
     return (
-      <main className="driver-app">
+      <main className="driver-app driver-app--night">
         <section className="driver-phone driver-auth-state">
           <ShieldCheck />
           <strong>Проверяем активацию водителя...</strong>
@@ -931,7 +933,7 @@ export function DriverApp() {
   }
 
   return (
-    <main className="driver-app">
+    <main className="driver-app driver-app--night">
       <section className={route === 'map' ? 'driver-phone driver-phone--map' : 'driver-phone'}>
         {route === 'profile' ? (
           <DriverProfileScreen profile={profile} snapshot={snapshot} error={error} />
@@ -1029,7 +1031,7 @@ export function DriverActivationScreen({
   };
 
   return (
-    <main className="driver-app driver-activation-page">
+    <main className="driver-app driver-app--night driver-activation-page">
       <section className="driver-phone driver-activation-screen">
         <header className="driver-activation-screen__head">
           <span><ShieldCheck /></span>
@@ -1471,17 +1473,28 @@ export function DriverCurrentDeliveryPanel({
     );
   }, [restaurantRouteStorageKey]);
 
-  const openRestaurantRoute = () => {
-    window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');
-    setRestaurantRouteStarted(true);
-    navigate(`/driver/map/${offer.deliveryId}`);
+  const openRestaurantRoute = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    setError('');
+    try {
+      const url = await getDriverNavigatorRouteUrl(offer);
+      if (!url) throw new Error('Для маршрута нужны точные координаты ресторана и клиента.');
+      window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');
+      setRestaurantRouteStarted(true);
+      window.location.href = url;
+    } catch (routeError) {
+      setError(routeError instanceof Error ? routeError.message : 'Не удалось открыть Яндекс Навигатор');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const advance = async () => {
     if (!nextAction || isUpdating) return;
     if (nextAction.to && !nextAction.status) {
       if (offer.status === 'assigned') {
-        openRestaurantRoute();
+        void openRestaurantRoute();
       } else {
         navigate(nextAction.to);
       }
@@ -1607,8 +1620,8 @@ export function DriverCurrentDeliveryPanel({
           <button
             className="driver-secondary driver-secondary--map-hint"
             type="button"
-            onClick={openRestaurantRoute}
-          ><Navigation />Построить маршрут: {terms.placeDative}</button>
+            onClick={() => void openRestaurantRoute()}
+          ><Navigation />{isUpdating ? 'Готовим маршрут…' : `Открыть маршрут: ${terms.placeDative}`}</button>
         ) : (
           <Link
             className="driver-secondary"
@@ -1721,7 +1734,7 @@ type DriverYandexNavigationDelivery = Pick<
   | 'deliveryAddress'
   | 'deliveryLat'
   | 'deliveryLng'
->;
+> & { readonly deliveryId?: string };
 
 export function DriverYandexNavigationActions({
   delivery,
@@ -1732,7 +1745,16 @@ export function DriverYandexNavigationActions({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
+  const [isBuildingRoute, setIsBuildingRoute] = useState(false);
   const [error, setError] = useState('');
+  const routeStorageKey = delivery.deliveryId ? `wayyaam-navigator-launched:${delivery.deliveryId}` : '';
+  const [hasLaunchedRoute, setHasLaunchedRoute] = useState(() => {
+    try {
+      return Boolean(routeStorageKey) && window.localStorage.getItem(routeStorageKey) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const navigationStage = getDriverNavigationStage(delivery.status);
   const restaurantCoordinatesAreReady = Number.isFinite(delivery.restaurantLat) && Number.isFinite(delivery.restaurantLng);
   const clientCoordinatesAreReady = Number.isFinite(delivery.deliveryLat) && Number.isFinite(delivery.deliveryLng);
@@ -1764,6 +1786,26 @@ export function DriverYandexNavigationActions({
     }
   };
 
+  const openNavigatorRoute = async () => {
+    const deliveryId = delivery.deliveryId;
+    if (isBuildingRoute || !deliveryId) return;
+    setIsBuildingRoute(true);
+    setError('');
+    try {
+      const url = await getDriverNavigatorRouteUrl({ ...delivery, deliveryId });
+      if (!url) throw new Error('Для маршрута нужны точные координаты ресторана и клиента.');
+      try { window.localStorage.setItem(routeStorageKey, 'true'); } catch {
+        // The route still opens in private/Safari storage-restricted sessions.
+      }
+      setHasLaunchedRoute(true);
+      window.location.href = url;
+    } catch (routeError) {
+      setError(routeError instanceof Error ? routeError.message : 'Не удалось открыть Яндекс Навигатор');
+    } finally {
+      setIsBuildingRoute(false);
+    }
+  };
+
   return (
     <section className="driver-yandex-navigation">
       {navigationStage.canConfirmPickup && onConfirmPickup && (
@@ -1772,6 +1814,33 @@ export function DriverYandexNavigationActions({
           {isConfirmingPickup ? 'Подтверждаем...' : 'Я взял заказ'}
         </button>
       )}
+      {hasLaunchedRoute ? (
+        <a className="driver-primary driver-navigator-return" href={buildYandexNavigatorReturnUrl()}>
+          <Navigation />
+          <span>
+            <strong>Вернуться в Навигатор</strong>
+            <small>Маршрут уже создан — новая ссылка не расходуется</small>
+          </span>
+          <ChevronRight />
+        </a>
+      ) : (
+        <button
+          className="driver-primary driver-navigator-open"
+          type="button"
+          disabled={isBuildingRoute || !delivery.deliveryId || !restaurantCoordinatesAreReady || !clientCoordinatesAreReady}
+          onClick={() => void openNavigatorRoute()}
+        >
+          <Navigation />
+          <span>
+            <strong>{isBuildingRoute ? 'Готовим маршрут…' : 'Открыть маршрут в Навигаторе'}</strong>
+            <small>Водитель → ресторан → клиент, ссылка подписывается один раз</small>
+          </span>
+          <ChevronRight />
+        </button>
+      )}
+      {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
+        <small className="driver-navigator-note">Нужны точные координаты ресторана и клиента.</small>
+      ) : null}
       {navigationStage.activeLeg === 'client' && clientCoordinatesAreReady ? (
         <a
           className={
@@ -1789,7 +1858,7 @@ export function DriverYandexNavigationActions({
       ) : (
         <button className="driver-secondary" type="button" aria-expanded={isOpen} onClick={() => setIsOpen((value) => !value)}>
           <Navigation />
-          Использовать Яндекс Карты
+          Дополнительно: Яндекс Карты
         </button>
       )}
       {isOpen && (

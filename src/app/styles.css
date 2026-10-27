@@ -7080,7 +7080,6 @@ a {
 
   .product-tile__choice-menu {
     min-width: 0 !important;
-    width: 136px !important;
   }
 
   .product-tile__choice-menu button { gap: 4px; padding: 6px; }
@@ -7336,7 +7335,7 @@ a {
   right: auto;
   bottom: auto;
   z-index: 100;
-  width: min(208px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 16px);
   min-width: 0;
   transform: translate(-50%, -100%);
 }

@@ -1,6 +1,7 @@
 import {
   buildDeliveryDestinationAddress,
   buildDriverDeliveryView,
+  buildYandexNavigatorRouteAppUrl,
   createPickupQrToken,
   type DeliveryStatus,
   type DriverDeliveryView,
@@ -1240,6 +1241,33 @@ export async function completeDeliveryProgress(deliveryId: string) {
   );
 
   if (error) throw error;
+}
+
+export async function getDriverNavigatorRouteUrl(
+  delivery: Pick<DeliveryOffer, 'deliveryId' | 'restaurantLat' | 'restaurantLng' | 'restaurantAddress' | 'deliveryLat' | 'deliveryLng' | 'deliveryAddress'>,
+  rebuildReason = ''
+) {
+  if (!supabase) {
+    return buildYandexNavigatorRouteAppUrl({
+      via: [{ lat: delivery.restaurantLat, lng: delivery.restaurantLng, address: delivery.restaurantAddress }],
+      to: { lat: delivery.deliveryLat, lng: delivery.deliveryLng, address: delivery.deliveryAddress }
+    });
+  }
+
+  const { data, error } = await supabase.functions.invoke('sign-yandex-navigator-route', {
+    body: {
+      delivery_id: delivery.deliveryId,
+      ...(rebuildReason ? { rebuild_reason: rebuildReason } : {})
+    }
+  });
+  if (error) throw new Error('Не удалось подготовить маршрут Яндекс Навигатора.');
+  const url = data && typeof data === 'object' && typeof (data as { url?: unknown }).url === 'string'
+    ? (data as { url: string }).url
+    : '';
+  if (!url.startsWith('yandexnavi://')) {
+    throw new Error('Яндекс Навигатор ещё не настроен для этого приложения.');
+  }
+  return url;
 }
 
 export async function refreshDriverPickupQr(deliveryId: string) {

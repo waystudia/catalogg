@@ -2790,3 +2790,184 @@
     border-radius: 0 0 28px 28px;
   }
 }
+
+/* Restored high-contrast workspace, scoped to the driver role only. */
+.driver-app--night {
+  --driver-night: #060c17;
+  --driver-surface: #0e1929;
+  --driver-surface-raised: #142238;
+  --driver-line: #263853;
+  --driver-text: #f4f7ff;
+  --driver-muted: #aab8cf;
+  background: radial-gradient(circle at 50% -10%, #1d3158 0, #0a1424 42%, var(--driver-night) 78%);
+  color: var(--driver-text);
+}
+
+.driver-app--night .driver-phone {
+  background: linear-gradient(180deg, #0a1424, #060c17);
+}
+
+.driver-app--night .driver-header,
+.driver-app--night .driver-topbar,
+.driver-app--night .driver-map-topbar {
+  border-color: var(--driver-line);
+  background: rgb(8 18 33 / 94%);
+  color: var(--driver-text);
+}
+
+.driver-app--night .driver-header h1,
+.driver-app--night .driver-topbar strong,
+.driver-app--night .driver-section-title h2,
+.driver-app--night .driver-current-block__summary strong,
+.driver-app--night .driver-current-block header strong,
+.driver-app--night .driver-order-summary-card__head strong,
+.driver-app--night .driver-order-summary-card__address,
+.driver-app--night .driver-order-panel h2,
+.driver-app--night .driver-profile-card strong,
+.driver-app--night .driver-earnings-summary strong,
+.driver-app--night .driver-auth-state strong {
+  color: var(--driver-text);
+}
+
+.driver-app--night .driver-topbar small,
+.driver-app--night .driver-current-block small,
+.driver-app--night .driver-current-block__summary span,
+.driver-app--night .driver-order-summary-card__meta,
+.driver-app--night .driver-delivery-progress li small,
+.driver-app--night .driver-other-order-row small,
+.driver-app--night .driver-profile-card small,
+.driver-app--night .driver-auth-state small,
+.driver-app--night .driver-navigator-note {
+  color: var(--driver-muted);
+}
+
+.driver-app--night .driver-header button,
+.driver-app--night .driver-online-button,
+.driver-app--night .driver-current-block,
+.driver-app--night .driver-urgent-offer,
+.driver-app--night .driver-other-orders,
+.driver-app--night .driver-order-panel,
+.driver-app--night .driver-delivery-card,
+.driver-app--night .driver-history-row,
+.driver-app--night .driver-empty-block,
+.driver-app--night .driver-profile-card,
+.driver-app--night .driver-profile-menu article,
+.driver-app--night .driver-profile-menu a,
+.driver-app--night .driver-profile-menu button,
+.driver-app--night .driver-qr-panel,
+.driver-app--night .driver-settings-form,
+.driver-app--night .driver-yandex-navigation__routes,
+.driver-app--night .driver-map-sheet {
+  border-color: var(--driver-line);
+  background: var(--driver-surface);
+  color: var(--driver-text);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 26%);
+}
+
+.driver-app--night .driver-today-strip,
+.driver-app--night .driver-primary,
+.driver-app--night .driver-current-block__accepted,
+.driver-app--night .driver-map-sheet__arrival {
+  background: linear-gradient(135deg, #7654ff, #4c2fe2);
+  color: #fff;
+}
+
+.driver-app--night .driver-today-strip article + article,
+.driver-app--night .driver-current-block p,
+.driver-app--night .driver-current-block__summary,
+.driver-app--night .driver-delivery-progress::before,
+.driver-app--night .driver-other-order-row + .driver-other-order-row,
+.driver-app--night .driver-yandex-navigation__routes {
+  border-color: var(--driver-line);
+}
+
+.driver-app--night .driver-delivery-progress li > span,
+.driver-app--night .driver-bottom-nav,
+.driver-app--night .driver-map-sheet__handle span {
+  border-color: var(--driver-line);
+  background: #1b2b43;
+  color: var(--driver-muted);
+}
+
+.driver-app--night .driver-delivery-progress li[data-complete='true'] > span,
+.driver-app--night .driver-bottom-nav a.is-active,
+.driver-app--night .driver-section-title a,
+.driver-app--night .driver-more-orders-link {
+  background: #6848f6;
+  color: #fff;
+}
+
+.driver-app--night .driver-secondary,
+.driver-app--night .driver-action-row a,
+.driver-app--night .driver-action-row button,
+.driver-app--night .driver-current-block__contact-action,
+.driver-app--night .driver-yandex-navigation__routes a,
+.driver-app--night .driver-yandex-navigation__routes button {
+  border-color: #304663;
+  background: var(--driver-surface-raised);
+  color: var(--driver-text);
+}
+
+.driver-app--night .driver-primary:hover,
+.driver-app--night .driver-secondary:hover,
+.driver-app--night .driver-action-row a:hover,
+.driver-app--night .driver-action-row button:hover,
+.driver-app--night .driver-current-block__contact-action:hover {
+  filter: brightness(1.12);
+}
+
+.driver-app--night .driver-navigator-open,
+.driver-app--night .driver-navigator-return {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  text-align: left;
+}
+
+.driver-app--night .driver-navigator-open span,
+.driver-app--night .driver-navigator-return span {
+  display: grid;
+  gap: 3px;
+}
+
+.driver-app--night .driver-navigator-open small,
+.driver-app--night .driver-navigator-return small {
+  color: rgb(255 255 255 / 78%);
+}
+
+.driver-app--night .driver-open-map,
+.driver-app--night .driver-map-sheet,
+.driver-app--night .driver-map-topbar > button {
+  border-color: var(--driver-line);
+  background: var(--driver-surface);
+  color: var(--driver-text);
+}
+
+.driver-app--night .driver-bottom-nav a {
+  color: var(--driver-muted);
+}
+
+.driver-app--night input,
+.driver-app--night textarea,
+.driver-app--night select {
+  border-color: #304663;
+  background: #091426;
+  color: var(--driver-text);
+}
+
+.driver-app--night :is(button, a, input, textarea):focus-visible {
+  outline: 2px solid #a28cff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-app--night *,
+  .driver-app--night *::before,
+  .driver-app--night *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

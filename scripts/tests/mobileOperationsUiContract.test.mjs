@@ -158,7 +158,8 @@ describe('mobile operational interfaces', () => {
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /Построить маршрут: \{terms\.placeDative\}/);
+    assert.match(currentPanel, /Открыть маршрут: \$\{terms\.placeDative\}/);
+    assert.match(currentPanel, /getDriverNavigatorRouteUrl\(offer\)/);
     assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted,\s*offer\.businessType\)/);
     assert.match(currentPanel, /nextAction\.label/);
     assert.match(

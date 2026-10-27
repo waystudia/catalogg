@@ -7,6 +7,8 @@ import {
   buildDeliveryDestinationAddress,
   buildYandexMapsRouteAppUrl,
   buildYandexMapsRouteUrl,
+  buildYandexNavigatorReturnUrl,
+  buildYandexNavigatorRouteAppUrl,
   findDeliveryPrice,
   getDriverRoutePoints,
   getDriverNavigationStage,
@@ -47,6 +49,32 @@ describe('cash settlement with the restaurant', () => {
       clientDeliveryFee: 200,
       courierPayout: 200
     }), 0);
+  });
+});
+
+describe('Yandex Navigator handoff', () => {
+  it('keeps the ordered route inside the signed Navigator URI and has a free return URI', () => {
+    assert.equal(
+      buildYandexNavigatorRouteAppUrl({
+        from: { lat: 43.31, lng: 45.69, address: 'Водитель' },
+        via: [{ lat: 43.322, lng: 45.705, address: 'Ресторан' }],
+        to: { lat: 43.318123, lng: 45.698456, address: 'Клиент' },
+        client: 'wayyaam',
+        signature: 'signed-route'
+      }),
+      'yandexnavi://build_route_on_map?lat_from=43.31&lon_from=45.69&lat_via_0=43.322&lon_via_0=45.705&lat_to=43.318123&lon_to=45.698456&client=wayyaam&signature=signed-route'
+    );
+    assert.equal(buildYandexNavigatorReturnUrl(), 'yandexnavi://');
+  });
+
+  it('does not build a Navigator URI without the precise final coordinate', () => {
+    assert.equal(
+      buildYandexNavigatorRouteAppUrl({
+        via: [{ lat: 43.322, lng: 45.705, address: 'Ресторан' }],
+        to: { lat: null, lng: null, address: 'Адрес без координат' }
+      }),
+      ''
+    );
   });
 });
 import type { DeliveryAssignment, DriverDeliveryView, OrderLifecycleSnapshot } from './orderLifecycle';
