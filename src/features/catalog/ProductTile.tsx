@@ -13,6 +13,18 @@ import {
   playCartSound
 } from '../restaurant-settings/catalogAdminModel';
 
+const getChoiceMenuAnchor = (rect: DOMRect) => {
+  // A picker should remain centred over the product that opened it. On a two-column
+  // phone grid its width therefore follows that card instead of the whole viewport.
+  const width = Math.min(208, Math.max(120, Math.floor(rect.width)));
+  const halfWidth = width / 2;
+  return {
+    left: Math.max(halfWidth + 8, Math.min(window.innerWidth - halfWidth - 8, rect.left + rect.width / 2)),
+    top: rect.top - 8,
+    width
+  };
+};
+
 export function ProductImageCarousel({ product, hero = false }: { product: Product; hero?: boolean }) {
   const images = product.image_urls?.filter(Boolean).length
     ? product.image_urls.filter(Boolean)
@@ -254,7 +266,7 @@ export function ProductTile({
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
   const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useState(false);
-  const [choiceMenuAnchor, setChoiceMenuAnchor] = useState<{ left: number; top: number } | null>(null);
+  const [choiceMenuAnchor, setChoiceMenuAnchor] = useState<{ left: number; top: number; width: number } | null>(null);
   const tileRef = useRef<HTMLElement | null>(null);
   const requiresConfiguration = choiceOptions.length > 0
     || isWeightPricedProduct(product)
@@ -273,11 +285,7 @@ export function ProductTile({
         setChoiceMenuAnchor(null);
         return;
       }
-      const halfMenuWidth = 104;
-      setChoiceMenuAnchor({
-        left: Math.max(halfMenuWidth + 12, Math.min(window.innerWidth - halfMenuWidth - 12, rect.left + rect.width / 2)),
-        top: rect.top - 8
-      });
+      setChoiceMenuAnchor(getChoiceMenuAnchor(rect));
     };
 
     window.addEventListener('scroll', updateChoiceMenuAnchor, true);
@@ -443,11 +451,7 @@ export function ProductTile({
                   }
                   const tile = tileRef.current ?? button.closest('.product-tile');
                   const rect = (tile ?? button).getBoundingClientRect();
-                  const halfMenuWidth = 104;
-                  setChoiceMenuAnchor({
-                    left: Math.max(halfMenuWidth + 12, Math.min(window.innerWidth - halfMenuWidth - 12, rect.left + rect.width / 2)),
-                    top: rect.top - 8
-                  });
+                  setChoiceMenuAnchor(getChoiceMenuAnchor(rect));
                   setIsChoiceMenuOpen(true);
                   return;
                 }
@@ -469,7 +473,7 @@ export function ProductTile({
                 className="product-tile__choice-menu"
                 role="group"
                 aria-label={`Варианты ${product.title}`}
-                style={{ left: choiceMenuAnchor.left, top: choiceMenuAnchor.top }}
+                style={{ left: choiceMenuAnchor.left, top: choiceMenuAnchor.top, width: choiceMenuAnchor.width }}
                 onClick={(event) => event.stopPropagation()}
               >
                 <span>Выберите вариант</span>
