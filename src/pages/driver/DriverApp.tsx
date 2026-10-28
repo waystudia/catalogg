@@ -1130,13 +1130,11 @@ type DriverYandexNavigationDelivery = Pick<
 export function DriverYandexNavigationActions({
   delivery,
   onConfirmPickup,
-  highlighted = false,
-  compact = false
+  highlighted = false
 }: {
   delivery: DriverYandexNavigationDelivery;
   onConfirmPickup?: () => Promise<void> | void;
   highlighted?: boolean;
-  compact?: boolean;
 }) {
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
   const [isBuildingRoute, setIsBuildingRoute] = useState(false);
@@ -1186,7 +1184,7 @@ export function DriverYandexNavigationActions({
   };
 
   return (
-    <section className={`driver-yandex-navigation${highlighted ? ' is-highlighted' : ''}${compact ? ' is-compact' : ''}`}>
+    <section className={`driver-yandex-navigation${highlighted ? ' is-highlighted' : ''}`}>
       {delivery.status === 'arrived_to_restaurant' && onConfirmPickup && (
         <button className="driver-primary" type="button" disabled={isConfirmingPickup} onClick={() => void confirmPickup()}>
           <PackageCheck />
@@ -1201,10 +1199,9 @@ export function DriverYandexNavigationActions({
         >
           <Navigation />
           <span>
-            <strong>{compact ? 'Маршрут' : routeLabel}</strong>
+            <strong>{routeLabel}</strong>
             <small>Маршрут уже создан — новая ссылка не расходуется</small>
           </span>
-          {compact && <span className="driver-navigator-stop" aria-label={isHeadingToRestaurant ? 'Точка 1' : 'Точка 2'}>{isHeadingToRestaurant ? '1' : '2'}</span>}
         </a>
       ) : (
         <button
@@ -1216,10 +1213,9 @@ export function DriverYandexNavigationActions({
         >
           <Navigation />
           <span>
-            <strong>{isBuildingRoute ? 'Готовим маршрут...' : compact ? 'Маршрут' : routeLabel}</strong>
+            <strong>{isBuildingRoute ? 'Готовим маршрут...' : routeLabel}</strong>
             <small>Бизнес → клиент, маршрут создаётся один раз</small>
           </span>
-          {compact && <span className="driver-navigator-stop" aria-label={isHeadingToRestaurant ? 'Точка 1' : 'Точка 2'}>{isHeadingToRestaurant ? '1' : '2'}</span>}
         </button>
       )}
       {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
@@ -1436,13 +1432,14 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const nextStop = currentDelivery && (isHeadingToRestaurant
     ? {
       name: currentDelivery.restaurantName || getBusinessTerms(currentDelivery.businessType).place,
-      address: formatDriverDeliveryAddress(currentDelivery.restaurantAddress)
+      address: formatDriverDeliveryAddress(currentDelivery.restaurantAddress),
+      hint: 'Для получения заказа'
     }
     : {
       name: currentDelivery.clientName || 'Клиент',
-      address: displayDeliveryAddress
+      address: displayDeliveryAddress,
+      hint: 'Для вручения заказа'
     });
-  const nextStopIndex = isHeadingToRestaurant ? 1 : 2;
 
   useEffect(() => {
     setContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
@@ -1539,30 +1536,32 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
 
   return (
     <>
+      <DriverHeader title={`Заказ ${currentDelivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(currentDelivery.status, currentDelivery.businessType)}</small>} />
       <section
         className="driver-current-block driver-current-block--details driver-active-order-card"
         aria-label={`Текущая доставка ${currentDelivery.orderNumber}`}
       >
-        <DriverYandexNavigationActions delivery={currentDelivery} highlighted={showClientRoutePrompt} compact />
+        <header className="driver-active-order-card__head">
+          <span className="driver-current-block__home-icon"><Utensils /></span>
+          <span><strong>Заказ {currentDelivery.orderNumber}</strong><small>{getDeliveryStatusLabel(currentDelivery.status, currentDelivery.businessType)}</small></span>
+          <span><b>{formatPrice(currentDelivery.deliveryFee)}</b><small>Ваш доход</small></span>
+        </header>
         <div className="driver-active-order-card__destination">
+          <span className="driver-current-block__route-dots" aria-hidden="true"><i /><i /></span>
           <span>
-            <small>Точка {nextStopIndex}</small>
-            <strong>{isHeadingToRestaurant ? getBusinessTerms(currentDelivery.businessType).place : 'Клиент'}</strong>
-            <small>{nextStop?.name} · {nextStop?.address}</small>
+            <strong>{nextStop?.name}</strong>
+            <small>{nextStop?.address}</small>
+            <small>{nextStop?.hint}</small>
           </span>
-          <b aria-label={`Точка ${nextStopIndex}`}>{nextStopIndex}</b>
         </div>
-        <div className="driver-active-order-card__summary" aria-label="Данные заказа">
-          <span><small>Статус</small><strong>{getDeliveryStatusLabel(currentDelivery.status, currentDelivery.businessType)}</strong></span>
-          <span><small>Ваш доход</small><strong>{formatPrice(currentDelivery.deliveryFee)}</strong></span>
-        </div>
-        {currentDelivery.paymentMethod === 'cash' && (
-          <div className="driver-active-order-card__payment">
-            <span><small>Тип оплаты</small><strong>Наличными</strong></span>
+        <DriverYandexNavigationActions delivery={currentDelivery} highlighted={showClientRoutePrompt} />
+        <div className="driver-active-order-card__payment">
+          <span><small>Тип оплаты</small><strong>{currentDelivery.paymentMethod === 'cash' ? 'Наличными' : 'Переводом'}</strong></span>
+          {currentDelivery.paymentMethod === 'cash' && <>
             <span><small>Получить от клиента</small><strong>{formatPrice(currentDelivery.orderTotal)}</strong></span>
             <span><small>Передать заведению</small><strong>{formatPrice(calculateDriverCashHandover({ clientTotal: currentDelivery.orderTotal, courierPayout: currentDelivery.deliveryFee }))}</strong></span>
-          </div>
-        )}
+          </>}
+        </div>
         <div className="driver-active-order-card__contact-tabs" role="tablist" aria-label="Контакты заказа">
           <button className={contactTarget === 'restaurant' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'restaurant'} onClick={() => setContactTarget('restaurant')}>Заведение</button>
           <button className={contactTarget === 'client' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'client'} onClick={() => setContactTarget('client')}>Клиент</button>
