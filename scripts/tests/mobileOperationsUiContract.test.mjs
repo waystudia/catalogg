@@ -117,16 +117,19 @@ describe('mobile operational interfaces', () => {
       driverSource.indexOf('function DriverCurrentDeliveryPanel'),
       driverSource.indexOf('function DriverStat')
     );
-    assert.match(driverSource, /driver-current-block__accepted/);
-    assert.match(driverSource, /ЗАКАЗ ПРИНЯТ/);
-    assert.match(driverSource, /driver-inline-qr/);
-    assert.match(driverSource, /Показать QR: \{terms\.placeDative\}/);
+    assert.match(currentPanel, /driver-active-order-card/);
+    assert.match(currentPanel, /<DriverYandexNavigationActions[\s\S]*delivery=\{offer\}[\s\S]*compact[\s\S]*onRouteLaunched=/);
+    assert.match(currentPanel, />Заведение<\/button>/);
+    assert.match(currentPanel, />Клиент<\/button>/);
+    assert.match(currentPanel, /driver-active-order-card__qr/);
+    assert.match(currentPanel, /Показать QR \{terms\.placeDative\}/);
+    assert.match(currentPanel, /<DriverSwipeAction/);
     assert.match(driverSource, /Профиль загружается/);
     assert.doesNotMatch(driverSource, /api\.qrserver\.com/);
     assert.doesNotMatch(currentPanel, /deliveryStatusLabels\[offer\.status\]/);
-    assert.match(driverCss, /\.driver-current-block__accepted/);
-    assert.match(driverCss, /\.driver-inline-qr/);
-    assert.match(driverCss, /\.driver-secondary--map-hint/);
+    assert.match(driverCss, /\.driver-active-order-card__destination/);
+    assert.match(driverCss, /\.driver-active-order-card__contact-tabs/);
+    assert.match(driverCss, /\.driver-swipe-action/);
     assert.match(driverSource, /Построить маршрут к клиенту/);
     assert.match(
       driverSource,
@@ -159,7 +162,7 @@ describe('mobile operational interfaces', () => {
 
     assert.doesNotMatch(incomingPanel, /navigate\('\/driver\/active'\)/);
     assert.match(incomingPanel, /navigate\('\/driver'/);
-    assert.match(currentPanel, /Открыть маршрут: \$\{terms\.placeDative\}/);
+    assert.match(currentPanel, /onRouteLaunched=/);
     assert.match(currentPanel, /getDriverNavigatorRouteUrl\(offer\)/);
     assert.match(currentPanel, /getDriverNextAction\(offer\.status,\s*restaurantRouteStarted,\s*offer\.businessType\)/);
     assert.match(currentPanel, /nextAction\.label/);

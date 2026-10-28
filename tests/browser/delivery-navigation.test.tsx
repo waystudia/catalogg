@@ -193,6 +193,7 @@ test('keeps call and chat together and lets the assigned driver delete only a te
       </MemoryRouter>
     );
 
+    await screen.getByRole('tab', { name: 'Клиент' }).click();
     await expect.element(screen.getByRole('link', { name: 'Позвонить клиенту' })).toBeVisible();
     await screen.getByRole('button', { name: 'Чат с клиентом Клиент' }).click();
     await expect.element(screen.getByRole('dialog', { name: 'Чат заказа M9584' })).toBeVisible();

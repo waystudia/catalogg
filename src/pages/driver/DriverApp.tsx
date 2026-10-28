@@ -1379,20 +1379,28 @@ export function DriverCurrentDeliveryPanel({
   const qrRefreshInFlightRef = useRef(false);
   const [error, setError] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
+  const [contactTarget, setContactTarget] = useState<'restaurant' | 'client'>('restaurant');
   const [isDeletingTestOrder, setIsDeletingTestOrder] = useState(false);
   const restaurantRouteStorageKey = `driver-restaurant-route-started:${offer.deliveryId}`;
   const [restaurantRouteStarted, setRestaurantRouteStarted] = useState(
     () => window.sessionStorage.getItem(restaurantRouteStorageKey) === 'true'
   );
   const nextAction = getDriverNextAction(offer.status, restaurantRouteStarted, offer.businessType);
-  const progress = getDriverDeliveryProgress(offer.status, restaurantRouteStarted, offer.businessType);
   const qrPayload = buildDriverPickupQrPayload(offer);
-  const qrImageUrl = useDriverPickupQrImage(qrPayload);
   const waitingForRestaurantSettlement = isDriverRestaurantSettlementPending(offer);
   const waitingForQr =
     offer.status === 'arrived_to_restaurant' &&
     !offer.pickupQrConfirmed;
   const pickupBlocked = waitingForRestaurantSettlement || waitingForQr;
+  const navigationStage = getDriverNavigationStage(offer.status);
+  const isHeadingToRestaurant = navigationStage.activeLeg === 'restaurant';
+  const nextStopName = isHeadingToRestaurant ? offer.restaurantName || terms.place : offer.clientName || 'Клиент';
+  const nextStopAddress = formatDriverDeliveryAddress(isHeadingToRestaurant ? offer.restaurantAddress : offer.deliveryAddress);
+  const nextStopIndex = isHeadingToRestaurant ? 1 : 2;
+
+  useEffect(() => {
+    setContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
+  }, [isHeadingToRestaurant, offer.deliveryId]);
 
   useEffect(() => {
     const qrExpiresAt = offer.pickupQrExpiresAt;
@@ -1504,9 +1512,22 @@ export function DriverCurrentDeliveryPanel({
 
   return (
     <>
-    <section className="driver-current-block">
-      <div className="driver-current-block__accepted">
-        <strong>✓ ЗАКАЗ ПРИНЯТ</strong>
+    <section className="driver-current-block driver-active-order-card" aria-label={`Текущая доставка ${offer.orderNumber}`}>
+      <DriverYandexNavigationActions
+        delivery={offer}
+        compact
+        onRouteLaunched={() => {
+          window.sessionStorage.setItem(restaurantRouteStorageKey, 'true');
+          setRestaurantRouteStarted(true);
+        }}
+      />
+      <div className="driver-active-order-card__destination">
+        <span>
+          <small>Точка {nextStopIndex}</small>
+          <strong>{isHeadingToRestaurant ? terms.place : 'Клиент'}</strong>
+          <small>{nextStopName} · {nextStopAddress}</small>
+        </span>
+        <b aria-label={`Точка ${nextStopIndex}`}>{nextStopIndex}</b>
         {offer.isTestOrder && !offer.isCombined && (
           <button
             className="driver-current-block__delete-test"
@@ -1518,40 +1539,35 @@ export function DriverCurrentDeliveryPanel({
           ><Trash2 /></button>
         )}
       </div>
-      <header>
-        <span>
-          <strong>{offer.orderNumber}</strong>
-          <small>Доставка · {offer.itemsCount} поз.</small>
-        </span>
-        <span>
-          <small>Осталось ≈ {offer.routeEtaMin} мин</small>
-        </span>
-      </header>
-      {!offer.isCombined && (
-        <>
-          <p><Home /><span><small>Точка А</small><strong>{offer.restaurantName || terms.place} · {formatDriverDeliveryAddress(offer.restaurantAddress)}</strong></span></p>
-          <p><MapPin /><span><small>Точка Б</small><strong>{formatDriverDeliveryAddress(offer.deliveryAddress)}</strong></span></p>
-        </>
-      )}
-      <div className="driver-current-block__summary">
-        <span>Ваш заработок</span>
-        <strong>{formatPrice(offer.deliveryFee)}</strong>
+      <div className="driver-active-order-card__summary" aria-label="Данные заказа">
+        <span><small>Статус</small><strong>{getDeliveryStatusLabel(offer.status, offer.businessType)}</strong></span>
+        <span><small>Ваш доход</small><strong>{formatPrice(offer.deliveryFee)}</strong></span>
       </div>
       {offer.isCombined ? (
         <CombinedDeliveryStopsPanel offer={offer} onRefresh={onRefresh} compact />
-      ) : (
-        <ol className="driver-delivery-progress" aria-label="Статус доставки">
-          {progress.labels.map((label, index) => {
-            const step = index + 1;
-            return (
-              <li key={label} data-complete={step <= progress.activeStep} data-active={step === progress.activeStep}>
-                <span>{step}</span>
-                <small>{label}</small>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+      ) : null}
+      <div className="driver-active-order-card__contact-tabs" role="tablist" aria-label="Контакты заказа">
+        <button className={contactTarget === 'restaurant' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'restaurant'} onClick={() => setContactTarget('restaurant')}>Заведение</button>
+        <button className={contactTarget === 'client' ? 'is-active' : ''} type="button" role="tab" aria-selected={contactTarget === 'client'} onClick={() => setContactTarget('client')}>Клиент</button>
+      </div>
+      <div className="driver-active-order-card__contacts">
+        {contactTarget === 'client' && offer.clientPhone ? (
+          <a href={`tel:${offer.clientPhone}`} aria-label="Позвонить клиенту"><Phone />Позвонить клиенту</a>
+        ) : (
+          <button type="button" disabled><Phone />{contactTarget === 'restaurant' ? 'Позвонить заведению' : 'Телефон клиента'}</button>
+        )}
+        {offer.catalogId ? (
+          <button
+            type="button"
+            aria-label={contactTarget === 'restaurant' ? 'Чат с заведением' : `Чат с клиентом ${offer.clientName}`}
+            onClick={() => setChatOpen(true)}
+          >
+            <MessageCircle />Написать {contactTarget === 'restaurant' ? 'заведению' : 'клиенту'}
+          </button>
+        ) : (
+          <button type="button" disabled><MessageCircle />Написать {contactTarget === 'restaurant' ? 'заведению' : 'клиенту'}</button>
+        )}
+      </div>
       {waitingForRestaurantSettlement && (
         <DriverCashPaymentHandover offer={offer} onRefresh={onRefresh} />
       )}
@@ -1560,52 +1576,25 @@ export function DriverCurrentDeliveryPanel({
       )}
       {!waitingForRestaurantSettlement && waitingForQr && qrPayload && (
         <button
-          className="driver-inline-qr"
+          className="driver-active-order-card__qr"
           type="button"
           onClick={() => navigate('/driver/qr')}
           aria-label="Открыть QR заказа на весь экран"
         >
-          {qrImageUrl ? <img src={qrImageUrl} alt={`QR выдачи заказа ${offer.orderNumber}`} /> : <QrCode />}
-          <span>
-            <strong>Показать QR: {terms.placeDative}</strong>
-            <small>Нажмите, чтобы открыть крупный QR на весь экран.</small>
-            <small className="driver-inline-qr__timer">
-              {qrSecondsLeft > 0 ? `Новый QR через ${qrTimerLabel}` : 'Обновляем QR-код…'}
-            </small>
-          </span>
+          <QrCode />
+          <span>Показать QR {terms.placeDative} · {qrSecondsLeft > 0 ? qrTimerLabel : 'обновляем'}</span>
         </button>
       )}
       {error && <small className="driver-incoming-order__error">{error}</small>}
-      <div className="driver-current-block__actions">
-        {offer.status === 'assigned' && !restaurantRouteStarted ? (
-          <button
-            className="driver-secondary driver-secondary--map-hint"
-            type="button"
-            onClick={() => void openRestaurantRoute()}
-          ><Navigation />{isUpdating ? 'Готовим маршрут…' : `Открыть маршрут: ${terms.placeDative}`}</button>
-        ) : (
-          <a className="driver-secondary" href={buildYandexNavigatorReturnUrl()}>
-            <Navigation />Вернуться в Навигатор
-          </a>
-        )}
-        <div className="driver-current-block__contact-actions">
-          {offer.clientPhone ? (
-            <a className="driver-secondary" href={`tel:${offer.clientPhone}`} aria-label="Позвонить клиенту"><Phone /><span>Звонок</span></a>
-          ) : (
-            <button className="driver-secondary" type="button" disabled><Phone /><span>Звонок</span></button>
-          )}
-          {offer.catalogId ? (
-            <button className="driver-secondary" type="button" aria-label={`Чат с клиентом ${offer.clientName || ''}`.trim()} onClick={() => setChatOpen(true)}><MessageCircle /><span>Чат</span></button>
-          ) : (
-            <button className="driver-secondary" type="button" disabled><MessageCircle /><span>Чат</span></button>
-          )}
-        </div>
-        {!offer.isCombined && nextAction && (
-          <button className="driver-primary" type="button" disabled={isUpdating || pickupBlocked} onClick={() => void advance()}>
-            {isUpdating ? 'Сохраняем...' : nextAction.label}
-          </button>
-        )}
-      </div>
+      {!offer.isCombined && nextAction && (
+        <DriverSwipeAction
+          key={`${offer.deliveryId}:${offer.status}:${nextAction.label}`}
+          label={nextAction.label}
+          disabled={isUpdating || pickupBlocked}
+          isLoading={isUpdating}
+          onConfirm={advance}
+        />
+      )}
     </section>
     {chatOpen && <DriverOrderChatDialog delivery={offer} onClose={() => setChatOpen(false)} />}
     </>
@@ -1618,6 +1607,77 @@ function DriverStat({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
       <span>{label}</span>
     </article>
+  );
+}
+
+function DriverSwipeAction({
+  label,
+  disabled,
+  isLoading,
+  onConfirm
+}: {
+  label: string;
+  disabled: boolean;
+  isLoading: boolean;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const [offset, setOffset] = useState(0);
+  const startXRef = useRef<number | null>(null);
+  const didConfirmRef = useRef(false);
+  const maximumOffset = 220;
+  const confirmOffset = 150;
+
+  const finish = async (finalOffset = offset) => {
+    const shouldConfirm = finalOffset >= confirmOffset && !disabled && !didConfirmRef.current;
+    startXRef.current = null;
+    if (!shouldConfirm) {
+      setOffset(0);
+      return;
+    }
+    didConfirmRef.current = true;
+    setOffset(maximumOffset);
+    try {
+      await onConfirm();
+    } finally {
+      didConfirmRef.current = false;
+      setOffset(0);
+    }
+  };
+
+  return (
+    <div className="driver-swipe-action">
+      <span className="driver-swipe-action__hint">Проведите вправо, чтобы подтвердить</span>
+      <button
+        className="driver-swipe-action__thumb"
+        type="button"
+        disabled={disabled}
+        style={{ '--driver-swipe-offset': `${offset}px` } as CSSProperties}
+        onPointerDown={(event) => {
+          startXRef.current = event.clientX;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (startXRef.current === null || disabled) return;
+          setOffset(Math.max(0, Math.min(maximumOffset, event.clientX - startXRef.current)));
+        }}
+        onPointerUp={(event) => {
+          const startX = startXRef.current;
+          const finalOffset = startX === null ? offset : Math.max(0, Math.min(maximumOffset, event.clientX - startX));
+          void finish(finalOffset);
+        }}
+        onPointerCancel={() => {
+          startXRef.current = null;
+          setOffset(0);
+        }}
+        aria-label={`${label}. Проведите вправо для подтверждения`}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') void finish(confirmOffset);
+        }}
+      >
+        <ChevronRight />
+      </button>
+      <strong>{isLoading ? 'Сохраняем...' : label}</strong>
+    </div>
   );
 }
 
@@ -1698,10 +1758,14 @@ type DriverYandexNavigationDelivery = Pick<
 
 export function DriverYandexNavigationActions({
   delivery,
-  onConfirmPickup
+  onConfirmPickup,
+  onRouteLaunched,
+  compact = false
 }: {
   delivery: DriverYandexNavigationDelivery;
   onConfirmPickup?: () => Promise<void> | void;
+  onRouteLaunched?: () => void;
+  compact?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmingPickup, setIsConfirmingPickup] = useState(false);
@@ -1758,6 +1822,7 @@ export function DriverYandexNavigationActions({
         // The route still opens in private/Safari storage-restricted sessions.
       }
       setHasLaunchedRoute(true);
+      onRouteLaunched?.();
       window.location.href = url;
     } catch (routeError) {
       setError(routeError instanceof Error ? routeError.message : 'Не удалось открыть Яндекс Навигатор');
@@ -1767,7 +1832,7 @@ export function DriverYandexNavigationActions({
   };
 
   return (
-    <section className="driver-yandex-navigation">
+    <section className={`driver-yandex-navigation${compact ? ' is-compact' : ''}`}>
       {navigationStage.canConfirmPickup && onConfirmPickup && (
         <button className="driver-primary" type="button" disabled={isConfirmingPickup} onClick={() => void confirmPickup()}>
           <PackageCheck />
@@ -1778,10 +1843,10 @@ export function DriverYandexNavigationActions({
         <a className="driver-primary driver-navigator-return" href={buildYandexNavigatorReturnUrl()}>
           <Navigation />
           <span>
-            <strong>Вернуться в Навигатор</strong>
+            <strong>{compact ? 'Маршрут' : 'Вернуться в Навигатор'}</strong>
             <small>Маршрут уже создан — новая ссылка не расходуется</small>
           </span>
-          <ChevronRight />
+          {compact ? <span className="driver-navigator-stop">{navigationStage.activeLeg === 'restaurant' ? '1' : '2'}</span> : <ChevronRight />}
         </a>
       ) : (
         <button
@@ -1792,16 +1857,16 @@ export function DriverYandexNavigationActions({
         >
           <Navigation />
           <span>
-            <strong>{isBuildingRoute ? 'Готовим маршрут…' : 'Открыть маршрут в Навигаторе'}</strong>
+            <strong>{isBuildingRoute ? 'Готовим маршрут…' : compact ? 'Маршрут' : 'Открыть маршрут в Навигаторе'}</strong>
             <small>Водитель → ресторан → клиент, ссылка подписывается один раз</small>
           </span>
-          <ChevronRight />
+          {compact ? <span className="driver-navigator-stop">{navigationStage.activeLeg === 'restaurant' ? '1' : '2'}</span> : <ChevronRight />}
         </button>
       )}
       {!restaurantCoordinatesAreReady || !clientCoordinatesAreReady ? (
         <small className="driver-navigator-note">Нужны точные координаты ресторана и клиента.</small>
       ) : null}
-      {navigationStage.activeLeg === 'client' && clientCoordinatesAreReady ? (
+      {!compact && (navigationStage.activeLeg === 'client' && clientCoordinatesAreReady ? (
         <a
           className={
             delivery.status === 'handed_over'
@@ -1820,8 +1885,8 @@ export function DriverYandexNavigationActions({
           <Navigation />
           Использовать Яндекс Карты
         </button>
-      )}
-      {isOpen && (
+      ))}
+      {!compact && isOpen && (
         <div className="driver-yandex-navigation__routes">
           {restaurantCoordinatesAreReady ? (
             <a
