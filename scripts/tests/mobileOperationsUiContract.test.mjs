@@ -41,6 +41,7 @@ const mapCss = readFileSync(
   new URL('../../src/shared/delivery-tracking-map.css', import.meta.url),
   'utf8'
 );
+const indexSource = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 
 describe('mobile operational interfaces', () => {
   it('orders the driver home screen as stats, current delivery, urgent offer, and compact remainder', () => {
@@ -226,5 +227,18 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-map-sheet__actions\s*\{[^}]*min-height:\s*3[6-9]px/s);
     assert.match(driverCss, /\.driver-map-sheet__yandex,[\s\S]*min-height:\s*3[6-9]px/s);
     assert.match(driverCss, /\.driver-map-sheet[\s\S]*height:\s*2[0-9]dvh/);
+  });
+
+  it('keeps the driver bottom navigation above the iPhone home indicator', () => {
+    assert.match(indexSource, /viewport-fit=cover/);
+    assert.match(
+      driverCss,
+      /\.driver-phone\s*\{[^}]*padding:\s*18px 14px calc\(100px \+ env\(safe-area-inset-bottom\)\)/s
+    );
+    assert.match(
+      driverCss,
+      /\.driver-bottom-nav\s*\{[^}]*padding:\s*7px 8px calc\(16px \+ env\(safe-area-inset-bottom\)\)/s
+    );
+    assert.match(driverCss, /\.driver-bottom-nav a\s*\{[^}]*min-height:\s*4[6-9]px/s);
   });
 });

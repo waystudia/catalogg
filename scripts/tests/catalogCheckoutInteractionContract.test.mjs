@@ -79,7 +79,7 @@ test('product photos repeat at both edges and normalize after scrolling', () => 
 test('mobile gestures keep vertical page scroll on photos while swipeable galleries retain horizontal movement', () => {
   assert.match(
     indexSource,
-    /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no"/
+    /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/
   );
   assert.match(
     appSource,
