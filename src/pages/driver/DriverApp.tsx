@@ -116,12 +116,6 @@ const formatDriverMapDistance = (distanceM: number) => `${new Intl.NumberFormat(
   maximumFractionDigits: 1
 }).format(distanceM / 1000)} км`;
 
-const getDriverGeolocationErrorMessage = (error: GeolocationPositionError) => {
-  if (error.code === error.PERMISSION_DENIED) return 'Разрешите доступ к геопозиции в настройках телефона.';
-  if (error.code === error.TIMEOUT) return 'GPS не успел определить позицию. Нажмите обновить ещё раз.';
-  return 'Не удалось определить точное местоположение.';
-};
-
 const buildDriverPickupQrPayload = (delivery: Pick<DeliveryOffer, 'deliveryId' | 'orderId' | 'pickupQrToken'> | null) =>
   delivery?.pickupQrToken ? `wc-delivery|${delivery.deliveryId}|${delivery.pickupQrToken}` : '';
 
@@ -651,7 +645,8 @@ export function DriverApp() {
     status: localActiveDelivery ? 'busy' : snapshot.profile.status
   };
   const effectiveDriverId = hasDriverAccess ? selectedDriverId : '';
-  const route = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
+  const requestedRoute = location.pathname.split('/').filter(Boolean)[1] ?? 'home';
+  const route = requestedRoute === 'map' ? 'active' : requestedRoute;
   const hasTrackableDelivery = Boolean(localActiveDelivery?.deliveryId || snapshot.activeDeliveries.length > 0);
 
   const applyLiveDriverPosition = useCallback((position: GeolocationPosition): DriverLocationReading => {
@@ -682,28 +677,6 @@ export function DriverApp() {
     }));
     return reading;
   }, []);
-
-  const requestCurrentDriverLocation = useCallback(() => new Promise<DriverLocationReading>((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Геолокация недоступна в этом браузере.'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const reading = applyLiveDriverPosition(position);
-        if (effectiveDriverId) {
-          void updateDriverLocation(effectiveDriverId, {
-            lat: reading.lat,
-            lng: reading.lng,
-            accuracy: reading.accuracyM ?? null
-          }).catch(() => undefined);
-        }
-        resolve(reading);
-      },
-      (error) => reject(new Error(getDriverGeolocationErrorMessage(error))),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 12_000 }
-    );
-  }), [applyLiveDriverPosition, effectiveDriverId]);
 
   useEffect(() => {
     setLiveDriverLocation(null);
@@ -870,10 +843,6 @@ export function DriverApp() {
       )
     : [];
   const routeDeliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
-  const mapCandidates = [...activeDeliveries, ...snapshot.availableDeliveries];
-  const mapDelivery = routeDeliveryId
-    ? mapCandidates.find((delivery) => delivery.deliveryId === routeDeliveryId) ?? null
-    : activeDelivery ?? availableDeliveries[0] ?? null;
 
   if (!authChecked) {
     return (
@@ -953,14 +922,6 @@ export function DriverApp() {
               : activeDelivery}
             onRefresh={loadDashboard}
           />
-        ) : route === 'map' ? (
-          <DriverMapScreen
-            delivery={mapDelivery}
-            profile={profile}
-            liveDriverLocation={liveDriverLocation}
-            onRequestCurrentLocation={requestCurrentDriverLocation}
-            onRefresh={loadDashboard}
-          />
         ) : route === 'qr' ? (
           <DriverQrScreen
             delivery={routeDeliveryId
@@ -999,7 +960,7 @@ export function DriverApp() {
             }}
           />
         )}
-        {route !== 'map' && <DriverBottomNav active={route} />}
+        <DriverBottomNav active={route} />
       </section>
     </main>
   );
@@ -1623,10 +1584,9 @@ export function DriverCurrentDeliveryPanel({
             onClick={() => void openRestaurantRoute()}
           ><Navigation />{isUpdating ? 'Готовим маршрут…' : `Открыть маршрут: ${terms.placeDative}`}</button>
         ) : (
-          <Link
-            className="driver-secondary"
-            to={`/driver/map/${offer.deliveryId}`}
-          ><Navigation />Карта</Link>
+          <a className="driver-secondary" href={buildYandexNavigatorReturnUrl()}>
+            <Navigation />Вернуться в Навигатор
+          </a>
         )}
         <div className="driver-current-block__contact-actions">
           {offer.clientPhone ? (
@@ -2037,7 +1997,6 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
   return (
     <>
       <DriverHeader title="Новый заказ" action={<small>{offer.routeEtaMin} мин</small>} />
-      <DriverMapPreview offer={offer} />
       <section className="driver-order-panel">
         <span className="driver-badge">Доставка</span>
         <h2>Заказ {offer.orderNumber}</h2>
@@ -2122,10 +2081,28 @@ export function DriverActiveScreen({
     !delivery.pickupQrConfirmed
   );
   const pickupBlocked = waitingForRestaurantSettlement || waitingForQr;
+  const openNavigatorRoute = async () => {
+    if (!delivery || isUpdatingStatus) return;
+    setError('');
+    setIsUpdatingStatus(true);
+    try {
+      const url = await getDriverNavigatorRouteUrl(delivery);
+      if (!url) throw new Error('Для маршрута нужны точные координаты ресторана и клиента.');
+      window.location.href = url;
+    } catch (routeError) {
+      setError(routeError instanceof Error ? routeError.message : 'Не удалось открыть Яндекс Навигатор');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
   const updateStatus = async (status?: DeliveryStatus, to?: string) => {
     if (!delivery || isUpdatingStatus) return;
     if (to && !status) {
-      navigate(to === '/driver/map' ? `/driver/map/${delivery.deliveryId}` : to);
+      if (to === '/driver/map') {
+        await openNavigatorRoute();
+      } else {
+        navigate(to);
+      }
       return;
     }
     if (!status) return;
@@ -2170,14 +2147,6 @@ export function DriverActiveScreen({
   return (
     <>
       <DriverHeader title={`Заказ ${delivery.orderNumber}`} action={<small>{getDeliveryStatusLabel(delivery.status, delivery.businessType)}</small>} />
-      <Link className="driver-open-map" to={`/driver/map/${delivery.deliveryId}`}>
-        <Navigation />
-        <span>
-          <strong>Открыть карту маршрута</strong>
-          <small>Полноэкранная навигация со слежением за водителем</small>
-        </span>
-        <ChevronRight />
-      </Link>
       <section
         className="driver-order-panel driver-current-block driver-current-block--details"
         aria-label={`Текущая доставка ${delivery.orderNumber}`}
@@ -2768,7 +2737,6 @@ function DriverProfileScreen({
   error: string;
 }) {
   const menu = [
-    { to: '/driver/map', label: 'Карта', Icon: MapPin },
     { to: '/driver/earnings', label: 'Заработок', Icon: WalletCards },
     { to: '/driver/settings', label: 'Настройки', Icon: Settings },
     { to: '/driver/support', label: 'Поддержка', Icon: Headphones }
@@ -3026,23 +2994,6 @@ function DriverRouteLine({ icon, label, value }: { icon: ReactNode; label: strin
   );
 }
 
-function DriverMapPreview({ offer, tall = false }: { offer: DeliveryOffer | null; tall?: boolean }) {
-  const className = tall ? 'driver-map-preview driver-map-preview--tall' : 'driver-map-preview';
-  return (
-    <Link className={className} to={offer ? `/driver/map/${offer.deliveryId}` : '/driver/map'} aria-label="Открыть карту доставки">
-      <span className="driver-map-pin driver-map-pin--restaurant"><Home /></span>
-      <span className="driver-map-route" />
-      <span className="driver-map-pin driver-map-pin--client"><MapPin /></span>
-      {offer && (
-        <div>
-          <strong>{offer.distanceKm} км</strong>
-          <small>{offer.restaurantName} → клиент</small>
-        </div>
-      )}
-    </Link>
-  );
-}
-
 function DriverMapUnavailable({ tall = false, message = 'Для этого заказа не сохранены координаты маршрута' }: { tall?: boolean; message?: string }) {
   return (
     <section className={tall ? 'driver-map-unavailable driver-map-unavailable--tall' : 'driver-map-unavailable'}>
@@ -3057,7 +3008,6 @@ function DriverBottomNav({ active }: { active: string }) {
   const items = [
     { id: 'home', to: '/driver', label: 'Главная', Icon: Home },
     { id: 'orders', to: '/driver/orders', label: 'Заказы', Icon: ClipboardList },
-    { id: 'map', to: '/driver/map', label: 'Карта', Icon: MapPin },
     { id: 'earnings', to: '/driver/earnings', label: 'Баланс', Icon: WalletCards },
     { id: 'profile', to: '/driver/profile', label: 'Профиль', Icon: User }
   ];
