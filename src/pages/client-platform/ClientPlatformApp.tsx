@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
@@ -640,7 +640,11 @@ function PageHeader({
 export function HomeActiveOrders() {
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
+  const [expanded, setExpanded] = useState(false);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const previousLayout = useRef<Array<{ top: number; left: number; width: number }> | null>(null);
   const activeOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
+  const visibleOrders = activeOrders.slice(0, 3);
   const orderIds = activeOrders.map((order) => order.id).sort().join('|');
 
   useEffect(() => {
@@ -661,13 +665,56 @@ export function HomeActiveOrders() {
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [orderIds, syncOrderPatch]);
 
+  const toggleExpanded = () => {
+    previousLayout.current = Array.from(stackRef.current?.children ?? [])
+      .filter((element): element is HTMLElement => element instanceof HTMLElement)
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { top: rect.top, left: rect.left, width: rect.width };
+      });
+    setExpanded((value) => !value);
+  };
+
+  useLayoutEffect(() => {
+    const previous = previousLayout.current;
+    previousLayout.current = null;
+    if (!previous || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const animations = Array.from(stackRef.current?.children ?? [])
+      .filter((element): element is HTMLElement => element instanceof HTMLElement)
+      .map((element, index) => {
+        const next = element.getBoundingClientRect();
+        const before = previous[index];
+        if (!before) return null;
+        return element.animate([
+          {
+            transform: `translate(${before.left - next.left}px, ${before.top - next.top}px) scaleX(${before.width / next.width})`,
+            transformOrigin: 'top left'
+          },
+          { transform: 'none', transformOrigin: 'top left' }
+        ], { duration: 520, easing: 'cubic-bezier(.22,1,.36,1)' });
+      })
+      .filter((animation): animation is Animation => animation !== null);
+    return () => animations.forEach((animation) => animation.cancel());
+  }, [expanded, orderIds]);
+
   if (!activeOrders.length) return null;
   return <section className="home-active-orders" aria-label="Активные заказы">
     <div className="home-active-orders__heading"><strong>Ваши заказы</strong><Link to="/profile/orders">Все заказы</Link></div>
-    {activeOrders.map((order) => <Link className="home-active-order" key={order.id} to={`/${order.restaurantSlug}/order/${order.id}`}>
-      <span><strong>{order.restaurantName}</strong><small>{statusLabels[order.status]}</small></span>
-      <span>{formatPrice(order.totalAmount)} <ChevronRight /></span>
-    </Link>)}
+    <div ref={stackRef} className={`home-active-orders__stack ${expanded ? 'is-expanded' : 'is-fan'}`}>
+      {visibleOrders.map((order, index) => <Link
+        className="home-active-order"
+        key={order.id}
+        to={`/${order.restaurantSlug}/order/${order.id}`}
+        tabIndex={!expanded && index > 0 ? -1 : undefined}
+      >
+        <span><strong>{order.restaurantName}</strong><small>{statusLabels[order.status]}</small></span>
+        <span>{formatPrice(order.totalAmount)} <ChevronRight /></span>
+      </Link>)}
+    </div>
+    {visibleOrders.length > 1 && <button className="home-active-orders__toggle" type="button" onClick={toggleExpanded} aria-expanded={expanded}>
+      {expanded ? 'Свернуть заказы' : `Показать все ${visibleOrders.length} заказа`}
+      <ChevronDown />
+    </button>}
   </section>;
 }
 
@@ -2756,16 +2803,16 @@ function PartnerEntryPage() {
       <nav className="profile-menu" aria-label="Выбор направления">
         <Link to="/profile/partners/business">
           <Store />
-          <span><strong>Для бизнеса</strong><small>Ресторан или магазин</small></span>
+          <span><strong>Для бизнеса</strong><small>Подать заявку для ресторана или магазина</small></span>
           <ChevronRight />
         </Link>
         <Link to="/registration-preview?start=courier">
           <Bike />
-          <span><strong>Для курьеров</strong><small>Посмотреть путь регистрации</small></span>
+          <span><strong>Для курьеров</strong><small>Подать заявку на подключение</small></span>
           <ChevronRight />
         </Link>
       </nav>
-      <p className="profile-partner-note">Регистрация пока работает в демонстрационном режиме: данные не отправляются. Для подключения обратитесь в <Link to="/profile/support">поддержку</Link>.</p>
+      <p className="profile-partner-note">Заявка сохраняется в WayYaam. После проверки мы свяжемся с вами и откроем рабочий кабинет.</p>
     </>
   );
 }
@@ -2774,12 +2821,12 @@ function PartnerBusinessTypePage() {
   return (
     <>
       <PageHeader title="Выберите бизнес" backTo="/profile/partners" />
-      <section className="profile-partner-intro"><h2>Какой у вас бизнес?</h2><p>Выберите тип, чтобы посмотреть путь регистрации.</p></section>
+      <section className="profile-partner-intro"><h2>Какой у вас бизнес?</h2><p>Выберите тип и заполните короткую заявку.</p></section>
       <nav className="profile-menu" aria-label="Тип бизнеса">
         <Link to="/registration-preview?start=restaurant"><Store /><span><strong>Ресторан</strong><small>Заведение с готовыми блюдами</small></span><ChevronRight /></Link>
         <Link to="/registration-preview?start=shop"><Building2 /><span><strong>Магазин</strong><small>Продажа товаров</small></span><ChevronRight /></Link>
       </nav>
-      <p className="profile-partner-note">Это демонстрация регистрации: заявки пока не отправляются.</p>
+      <p className="profile-partner-note">Обычно проверка заявки занимает до одного рабочего дня.</p>
     </>
   );
 }

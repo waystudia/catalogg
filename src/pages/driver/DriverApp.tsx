@@ -686,6 +686,7 @@ function DriverHomeScreen({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
   const [optimisticOnline, setOptimisticOnline] = useState<boolean | null>(null);
+  const [availabilityTransition, setAvailabilityTransition] = useState<'idle' | 'to-online' | 'to-offline' | 'online-enter' | 'offline-enter'>('idle');
   const [notificationPermission, setNotificationPermission] = useState(() => getRestaurantOrderNotificationPermission());
   const displayedOnline = optimisticOnline ?? profile.isOnline;
   const urgentOffer = useMemo(
@@ -715,8 +716,12 @@ function DriverHomeScreen({
     const nextOnline = !displayedOnline;
     setIsUpdatingAvailability(true);
     setAvailabilityError('');
+    setAvailabilityTransition(nextOnline ? 'to-online' : 'to-offline');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) await new Promise((resolve) => window.setTimeout(resolve, 260));
     setOptimisticOnline(nextOnline);
     onAvailabilityChanged(nextOnline);
+    setAvailabilityTransition(nextOnline ? 'online-enter' : 'offline-enter');
     try {
       await setDriverAvailability(nextOnline);
       void onRefresh();
@@ -729,6 +734,7 @@ function DriverHomeScreen({
       if (shouldRollback) {
         setOptimisticOnline(!nextOnline);
         onAvailabilityChanged(!nextOnline);
+        setAvailabilityTransition(nextOnline ? 'offline-enter' : 'online-enter');
         setAvailabilityError(availabilityUpdateError.message);
       } else {
         setAvailabilityError('Статус отправлен. Если заказы не появились, нажмите обновить.');
@@ -736,6 +742,7 @@ function DriverHomeScreen({
       }
     } finally {
       setIsUpdatingAvailability(false);
+      window.setTimeout(() => setAvailabilityTransition('idle'), reduceMotion ? 0 : 460);
     }
   };
 
@@ -793,7 +800,7 @@ function DriverHomeScreen({
       {refreshMessage && <p className="driver-refresh-status" role="status">{refreshMessage}</p>}
 
       {!displayedOnline ? (
-        <section className="driver-offline-hero" aria-label="Водитель не в сети">
+        <section className={`driver-offline-hero is-${availabilityTransition}`} aria-label="Водитель не в сети">
           <div className="driver-offline-hero__scene" aria-hidden="true">
             <span className="driver-offline-hero__moon" />
             <span className="driver-offline-hero__city" />
@@ -809,7 +816,7 @@ function DriverHomeScreen({
           </button>
         </section>
       ) : (
-        <>
+        <div className={`driver-online-home is-${availabilityTransition}`}>
           <DriverSectionTitle title="Текущая доставка" to="/driver/active" />
           {activeDelivery ? (
             <DriverCurrentDeliveryPanel offer={activeDelivery} />
@@ -853,7 +860,7 @@ function DriverHomeScreen({
               </Link>
             )}
           </section>
-        </>
+        </div>
       )}
     </>
   );

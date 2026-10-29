@@ -76,3 +76,22 @@ test('mobile preview fills the viewport and keeps the primary flow reachable', a
     await page.viewport(414, 896);
   }
 });
+
+test('direct courier registration submits a real application instead of showing demo copy', async () => {
+  const screen = await render(
+    <MemoryRouter initialEntries={['/registration-preview?start=courier']}>
+      <PartnerRegistrationPreview />
+    </MemoryRouter>
+  );
+
+  expect(screen.getByText(/демонстрация: заявка не отправляется/i).elements()).toHaveLength(0);
+  await screen.getByLabelText('Имя и фамилия').fill('Тестовый Курьер');
+  await screen.getByLabelText('Телефон').fill('+79000000000');
+  await screen.getByLabelText('Почта').fill('courier@example.com');
+  await screen.getByText(/принимаю условия/i).click();
+  await screen.getByRole('button', { name: /продолжить/i }).click();
+  await screen.getByRole('button', { name: /выбрать транспорт/i }).click();
+  await screen.getByRole('button', { name: /отправить заявку/i }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Заявка отправлена' })).toBeVisible();
+  await expect.element(screen.getByText(/заявка №/i)).toBeVisible();
+});

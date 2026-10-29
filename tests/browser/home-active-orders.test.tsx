@@ -22,6 +22,9 @@ test('home shows separate active orders with links and hides completed orders', 
   const screen = await render(<MemoryRouter><HomeActiveOrders /></MemoryRouter>);
   await expect.element(screen.getByRole('link', { name: /Мангал/ })).toHaveAttribute('href', '/one/order/one');
   await expect.element(screen.getByRole('link', { name: /Финик/ })).toHaveAttribute('href', '/two/order/two');
+  await expect.element(screen.getByRole('button', { name: /показать все 2 заказа/i })).toHaveAttribute('aria-expanded', 'false');
+  await screen.getByRole('button', { name: /показать все 2 заказа/i }).click();
+  await expect.element(screen.getByRole('button', { name: /свернуть заказы/i })).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByText('Старый').elements()).toHaveLength(0);
   useClientPlatformStore.setState({ orders: [order('one', 'Мангал', 'ready')] });
   await expect.element(screen.getByText('Готов')).toBeVisible();

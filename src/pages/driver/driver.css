@@ -2963,6 +2963,61 @@
   text-align: center;
 }
 
+.driver-online-home.is-online-enter {
+  animation: driver-online-enter 440ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.driver-online-home.is-to-offline {
+  animation: driver-online-exit 260ms cubic-bezier(.4, 0, 1, 1) both;
+}
+
+.driver-offline-hero.is-offline-enter {
+  animation: driver-offline-enter 440ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.driver-offline-hero.is-to-online {
+  animation: driver-offline-exit 260ms cubic-bezier(.4, 0, 1, 1) both;
+}
+
+.driver-offline-hero.is-to-online .driver-offline-hero__scene > svg {
+  animation: driver-bike-depart 300ms cubic-bezier(.4, 0, 1, 1) both;
+}
+
+.driver-offline-hero.is-to-online .driver-online-cta > span {
+  animation: driver-status-connect 600ms ease-out both;
+}
+
+@keyframes driver-online-enter {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes driver-online-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(10px) scale(.985); }
+}
+
+@keyframes driver-offline-enter {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes driver-offline-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-10px) scale(.985); }
+}
+
+@keyframes driver-bike-depart {
+  from { opacity: 1; transform: translateX(0) rotate(0); }
+  to { opacity: 0; transform: translateX(96px) rotate(3deg); }
+}
+
+@keyframes driver-status-connect {
+  0% { box-shadow: 0 0 0 5px rgba(255, 255, 255, .14); }
+  55% { box-shadow: 0 0 0 15px rgba(255, 255, 255, .04); }
+  100% { box-shadow: 0 0 0 5px rgba(255, 255, 255, .14); }
+}
+
 .driver-offline-hero__scene {
   position: relative;
   display: grid;
@@ -3067,6 +3122,17 @@
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-online-home.is-online-enter,
+  .driver-online-home.is-to-offline,
+  .driver-offline-hero.is-offline-enter,
+  .driver-offline-hero.is-to-online,
+  .driver-offline-hero.is-to-online .driver-offline-hero__scene > svg,
+  .driver-offline-hero.is-to-online .driver-online-cta > span {
+    animation: none;
+  }
 }
 
 .driver-app--night .driver-urgent-offer {

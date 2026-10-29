@@ -68,6 +68,11 @@ describe('mobile operational interfaces', () => {
     assert.match(driverCss, /\.driver-app--night/);
     assert.match(driverCss, /--driver-night:\s*#050d1b/);
     assert.match(driverCss, /\.driver-online-cta/);
+    assert.match(driverSource, /availabilityTransition/);
+    assert.match(driverCss, /@keyframes driver-online-enter/);
+    assert.match(driverCss, /@keyframes driver-offline-enter/);
+    assert.match(driverCss, /\.driver-offline-hero\.is-to-online/);
+    assert.match(driverCss, /prefers-reduced-motion:\s*reduce/);
     assert.match(driverSource, /driver-current-block--home/);
     assert.match(driverSource, /recentDeliveryIds\.has\(offer\.deliveryId\)/);
     assert.match(driverCss, /\.driver-current-block--home/);

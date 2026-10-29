@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PartnerApplicationFlow } from './PartnerApplicationFlow';
 import './partner-registration-preview.css';
 
 type PreviewScreen =
@@ -518,9 +519,8 @@ export function PartnerRegistrationPreview() {
   if (directEntry) {
     return (
       <main className="partner-preview partner-preview--direct">
-        <div className="partner-preview__demo-notice" role="status">Демонстрация: заявка не отправляется и аккаунт не создаётся.</div>
         <div className="partner-preview__device-screen">
-          <ScreenContent screen={screen} go={go} initialBusinessType={start === 'shop' ? 'Магазин' : 'Ресторан'} />
+          <PartnerApplicationFlow kind={start} />
         </div>
       </main>
     );
