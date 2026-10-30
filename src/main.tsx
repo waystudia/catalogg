@@ -10,13 +10,14 @@ import {
   RestaurantPublicRoute,
   RestaurantRouteRedirect
 } from './PwaRoutes';
+import { resolveSupabaseBrowserUrl } from './shared/supabaseBrowserUrl';
 import './app/styles.css';
 import './features/dish-editor/styles.css';
 
 // Keep the configured public API endpoint in the entry bundle.  Production's
 // immutable-release guard verifies this before switching `current`, preventing
 // a build made without the Supabase environment from reaching users.
-const productionApiEndpoint = import.meta.env.VITE_SUPABASE_URL ?? '';
+const productionApiEndpoint = resolveSupabaseBrowserUrl(import.meta.env.VITE_SUPABASE_URL, window.location.origin) ?? '';
 
 if (productionApiEndpoint) {
   document.documentElement.dataset.wayyaamApi = productionApiEndpoint;

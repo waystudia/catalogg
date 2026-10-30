@@ -29,6 +29,7 @@ import {
 import { buildPasswordCredentials } from './loginIdentifier';
 import { persistCatalogMedia } from './catalogMedia';
 import { createPublicMenuCache } from './publicMenuCache';
+import { resolveSupabaseBrowserUrl } from './supabaseBrowserUrl';
 
 const publicMenus = createPublicMenuCache<Record<string, unknown> | null>();
 export const invalidatePublicMenuCache = () => publicMenus.clear();
@@ -39,7 +40,8 @@ type SupabaseConfig = {
 };
 
 const config: SupabaseConfig = {
-  url: import.meta.env.VITE_SUPABASE_URL as string | undefined,
+  url: resolveSupabaseBrowserUrl(import.meta.env.VITE_SUPABASE_URL as string | undefined,
+    typeof window === 'undefined' ? undefined : window.location.origin),
   anonKey: (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
 };
