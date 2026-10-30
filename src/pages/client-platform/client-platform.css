@@ -3442,25 +3442,12 @@
 .home-active-order__preview > img, .home-active-order__preview > .image-fallback { width: 100%; height: 100%; object-fit: cover; }
 .home-active-order__dish-fan { position: relative; display: block; width: 100%; height: 100%; }
 .home-active-order__dish-image, .home-active-order__dish-fan .image-fallback { width: 100%; height: 100%; object-fit: cover; }
-.home-active-order__dish-fan.is-stacked > * { position: absolute; top: 50%; left: 50%; width: 56px; height: 56px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 3px 9px rgba(15,23,42,.18); transform: translate(-50%,-50%); }
-.home-active-order__dish-fan.is-stacked > :nth-child(1) { z-index: 1; transform: translate(-59%,-46%) rotate(-11deg); }
-.home-active-order__dish-fan.is-stacked > :nth-child(2) { z-index: 2; transform: translate(-45%,-54%) rotate(10deg); }
-.home-active-order__dish-fan.is-stacked > :nth-child(3) { z-index: 3; transform: translate(-50%,-43%); }
+.home-active-order__dish-fan.is-stacked > * { position: absolute; top: 4px; left: 3px; width: 54px; height: 43px; border: 2px solid #fff; border-radius: 7px; box-shadow: 0 3px 7px rgba(15,23,42,.18); }
+.home-active-order__dish-fan.is-stacked > :nth-child(1) { z-index: 3; }
+.home-active-order__dish-fan.is-stacked > :nth-child(2) { z-index: 2; transform: translate(6px,9px); }
+.home-active-order__dish-fan.is-stacked > :nth-child(3) { z-index: 1; transform: translate(12px,18px); }
 .home-active-order__preview > svg { width: 25px; height: 25px; color: #697386; }
 .home-active-order:focus-visible { outline: 3px solid #5b3df4; outline-offset: -3px; }
-.home-active-orders__stack.is-fan { display: block; height: 142px; }
-.home-active-orders__stack.is-fan .home-active-order { position: absolute; inset: 0; }
-.home-active-orders__stack.is-fan .home-active-order:nth-child(1) { z-index: 3; transform: translateY(0); }
-.home-active-orders__stack.is-fan .home-active-order:nth-child(2) { z-index: 2; transform: translateY(17px) scale(.975); }
-.home-active-orders__stack.is-fan .home-active-order:nth-child(3) { z-index: 1; transform: translateY(34px) scale(.95); }
-.home-active-orders__stack.is-fan .home-active-order:not(:first-child) { pointer-events: none; }
-.home-active-orders__stack.is-expanded .home-active-order { animation: home-order-unfold 420ms cubic-bezier(.22,1,.36,1) both; }
-.home-active-orders__stack.is-expanded .home-active-order:nth-child(2) { animation-delay: 45ms; }
-.home-active-orders__stack.is-expanded .home-active-order:nth-child(3) { animation-delay: 90ms; }
-.home-active-orders__toggle { display: flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: #5b3df4; font-weight: 800; }
-.home-active-orders__toggle svg { width: 18px; transition: transform 260ms ease; }
-.home-active-orders__toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
-@keyframes home-order-unfold { from { opacity: .72; transform: translateY(-10px) scale(.98); } to { opacity: 1; transform: none; } }
 .order-card--compact { display: block; }
 .order-card--compact summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }
 .order-card--compact summary::-webkit-details-marker { display: none; }
@@ -3475,7 +3462,7 @@
 .order-detail-items > div { display: flex; justify-content: space-between; gap: 12px; }
 .order-detail-items__total { padding-top: 12px; border-top: 1px solid #e4e7ec; }
 @keyframes order-detail-appear { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .order-card__expanded, .order-detail-items, .home-active-orders__stack.is-expanded .home-active-order { animation: none; } .order-card--compact summary > svg, .home-active-orders__toggle svg { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .order-card__expanded, .order-detail-items { animation: none; } .order-card--compact summary > svg { transition: none; } }
 
 .profile-cabinet-button--inside, .profile-name-form, .profile-name-message { grid-column: 1 / -1; }
 .profile-cabinet-button--inside { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 0 0; border: 0; border-top: 1px solid #e9edf3; border-radius: 0; min-height: 48px; }

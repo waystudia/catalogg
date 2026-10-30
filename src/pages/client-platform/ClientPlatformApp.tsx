@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
@@ -658,11 +658,7 @@ function PageHeader({
 export function HomeActiveOrders({ snapshot }: { snapshot?: ClientPlatformSnapshot } = {}) {
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
-  const [expanded, setExpanded] = useState(false);
-  const stackRef = useRef<HTMLDivElement>(null);
-  const previousLayout = useRef<Array<{ top: number; left: number; width: number }> | null>(null);
   const activeOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
-  const visibleOrders = activeOrders.slice(0, 3);
   const orderIds = activeOrders.map((order) => order.id).sort().join('|');
 
   useEffect(() => {
@@ -683,54 +679,12 @@ export function HomeActiveOrders({ snapshot }: { snapshot?: ClientPlatformSnapsh
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
   }, [orderIds, syncOrderPatch]);
 
-  const toggleExpanded = () => {
-    previousLayout.current = Array.from(stackRef.current?.children ?? [])
-      .filter((element): element is HTMLElement => element instanceof HTMLElement)
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return { top: rect.top, left: rect.left, width: rect.width };
-      });
-    setExpanded((value) => !value);
-  };
-
-  useLayoutEffect(() => {
-    const previous = previousLayout.current;
-    previousLayout.current = null;
-    if (!previous || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const animations = Array.from(stackRef.current?.children ?? [])
-      .filter((element): element is HTMLElement => element instanceof HTMLElement)
-      .map((element, index) => {
-        const next = element.getBoundingClientRect();
-        const before = previous[index];
-        if (!before) return null;
-        return element.animate([
-          {
-            transform: `translate(${before.left - next.left}px, ${before.top - next.top}px) scaleX(${before.width / next.width})`,
-            transformOrigin: 'top left'
-          },
-          { transform: 'none', transformOrigin: 'top left' }
-        ], { duration: 520, easing: 'cubic-bezier(.22,1,.36,1)' });
-      })
-      .filter((animation): animation is Animation => animation !== null);
-    return () => animations.forEach((animation) => animation.cancel());
-  }, [expanded, orderIds]);
-
   if (!activeOrders.length) return null;
+  const order = activeOrders[0];
   return <section className="home-active-orders" aria-label="Активные заказы">
-    <div ref={stackRef} className={`home-active-orders__stack ${expanded ? 'is-expanded' : visibleOrders.length > 1 ? 'is-fan' : ''}`}>
-      {visibleOrders.map((order, index) => <Link
-        className="home-active-order"
-        key={order.id}
-        to={`/${order.restaurantSlug}/order/${order.id}`}
-        tabIndex={!expanded && index > 0 ? -1 : undefined}
-      >
-        <HomeActiveOrderCard order={order} snapshot={snapshot} status={statusLabels[order.status]} />
-      </Link>)}
-    </div>
-    {visibleOrders.length > 1 && <button className="home-active-orders__toggle" type="button" onClick={toggleExpanded} aria-expanded={expanded}>
-      {expanded ? 'Свернуть заказы' : `Показать все ${visibleOrders.length} заказа`}
-      <ChevronDown />
-    </button>}
+    <Link className="home-active-order" to="/profile/orders">
+      <HomeActiveOrderCard order={order} snapshot={snapshot} status={statusLabels[order.status]} multiple={activeOrders.length > 1} />
+    </Link>
   </section>;
 }
 
