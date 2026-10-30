@@ -5,7 +5,7 @@ import type { ClientOrder } from '../client-platform/types';
 import type { Product } from '../../entities/models';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { getStoredClientSessionToken } from '../../shared/api/clientAccountApi';
+import { buildClientAuthPath, getStoredClientSessionToken } from '../../shared/api/clientAccountApi';
 import { getClientDeliveryChat, sendClientDeliveryChat, getClientOrderConversation, sendClientOrderConversation, type DeliveryChatMessage, type OrderConversationMessage } from '../../shared/api/deliveryChatApi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Check, Phone, MessageCircle, Store, UserRound, ChefHat, Truck, PackageCheck, Clock3, WifiOff, X } from 'lucide-react';
@@ -183,6 +183,7 @@ function OrderLiveDetail({ name, total, orderType, address, status, items, saved
     <div key={`${stale}-${status}`} className={`live-order__hero${cancelled ? ' is-cancelled' : ''}${stale ? ' is-stale' : ''}`} aria-hidden="true"><span className="live-order__orbit" /><span className="live-order__spark live-order__spark--one" /><span className="live-order__spark live-order__spark--two" /><span className="live-order__hero-icon"><StatusIcon /></span></div>
     <h2 aria-live="polite">{stale ? 'Сохранённый заказ' : cancelled ? 'Заказ отменён' : status === 'new' ? 'Заказ отправлен' : statusText}</h2>
     <p className="live-order__hint">{stale ? refreshing ? 'Проверяем актуальный статус…' : 'Показан последний известный статус. Для обновления нужен интернет и доступ к заказу.' : status === 'new' ? 'Заведение скоро подтвердит заказ' : 'Статус обновляется автоматически'}</p>
+    {stale && !getStoredClientSessionToken() && <Link className="live-order__manage" to={buildClientAuthPath(`/${catalogSlug}/order/${orderId}`)}>Войти для обновления</Link>}
     <article className="live-order__card">
       <div className="live-order__restaurant"><span><strong>{placeName}</strong><small>{orderType}{address ? ` · ${address}` : ''}</small></span><b>{formatPrice(total)}</b></div>
       <div className="live-order__status"><div className="live-order__status-title"><strong>{stale ? `Последний известный статус: ${statusText}` : statusText}</strong><button type="button" disabled={refreshing} onClick={onRefresh}>{refreshing ? 'Обновляем…' : 'Обновить статус'}</button></div>{!cancelled && <ol className="live-order__steps" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Этапы заказа">{steps.map((label, index) => <li key={label} aria-current={index === progress ? 'step' : undefined}><i className={index <= progress ? 'is-active' : ''} /><small>{label}</small></li>)}</ol>}</div>

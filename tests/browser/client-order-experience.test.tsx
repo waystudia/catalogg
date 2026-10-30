@@ -104,6 +104,7 @@ test('keeps the last known saved stage visible and can retry its server refresh'
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="saved-stage" /></MemoryRouter></QueryClientProvider>);
   await expect.element(screen.getByText('Последний известный статус: Готовится')).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: 'Войти для обновления' })).toHaveAttribute('href', '/profile?clientAuth=1&returnTo=%2Fmangal%2Forder%2Fsaved-stage');
   await expect.element(screen.getByText('Ресторан Мангал', { exact: true }).first()).toBeVisible();
   vi.mocked(getPublicRestaurantOrderStatus).mockResolvedValueOnce({ id: 'saved-stage', status: 'on_the_way', fulfillmentType: 'delivery', restaurantName: 'Мангал', total: 150, items: [] } as unknown as Awaited<ReturnType<typeof getPublicRestaurantOrderStatus>>);
   await screen.getByRole('button', { name: 'Обновить статус' }).click();
