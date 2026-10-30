@@ -1,3 +1,4 @@
+import { useExactBack } from '../../shared/ExactBackNavigation';
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -24,11 +25,11 @@ export function useCheckoutNavigation<T extends string>(slug: string, screen: T,
     origin.current = { screen, scrollY: window.scrollY, cartOpen };
     navigate(`/${slug}/checkout`, { state: { checkoutOrigin: location.pathname + location.search } });
   };
-  const goBackFromCheckout = () => {
+  const goBackFromCheckout = useExactBack(() => {
     const source = (location.state as { checkoutOrigin?: unknown } | null)?.checkoutOrigin;
     if (typeof source === 'string' && source.startsWith('/') && !source.startsWith('//')) navigate(-1);
     else navigate('/cart', { replace: true });
-  };
+  });
   const closeCart = () => {
     setCartOpen(false);
     if (cartRequested) {

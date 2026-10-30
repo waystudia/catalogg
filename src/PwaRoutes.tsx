@@ -1,3 +1,4 @@
+import { useIsHistoryRestoration } from './shared/ExactBackNavigation';
 import React, { lazy } from 'react';
 import { Navigate, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import { resolveSessionRedirect } from './shared/api/loginRedirectApi';
@@ -43,7 +44,8 @@ export function PwaResumeTracker() {
 
 export function PwaHomeRoute() {
   const navigationType = useNavigationType();
-  const explicitNavigation = navigationType !== 'POP';
+  const historyRestoration = useIsHistoryRestoration();
+  const explicitNavigation = navigationType !== 'POP' || historyRestoration;
   const savedPath = React.useMemo(readPwaResumePath, []);
   const [sessionPath, setSessionPath] = React.useState<string | null>(null);
   const [isSessionChecked, setIsSessionChecked] = React.useState(explicitNavigation);

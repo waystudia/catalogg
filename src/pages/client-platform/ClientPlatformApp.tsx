@@ -1,3 +1,4 @@
+import { useExactBack } from '../../shared/ExactBackNavigation';
 import { getOrderPlaceName } from '../../features/order/orderDetailPresentation';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { legalDocuments } from '../../shared/legalDocuments';
@@ -598,11 +599,12 @@ function PageHeader({
   backTo?: string;
   action?: ReactNode;
 }) {
+  const goBack = useExactBack(backTo);
   return (
     <header className="platform-header">
-      <Link className="icon-button" to={backTo} aria-label="Назад">
+      <button type="button" className="icon-button" onClick={goBack} aria-label="Назад">
         <ArrowLeft />
-      </Link>
+      </button>
       <h1>{title}</h1>
       <div className="platform-header__action">
         {action ?? (
@@ -1447,12 +1449,12 @@ function RestaurantTopbar({ restaurant, title }: { restaurant: ClientRestaurant;
   const navigate = useNavigate();
   const location = useLocation();
 
-  const returnToMarketplace = () => {
+  const returnToMarketplace = useExactBack(() => {
     const marketplaceReturn = (location.state as {
       marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
     } | null)?.marketplaceReturn;
     if (typeof marketplaceReturn?.pathname !== 'string' || !marketplaceReturn.pathname.startsWith('/')) {
-      navigate(-1);
+      navigate('/restaurants', { replace: true });
       return;
     }
     navigate(marketplaceReturn.pathname, {
@@ -1460,7 +1462,7 @@ function RestaurantTopbar({ restaurant, title }: { restaurant: ClientRestaurant;
         restoreScrollY: typeof marketplaceReturn.scrollY === 'number' ? marketplaceReturn.scrollY : 0
       }
     });
-  };
+  });
 
   return (
     <header className="restaurant-topbar">

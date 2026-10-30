@@ -1,3 +1,4 @@
+import { useExactBack } from '../../shared/ExactBackNavigation';
 import { OrderDetailActions } from './OrderDetailActions';
 import { getOrderStage, getOrderPlaceName } from './orderDetailPresentation';
 import { resolveClientOrderRealtimeStatus } from '../client-platform/clientPlatformLogic';
@@ -52,6 +53,7 @@ export function PublicOrderStatusScreen({
   products?: Array<Pick<Product, 'id' | 'title' | 'image_url'> & Partial<Product>>;
 }) {
   const navigate = useNavigate();
+  const backToOrder = useExactBack(`/${catalogSlug}/order/${orderId}`);
   const location = useLocation();
   const confirmation = location.state as { confirmationOrderId?: string; whatsappHref?: string; redirectAt?: number } | null;
   const createdOrder = useClientPlatformStore((state) => state.orders.find((item) => item.id === orderId && item.restaurantSlug === catalogSlug));
@@ -93,7 +95,7 @@ export function PublicOrderStatusScreen({
   }, [order, orderId, hasCreatedOrder, syncOrderPatch]);
 
   const imageFor = (name: string, id?: string) => products.find((product) => product.id === id || product.title.trim().toLocaleLowerCase('ru-RU') === name.trim().toLocaleLowerCase('ru-RU'))?.image_url;
-  if (chatTarget === 'restaurant') return <RestaurantOrderChatScreen orderId={orderId} restaurantName={restaurantName || catalogSlug} onBack={() => navigate(`/${catalogSlug}/order/${orderId}`)} />;
+  if (chatTarget === 'restaurant') return <RestaurantOrderChatScreen orderId={orderId} restaurantName={restaurantName || catalogSlug} onBack={backToOrder} />;
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <OrderLiveDetail
       name={value.restaurantName || createdOrder?.restaurantName || restaurantName || catalogSlug}

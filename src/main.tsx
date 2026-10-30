@@ -1,3 +1,4 @@
+import { ExactBackProvider } from './shared/ExactBackNavigation';
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter, Route, Routes } from 'react-router-dom';
@@ -76,6 +77,7 @@ restoreGitHubPagesRedirect();
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <HashRouter>
+      <ExactBackProvider>
       <PwaResumeTracker />
       <Suspense fallback={<CatalogLoadingScreen />}>
         <Routes>
@@ -103,6 +105,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         </Routes>
         <LegalSurface />
       </Suspense>
+    </ExactBackProvider>
     </HashRouter>
   </React.StrictMode>
 );

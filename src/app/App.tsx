@@ -1,3 +1,4 @@
+import { useExactBack } from '../shared/ExactBackNavigation';
 import { CartSheet } from '../features/checkout/CartSheet';
 import { useCatalogRealtime } from './useCatalogRealtime';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
@@ -1679,6 +1680,13 @@ function AppContent({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const backFromOrder = useExactBack(() => returnFromPublicOrder(navigate, location.state, catalogSlug));
+  const backToPlatform = useExactBack('/');
+  const backFromReviews = useExactBack(`/${catalogSlug}`);
+  const backFromCatalog = useExactBack(() => {
+    if (platformReturn) navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
+    else navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }));
+  });
   const focusProductId = routeSection
     ? undefined
     : new URLSearchParams(location.search).get('focusDish') ?? undefined;
@@ -2595,7 +2603,7 @@ function AppContent({
         <TopBar
           title="Статус заказа"
           canBack
-          onBack={() => returnFromPublicOrder(navigate, location.state, catalogSlug)}
+          onBack={backFromOrder}
           onPlatformBack={() => navigate('/')}
           onCart={() => navigate(`/${catalogSlug}`)}
           onAdmin={() => navigate('/login')}
@@ -2654,7 +2662,7 @@ function AppContent({
             onBack={() => {
               if (screen === 'checkout') { goBackFromCheckout(); return; }
               if (routeSection === 'reviews') {
-                navigate(`/${catalogSlug}`);
+                backFromReviews();
                 return;
               }
               if (routeSection === 'dishes') {
@@ -2667,13 +2675,7 @@ function AppContent({
               }
               setScreen('home');
             }}
-            onPlatformBack={() => {
-              if (platformReturn) {
-                navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
-                return;
-              }
-              navigate('/');
-            }}
+            onPlatformBack={backToPlatform}
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
             onShare={screen === 'home' && routeSection !== 'reviews' ? shareCurrentPage : undefined}
             onCart={() => setIsCartOpen(true)}
@@ -2709,13 +2711,7 @@ function AppContent({
               initialCategory="all"
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => {
-                if (platformReturn) {
-                  navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
-                  return;
-                }
-                navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }));
-              }}
+              onBack={backFromCatalog}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
