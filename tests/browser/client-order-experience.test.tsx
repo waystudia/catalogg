@@ -15,12 +15,15 @@ vi.mock('../../src/shared/api/restaurantOrdersApi', () => ({
 }));
 
 test('shows the real payment status and all ten items on a narrow screen', async () => {
-  await page.viewport(353, 618);
+  await page.viewport(319, 620);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="order-1234" /></MemoryRouter></QueryClientProvider>);
+  const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="order-1234" restaurantWhatsapp="79990000000" products={[{ id: 'dish-1', title: 'Блюдо 1', image_url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="5" height="4"/>' }]} /></MemoryRouter></QueryClientProvider>);
   await expect.element(screen.getByRole('heading', { name: 'Ожидает подтверждения оплаты' })).toBeVisible();
   await screen.getByRole('button', { name: 'Показать все' }).click();
   await expect.element(screen.getByText('Блюдо 10')).toBeInTheDocument();
+  await expect.poll(() => document.querySelector('.live-order__item img')?.getAttribute('src')).toBeTruthy();
+  const actions = document.querySelector('.live-order__contact-actions')!;
+  expect([...actions.children].every((button) => button.scrollWidth <= button.clientWidth)).toBe(true);
   expect(screen.getByRole('tab', { name: 'Курьер' }).query()).toBeNull();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
 });

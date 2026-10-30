@@ -432,7 +432,7 @@ function TopBar({
   const count = selectCartCount(items);
   const hasBackAction = Boolean(canBack || onPlatformBack);
   return (
-    <header className={!title && !showBrand ? 'top-bar top-bar--minimal' : 'top-bar'}>
+    <header className={title === 'Статус заказа' ? 'top-bar top-bar--order-status' : !title && !showBrand ? 'top-bar top-bar--minimal' : 'top-bar'}>
       <button
         className="icon-button top-bar__button"
         type="button"
@@ -651,7 +651,7 @@ function CartSheet({
         <header className="cart-sheet__header">
           <div>
             <h2>Корзина</h2>
-            <p>{count} товаров</p>
+            <p>{count} {count % 10 === 1 && count % 100 !== 11 ? 'товар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'товара' : 'товаров'}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Закрыть корзину">
             <X />
@@ -2809,7 +2809,7 @@ function AppContent({
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
         />
-        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} restaurantWhatsapp={catalog.restaurant.whatsapp} restaurantName={catalog.restaurant.name} chatTarget={routeOrderChatTarget} />
+        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} restaurantWhatsapp={catalog.restaurant.whatsapp} restaurantName={catalog.restaurant.name} chatTarget={routeOrderChatTarget} products={catalog.products} />
         {!routeOrderChatTarget && <SiteCredit />}
       </div>
     );

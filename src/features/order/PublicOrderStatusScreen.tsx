@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Check, Phone, MessageCircle, Store, UserRound } from 'lucide-react';
 import { useClientPlatformStore } from '../client-platform/store';
 import { getPublicRestaurantOrderStatus, type PublicRestaurantOrderStatus, type RestaurantOrderStatus } from '../../shared/api/restaurantOrdersApi';
+import { SafeImage } from '../../shared/SafeImage';
 
 const redirectToWhatsapp = (href: string) => window.location.assign(href);
 
@@ -24,7 +25,8 @@ export function PublicOrderStatusScreen({
   restaurantWhatsapp = '',
   restaurantName = '',
   chatTarget,
-  onWhatsappRedirect = redirectToWhatsapp
+  onWhatsappRedirect = redirectToWhatsapp,
+  products = []
 }: {
   catalogSlug: string;
   orderId: string;
@@ -32,6 +34,7 @@ export function PublicOrderStatusScreen({
   restaurantName?: string;
   chatTarget?: string;
   onWhatsappRedirect?: (href: string) => void;
+  products?: Array<{ id: string; title: string; image_url: string }>;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -67,6 +70,7 @@ export function PublicOrderStatusScreen({
     refetchInterval: 15_000
   });
   const order = statusQuery.data;
+  const imageFor = (name: string, id?: string) => products.find((product) => product.id === id || product.title.trim().toLocaleLowerCase('ru-RU') === name.trim().toLocaleLowerCase('ru-RU'))?.image_url;
   if (chatTarget === 'restaurant') return <RestaurantOrderChatScreen orderId={orderId} restaurantName={restaurantName || catalogSlug} onBack={() => navigate(`/${catalogSlug}/order/${orderId}`)} />;
   const renderOrder = (value: PublicRestaurantOrderStatus) => (
     <OrderLiveDetail
@@ -75,7 +79,7 @@ export function PublicOrderStatusScreen({
       orderType={value.fulfillmentType === 'delivery' ? 'Доставка' : value.fulfillmentType === 'takeaway' ? 'Самовывоз' : 'Заказ в зале'}
       address={value.deliveryAddress}
       status={value.status}
-      items={value.items.map((item) => ({ id: item.id, name: item.title, quantity: item.quantity, price: item.unitPrice, total: item.lineTotal }))}
+      items={value.items.map((item) => ({ id: item.id, name: item.title, imageUrl: imageFor(item.title), quantity: item.quantity, price: item.unitPrice, total: item.lineTotal }))}
       manageOrderId={createdOrder?.id}
       catalogSlug={catalogSlug} orderId={orderId} restaurantWhatsapp={restaurantWhatsapp} driverName={value.driverName} driverPhone={value.driverPhone} isDelivery={value.fulfillmentType === 'delivery'}
     />
@@ -103,7 +107,7 @@ export function PublicOrderStatusScreen({
       name={createdOrder.restaurantName} total={createdOrder.totalAmount}
       orderType={createdOrder.orderType === 'delivery' ? 'Доставка' : createdOrder.orderType === 'pickup' ? 'Самовывоз' : 'Заказ в зале'}
       address={createdOrder.addressLine} status={null} manageOrderId={createdOrder.id}
-      items={createdOrder.items.map((item, index) => ({ id: `${item.dishId}-${index}`, name: item.name, imageUrl: item.imageUrl, quantity: item.quantity, price: item.price, total: item.price * item.quantity }))}
+      items={createdOrder.items.map((item, index) => ({ id: `${item.dishId}-${index}`, name: item.name, imageUrl: item.imageUrl || imageFor(item.name, item.dishId), quantity: item.quantity, price: item.price, total: item.price * item.quantity }))}
       catalogSlug={catalogSlug} orderId={orderId} restaurantWhatsapp={restaurantWhatsapp} isDelivery={createdOrder.orderType === 'delivery'}
     /></main>;
   }
@@ -157,7 +161,7 @@ function OrderLiveDetail({ name, total, orderType, address, status, items, manag
       <div className="live-order__restaurant"><span><strong>{name}</strong><small>{orderType}{address ? ` · ${address}` : ''}</small></span><b>{formatPrice(total)}</b></div>
       <div className="live-order__status"><strong>{statusText}</strong>{!cancelled && <div className="live-order__steps" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label="Этапы заказа">{steps.map((label, index) => <span key={label}><i className={index <= progress ? 'is-active' : ''} /><small>{label}</small></span>)}</div>}</div>
       <div className="live-order__items-heading"><h3>Состав заказа · {items.length} {items.length === 1 ? 'позиция' : items.length >= 2 && items.length <= 4 ? 'позиции' : 'позиций'}</h3>{items.length > 2 && <button type="button" aria-expanded={showAllItems} onClick={() => setShowAllItems(!showAllItems)}>{showAllItems ? 'Свернуть' : 'Показать все'}</button>}</div>
-      {(showAllItems ? items : items.slice(0, 2)).map((item) => <div className="live-order__item" key={item.id}>{item.imageUrl && <img src={item.imageUrl} alt="" loading="lazy" />}<span><strong>{item.name}</strong><small>{item.quantity} × {formatPrice(item.price)}</small></span><b>{formatPrice(item.total)}</b></div>)}
+      {(showAllItems ? items : items.slice(0, 2)).map((item) => <div className="live-order__item" key={item.id}><SafeImage src={item.imageUrl || ''} alt="" width={100} height={80} /><span><strong>{item.name}</strong><small>{item.quantity} × {formatPrice(item.price)}</small></span><b>{formatPrice(item.total)}</b></div>)}
       <OrderContacts catalogSlug={catalogSlug} restaurantName={name} orderId={orderId} restaurantWhatsapp={restaurantWhatsapp} courierAssigned={courierAssigned} driverName={driverName} driverPhone={driverPhone} />
       {manageOrderId && <Link className="live-order__manage" to={`/profile/orders?manage=${encodeURIComponent(manageOrderId)}`}>Повторить заказ или оставить отзыв</Link>}
       <Link className="live-order__manage" to="/profile/orders">Все заказы</Link>

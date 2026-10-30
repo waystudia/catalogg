@@ -16,15 +16,14 @@ const order = (id: string, name: string, status: ClientOrder['status']): ClientO
   clientName: '', clientPhone: '', createdAt: '2026-10-19T12:00:00Z', estimatedTimeMin: 15, estimatedTimeMax: 30, items: []
 });
 
-test('home shows separate active orders with links and hides completed orders', async () => {
+test('home shows one summary linking to current orders and hides completed orders', async () => {
   await page.viewport(353, 618);
   useClientPlatformStore.setState({ orders: [order('one', 'Мангал', 'new'), order('two', 'Финик', 'cooking'), order('old', 'Старый', 'completed')] });
   const screen = await render(<MemoryRouter><HomeActiveOrders /></MemoryRouter>);
-  await expect.element(screen.getByRole('link', { name: /Мангал/ })).toHaveAttribute('href', '/one/order/one');
-  await expect.element(screen.getByRole('link', { name: /Финик/ })).toHaveAttribute('href', '/two/order/two');
-  await expect.element(screen.getByRole('button', { name: /показать все 2 заказа/i })).toHaveAttribute('aria-expanded', 'false');
-  await screen.getByRole('button', { name: /показать все 2 заказа/i }).click();
-  await expect.element(screen.getByRole('button', { name: /свернуть заказы/i })).toHaveAttribute('aria-expanded', 'true');
+  await expect.element(screen.getByRole('link', { name: /Мангал/ })).toHaveAttribute('href', '/profile/orders');
+  await expect.element(screen.getByText('Текущие заказы', { exact: true })).toBeVisible();
+  expect(document.querySelectorAll('.home-active-order')).toHaveLength(1);
+  expect(document.querySelector('.home-active-orders__toggle')).toBeNull();
   expect(screen.getByText('Старый').elements()).toHaveLength(0);
   useClientPlatformStore.setState({ orders: [order('one', 'Мангал', 'ready')] });
   await expect.element(screen.getByText('Готов')).toBeVisible();
