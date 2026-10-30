@@ -1,6 +1,7 @@
 // Read-only mixed API journeys. Optional short-lived authenticated tokens stay outside reports.
 // node scripts/load-test-wayyaam.mjs --roles /private/roles.json --duration 20 --levels 10,20,30,50,75,100,150
 import fs from 'node:fs';
+import https from 'node:https';
 import { setTimeout as pause } from 'node:timers/promises';
 const args = Object.fromEntries(process.argv.slice(2).reduce((pairs, arg, i, all) => i % 2 ? pairs : [...pairs, [arg.replace(/^--/, ''), all[i + 1]]], []));
 const env = Object.fromEntries(fs.readFileSync('.env.local', 'utf8').split('\n').filter(x => /^[A-Z_]+=/.test(x)).map(x => { const i=x.indexOf('='); return [x.slice(0,i),x.slice(i+1).replace(/^['"]|['"]$/g,'')]; }));
@@ -27,13 +28,20 @@ const menu = (id) => [
 const journeys = catalogs.map(([name,id]) => ({ name, calls:menu(id) }));
 if (roles.driver) journeys.push({name:'driver',calls:['get_current_driver_dashboard_data','get_current_driver_delivery_handoffs'].map(name=>({path:'rpc/'+name,token:roles.driver,method:'POST'}))});
 if (roles.restaurant) journeys.push({name:'restaurant-orders',calls:[{path:`orders?select=*,deliveries(*),order_items(*)&catalog_id=eq.${catalogs[0][1]}&order=created_at.desc`,token:roles.restaurant},{path:`restaurant_delivery_settings?select=*&catalog_id=eq.${catalogs[0][1]}`,token:roles.restaurant}]});
-const request = async (call) => {
+// Bound transport concurrency: virtual journeys can enqueue several API reads.
+// This prevents the generator from opening an unbounded number of TLS sockets.
+const maxConnections = Number(args.connections || 256);
+const agent = new https.Agent({keepAlive:true,maxSockets:maxConnections,maxFreeSockets:128});
+const request = (call) => new Promise((resolve) => {
  const start=performance.now();
- try {
-  const response=await fetch(`${base}/rest/v1/${call.path}`,{method:call.method||'GET',headers:{apikey:key,Authorization:`Bearer ${call.token||key}`,'Content-Type':'application/json'},...(call.method?{body:'{}'}:{}),signal:AbortSignal.timeout(15000)});
-  const body=await response.arrayBuffer(); return {ms:performance.now()-start,status:response.status,bytes:body.byteLength};
- } catch(error) {return {ms:performance.now()-start,status:0,bytes:0,error:error.cause?.code || error.name};}
-};
+ const request=https.request(`${base}/rest/v1/${call.path}`,{agent,method:call.method||'GET',headers:{apikey:key,Authorization:`Bearer ${call.token||key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(15000)},response=>{
+  let bytes=0;response.on('data',chunk=>{bytes+=chunk.length;});
+  response.on('end',()=>resolve({ms:performance.now()-start,status:response.statusCode,bytes}));
+  response.on('error',error=>resolve({ms:performance.now()-start,status:0,bytes,error:error.code||error.name}));
+ });
+ request.on('error',error=>resolve({ms:performance.now()-start,status:0,bytes:0,error:error.code||error.name}));
+ request.end(call.method?'{}':undefined);
+});
 for(const journey of journeys){
  const warmup=await Promise.all(journey.calls.map(request));
  if(warmup.some(x=>x.status!==200))throw new Error(`Warmup failed for ${journey.name}: ${warmup.map(x=>x.status)}`);
@@ -52,8 +60,10 @@ for(const users of levels){
  }));
  const elapsed=(performance.now()-start)/1000, times=results.map(x=>x.ms).sort((a,b)=>a-b), journeyTimes=completed.sort((a,b)=>a-b);
  const errors=results.filter(x=>x.status!==200).length,statuses={};for(const r of results)statuses[r.status]=(statuses[r.status]||0)+1;
- const record={users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,errorTypes:results.filter(x=>x.error).reduce((all,x)=>({...all,[x.error]:(all[x.error]||0)+1}),{}),journeys:names};
+ const record={transport:"https-http1-keepalive",maxConnections,users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,errorTypes:results.filter(x=>x.error).reduce((all,x)=>({...all,[x.error]:(all[x.error]||0)+1}),{}),journeys:names};
  fs.appendFileSync(output,JSON.stringify(record)+'\n');console.log(JSON.stringify(record));
  if(record.errorPercent>5){console.log('Stopped: errors exceeded 5%.');break;}
  await pause(3000);
 }
+
+agent.destroy();
