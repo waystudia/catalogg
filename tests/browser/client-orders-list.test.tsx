@@ -45,3 +45,11 @@ test('back from an order restores the history tab', async () => {
   await expect.element(screen.getByRole('tab', { name: 'Завершённые' })).toHaveAttribute('aria-selected', 'true');
   await expect.element(screen.getByText('Доставлен')).toBeVisible();
 });
+
+test('old manage links go directly to the order instead of a separate actions page', async () => {
+  useClientPlatformStore.setState({ orders: [order('legacy-manage', 'new')] });
+  const snapshot = { restaurants: [], dishes: [] } as unknown as ClientPlatformSnapshot;
+  const screen = await render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={['/profile/orders?manage=legacy-manage']}><Routes><Route path="/profile/orders" element={<OrdersPage snapshot={snapshot} />} /><Route path="/mangal/order/:id" element={<p>Открыта карточка заказа</p>} /></Routes></MemoryRouter></QueryClientProvider>);
+  await expect.element(screen.getByText('Открыта карточка заказа')).toBeVisible();
+  expect(screen.getByText('Действия с заказом').elements()).toHaveLength(0);
+});

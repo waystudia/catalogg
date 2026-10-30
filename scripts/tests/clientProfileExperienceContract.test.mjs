@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const appSource = fs.readFileSync('src/pages/client-platform/ClientPlatformApp.tsx', 'utf8');
+const orderActionsSource = fs.readFileSync('src/features/order/OrderDetailActions.tsx', 'utf8');
+const orderStatusSource = fs.readFileSync('src/features/order/PublicOrderStatusScreen.tsx', 'utf8');
 const catalogAppSource = fs.readFileSync('src/app/App.tsx', 'utf8');
 const apiSource = fs.readFileSync('src/shared/api/clientPlatformApi.ts', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
@@ -38,11 +40,12 @@ test('WayYaam branding and phone-specific install guide are published', () => {
 
 test('favorites, repeat checkout and reviews expose complete client actions', () => {
   assert.match(appSource, /aria-pressed=\{isFavorite\}/);
-  assert.match(appSource, /navigate\(`\/\$\{order\.restaurantSlug\}\/checkout`\)/);
-  assert.match(appSource, /useCartStore\.setState/);
-  assert.match(appSource, /useOrderStore\.getState\(\)\.setOrder/);
+  assert.match(orderActionsSource, /navigate\(`\/\$\{order\.restaurantSlug\}\/checkout`\)/);
+  assert.match(orderActionsSource, /useCartStore\.setState/);
+  assert.match(orderActionsSource, /useOrderStore\.getState\(\)\.setOrder/);
   assert.match(appSource, /to=\{`\/\$\{order\.restaurantSlug\}\/order\/\$\{order\.id\}`\}/);
-  assert.match(appSource, />\s*Подробнее о заказе\s*</);
+  assert.match(orderStatusSource, /<OrderDetailActions/);
+  assert.doesNotMatch(orderStatusSource, /profile\/orders\?manage=/);
   assert.match(appSource, /to=\{`\/\$\{restaurant\.slug\}\/reviews`\}/);
   assert.match(appSource, /function RestaurantReviewsPage/);
   assert.match(apiSource, /\.from\('client_reviews'\)[\s\S]*\.eq\('is_visible', true\)/);

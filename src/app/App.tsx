@@ -2603,7 +2603,7 @@ function AppContent({
           restaurantName={catalog.restaurant.name}
           restaurantSubtitle={catalog.restaurant.subtitle}
         />
-        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} restaurantWhatsapp={catalog.restaurant.whatsapp} restaurantName={catalog.restaurant.name} chatTarget={routeOrderChatTarget} products={catalog.products} />
+        <PublicOrderStatusScreen catalogSlug={catalogSlug} orderId={routeOrderId} restaurantWhatsapp={catalog.restaurant.whatsapp} restaurantName={catalog.restaurant.name} restaurantId={catalog.restaurant.id} businessType={catalog.restaurant.business_type_raw || catalog.restaurant.business_type} restaurantAddress={catalog.restaurant.address} restaurantLat={catalog.restaurant.lat} restaurantLng={catalog.restaurant.lng} chatTarget={routeOrderChatTarget} products={catalog.products} />
         {!routeOrderChatTarget && <SiteCredit />}
       </div>
     );

@@ -1,3 +1,4 @@
+import { getOrderPlaceName } from '../../features/order/orderDetailPresentation';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { legalDocuments } from '../../shared/legalDocuments';
 import {
@@ -26,7 +27,6 @@ import {
   Plus,
   QrCode,
   ReceiptText,
-  Repeat2,
   RefreshCw,
   Search,
   Settings as SettingsIcon,
@@ -40,7 +40,7 @@ import {
 import type { CSSProperties, FormEvent } from 'react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { buildOrderAfterClientPaymentNotice, buildRestaurantPublicPath, buildSupportWhatsappUrl, buildYandexMapsUrl, calculateCartSummary, filterRestaurants, filterRestaurantsWithCityFallback, getDeliveryProviderLabel, mergeClientOrderRealtimePatch, requireSavedRestaurantOrderId, resolveCheckoutSettlement, resolveClientOrderRealtimeStatus, selectClientOrderForStatus } from '../../features/client-platform/clientPlatformLogic';
 import { fallbackPaymentSettings } from '../../features/client-platform/mockData';
 import {
@@ -49,14 +49,13 @@ import {
   selectRestaurantCart,
   useClientPlatformStore
 } from '../../features/client-platform/store';
-import { selectCartCount, selectCartTotal, useCartStore, useOrderStore } from '../../features/stores';
+import { selectCartCount, selectCartTotal, useCartStore } from '../../features/stores';
 import type {
   ClientAddress,
   ClientCartLine,
   ClientCheckoutDraft,
   ClientDeliveryProvider,
   ClientDish,
-  ClientOrder,
   ClientOrderStatus,
   ClientOrderType,
   ClientPaymentMethod,
@@ -242,45 +241,6 @@ const formatAvailablePlaces = (count: number) => {
 const getDeliveryFee = (restaurant: ClientRestaurant, draft: ClientCheckoutDraft, summary: { subtotal: number }) =>
   draft.orderType === 'delivery' && summary.subtotal > 0 && summary.subtotal < restaurant.freeDeliveryFrom ? 120 : 0;
 
-const restoreRestaurantCartFromOrder = (snapshot: ClientPlatformSnapshot, order: ClientOrder) => {
-  const items = order.items.map((item) => {
-    const dish = snapshot.dishes.find((candidate) => candidate.id === item.dishId);
-    const categoryId = dish?.categorySlug ?? '';
-    return {
-      product: {
-        id: item.dishId,
-        title: item.name,
-        price: item.price,
-        description: dish?.description ?? '',
-        image_url: dish?.imageUrl ?? '',
-        ingredients: '',
-        weight: dish?.weight ?? '',
-        spicy_level: 0 as const,
-        serving: '',
-        is_popular: dish?.isPopular ?? false,
-        is_new: false,
-        is_hit: false,
-        is_hidden: false,
-        is_unlimited: true,
-        stock_count: dish?.stockCount ?? 999,
-        category_id: categoryId,
-        category_ids: categoryId ? [categoryId] : [],
-        pair_ids: []
-      },
-      quantity: item.quantity
-    };
-  });
-
-  useCartStore.setState({ items, updatedAt: items.length > 0 ? Date.now() : null });
-  useOrderStore.getState().setOrder({
-    mode: order.orderType === 'delivery' ? 'delivery' : order.orderType === 'pickup' ? 'takeaway' : 'hall',
-    clientName: order.clientName,
-    clientPhone: order.clientPhone,
-    deliveryAddress: order.orderType === 'delivery' ? order.addressLine : '',
-    deliveryLat: order.orderType === 'delivery' ? order.deliveryLat ?? null : null,
-    deliveryLng: order.orderType === 'delivery' ? order.deliveryLng ?? null : null
-  });
-};
 
 function usePlatformData() {
   const snapshotQuery = useQuery({
@@ -2541,7 +2501,7 @@ function OrderStatusPage({
         <section className="order-status-head">
           <span className="restaurant-logo">{restaurant.name.slice(0, 1)}</span>
           <span>
-            <strong>{order.restaurantName}</strong>
+            <strong>{getOrderPlaceName(order.restaurantName, restaurant.businessTypeRaw || restaurant.businessType)}</strong>
             <small>Заказ №{order.id}</small>
             <small>{orderTypeLabels[order.orderType]}</small>
           </span>
@@ -3154,7 +3114,6 @@ export function ProfilePage() {
 }
 
 export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const manageOrderId = searchParams.get('manage');
@@ -3169,17 +3128,8 @@ export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       }
     } catch { /* Navigation remains available when storage is disabled. */ }
   }, [location.key]);
-  const queryClient = useQueryClient();
-  const profile = useClientPlatformStore((state) => state.profile);
   const orders = useClientPlatformStore((state) => state.orders);
-  const repeatOrder = useClientPlatformStore((state) => state.repeatOrder);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
-  const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewMessage, setReviewMessage] = useState('');
-  const [reviewError, setReviewError] = useState('');
-  const [isReviewSending, setIsReviewSending] = useState(false);
   const currentOrders = orders.filter((order) => !['completed', 'canceled'].includes(order.status));
   const currentOrderIds = currentOrders.map((order) => order.id).sort().join('|');
   const finishedOrders = orders.filter((order) => order.status === 'completed');
@@ -3209,139 +3159,12 @@ export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
     };
   }, [currentOrderIds, syncOrderPatch]);
 
-  const submitReview = async (event: FormEvent<HTMLFormElement>, order: ClientOrder) => {
-    event.preventDefault();
-    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-
-    setReviewError('');
-    setReviewMessage('');
-    setIsReviewSending(true);
-
-    try {
-      await saveClientReview({
-        orderId: order.id,
-        restaurantId: restaurant?.id ?? '',
-        clientName: profile.name || order.clientName,
-        clientPhone: profile.phone || order.clientPhone,
-        rating: reviewRating,
-        comment: reviewComment
-      });
-      await queryClient.invalidateQueries({ queryKey: ['client-platform'] });
-      setReviewMessage('Отзыв отправлен');
-      setReviewComment('');
-      setReviewOrderId(null);
-    } catch (error) {
-      setReviewError(error instanceof Error ? error.message : 'Не удалось отправить отзыв');
-    } finally {
-      setIsReviewSending(false);
-    }
-  };
-
-  const renderOrder = (order: ClientOrder) => {
-    const restaurant = snapshot.restaurants.find((item) => item.slug === order.restaurantSlug);
-    const restaurantMapHref = restaurant
-      ? buildYandexMapsUrl({
-          addressLine: restaurant.addressLine,
-          lat: restaurant.lat ?? Number.NaN,
-          lng: restaurant.lng ?? Number.NaN
-        })
-      : '';
-
-    return (
-    <details className="order-card order-card--compact" key={order.id} open={manageOrderId === order.id}>
-      <summary className="order-card__summary">
-        <span className="order-card__summary-text">
-        <strong>{order.restaurantName}</strong>
-        <small>{new Date(order.createdAt).toLocaleDateString('ru-RU')} · {formatPrice(order.totalAmount)}</small>
-        <em>{statusLabels[order.status]}</em>
-        </span><ChevronDown />
-      </summary>
-      <div className="order-card__expanded">
-      <p>{orderTypeLabels[order.orderType]} · {getDeliveryProviderLabel(order.deliveryProvider, order.orderType)}</p>
-      {order.addressLine && <p>{order.addressLine}</p>}
-      <div className="order-card__actions">
-        <Link to={`/${order.restaurantSlug}/order/${order.id}`}>
-          <ReceiptText />
-          Подробнее о заказе
-        </Link>
-        {restaurantMapHref && (
-          <a href={restaurantMapHref} target="_blank" rel="noreferrer">
-            <MapPin />
-            Ресторан
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            repeatOrder(order);
-            restoreRestaurantCartFromOrder(snapshot, order);
-            navigate(`/${order.restaurantSlug}/checkout`);
-          }}
-        >
-          <Repeat2 />
-          Повторить
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setReviewOrderId(reviewOrderId === order.id ? null : order.id);
-            setReviewError('');
-            setReviewMessage('');
-          }}
-        >
-          <Star />
-          Отзыв
-        </button>
-      </div>
-      {order.driverName && (
-        <section className="order-card__driver">
-          <span>
-            <Bike />
-            <strong>{order.driverName}</strong>
-            {order.driverLocationAt && <small>Обновлено {new Date(order.driverLocationAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</small>}
-          </span>
-          {order.driverPhone && (
-            <a href={`tel:${order.driverPhone}`}>
-              <Phone />
-              {order.driverPhone}
-            </a>
-          )}
-        </section>
-      )}
-      {reviewOrderId === order.id && (
-        <form className="order-review-form" onSubmit={(event) => void submitReview(event, order)}>
-          <label>
-            Оценка
-            <select value={reviewRating} onChange={(event) => setReviewRating(Number(event.target.value))}>
-              <option value={5}>5</option>
-              <option value={4}>4</option>
-              <option value={3}>3</option>
-              <option value={2}>2</option>
-              <option value={1}>1</option>
-            </select>
-          </label>
-          <label>
-            Отзыв
-            <textarea value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} rows={3} />
-          </label>
-          {reviewError && <small className="form-error">{reviewError}</small>}
-          <button type="submit" disabled={isReviewSending}>
-            {isReviewSending ? 'Отправляем...' : 'Отправить отзыв'}
-          </button>
-        </form>
-      )}
-      </div>
-    </details>
-    );
-  };
+  const managedOrder = orders.find(order => order.id === manageOrderId);
+  if (managedOrder) return <Navigate replace to={`/${managedOrder.restaurantSlug}/order/${managedOrder.id}`} />;
 
   return (
     <>
-      <PageHeader title={manageOrderId ? 'Действия с заказом' : 'Мои заказы'} backTo={manageOrderId ? '/profile/orders' : '/profile'} />
-      {manageOrderId ? (
-        <section className="plain-section"><div className="order-list">{orders.filter((order) => order.id === manageOrderId).map(renderOrder)}</div>{reviewMessage && <p className="form-success">{reviewMessage}</p>}</section>
-      ) : (
-        <>
+      <PageHeader title="Мои заказы" backTo="/profile" />
           <div className="orders-view-tabs" role="tablist" aria-label="Заказы">
             <button type="button" role="tab" aria-selected={!history} className={!history ? 'is-active' : ''} onClick={() => setSearchParams({}, { replace: true })}>Текущие · {currentOrders.length}</button>
             <button type="button" role="tab" aria-selected={history} className={history ? 'is-active' : ''} onClick={() => setSearchParams({ tab: 'history' }, { replace: true })}>Завершённые</button>
@@ -3357,8 +3180,6 @@ export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
             ))}</div>
             {(history ? finishedOrders.length + canceledOrders.length : currentOrders.length) === 0 && <p className="orders-empty">{history ? 'Завершённых заказов пока нет' : 'Текущих заказов пока нет'}</p>}
           </section>
-        </>
-      )}
     </>
   );
 }

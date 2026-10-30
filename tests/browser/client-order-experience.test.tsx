@@ -6,6 +6,11 @@ import { render } from 'vitest-browser-react';
 import { PublicOrderStatusScreen } from '../../src/features/order/PublicOrderStatusScreen';
 import '../../src/app/styles.css';
 
+
+vi.mock('../../src/shared/api/clientPlatformApi', async (importOriginal) => ({
+  ...await importOriginal<object>(), saveClientReview: vi.fn(async () => {})
+}));
+
 vi.mock('../../src/shared/api/restaurantOrdersApi', () => ({
   getPublicRestaurantOrderStatus: vi.fn(async () => ({
     id: 'order-1234', status: 'waiting_payment_confirmation', fulfillmentType: 'delivery',
@@ -89,4 +94,64 @@ test('keeps the saved order and its open controls during a failed background ref
   await expect.element(screen.getByRole('button', { name: 'Написать' })).toBeVisible();
   expect(screen.getByLabelText('Загрузка заказа').query()).toBeNull();
   vi.mocked(getPublicRestaurantOrderStatus).mockReset();
+});
+
+test('keeps the last known saved stage visible and can retry its server refresh', async () => {
+  const { useClientPlatformStore } = await import('../../src/features/client-platform/store');
+  const { getPublicRestaurantOrderStatus } = await import('../../src/shared/api/restaurantOrdersApi');
+  useClientPlatformStore.getState().submitOrder({ id: 'saved-stage', restaurantSlug: 'mangal', restaurantName: 'Мангал', orderType: 'delivery', deliveryProvider: 'platform', paymentMethod: 'cash', status: 'cooking', paymentStatus: 'unpaid', totalAmount: 150, addressLine: 'Адрес', clientName: 'Тест', clientPhone: '', createdAt: new Date().toISOString(), estimatedTimeMin: 10, estimatedTimeMax: 20, items: [{ dishId: 'drink', name: 'Айран', price: 150, quantity: 1 }] });
+  vi.mocked(getPublicRestaurantOrderStatus).mockRejectedValueOnce(new Error('offline'));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="saved-stage" /></MemoryRouter></QueryClientProvider>);
+  await expect.element(screen.getByText('Последний известный статус: Готовится')).toBeVisible();
+  await expect.element(screen.getByText('Ресторан Мангал', { exact: true }).first()).toBeVisible();
+  vi.mocked(getPublicRestaurantOrderStatus).mockResolvedValueOnce({ id: 'saved-stage', status: 'on_the_way', fulfillmentType: 'delivery', restaurantName: 'Мангал', total: 150, items: [] } as unknown as Awaited<ReturnType<typeof getPublicRestaurantOrderStatus>>);
+  await screen.getByRole('button', { name: 'Обновить статус' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'В пути' })).toBeVisible();
+});
+
+test('opens review and repeat actions on the order itself without a manage page', async () => {
+  const { useClientPlatformStore } = await import('../../src/features/client-platform/store');
+  const { getPublicRestaurantOrderStatus } = await import('../../src/shared/api/restaurantOrdersApi');
+  useClientPlatformStore.getState().submitOrder({ id: 'inline-actions', restaurantSlug: 'mangal', restaurantName: 'Мангал', orderType: 'pickup', deliveryProvider: 'pickup', paymentMethod: 'cash', status: 'completed', paymentStatus: 'confirmed', totalAmount: 150, addressLine: '', clientName: 'Тест', clientPhone: '', createdAt: new Date().toISOString(), estimatedTimeMin: 10, estimatedTimeMax: 20, items: [{ dishId: 'drink', name: 'Айран', price: 150, quantity: 1 }] });
+  vi.mocked(getPublicRestaurantOrderStatus).mockResolvedValueOnce(null);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="inline-actions" /></MemoryRouter></QueryClientProvider>);
+  expect(screen.getByRole('link', { name: 'Повторить заказ или оставить отзыв' }).elements()).toHaveLength(0);
+  await screen.getByRole('button', { name: 'Оставить отзыв' }).click();
+  await expect.element(screen.getByRole('textbox', { name: 'Ваш отзыв' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Повторить заказ', exact: true }).click();
+  expect(useClientPlatformStore.getState().carts.mangal).toEqual([{ dishId: 'drink', quantity: 1 }]);
+  const { useCartStore } = await import('../../src/features/stores');
+  expect(useCartStore.getState().items[0].product.title).toBe('Айран');
+});
+
+
+test('submits the inline review with the right order and keeps failures actionable', async () => {
+ const { useClientPlatformStore } = await import('../../src/features/client-platform/store');
+ const { saveClientReview } = await import('../../src/shared/api/clientPlatformApi');
+ const { getPublicRestaurantOrderStatus } = await import('../../src/shared/api/restaurantOrdersApi');
+ useClientPlatformStore.getState().submitOrder({ id: 'review-inline', restaurantSlug: 'mangal', restaurantName: 'Мангал', orderType: 'pickup', deliveryProvider: 'pickup', paymentMethod: 'cash', status: 'completed', paymentStatus: 'confirmed', totalAmount: 150, addressLine: '', clientName: 'Тест', clientPhone: '79990000000', createdAt: new Date().toISOString(), estimatedTimeMin: 10, estimatedTimeMax: 20, items: [] });
+ vi.mocked(getPublicRestaurantOrderStatus).mockResolvedValueOnce(null);
+ vi.mocked(saveClientReview).mockRejectedValueOnce(new Error('Сессия закончилась. Войдите снова.'));
+ const screen = await render(<QueryClientProvider client={new QueryClient()}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="review-inline" restaurantId="catalog-1" /></MemoryRouter></QueryClientProvider>);
+ await screen.getByRole('button', { name: 'Оставить отзыв' }).click();
+ await screen.getByRole('textbox', { name: 'Ваш отзыв' }).fill('Всё понравилось');
+ await screen.getByRole('button', { name: 'Отправить отзыв' }).click();
+ await expect.element(screen.getByRole('alert')).toHaveTextContent('Сессия закончилась. Войдите снова.');
+ await screen.getByRole('button', { name: 'Отправить отзыв' }).click();
+ await expect.element(screen.getByText('Спасибо! Отзыв отправлен.')).toBeVisible();
+ expect(saveClientReview).toHaveBeenLastCalledWith(expect.objectContaining({ orderId: 'review-inline', restaurantId: 'catalog-1', rating: 5, comment: 'Всё понравилось' }));
+});
+
+test('retains a loaded order and its actions when a background refresh fails', async () => {
+ const { getPublicRestaurantOrderStatus } = await import('../../src/shared/api/restaurantOrdersApi');
+ vi.mocked(getPublicRestaurantOrderStatus).mockResolvedValueOnce({ id: 'loaded-then-offline', status: 'ready', fulfillmentType: 'delivery', restaurantName: 'Мангал', total: 150, items: [] } as unknown as Awaited<ReturnType<typeof getPublicRestaurantOrderStatus>>);
+ const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+ const screen = await render(<QueryClientProvider client={client}><MemoryRouter><PublicOrderStatusScreen catalogSlug="mangal" orderId="loaded-then-offline" /></MemoryRouter></QueryClientProvider>);
+ await expect.element(screen.getByRole('heading', { name: 'Готов', exact: true })).toBeVisible();
+ vi.mocked(getPublicRestaurantOrderStatus).mockRejectedValueOnce(new Error('offline'));
+ await client.refetchQueries({ queryKey: ['public-order-status', 'loaded-then-offline'] });
+ await expect.element(screen.getByText('Последний известный статус: Готов', { exact: true })).toBeVisible();
+ await expect.element(screen.getByRole('link', { name: 'Открыть заведение' })).toBeVisible();
 });

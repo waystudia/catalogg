@@ -47,6 +47,7 @@ export type Restaurant = {
   lat: number | null;
   lng: number | null;
   business_type?: import('../shared/businessTerminology').BusinessType;
+  business_type_raw?: string;
   catalog_notice?: string;
   working_hours?: string;
   minimum_order?: number;

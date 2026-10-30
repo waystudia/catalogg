@@ -448,7 +448,8 @@ const mapPlatformRestaurant = (value: PlatformCatalogRow): Restaurant => ({
   instagram_url: value.instagram_url ?? '',
   address: value.address ?? '',
   mapLink: value.map_url ?? '',
-  business_type: normalizeBusinessType(value.business_type)
+  business_type: normalizeBusinessType(value.business_type),
+  business_type_raw: value.business_type || undefined
 });
 
 const applyCatalogInfo = (value: Restaurant, settings: unknown): Restaurant => {

@@ -30,6 +30,7 @@ import { normalizePhotoQualitySettings } from '../photoQuality';
 import { normalizeBusinessType } from '../businessTerminology';
 import { supabase } from '../supabase';
 import { getStoredClientSessionToken } from './clientAccountApi';
+import { getGuestOrderTrackingToken } from './clientOrderCredentials';
 
 type CatalogRow = {
   id: string;
@@ -643,7 +644,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
 
   const fetchOrder = async () => {
     const [{ data: statusData, error: statusError }, handoffState] = await Promise.all([
-      client.rpc('get_public_restaurant_order_status', { target_order_id: orderId }),
+      client.rpc('get_order_participant_status', { target_order_id: orderId, client_session_token: getStoredClientSessionToken() || null, guest_tracking_token: getGuestOrderTrackingToken(orderId) || null }),
       getClientOrderHandoffState(orderId)
     ]);
     if (statusError || !statusData || typeof statusData !== 'object') return;
@@ -655,16 +656,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
       driver_name?: unknown;
       driver_phone?: unknown;
     };
-    const { data: trackingData } = await client.rpc('get_public_order_tracking', {
-      target_order_id: orderId
-    });
-    const tracking = trackingData && typeof trackingData === 'object'
-      ? trackingData as {
-          driver_lat?: number | null;
-          driver_lng?: number | null;
-          driver_location_at?: string | null;
-        }
-      : null;
+    const tracking = statusData as { driver_lat?: number | null; driver_lng?: number | null; driver_location_at?: string | null };
 
     onChange({
       id: String(status.id ?? orderId),
@@ -681,7 +673,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
     });
   };
 
-  void fetchOrder();
+  void fetchOrder().catch(() => undefined);
 
   const channel = client
     .channel(`client-order-${orderId}`)
@@ -691,7 +683,7 @@ export function subscribeClientOrderRealtime(orderId: string, onChange: (patch: 
     .subscribe();
 
   const pollId = window.setInterval(() => {
-    if (document.visibilityState === 'visible') void fetchOrder();
+    if (document.visibilityState === 'visible') void fetchOrder().catch(() => undefined);
   }, 5_000);
 
   return () => {
@@ -1041,7 +1033,8 @@ export async function getClientPlatformSnapshot(): Promise<ClientPlatformSnapsho
         paymentByCatalog.get(catalog.id)?.allow_cash === false ? undefined : 'cash'
       ].filter((method): method is ClientPaymentMethod => Boolean(method)),
       publicPath: `/${catalog.slug}`,
-      businessType: normalizeBusinessType(catalog.business_type)
+      businessType: normalizeBusinessType(catalog.business_type),
+      businessTypeRaw: catalog.business_type || undefined
     };
   });
 

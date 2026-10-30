@@ -65,6 +65,7 @@ export type ClientRestaurant = {
   paymentMethods: ClientPaymentMethod[];
   publicPath?: string;
   businessType?: BusinessType;
+  businessTypeRaw?: string;
   reviewCount: number;
 };
 

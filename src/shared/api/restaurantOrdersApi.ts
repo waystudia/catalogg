@@ -1,3 +1,5 @@
+import { getStoredClientSessionToken } from './clientAccountApi';
+import { getGuestOrderTrackingToken } from './clientOrderCredentials';
 import { supabase } from '../supabase';
 import { normalizeDriverCapacity } from '../driverCapacity';
 import {
@@ -970,8 +972,10 @@ export async function getPublicRestaurantOrderStatus(orderId: string): Promise<P
   const normalizedOrderId = orderId.trim();
   if (!normalizedOrderId) return null;
 
-  const { data, error } = await supabase.rpc('get_public_restaurant_order_status', {
-    target_order_id: normalizedOrderId
+  const { data, error } = await supabase.rpc('get_order_participant_status', {
+    target_order_id: normalizedOrderId,
+    client_session_token: getStoredClientSessionToken() || null,
+    guest_tracking_token: getGuestOrderTrackingToken(normalizedOrderId) || null
   });
 
   if (error) throw error;
@@ -991,7 +995,7 @@ export type PublicOrderTracking = {
 
 export async function getPublicOrderTracking(orderId: string): Promise<PublicOrderTracking | null> {
   if (!supabase || !orderId.trim()) return null;
-  const { data, error } = await supabase.rpc('get_public_order_tracking', { target_order_id: orderId.trim() });
+  const { data, error } = await supabase.rpc('get_order_participant_status', { target_order_id: orderId.trim(), client_session_token: getStoredClientSessionToken() || null, guest_tracking_token: getGuestOrderTrackingToken(orderId.trim()) || null });
   if (error || !data || typeof data !== 'object') return null;
   const row = data as Record<string, unknown>;
   return {
