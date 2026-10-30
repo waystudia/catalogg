@@ -1,0 +1,40 @@
+.checkout-screen {
+  --checkout-space: clamp(14px, 3vw, 20px);
+  gap: var(--checkout-space);
+}
+
+.checkout-screen > :is(.takeaway-note, .checkout-customer-details, .checkout-summary, .checkout-comment-card, .checkout-payment-method, .checkout-privacy-card) {
+  min-width: 0;
+  padding: var(--checkout-space);
+}
+
+.checkout-screen .checkout-location-actions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: 10px;
+}
+
+.checkout-screen .checkout-location-button {
+  min-height: 48px;
+  padding: 12px 14px;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.checkout-screen .checkout-location-button svg { flex-shrink: 0; }
+.checkout-screen .checkout-location-button span { min-width: 0; overflow-wrap: anywhere; }
+.checkout-screen .checkout-field :is(input, select, textarea) { padding: 12px 14px; min-height: 44px; }
+.checkout-screen .legal-checkboxes { margin: 0; gap: 8px; }
+.checkout-screen .legal-checkbox {
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  min-height: 48px;
+  gap: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.checkout-screen .legal-checkbox input { width: 28px; height: 28px; margin: 0; }
+.checkout-screen .checkout-summary__action { padding: 14px 18px; }
+.checkout-screen .checkout-comment-card label { flex-wrap: wrap; }

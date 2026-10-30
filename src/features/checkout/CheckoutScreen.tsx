@@ -24,6 +24,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { legalDocuments } from '../../shared/legalDocuments';
+import './checkout-spacing.css';
 import type { Cabin, OrderMode, Restaurant } from '../../entities/models';
 import {
   CLIENT_ORDER_CONSENT_VERSION,
@@ -604,6 +605,80 @@ export function CheckoutScreen({
         </>
       )}
 
+      <section
+        className="checkout-customer-details"
+        ref={contactDetailsRef}
+        aria-labelledby="checkout-customer-title"
+      >
+        <div className="checkout-customer-details__head">
+          <Home />
+          <div>
+            <h2 id="checkout-customer-title">Контактные данные</h2>
+            <p>Нужны ресторану для подтверждения заказа</p>
+          </div>
+        </div>
+        {contactValidationErrors.length > 0 && (
+          <div className="checkout-validation-errors" role="alert">
+            <ul>
+              {contactValidationErrors.map((error) => <li key={error}>{error}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="checkout-customer-details__fields">
+          <label className="checkout-field">
+            <span>Имя</span>
+            <input
+              ref={clientNameRef}
+              value={clientName}
+              onChange={(event) => {
+                setContactValidationErrors([]);
+                setOrder({ clientName: event.target.value });
+              }}
+              placeholder="Ваше имя"
+              autoComplete="name"
+              required
+            />
+          </label>
+          <label className="checkout-field">
+            <span>Телефон</span>
+            <input
+              ref={clientPhoneRef}
+              value={clientPhone || '+7'}
+              onChange={(event) => {
+                setContactValidationErrors([]);
+                setOrder({ clientPhone: normalizeRussianClientPhone(event.target.value) });
+              }}
+              inputMode="tel"
+              autoComplete="tel"
+              aria-describedby="checkout-phone-hint"
+              required
+            />
+            <small id="checkout-phone-hint">Введите 10 цифр после +7</small>
+          </label>
+          {!hasClientSession && (
+            <label className="checkout-field">
+              <span>Пароль</span>
+              <input
+                value={clientPassword}
+                onChange={(event) => {
+                  setClientPassword(event.target.value);
+                  setAccountError('');
+                  setContactValidationErrors([]);
+                }}
+                type="password"
+                minLength={6}
+                maxLength={72}
+                autoComplete="new-password"
+                placeholder="Минимум 6 символов"
+                required
+              />
+              <small>Создадим профиль автоматически. Если номер уже зарегистрирован, выполним вход.</small>
+            </label>
+          )}
+        </div>
+        {accountError && <p className="checkout-account-error" role="alert">{accountError}</p>}
+      </section>
+
       {mode === 'takeaway' && (
         <section className="takeaway-note">
           <div className="takeaway-note__message">
@@ -779,113 +854,6 @@ export function CheckoutScreen({
         </section>
       )}
 
-      <section
-        className="checkout-customer-details"
-        ref={contactDetailsRef}
-        aria-labelledby="checkout-customer-title"
-      >
-        <div className="checkout-customer-details__head">
-          <Home />
-          <div>
-            <h2 id="checkout-customer-title">Контактные данные</h2>
-            <p>Нужны ресторану для подтверждения заказа</p>
-          </div>
-        </div>
-        {contactValidationErrors.length > 0 && (
-          <div className="checkout-validation-errors" role="alert">
-            <ul>
-              {contactValidationErrors.map((error) => <li key={error}>{error}</li>)}
-            </ul>
-          </div>
-        )}
-        <div className="checkout-customer-details__fields">
-          <label className="checkout-field">
-            <span>Имя</span>
-            <input
-              ref={clientNameRef}
-              value={clientName}
-              onChange={(event) => {
-                setContactValidationErrors([]);
-                setOrder({ clientName: event.target.value });
-              }}
-              placeholder="Ваше имя"
-              autoComplete="name"
-              required
-            />
-          </label>
-          <label className="checkout-field">
-            <span>Телефон</span>
-            <input
-              ref={clientPhoneRef}
-              value={clientPhone || '+7'}
-              onChange={(event) => {
-                setContactValidationErrors([]);
-                setOrder({ clientPhone: normalizeRussianClientPhone(event.target.value) });
-              }}
-              inputMode="tel"
-              autoComplete="tel"
-              aria-describedby="checkout-phone-hint"
-              required
-            />
-            <small id="checkout-phone-hint">Введите 10 цифр после +7</small>
-          </label>
-          {!hasClientSession && (
-            <label className="checkout-field">
-              <span>Пароль</span>
-              <input
-                value={clientPassword}
-                onChange={(event) => {
-                  setClientPassword(event.target.value);
-                  setAccountError('');
-                  setContactValidationErrors([]);
-                }}
-                type="password"
-                minLength={6}
-                maxLength={72}
-                autoComplete="new-password"
-                placeholder="Минимум 6 символов"
-                required
-              />
-              <small>Создадим профиль автоматически. Если номер уже зарегистрирован, выполним вход.</small>
-            </label>
-          )}
-        </div>
-        {accountError && <p className="checkout-account-error" role="alert">{accountError}</p>}
-      </section>
-
-      <section className="checkout-payment-method" aria-labelledby="checkout-payment-title">
-        <div>
-          <CreditCard />
-          <h2 id="checkout-payment-title">Способ оплаты</h2>
-        </div>
-        <div className="checkout-payment-method__options">
-          <button
-            className={!usesBankTransfer ? 'is-active' : ''}
-            type="button"
-            aria-pressed={!usesBankTransfer}
-            onClick={() => setCheckoutPaymentMethod('cash')}
-          >
-            <Banknote />
-            <span><strong>Наличными</strong><small>при получении</small></span>
-            <i aria-hidden="true" />
-          </button>
-          <button
-            className={usesBankTransfer ? 'is-active' : ''}
-            type="button"
-            aria-pressed={usesBankTransfer}
-            disabled={!paymentSettings.transferEnabled}
-            onClick={() => setCheckoutPaymentMethod('bank_transfer')}
-          >
-            <CreditCard />
-            <span>
-              <strong>Безналично</strong>
-              <small>{paymentSettings.transferEnabled ? 'переводом' : 'не настроено'}</small>
-            </span>
-            <i aria-hidden="true" />
-          </button>
-        </div>
-      </section>
-
       <section className="checkout-summary" id="checkout-review" tabIndex={-1}>
         <div className="checkout-summary__head">
           <ShoppingCart />
@@ -964,6 +932,39 @@ export function CheckoutScreen({
           rows={2}
           placeholder="Например: не класть лук, позвонить заранее..."
         />
+      </section>
+
+      <section className="checkout-payment-method" aria-labelledby="checkout-payment-title">
+        <div>
+          <CreditCard />
+          <h2 id="checkout-payment-title">Способ оплаты</h2>
+        </div>
+        <div className="checkout-payment-method__options">
+          <button
+            className={!usesBankTransfer ? 'is-active' : ''}
+            type="button"
+            aria-pressed={!usesBankTransfer}
+            onClick={() => setCheckoutPaymentMethod('cash')}
+          >
+            <Banknote />
+            <span><strong>Наличными</strong><small>при получении</small></span>
+            <i aria-hidden="true" />
+          </button>
+          <button
+            className={usesBankTransfer ? 'is-active' : ''}
+            type="button"
+            aria-pressed={usesBankTransfer}
+            disabled={!paymentSettings.transferEnabled}
+            onClick={() => setCheckoutPaymentMethod('bank_transfer')}
+          >
+            <CreditCard />
+            <span>
+              <strong>Безналично</strong>
+              <small>{paymentSettings.transferEnabled ? 'переводом' : 'не настроено'}</small>
+            </span>
+            <i aria-hidden="true" />
+          </button>
+        </div>
       </section>
 
       {showCheckoutConsent && (
