@@ -27,6 +27,7 @@ import {
   getSupabaseAuthStorageKeyForRedirect
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
+import { persistCatalogMedia } from './catalogMedia';
 
 type SupabaseConfig = {
   url?: string;
@@ -1131,6 +1132,7 @@ async function syncPlatformProductImages(productId: string, imageUrls: readonly 
 
 export async function saveProductToSupabase(product: Product) {
   if (!supabase) return;
+  if (activePlatformCatalogId) product = await persistCatalogMedia(supabase, activePlatformCatalogId, product);
   if (activePlatformCatalogId) {
     const row = productToPlatformRow(product);
     if (uuidPattern.test(product.id)) {
@@ -1164,6 +1166,7 @@ export async function saveProductToSupabase(product: Product) {
 
 export async function updateProductInSupabase(productId: string, patch: Partial<Product>) {
   if (!supabase) return;
+  if (activePlatformCatalogId) patch = await persistCatalogMedia(supabase, activePlatformCatalogId, patch);
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(productId)) return;
     await throwOnError(supabase.from('products').update(productPatchToPlatformRow(patch)).eq('id', productId).eq('catalog_id', activePlatformCatalogId));
@@ -1200,6 +1203,7 @@ export async function deleteCategoryFromSupabase(categoryId: string) {
 
 export async function saveRestaurantToSupabase(value: Restaurant) {
   if (!supabase) return;
+  if (activePlatformCatalogId) value = await persistCatalogMedia(supabase, activePlatformCatalogId, value);
   const bannerUrls = Array.from(
     new Set([...(value.banner_urls ?? []), value.banner_url].map((url) => url?.trim()).filter(Boolean))
   ).slice(0, 3) as string[];
@@ -1284,6 +1288,7 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
 
 export async function saveThemeToSupabase(value: ThemeSettings) {
   if (!supabase) return;
+  if (activePlatformCatalogId) value = await persistCatalogMedia(supabase, activePlatformCatalogId, value);
   if (activePlatformCatalogId) {
     await throwOnError(
       supabase
@@ -1319,6 +1324,7 @@ export async function savePhotoQualityToSupabase(catalogSlug: string, value: Pho
 
 export async function replaceCategoriesInSupabase(values: Category[], options: { removeMissing?: boolean } = {}) {
   if (!supabase) return values;
+  if (activePlatformCatalogId) values = await persistCatalogMedia(supabase, activePlatformCatalogId, values);
   if (activePlatformCatalogId) {
     const slugs = values.map((value) => value.slug || createSlug(value.name || value.id));
     const existingRows = slugs.length > 0
@@ -1452,6 +1458,7 @@ export async function replaceTagsInSupabase(values: CatalogTag[], options: { rem
 
 export async function replaceCabinsInSupabase(values: Cabin[]) {
   if (!supabase) return;
+  if (activePlatformCatalogId) values = await persistCatalogMedia(supabase, activePlatformCatalogId, values);
   if (activePlatformCatalogId && !activeCatalogIsLegacy) {
     const rows = values.map((value, index) => ({
       ...(uuidPattern.test(value.id) ? { id: value.id } : {}),
