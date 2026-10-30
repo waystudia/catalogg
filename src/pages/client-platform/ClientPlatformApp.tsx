@@ -69,6 +69,7 @@ import { getPhotoQualityFilter } from '../../shared/photoQuality';
 import { getBusinessTerms } from '../../shared/businessTerminology';
 import { getBusinessCategoryBySlug, selectBusinessesForDiscovery } from '../../features/client-platform/businessCategories';
 import { ClientMarketplaceCategories } from './ClientMarketplaceCategories';
+import { HomeActiveOrderCard } from './HomeActiveOrderCard';
 import {
   createClientPlatformOrder,
   confirmClientOrderReceipt,
@@ -616,7 +617,7 @@ function PlatformRestaurantCartDock() {
   if (count === 0) return null;
 
   return (
-    <Link className="platform-restaurant-cart-dock" to="/mangal/checkout">
+    <Link className="platform-restaurant-cart-dock" to="/cart">
       <ShoppingCart />
       <span>
         <strong>В корзине · {count}</strong>
@@ -654,7 +655,7 @@ function PageHeader({
   );
 }
 
-export function HomeActiveOrders() {
+export function HomeActiveOrders({ snapshot }: { snapshot?: ClientPlatformSnapshot } = {}) {
   const orders = useClientPlatformStore((state) => state.orders);
   const syncOrderPatch = useClientPlatformStore((state) => state.syncOrderPatch);
   const [expanded, setExpanded] = useState(false);
@@ -716,16 +717,14 @@ export function HomeActiveOrders() {
 
   if (!activeOrders.length) return null;
   return <section className="home-active-orders" aria-label="Активные заказы">
-    <div className="home-active-orders__heading"><strong>Ваши заказы</strong><Link to="/profile/orders">Все заказы</Link></div>
-    <div ref={stackRef} className={`home-active-orders__stack ${expanded ? 'is-expanded' : 'is-fan'}`}>
+    <div ref={stackRef} className={`home-active-orders__stack ${expanded ? 'is-expanded' : visibleOrders.length > 1 ? 'is-fan' : ''}`}>
       {visibleOrders.map((order, index) => <Link
         className="home-active-order"
         key={order.id}
         to={`/${order.restaurantSlug}/order/${order.id}`}
         tabIndex={!expanded && index > 0 ? -1 : undefined}
       >
-        <span><strong>{order.restaurantName}</strong><small>{statusLabels[order.status]}</small></span>
-        <span>{formatPrice(order.totalAmount)} <ChevronRight /></span>
+        <HomeActiveOrderCard order={order} snapshot={snapshot} status={statusLabels[order.status]} />
       </Link>)}
     </div>
     {visibleOrders.length > 1 && <button className="home-active-orders__toggle" type="button" onClick={toggleExpanded} aria-expanded={expanded}>
@@ -824,7 +823,7 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
       </Link>
 
       <PromoCarousel banners={banners.length > 0 ? banners : snapshot.banners.slice(0, 1)} />
-      <HomeActiveOrders />
+      <HomeActiveOrders snapshot={snapshot} />
 
       {businessTypes.length > 1 && (
         <div className="marketplace-filter-row" aria-label="Фильтр ленты">
@@ -3572,7 +3571,7 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           restaurantName: getRestaurantBySlug(snapshot, 'mangal')?.name ?? 'Мангал',
           quantity: restaurantCartCount,
           total: restaurantCartTotal,
-          href: '/mangal/checkout'
+          href: '/mangal?cart=1'
         }]
       : []),
     ...platformCarts
@@ -3586,7 +3585,7 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       ) : (
         <div className="order-list">
           {activeCarts.map((cart) => (
-              <Link className="order-card order-card--link" to={cart.href} key={cart.restaurantSlug}>
+              <Link className="order-card order-card--link" to={cart.href} state={cart.href === '/mangal?cart=1' ? { cartReturn: '/cart' } : undefined} key={cart.restaurantSlug}>
                 <span>
                   <strong>{cart.restaurantName}</strong>
                   <small>{cart.quantity} товара · {formatPrice(cart.total)}</small>
