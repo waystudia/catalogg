@@ -130,7 +130,7 @@ test('customer contacts are required once for hall, takeaway, and delivery befor
   const paymentStart = checkoutSource.indexOf('className="checkout-payment-method"');
   const deliveryStart = checkoutSource.indexOf('id="checkout-delivery-details"');
 
-  assert.ok(contactStart > deliveryStart, 'customer contacts must not be nested in delivery-only fields');
+  assert.ok(contactStart < deliveryStart, 'customer contacts must appear before delivery fields');
   assert.ok(contactStart < paymentStart, 'customer contacts must appear before payment');
   assert.match(checkoutSource, /normalizeRussianClientPhone\(event\.target\.value\)/);
   assert.match(checkoutSource, /customerName:\s*clientName\.trim\(\)/);
