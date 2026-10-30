@@ -3352,7 +3352,7 @@ export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
               <Link className="order-card order-compact-link" to={`/${order.restaurantSlug}/order/${order.id}`} key={order.id} state={{ ordersOriginKey: location.key }} onClick={() => {
                 try { window.sessionStorage.setItem(`wayyaam:orders-return:${location.key}`, String(window.scrollY)); } catch { /* Direct-entry fallback remains available. */ }
               }}>
-                <span className="order-card__summary"><strong>{order.restaurantName}</strong><small>№{order.id.slice(0, 8).toUpperCase()} · {formatPrice(order.totalAmount)}</small><em>{statusLabels[order.status]}</em></span><ArrowRight aria-hidden="true" />
+                <span className="order-card__summary"><strong>{order.restaurantName}</strong><small>№{order.id.slice(0, 8).toUpperCase()} · {formatPrice(order.totalAmount)}</small><em>{statusLabels[order.status]}</em></span><HomeActiveOrderCard order={order} snapshot={snapshot} status={statusLabels[order.status]} previewOnly /><ArrowRight aria-hidden="true" />
               </Link>
             ))}</div>
             {(history ? finishedOrders.length + canceledOrders.length : currentOrders.length) === 0 && <p className="orders-empty">{history ? 'Завершённых заказов пока нет' : 'Текущих заказов пока нет'}</p>}

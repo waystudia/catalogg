@@ -3447,6 +3447,9 @@
 .home-active-order__dish-fan.is-stacked > :nth-child(2) { z-index: 2; transform: translate(6px,9px); }
 .home-active-order__dish-fan.is-stacked > :nth-child(3) { z-index: 1; transform: translate(12px,18px); }
 .home-active-order__preview > svg { width: 25px; height: 25px; color: #697386; }
+.order-compact-link .order-card__summary { flex: 1; min-width: 0; }
+.order-compact-link .home-active-order__preview { width: 64px; height: 64px; flex-basis: 64px; }
+.order-compact-link > svg { flex: 0 0 16px; width: 16px; }
 .home-active-order:focus-visible { outline: 3px solid #5b3df4; outline-offset: -3px; }
 .order-card--compact { display: block; }
 .order-card--compact summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; list-style: none; }

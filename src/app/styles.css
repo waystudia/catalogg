@@ -11843,7 +11843,7 @@ a {
 .live-order__manage { display: block; margin-top: 12px; padding: 12px; border-radius: 10px; background: #f0edff; color: #5b3df4; text-align: center; text-decoration: none; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .live-order { animation: none; } }
 
-.live-order__item img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.live-order__item img, .live-order__item > .image-fallback { width: 50px; height: 40px; object-fit: cover; border-radius: 8px; flex: 0 0 50px; }
 .live-order__item span { flex: 1; }
 
 .live-order__contacts { margin-top: 16px; padding: 16px; border-radius: 16px; background: #20232b; color: #fff; }
@@ -11866,7 +11866,11 @@ a {
 .live-order__contact-person svg, .live-order__contact-actions svg { width: 18px; height: 18px; flex: none; }
 .live-order__contact-person div { display: grid; gap: 2px; }
 .live-order__contact-person small { color: #667085; }
-.live-order__contact-actions a, .live-order__contact-actions button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; background: #fff; border: 1px solid #ddd8f3; color: #5236e8; font-weight: 700; }
+.live-order__contact-actions a, .live-order__contact-actions button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 10px 8px; font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; background: #fff; border: 1px solid #ddd8f3; color: #5236e8; font-weight: 700; }
+.live-order__contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.live-order__contacts { padding: clamp(12px, 4vw, 18px); }
+.top-bar--order-status .screen-title { min-width: 0; white-space: nowrap; font-family: inherit; font-size: clamp(16px, 5vw, 22px); line-height: 1.2; }
+.live-order__item strong { overflow-wrap: anywhere; }
 .live-order__contact-actions a:last-child, .live-order__contact-actions button:last-child { background: #5b3df4; border-color: #5b3df4; color: white; }
 .live-order__chat input { border: 1px solid #ddd8f3; }
 .live-order__chat button { background: #5b3df4; }
