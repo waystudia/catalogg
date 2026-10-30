@@ -11868,6 +11868,8 @@ a {
 .live-order__contact-person small { color: #667085; }
 .live-order__contact-actions a, .live-order__contact-actions button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 44px; padding: 10px 8px; font-size: 13px; line-height: 1.2; overflow-wrap: anywhere; background: #fff; border: 1px solid #ddd8f3; color: #5236e8; font-weight: 700; }
 .live-order__contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.live-order__contact-actions a, .live-order__contact-actions button { font-size: 12px; white-space: nowrap; gap: 4px; }
+.live-order__contact-actions svg { width: 16px; height: 16px; }
 .live-order__contacts { padding: clamp(12px, 4vw, 18px); }
 .top-bar--order-status .screen-title { min-width: 0; white-space: nowrap; font-family: inherit; font-size: clamp(16px, 5vw, 22px); line-height: 1.2; }
 .live-order__item strong { overflow-wrap: anywhere; }
