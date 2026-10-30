@@ -1,0 +1,1341 @@
+{
+  "date": "2026-10-30",
+  "host": {
+    "vCPU": 2,
+    "ramMiB": 3915,
+    "api": "https://api.wayyaam.ru"
+  },
+  "orderStages": [
+    {
+      "startedAt": "2026-10-30T16:49:01.423Z",
+      "endedAt": "2026-10-30T16:49:05.196Z",
+      "users": 10,
+      "elapsedSeconds": 3.773199917,
+      "requests": 204,
+      "completed": 10,
+      "failed": 0,
+      "createP95": 747.0898339999999,
+      "requestP95": 260.392167,
+      "requestQueueP95": 2.9880830000000174,
+      "driverQueueP95": 795.1255410000001,
+      "lifecycleP50": 3405.0543340000004,
+      "lifecycleP95": 3767.7685000000006,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 201,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 10,
+          "p95": 534.974709
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 11,
+          "p95": 248.751084
+        },
+        "orders": {
+          "count": 20,
+          "p95": 233.9867079999999
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 30,
+          "p95": 116.00887499999999
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 10,
+          "p95": 123.00529100000017
+        },
+        "rpc/accept_available_delivery": {
+          "count": 10,
+          "p95": 100.67000000000007
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 31,
+          "p95": 126.9072500000002
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 11,
+          "p95": 260.392167
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 10,
+          "p95": 81.62162500000022
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 10,
+          "p95": 108.29645899999991
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 10,
+          "p95": 89.25362499999983
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 10,
+          "p95": 107.15829200000007
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 10,
+          "p95": 128.57341599999972
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 10,
+          "p95": 349.163583
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 11,
+          "p95": 105.71612499999992
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 80.01,
+        "cpuPeakPercent": 94.96,
+        "ramAvailableMinMiB": 1898,
+        "swapInPages": 14,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 2.3,
+          "supabase-edge-functions": 0.46,
+          "supabase-auth": 0.34,
+          "supabase-caddy": 2.77,
+          "supabase-pooler": 0.27,
+          "supabase-storage": 0.46,
+          "realtime-dev.supabase-realtime": 0.89,
+          "supabase-meta": 0.53,
+          "supabase-rest": 5.7,
+          "supabase-db": 51.26,
+          "supabase-studio": 0.1,
+          "supabase-imgproxy": 1.17
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:49:10.131Z",
+      "endedAt": "2026-10-30T16:49:16.228Z",
+      "users": 20,
+      "elapsedSeconds": 6.096625083,
+      "requests": 404,
+      "completed": 20,
+      "failed": 0,
+      "createP95": 904.7295840000002,
+      "requestP95": 312.501709,
+      "requestQueueP95": 1.6449999999999818,
+      "driverQueueP95": 2152.461417,
+      "lifecycleP50": 3733.173375,
+      "lifecycleP95": 6079.4580000000005,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 401,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 20,
+          "p95": 762.2372910000001
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 21,
+          "p95": 347.7310000000001
+        },
+        "orders": {
+          "count": 40,
+          "p95": 149.313666
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 60,
+          "p95": 84.03091700000004
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 20,
+          "p95": 101.64958300000012
+        },
+        "rpc/accept_available_delivery": {
+          "count": 20,
+          "p95": 116.28766600000017
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 61,
+          "p95": 94.0802920000001
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 20,
+          "p95": 94.79795899999999
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 20,
+          "p95": 84.57404199999996
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 20,
+          "p95": 90.88729200000034
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 20,
+          "p95": 101.95562500000051
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 20,
+          "p95": 124.58750000000009
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 20,
+          "p95": 95.38862499999959
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 21,
+          "p95": 92.42012500000055
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 21,
+          "p95": 110.01870800000006
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 87.73,
+        "cpuPeakPercent": 89.45,
+        "ramAvailableMinMiB": 1812,
+        "swapInPages": 11,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 4.82,
+          "supabase-edge-functions": 0.27,
+          "supabase-auth": 3.24,
+          "supabase-caddy": 3.15,
+          "supabase-pooler": 0.58,
+          "supabase-storage": 0.3,
+          "realtime-dev.supabase-realtime": 1.2,
+          "supabase-meta": 2.37,
+          "supabase-rest": 8.08,
+          "supabase-db": 49.84,
+          "supabase-studio": 1.44,
+          "supabase-imgproxy": 0.86
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:49:21.591Z",
+      "endedAt": "2026-10-30T16:49:29.465Z",
+      "users": 30,
+      "elapsedSeconds": 7.873808333000001,
+      "requests": 604,
+      "completed": 30,
+      "failed": 0,
+      "createP95": 876.1367090000001,
+      "requestP95": 319.462125,
+      "requestQueueP95": 1.7319160000006377,
+      "driverQueueP95": 2957.619417,
+      "lifecycleP50": 5242.54375,
+      "lifecycleP95": 7520.122084,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 601,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 30,
+          "p95": 727.0106249999999
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 31,
+          "p95": 492.2880409999999
+        },
+        "orders": {
+          "count": 60,
+          "p95": 306.24466599999994
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 90,
+          "p95": 85.01900000000023
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 30,
+          "p95": 90.69987500000025
+        },
+        "rpc/accept_available_delivery": {
+          "count": 30,
+          "p95": 118.84237499999927
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 91,
+          "p95": 104.88124999999945
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 30,
+          "p95": 105.11587500000041
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 30,
+          "p95": 101.3355419999998
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 30,
+          "p95": 96.95491700000002
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 30,
+          "p95": 81.02375000000029
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 30,
+          "p95": 110.556333
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 30,
+          "p95": 120.27087500000016
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 31,
+          "p95": 99.92266699999982
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 31,
+          "p95": 131.44062500000018
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 89.27,
+        "cpuPeakPercent": 93.7,
+        "ramAvailableMinMiB": 1793,
+        "swapInPages": 0,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 6.45,
+          "supabase-edge-functions": 0.23,
+          "supabase-auth": 0.96,
+          "supabase-caddy": 4.37,
+          "supabase-pooler": 0.18,
+          "supabase-storage": 0.21,
+          "realtime-dev.supabase-realtime": 0.97,
+          "supabase-meta": 3.64,
+          "supabase-rest": 9.68,
+          "supabase-db": 51.48,
+          "supabase-studio": 1.27,
+          "supabase-imgproxy": 1.21
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:49:39.864Z",
+      "endedAt": "2026-10-30T16:50:01.282Z",
+      "users": 50,
+      "elapsedSeconds": 21.418700958000002,
+      "requests": 1004,
+      "completed": 50,
+      "failed": 0,
+      "createP95": 1332.455167,
+      "requestP95": 540.6129999999999,
+      "requestQueueP95": 2.4049999999999727,
+      "driverQueueP95": 5451.397249999999,
+      "lifecycleP50": 7036.991625,
+      "lifecycleP95": 19177.718209,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 1001,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 50,
+          "p95": 1199.68925
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 51,
+          "p95": 712.3578340000001
+        },
+        "orders": {
+          "count": 100,
+          "p95": 147.1288340000001
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 150,
+          "p95": 89.7289579999997
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 50,
+          "p95": 101.28520900000058
+        },
+        "rpc/accept_available_delivery": {
+          "count": 50,
+          "p95": 127.30116700000053
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 151,
+          "p95": 127.51283300000068
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 50,
+          "p95": 101.00400000000081
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 50,
+          "p95": 88.00995799999964
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 50,
+          "p95": 87.08083299999998
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 50,
+          "p95": 91.31825000000026
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 50,
+          "p95": 187.26324999999997
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 50,
+          "p95": 99.06720900000073
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 51,
+          "p95": 89.2739160000001
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 51,
+          "p95": 189.0674170000002
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 94.14,
+        "cpuPeakPercent": 100.0,
+        "ramAvailableMinMiB": 1766,
+        "swapInPages": 16,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 5.46,
+          "supabase-edge-functions": 0.44,
+          "supabase-auth": 0.3,
+          "supabase-caddy": 4.35,
+          "supabase-pooler": 0.61,
+          "supabase-storage": 0.36,
+          "realtime-dev.supabase-realtime": 0.84,
+          "supabase-meta": 2.36,
+          "supabase-rest": 13.17,
+          "supabase-db": 56.03,
+          "supabase-studio": 1.52,
+          "supabase-imgproxy": 0.97
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:51:57.579Z",
+      "endedAt": "2026-10-30T16:52:16.062Z",
+      "users": 75,
+      "elapsedSeconds": 18.484450333,
+      "requests": 1504,
+      "completed": 75,
+      "failed": 0,
+      "createP95": 3419.934375,
+      "requestP95": 1160.813917,
+      "requestQueueP95": 1.3555000000014843,
+      "driverQueueP95": 6649.751833,
+      "lifecycleP50": 11355.300791,
+      "lifecycleP95": 17102.615291000002,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 1501,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 75,
+          "p95": 3129.620333
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 76,
+          "p95": 1883.455792
+        },
+        "orders": {
+          "count": 150,
+          "p95": 184.00212499999998
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 225,
+          "p95": 125.63195899999982
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 75,
+          "p95": 134.49008400000002
+        },
+        "rpc/accept_available_delivery": {
+          "count": 75,
+          "p95": 171.59725000000026
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 226,
+          "p95": 94.80070800000067
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 75,
+          "p95": 106.02937500000007
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 75,
+          "p95": 80.64895799999977
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 75,
+          "p95": 79.43349999999919
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 75,
+          "p95": 77.71587499999987
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 75,
+          "p95": 110.02758300000005
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 75,
+          "p95": 84.13245800000004
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 76,
+          "p95": 78.9452080000001
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 76,
+          "p95": 114.78004200000032
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 77.65,
+        "cpuPeakPercent": 99.41,
+        "ramAvailableMinMiB": 1847,
+        "swapInPages": 268,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 6.26,
+          "supabase-edge-functions": 0.33,
+          "supabase-auth": 0.37,
+          "supabase-caddy": 4.05,
+          "supabase-pooler": 0.66,
+          "supabase-storage": 0.39,
+          "realtime-dev.supabase-realtime": 1.27,
+          "supabase-meta": 2.79,
+          "supabase-rest": 5.08,
+          "supabase-db": 46.54,
+          "supabase-studio": 1.44,
+          "supabase-imgproxy": 1.3
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:52:24.390Z",
+      "endedAt": "2026-10-30T16:52:46.322Z",
+      "users": 100,
+      "elapsedSeconds": 21.9327145,
+      "requests": 2004,
+      "completed": 100,
+      "failed": 0,
+      "createP95": 3098.417083,
+      "requestP95": 1002.2931249999997,
+      "requestQueueP95": 1.6354169999999613,
+      "driverQueueP95": 7328.862167000001,
+      "lifecycleP50": 12339.553709,
+      "lifecycleP95": 19556.560625000002,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 2001,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 100,
+          "p95": 3024.525167
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 101,
+          "p95": 1964.9090840000001
+        },
+        "orders": {
+          "count": 200,
+          "p95": 105.77570800000103
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 300,
+          "p95": 87.5143750000002
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 100,
+          "p95": 100.56574999999975
+        },
+        "rpc/accept_available_delivery": {
+          "count": 100,
+          "p95": 107.56883400000152
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 301,
+          "p95": 88.67233300000044
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 100,
+          "p95": 81.5089169999992
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 100,
+          "p95": 79.74258299999929
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 100,
+          "p95": 79.48816700000134
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 100,
+          "p95": 75.17262500000015
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 100,
+          "p95": 88.87545800000044
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 100,
+          "p95": 79.06195899999875
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 101,
+          "p95": 72.60933299999942
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 101,
+          "p95": 92.3020830000005
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 72.77,
+        "cpuPeakPercent": 92.98,
+        "ramAvailableMinMiB": 1818,
+        "swapInPages": 384,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 5.75,
+          "supabase-edge-functions": 0.35,
+          "supabase-auth": 0.92,
+          "supabase-caddy": 3.88,
+          "supabase-pooler": 0.47,
+          "supabase-storage": 0.39,
+          "realtime-dev.supabase-realtime": 1.2,
+          "supabase-meta": 2.91,
+          "supabase-rest": 4.85,
+          "supabase-db": 40.37,
+          "supabase-studio": 1.47,
+          "supabase-imgproxy": 0.91
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:53:00.749Z",
+      "endedAt": "2026-10-30T16:53:32.727Z",
+      "users": 150,
+      "elapsedSeconds": 31.978923332999997,
+      "requests": 3004,
+      "completed": 150,
+      "failed": 0,
+      "createP95": 4533.661749999999,
+      "requestP95": 1337.0424170000001,
+      "requestQueueP95": 31.795749999999998,
+      "driverQueueP95": 11394.232958,
+      "lifecycleP50": 18481.340375,
+      "lifecycleP95": 29998.396083,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 3001,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 150,
+          "p95": 4227.392042
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 151,
+          "p95": 3023.075916
+        },
+        "orders": {
+          "count": 300,
+          "p95": 88.46066699999938
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 450,
+          "p95": 89.65995800000019
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 150,
+          "p95": 96.66862500000025
+        },
+        "rpc/accept_available_delivery": {
+          "count": 150,
+          "p95": 105.33008300000074
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 451,
+          "p95": 91.49233300000014
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 150,
+          "p95": 85.30625000000146
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 150,
+          "p95": 74.23829099999784
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 150,
+          "p95": 76.02795799999876
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 150,
+          "p95": 75.23804199999995
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 150,
+          "p95": 102.79754099999991
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 150,
+          "p95": 78.79524999999921
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 151,
+          "p95": 76.48249999999825
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 151,
+          "p95": 89.43599999999788
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 71.67,
+        "cpuPeakPercent": 100.0,
+        "ramAvailableMinMiB": 1802,
+        "swapInPages": 332,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 6.03,
+          "supabase-edge-functions": 0.37,
+          "supabase-auth": 0.85,
+          "supabase-caddy": 4.06,
+          "supabase-pooler": 0.53,
+          "supabase-storage": 0.34,
+          "realtime-dev.supabase-realtime": 1.25,
+          "supabase-meta": 2.82,
+          "supabase-rest": 5.08,
+          "supabase-db": 39.76,
+          "supabase-studio": 1.59,
+          "supabase-imgproxy": 1.04
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:53:47.733Z",
+      "endedAt": "2026-10-30T16:54:29.056Z",
+      "users": 200,
+      "elapsedSeconds": 41.324623124999995,
+      "requests": 4005,
+      "completed": 200,
+      "failed": 0,
+      "createP95": 5169.198417,
+      "requestP95": 1706.790208,
+      "requestQueueP95": 564.5859999999998,
+      "driverQueueP95": 11634.970333000005,
+      "lifecycleP50": 22434.893833,
+      "lifecycleP95": 37741.194291,
+      "httpErrors": 1,
+      "expectedDenials": 3,
+      "statuses": {
+        "0": 1,
+        "200": 4001,
+        "400": 3
+      },
+      "retries": 1,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 201,
+          "p95": 4716.322083
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 201,
+          "p95": 3431.549917
+        },
+        "orders": {
+          "count": 400,
+          "p95": 93.9032500000003
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 600,
+          "p95": 86.67333299999882
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 200,
+          "p95": 96.6270829999994
+        },
+        "rpc/accept_available_delivery": {
+          "count": 200,
+          "p95": 100.81891599999835
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 601,
+          "p95": 79.1039579999997
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 200,
+          "p95": 79.08437500000218
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 200,
+          "p95": 73.16787499999919
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 200,
+          "p95": 71.32920900000317
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 200,
+          "p95": 73.62129199999981
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 200,
+          "p95": 89.91249999999854
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 200,
+          "p95": 79.44966699999895
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 201,
+          "p95": 71.65629199999967
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 201,
+          "p95": 99.60979099999895
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 71.38,
+        "cpuPeakPercent": 100.0,
+        "ramAvailableMinMiB": 1799,
+        "swapInPages": 26,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 5.95,
+          "supabase-edge-functions": 0.34,
+          "supabase-auth": 0.31,
+          "supabase-caddy": 4.27,
+          "supabase-pooler": 0.53,
+          "supabase-storage": 0.36,
+          "realtime-dev.supabase-realtime": 1.28,
+          "supabase-meta": 3.1,
+          "supabase-rest": 5.54,
+          "supabase-db": 40.54,
+          "supabase-studio": 1.52,
+          "supabase-imgproxy": 1.06
+        }
+      }
+    },
+    {
+      "startedAt": "2026-10-30T16:54:57.628Z",
+      "endedAt": "2026-10-30T16:55:57.847Z",
+      "users": 300,
+      "elapsedSeconds": 60.22200925,
+      "requests": 6004,
+      "completed": 300,
+      "failed": 0,
+      "createP95": 8512.768958,
+      "requestP95": 3129.8931669999997,
+      "requestQueueP95": 1904.520916,
+      "driverQueueP95": 17582.660583999997,
+      "lifecycleP50": 33650.608583,
+      "lifecycleP95": 54691.701541999995,
+      "httpErrors": 0,
+      "expectedDenials": 3,
+      "statuses": {
+        "200": 6001,
+        "400": 3
+      },
+      "retries": 0,
+      "controls": 5,
+      "endpoints": {
+        "rpc/get_catalog_menu_snapshot": {
+          "count": 300,
+          "p95": 7055.315125
+        },
+        "rpc/create_secure_client_platform_order": {
+          "count": 301,
+          "p95": 5947.984959
+        },
+        "orders": {
+          "count": 600,
+          "p95": 95.71962500000154
+        },
+        "rpc/update_restaurant_order_status": {
+          "count": 900,
+          "p95": 87.7000420000004
+        },
+        "rpc/dispatch_restaurant_order_to_delivery": {
+          "count": 300,
+          "p95": 87.29029099999752
+        },
+        "rpc/accept_available_delivery": {
+          "count": 300,
+          "p95": 102.44012500000099
+        },
+        "rpc/update_current_driver_delivery_status": {
+          "count": 901,
+          "p95": 80.61283299999923
+        },
+        "rpc/confirm_current_driver_restaurant_order_payment": {
+          "count": 300,
+          "p95": 74.27470800000083
+        },
+        "rpc/confirm_restaurant_cash_payment": {
+          "count": 300,
+          "p95": 70.48695800000132
+        },
+        "rpc/refresh_current_driver_pickup_qr": {
+          "count": 300,
+          "p95": 73.25004199999967
+        },
+        "rpc/confirm_delivery_pickup_qr": {
+          "count": 300,
+          "p95": 70.45175000000017
+        },
+        "rpc/confirm_driver_pickup": {
+          "count": 300,
+          "p95": 86.82200000000012
+        },
+        "rpc/confirm_driver_delivery_handoff": {
+          "count": 300,
+          "p95": 72.8991670000014
+        },
+        "rpc/confirm_client_order_receipt": {
+          "count": 301,
+          "p95": 69.6500419999993
+        },
+        "rpc/complete_driver_delivery": {
+          "count": 301,
+          "p95": 92.82783400000335
+        }
+      },
+      "resources": {
+        "cpuAveragePercent": 72.16,
+        "cpuPeakPercent": 100.0,
+        "ramAvailableMinMiB": 1756,
+        "swapInPages": 10,
+        "swapOutPages": 0,
+        "containerCpuAverageHostPercent": {
+          "supabase-kong": 6.15,
+          "supabase-edge-functions": 0.35,
+          "supabase-auth": 0.33,
+          "supabase-caddy": 4.09,
+          "supabase-pooler": 0.5,
+          "supabase-storage": 0.32,
+          "realtime-dev.supabase-realtime": 1.25,
+          "supabase-meta": 2.84,
+          "supabase-rest": 5.59,
+          "supabase-db": 41.15,
+          "supabase-studio": 1.54,
+          "supabase-imgproxy": 0.98
+        }
+      }
+    }
+  ],
+  "publicMenuComparison": {
+    "public-cache": [
+      {
+        "startedAt": "2026-10-30T17:04:23.942Z",
+        "endedAt": "2026-10-30T17:04:39.986Z",
+        "mode": "cached-menu-snapshot",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 100,
+        "activeSeconds": 15,
+        "elapsedSeconds": 16.040723959,
+        "requests": 1346,
+        "rps": 83.91142466140359,
+        "p50": 91.54925000000003,
+        "p95": 669.242958,
+        "journeyP95": 669.2698330000001,
+        "errors": 0,
+        "errorPercent": 0,
+        "statuses": {
+          "200": 1346
+        },
+        "errorTypes": {},
+        "journeys": {
+          "finik": {
+            "journeys": 446,
+            "errors": 0
+          },
+          "rizih": {
+            "journeys": 454,
+            "errors": 0
+          },
+          "barakat": {
+            "journeys": 446,
+            "errors": 0
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 66.83,
+          "cpuPeakPercent": 76.61,
+          "ramAvailableMinMiB": 1990,
+          "swapInPages": 10,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 5.82,
+            "supabase-edge-functions": 0.37,
+            "supabase-auth": 0.38,
+            "supabase-caddy": 4.08,
+            "supabase-pooler": 0.44,
+            "supabase-storage": 0.35,
+            "realtime-dev.supabase-realtime": 0.33,
+            "supabase-meta": 3.28,
+            "supabase-rest": 5.32,
+            "supabase-db": 30.27,
+            "supabase-studio": 1.9,
+            "supabase-imgproxy": 1.15
+          }
+        }
+      },
+      {
+        "startedAt": "2026-10-30T17:04:42.990Z",
+        "endedAt": "2026-10-30T17:04:59.280Z",
+        "mode": "cached-menu-snapshot",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 200,
+        "activeSeconds": 15,
+        "elapsedSeconds": 16.289671209000005,
+        "requests": 2288,
+        "rps": 140.45710135241313,
+        "p50": 217.49258299999929,
+        "p95": 1095.3301250000004,
+        "journeyP95": 1095.4381250000006,
+        "errors": 2,
+        "errorPercent": 0.08741258741258741,
+        "statuses": {
+          "0": 2,
+          "200": 2286
+        },
+        "errorTypes": {
+          "ETIMEDOUT": 2
+        },
+        "journeys": {
+          "rizih": {
+            "journeys": 763,
+            "errors": 1
+          },
+          "barakat": {
+            "journeys": 762,
+            "errors": 0
+          },
+          "finik": {
+            "journeys": 763,
+            "errors": 1
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 93.5,
+          "cpuPeakPercent": 100.0,
+          "ramAvailableMinMiB": 2009,
+          "swapInPages": 11,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 7.84,
+            "supabase-edge-functions": 0.38,
+            "supabase-auth": 0.37,
+            "supabase-caddy": 6.86,
+            "supabase-pooler": 0.43,
+            "supabase-storage": 0.33,
+            "realtime-dev.supabase-realtime": 0.45,
+            "supabase-meta": 3.35,
+            "supabase-rest": 9.8,
+            "supabase-db": 51.92,
+            "supabase-studio": 1.6,
+            "supabase-imgproxy": 1.02
+          }
+        }
+      },
+      {
+        "startedAt": "2026-10-30T17:05:02.289Z",
+        "endedAt": "2026-10-30T17:05:19.103Z",
+        "mode": "cached-menu-snapshot",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 300,
+        "activeSeconds": 15,
+        "elapsedSeconds": 16.813372167,
+        "requests": 2336,
+        "rps": 138.9370304063644,
+        "p50": 734.0784580000036,
+        "p95": 3050.3696249999994,
+        "journeyP95": 3050.404875,
+        "errors": 6,
+        "errorPercent": 0.2568493150684932,
+        "statuses": {
+          "0": 6,
+          "200": 2330
+        },
+        "errorTypes": {
+          "ETIMEDOUT": 6
+        },
+        "journeys": {
+          "rizih": {
+            "journeys": 778,
+            "errors": 2
+          },
+          "barakat": {
+            "journeys": 778,
+            "errors": 3
+          },
+          "finik": {
+            "journeys": 780,
+            "errors": 1
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 98.27,
+          "cpuPeakPercent": 100.0,
+          "ramAvailableMinMiB": 1985,
+          "swapInPages": 0,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 7.86,
+            "supabase-edge-functions": 0.46,
+            "supabase-auth": 0.43,
+            "supabase-caddy": 7.04,
+            "supabase-pooler": 0.46,
+            "supabase-storage": 0.4,
+            "realtime-dev.supabase-realtime": 0.52,
+            "supabase-meta": 3.13,
+            "supabase-rest": 11.29,
+            "supabase-db": 48.38,
+            "supabase-studio": 1.55,
+            "supabase-imgproxy": 1.01
+          }
+        }
+      }
+    ],
+    "public-separate": [
+      {
+        "startedAt": "2026-10-30T17:05:38.783Z",
+        "endedAt": "2026-10-30T17:05:55.792Z",
+        "mode": "separate-menu-reads",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 100,
+        "activeSeconds": 15,
+        "elapsedSeconds": 17.006530874999996,
+        "requests": 4095,
+        "rps": 240.78984891737957,
+        "p50": 1531.783917,
+        "p95": 5114.567,
+        "journeyP95": 8289.331459,
+        "errors": 2,
+        "errorPercent": 0.04884004884004884,
+        "statuses": {
+          "0": 2,
+          "200": 4093
+        },
+        "errorTypes": {
+          "ETIMEDOUT": 2
+        },
+        "journeys": {
+          "finik": {
+            "journeys": 107,
+            "errors": 1
+          },
+          "barakat": {
+            "journeys": 108,
+            "errors": 1
+          },
+          "rizih": {
+            "journeys": 100,
+            "errors": 0
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 88.63,
+          "cpuPeakPercent": 99.78,
+          "ramAvailableMinMiB": 1955,
+          "swapInPages": 4,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 10.59,
+            "supabase-edge-functions": 0.37,
+            "supabase-auth": 0.33,
+            "supabase-caddy": 9.37,
+            "supabase-pooler": 0.52,
+            "supabase-storage": 0.37,
+            "realtime-dev.supabase-realtime": 0.37,
+            "supabase-meta": 3.2,
+            "supabase-rest": 21.68,
+            "supabase-db": 36.9,
+            "supabase-studio": 1.61,
+            "supabase-imgproxy": 1.02
+          }
+        }
+      },
+      {
+        "startedAt": "2026-10-30T17:05:58.801Z",
+        "endedAt": "2026-10-30T17:06:20.555Z",
+        "mode": "separate-menu-reads",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 200,
+        "activeSeconds": 15,
+        "elapsedSeconds": 21.753593916000003,
+        "requests": 5564,
+        "rps": 255.7738285216227,
+        "p50": 5900.442208,
+        "p95": 9161.862000000001,
+        "journeyP95": 11984.215249999997,
+        "errors": 1,
+        "errorPercent": 0.017972681524083392,
+        "statuses": {
+          "0": 1,
+          "200": 5563
+        },
+        "errorTypes": {
+          "ABORT_ERR": 1
+        },
+        "journeys": {
+          "finik": {
+            "journeys": 144,
+            "errors": 1
+          },
+          "rizih": {
+            "journeys": 141,
+            "errors": 0
+          },
+          "barakat": {
+            "journeys": 143,
+            "errors": 0
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 94.38,
+          "cpuPeakPercent": 99.75,
+          "ramAvailableMinMiB": 1943,
+          "swapInPages": 0,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 10.26,
+            "supabase-edge-functions": 0.42,
+            "supabase-auth": 0.34,
+            "supabase-caddy": 9.29,
+            "supabase-pooler": 0.54,
+            "supabase-storage": 0.38,
+            "realtime-dev.supabase-realtime": 0.43,
+            "supabase-meta": 2.65,
+            "supabase-rest": 23.05,
+            "supabase-db": 37.19,
+            "supabase-studio": 1.37,
+            "supabase-imgproxy": 1.16
+          }
+        }
+      },
+      {
+        "startedAt": "2026-10-30T17:06:23.561Z",
+        "endedAt": "2026-10-30T17:06:50.360Z",
+        "mode": "separate-menu-reads",
+        "transport": "https-http1-keepalive",
+        "maxConnections": 256,
+        "users": 300,
+        "activeSeconds": 15,
+        "elapsedSeconds": 26.798363416000008,
+        "requests": 6877,
+        "rps": 256.62014852347573,
+        "p50": 10771.839458999995,
+        "p95": 13781.370959,
+        "journeyP95": 15001.825042000004,
+        "errors": 133,
+        "errorPercent": 1.933982841355242,
+        "statuses": {
+          "0": 133,
+          "200": 6744
+        },
+        "errorTypes": {
+          "ETIMEDOUT": 3,
+          "ABORT_ERR": 130
+        },
+        "journeys": {
+          "rizih": {
+            "journeys": 173,
+            "errors": 24
+          },
+          "barakat": {
+            "journeys": 177,
+            "errors": 30
+          },
+          "finik": {
+            "journeys": 179,
+            "errors": 23
+          }
+        },
+        "resources": {
+          "cpuAveragePercent": 96.06,
+          "cpuPeakPercent": 99.5,
+          "ramAvailableMinMiB": 1950,
+          "swapInPages": 1,
+          "swapOutPages": 0,
+          "containerCpuAverageHostPercent": {
+            "supabase-kong": 10.1,
+            "supabase-edge-functions": 0.36,
+            "supabase-auth": 0.34,
+            "supabase-caddy": 8.87,
+            "supabase-pooler": 0.46,
+            "supabase-storage": 0.35,
+            "realtime-dev.supabase-realtime": 0.35,
+            "supabase-meta": 2.71,
+            "supabase-rest": 22.22,
+            "supabase-db": 36.39,
+            "supabase-studio": 1.71,
+            "supabase-imgproxy": 0.99
+          }
+        }
+      }
+    ]
+  },
+  "integrity": {
+    "mainStagesCompleted": 935,
+    "fixtureCompletedIncludingSmokeAndReruns": 1022,
+    "fixtureCancelled": 1,
+    "delivered": 1022,
+    "testBillingEntries": 2044,
+    "nonTestFixtureBillingEntries": 0,
+    "duplicateIdempotencyKeys": 0,
+    "testDriversOnlineAfter": 0,
+    "testClientSessionsExpired": 300
+  },
+  "limitations": [
+    "HTTP/1.1 API clients, not 300 browser sessions",
+    "Simulated driver state transitions, no physical travel, no actual money transfers",
+    "Public comparison: 15 seconds per level, 1 second think time, 256 sockets; before = separate reads on already optimized RLS, after = cached snapshot",
+    "Initial 75-client run completed 74: one menu timeout. After retry handling, all 75 completed. 200-client stage recovered one transport failure.",
+    "Public cached reads had 0,2,6 transport timeouts at 100,200,300; no HTTP 5xx observed."
+  ]
+}

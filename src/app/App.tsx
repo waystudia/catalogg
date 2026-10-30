@@ -1,3 +1,4 @@
+import { useCatalogRealtime } from './useCatalogRealtime';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -2114,28 +2115,11 @@ function AppContent({
     refreshDeliverySettings();
   }, [refreshDeliverySettings, refreshRestaurantOrders]);
 
-  useEffect(() => {
-    const client = supabase;
-    if (!client) return undefined;
+  const refreshCatalog = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: catalogQueryKey });
+  }, [catalogQueryKey]);
+  useCatalogRealtime(catalogSlug, refreshCatalog, refreshDeliverySettings);
 
-    const refreshCatalog = () => {
-      void queryClient.invalidateQueries({ queryKey: catalogQueryKey });
-    };
-    const channel = client.channel(`catalog-refresh-${catalogSlug}`);
-    ['category', 'categories', 'product', 'products', 'restaurant', 'restaurants', 'catalogs', 'catalog_tag', 'tags', 'theme_settings', 'catalog_theme_settings'].forEach((table) => {
-      channel.on('postgres_changes', { event: '*', schema: 'public', table }, refreshCatalog);
-    });
-    channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'restaurant_delivery_settings' },
-      refreshDeliverySettings
-    );
-    channel.subscribe();
-
-    return () => {
-      void client.removeChannel(channel);
-    };
-  }, [catalogQueryKey, catalogSlug, refreshDeliverySettings]);
 
   useEffect(() => {
     if ((focusProductId || focusProductTitle) && screen === 'home' && routeSection !== 'reviews') return;

@@ -28,6 +28,10 @@ import {
 } from './supabaseAuthScope';
 import { buildPasswordCredentials } from './loginIdentifier';
 import { persistCatalogMedia } from './catalogMedia';
+import { createPublicMenuCache } from './publicMenuCache';
+
+const publicMenus = createPublicMenuCache<Record<string, unknown> | null>();
+export const invalidatePublicMenuCache = () => publicMenus.clear();
 
 type SupabaseConfig = {
   url?: string;
@@ -600,6 +604,8 @@ async function savePlatformRestaurantLocation(catalogId: string, value: Restaura
   }
 }
 
+supabase?.auth.onAuthStateChange(() => invalidatePublicMenuCache());
+
 export async function signInAdmin(email: string, password: string, catalogSlug?: string) {
   if (!supabase) {
     return email.trim().toLowerCase() === 'admin' && password.trim() === '1234';
@@ -738,11 +744,33 @@ export async function loadCatalog(catalogSlug?: string) {
   }
 
   if (!isLegacyCatalog(normalizedSlug)) {
-    const catalogResult = await supabase
+    const fetchSnapshot = async () => {
+      const { data, error } = await supabase!.rpc('get_catalog_menu_snapshot', { catalog_slug: normalizedSlug });
+      if (error) throw error;
+      const value = data as Record<string, unknown> | null;
+      if (value && Array.isArray(value.sections)) {
+        const sectionKeys: Record<string, string> = { 'photo-quality': 'photoQuality', 'restaurant-gallery': 'restaurantGallery', 'product-choices': 'productChoices', 'product-config': 'productConfig', 'catalog-info': 'catalogInfo' };
+        for (const section of value.sections as { key: string; settings: unknown; enabled: boolean }[]) {
+          if (sectionKeys[section.key]) value[sectionKeys[section.key]] = section;
+        }
+      }
+      return value;
+    };
+    let snapshot: Record<string, unknown> | null | undefined;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      snapshot = session ? await fetchSnapshot() : await publicMenus.get(normalizedSlug, fetchSnapshot);
+    } catch (error) {
+      // Only an older backend can fall back to separate reads; authorization/server errors stay visible.
+      if ((error as { code?: string }).code !== 'PGRST202') throw error;
+    }
+    const read = async <T,>(key: string, fallback: PromiseLike<{ data: T | null; error: unknown }>) =>
+      snapshot === undefined ? await fallback : { data: (snapshot?.[key] ?? null) as T | null, error: null };
+    const catalogResult = await read('catalog', supabase
       .from('catalogs')
       .select('id, slug, name, description, logo_url, banner_url, whatsapp, instagram_url, address, map_url, business_type')
       .eq('slug', normalizedSlug)
-      .maybeSingle();
+      .maybeSingle());
 
     if (!catalogResult.data || catalogResult.error) {
       const localTemplate = getLocalTemplateCatalog(normalizedSlug);
@@ -778,65 +806,65 @@ export async function loadCatalog(catalogSlug?: string) {
       catalogInfoResult,
       restaurantLocation
     ] = await Promise.all([
-      supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order'),
-      supabase
+      read('categories', supabase.from('categories').select('id, slug, name, description, image_url, icon').eq('catalog_id', catalog.id).order('sort_order')),
+      read('products', supabase
         .from('products')
         .select('id, category_id, title, status, price, description, ingredients, weight, serving, stock_count, is_unlimited, is_popular, is_new, is_promo, custom_fields')
         .eq('catalog_id', catalog.id)
-        .order('sort_order'),
-      supabase
+        .order('sort_order')),
+      read('productImages', supabase
         .from('product_images')
         .select('product_id, url, sort_order')
         .eq('catalog_id', catalog.id)
-        .order('sort_order'),
-      supabase.from('tags').select('id, slug, name, icon, color').eq('catalog_id', catalog.id).order('sort_order'),
-      supabase
+        .order('sort_order')),
+      read('tags', supabase.from('tags').select('id, slug, name, icon, color').eq('catalog_id', catalog.id).order('sort_order')),
+      read('cabins', supabase
         .from('bookable_resources')
         .select('id, title, capacity, image_url, is_active, capacity_text, resource_type, price')
         .eq('catalog_id', catalog.id)
-        .order('sort_order'),
-      supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle(),
-      supabase
+        .order('sort_order')),
+      read<{ settings: unknown; enabled?: boolean }>('theme', supabase.from('catalog_theme_settings').select('settings').eq('catalog_id', catalog.id).maybeSingle()),
+      read<{ settings: unknown; enabled?: boolean }>('photoQuality', supabase
         .from('catalog_sections')
         .select('settings, enabled')
         .eq('catalog_id', catalog.id)
         .eq('key', 'photo-quality')
-        .maybeSingle(),
-      supabase
+        .maybeSingle()),
+      read<{ settings: unknown; enabled?: boolean }>('restaurantGallery', supabase
         .from('catalog_sections')
         .select('settings')
         .eq('catalog_id', catalog.id)
         .eq('key', 'restaurant-gallery')
-        .maybeSingle(),
-      supabase
+        .maybeSingle()),
+      read<{ settings: unknown; enabled?: boolean }>('productChoices', supabase
         .from('catalog_sections')
         .select('settings')
         .eq('catalog_id', catalog.id)
         .eq('key', 'product-choices')
-        .maybeSingle(),
-      supabase
+        .maybeSingle()),
+      read('productModifierGroups', supabase
         .from('product_option_groups')
         .select('id, product_id, name, required, min_selected, max_selected, is_active')
         .eq('catalog_id', catalog.id)
-        .order('sort_order'),
-      supabase
+        .order('sort_order')),
+      read('productModifierOptions', supabase
         .from('product_options')
         .select('id, group_id, name, price_delta, is_default, is_active')
         .eq('catalog_id', catalog.id)
-        .order('sort_order'),
-      supabase
+        .order('sort_order')),
+      read<{ settings: unknown; enabled?: boolean }>('productConfig', supabase
         .from('catalog_sections')
         .select('settings')
         .eq('catalog_id', catalog.id)
         .eq('key', 'product-config')
-        .maybeSingle(),
-      supabase
+        .maybeSingle()),
+      read<{ settings: unknown; enabled?: boolean }>('catalogInfo', supabase
         .from('catalog_sections')
         .select('settings')
         .eq('catalog_id', catalog.id)
         .eq('key', 'catalog-info')
-        .maybeSingle(),
-      getPlatformRestaurantLocation(catalog.id)
+        .maybeSingle()),
+      snapshot === undefined ? getPlatformRestaurantLocation(catalog.id) : Promise.resolve((snapshot?.restaurantLocation ?? null) as PlatformRestaurantLocationRow | null)
     ]);
     const productImages = new Map<string, string[]>();
     ((productImagesResult.data ?? []) as PlatformProductImageRow[]).forEach((imageRow) => {
@@ -878,6 +906,15 @@ export async function loadCatalog(catalogSlug?: string) {
 
   const platformCatalogId = await getPlatformCatalogId(normalizedSlug);
   activePlatformCatalogId = platformCatalogId;
+  const legacySections = platformCatalogId
+    ? supabase.from('catalog_sections').select('key, settings, enabled')
+        .eq('catalog_id', platformCatalogId).in('key', ['photo-quality', 'restaurant-gallery', 'product-choices'])
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return (data ?? []) as { key: string; settings: unknown; enabled: boolean }[];
+        })
+    : Promise.resolve([] as { key: string; settings: unknown; enabled: boolean }[]);
+  const legacySection = async (key: string) => ({ data: (await legacySections).find(row => row.key === key) ?? null, error: null });
   const [
     restaurantResult,
     categoriesResult,
@@ -896,30 +933,9 @@ export async function loadCatalog(catalogSlug?: string) {
     supabase.from('cabin').select('*').order('sort_order', { ascending: true }).order('title'),
     supabase.from('catalog_tag').select('*').order('sort_order', { ascending: true }).order('name'),
     supabase.from('theme_settings').select('*').limit(1).single(),
-    platformCatalogId
-      ? supabase
-          .from('catalog_sections')
-          .select('settings, enabled')
-          .eq('catalog_id', platformCatalogId)
-          .eq('key', 'photo-quality')
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    platformCatalogId
-      ? supabase
-          .from('catalog_sections')
-          .select('settings')
-          .eq('catalog_id', platformCatalogId)
-          .eq('key', 'restaurant-gallery')
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    platformCatalogId
-      ? supabase
-          .from('catalog_sections')
-          .select('settings')
-          .eq('catalog_id', platformCatalogId)
-          .eq('key', 'product-choices')
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+    legacySection('photo-quality'),
+    legacySection('restaurant-gallery'),
+    legacySection('product-choices'),
     platformCatalogId ? getPlatformRestaurantLocation(platformCatalogId) : Promise.resolve(null)
   ]);
 
@@ -1131,6 +1147,7 @@ async function syncPlatformProductImages(productId: string, imageUrls: readonly 
 }
 
 export async function saveProductToSupabase(product: Product) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) product = await persistCatalogMedia(supabase, activePlatformCatalogId, product);
   if (activePlatformCatalogId) {
@@ -1165,6 +1182,7 @@ export async function saveProductToSupabase(product: Product) {
 }
 
 export async function updateProductInSupabase(productId: string, patch: Partial<Product>) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) patch = await persistCatalogMedia(supabase, activePlatformCatalogId, patch);
   if (activePlatformCatalogId) {
@@ -1181,6 +1199,7 @@ export async function updateProductInSupabase(productId: string, patch: Partial<
 }
 
 export async function deleteProductFromSupabase(productId: string) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(productId)) return;
@@ -1192,6 +1211,7 @@ export async function deleteProductFromSupabase(productId: string) {
 }
 
 export async function deleteCategoryFromSupabase(categoryId: string) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(categoryId)) return;
@@ -1202,6 +1222,7 @@ export async function deleteCategoryFromSupabase(categoryId: string) {
 }
 
 export async function saveRestaurantToSupabase(value: Restaurant) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) value = await persistCatalogMedia(supabase, activePlatformCatalogId, value);
   const bannerUrls = Array.from(
@@ -1287,6 +1308,7 @@ export async function saveRestaurantToSupabase(value: Restaurant) {
 }
 
 export async function saveThemeToSupabase(value: ThemeSettings) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) value = await persistCatalogMedia(supabase, activePlatformCatalogId, value);
   if (activePlatformCatalogId) {
@@ -1301,6 +1323,7 @@ export async function saveThemeToSupabase(value: ThemeSettings) {
 }
 
 export async function savePhotoQualityToSupabase(catalogSlug: string, value: PhotoQualitySettings) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   const catalogId = activePlatformCatalogId ?? await getPlatformCatalogId(normalizeCatalogSlug(catalogSlug));
   if (!catalogId) throw new Error('Каталог не найден');
@@ -1323,6 +1346,7 @@ export async function savePhotoQualityToSupabase(catalogSlug: string, value: Pho
 }
 
 export async function replaceCategoriesInSupabase(values: Category[], options: { removeMissing?: boolean } = {}) {
+  invalidatePublicMenuCache();
   if (!supabase) return values;
   if (activePlatformCatalogId) values = await persistCatalogMedia(supabase, activePlatformCatalogId, values);
   if (activePlatformCatalogId) {
@@ -1389,6 +1413,7 @@ export async function replaceCategoriesInSupabase(values: Category[], options: {
 }
 
 export async function replaceTagsInSupabase(values: CatalogTag[], options: { removeMissing?: boolean } = {}) {
+  invalidatePublicMenuCache();
   if (!supabase) return values;
   if (activePlatformCatalogId) {
     const slugs = values.map((value) => value.slug || createSlug(value.name || value.id));
@@ -1457,6 +1482,7 @@ export async function replaceTagsInSupabase(values: CatalogTag[], options: { rem
 }
 
 export async function replaceCabinsInSupabase(values: Cabin[]) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) values = await persistCatalogMedia(supabase, activePlatformCatalogId, values);
   if (activePlatformCatalogId && !activeCatalogIsLegacy) {
@@ -1493,6 +1519,7 @@ export async function replaceCabinsInSupabase(values: Cabin[]) {
 }
 
 export async function replaceProductsInSupabase(values: Product[]) {
+  invalidatePublicMenuCache();
   if (!supabase) return;
   if (activePlatformCatalogId) {
     const rows = values.map((value, index) => ({

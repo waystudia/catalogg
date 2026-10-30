@@ -25,7 +25,8 @@ const menu = (id) => [
  ['catalog_theme_settings','settings'],
  ...['photo-quality','restaurant-gallery','product-choices','product-config','catalog-info'].map(k=>['catalog_sections','settings,enabled',k])
 ].map(([table,select,k])=>({path:`${table}?select=${select}&catalog_id=eq.${id}${k?'&key=eq.'+k:''}`}));
-const journeys = catalogs.map(([name,id]) => ({ name, calls:menu(id) }));
+const selectedCatalogs = args.slugs ? catalogs.filter(([name]) => args.slugs.split(',').includes(name)) : catalogs;
+const journeys = selectedCatalogs.map(([name,id]) => ({ name, calls: args.snapshot === 'true' ? [{path:'rpc/get_catalog_menu_snapshot', method:'POST', body:{catalog_slug:name}}] : menu(id) }));
 if (roles.driver) journeys.push({name:'driver',calls:['get_current_driver_dashboard_data','get_current_driver_delivery_handoffs'].map(name=>({path:'rpc/'+name,token:roles.driver,method:'POST'}))});
 if (roles.restaurant) journeys.push({name:'restaurant-orders',calls:[{path:`orders?select=*,deliveries(*),order_items(*)&catalog_id=eq.${catalogs[0][1]}&order=created_at.desc`,token:roles.restaurant},{path:`restaurant_delivery_settings?select=*&catalog_id=eq.${catalogs[0][1]}`,token:roles.restaurant}]});
 // Bound transport concurrency: virtual journeys can enqueue several API reads.
@@ -40,7 +41,7 @@ const request = (call) => new Promise((resolve) => {
   response.on('error',error=>resolve({ms:performance.now()-start,status:0,bytes,error:error.code||error.name}));
  });
  request.on('error',error=>resolve({ms:performance.now()-start,status:0,bytes:0,error:error.code||error.name}));
- request.end(call.method?'{}':undefined);
+ request.end(call.method?JSON.stringify(call.body||{}):undefined);
 });
 for(const journey of journeys){
  const warmup=await Promise.all(journey.calls.map(request));
@@ -60,7 +61,7 @@ for(const users of levels){
  }));
  const elapsed=(performance.now()-start)/1000, times=results.map(x=>x.ms).sort((a,b)=>a-b), journeyTimes=completed.sort((a,b)=>a-b);
  const errors=results.filter(x=>x.status!==200).length,statuses={};for(const r of results)statuses[r.status]=(statuses[r.status]||0)+1;
- const record={transport:"https-http1-keepalive",maxConnections,users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,errorTypes:results.filter(x=>x.error).reduce((all,x)=>({...all,[x.error]:(all[x.error]||0)+1}),{}),journeys:names};
+ const record={startedAt:new Date(Date.now()-elapsed*1000).toISOString(),endedAt:new Date().toISOString(),mode:args.snapshot==='true'?'cached-menu-snapshot':'separate-menu-reads',transport:"https-http1-keepalive",maxConnections,users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,errorTypes:results.filter(x=>x.error).reduce((all,x)=>({...all,[x.error]:(all[x.error]||0)+1}),{}),journeys:names};
  fs.appendFileSync(output,JSON.stringify(record)+'\n');console.log(JSON.stringify(record));
  if(record.errorPercent>5){console.log('Stopped: errors exceeded 5%.');break;}
  await pause(3000);
