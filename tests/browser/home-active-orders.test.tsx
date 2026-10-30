@@ -31,6 +31,22 @@ test('home shows separate active orders with links and hides completed orders', 
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
 });
 
+test('current order shows its number, amount and distinct dish previews on a narrow screen', async () => {
+  await page.viewport(319, 620);
+  const current = order('one', 'Мангал', 'new');
+  current.items = [
+    { dishId: 'a', name: 'Айран', price: 150, quantity: 1, imageUrl: '/one.webp' },
+    { dishId: 'b', name: 'Чай', price: 200, quantity: 1, imageUrl: '/two.webp' },
+    { dishId: 'a', name: 'Айран', price: 150, quantity: 1, imageUrl: '/one.webp' }
+  ];
+  useClientPlatformStore.setState({ orders: [current] });
+  const screen = await render(<MemoryRouter><HomeActiveOrders /></MemoryRouter>);
+  await expect.element(screen.getByText('Текущий заказ', { exact: true })).toBeVisible();
+  await expect.element(screen.getByText(/№.*550 ₽/)).toBeVisible();
+  expect(document.querySelectorAll('.home-active-order__dish-image')).toHaveLength(2);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
+});
+
 test('updates saved orders when another tab changes client storage', async () => {
   const storageKey = 'waycatalog-client-platform';
   useClientPlatformStore.setState({ orders: [] });
