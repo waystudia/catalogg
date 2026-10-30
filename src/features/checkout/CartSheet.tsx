@@ -72,7 +72,7 @@ export function CartSheet({
           type="button"
           aria-label="Свернуть корзину"
           onClick={(event) => {
-            if (event.detail === 0 || !dragged.current) onClose();
+            if (event.detail === 0 || !dragged.current) onMenu();
           }}
           onPointerDown={(event) => {
             if (!event.isPrimary || event.button !== 0) return;
@@ -91,7 +91,7 @@ export function CartSheet({
             const distance = event.clientY - dragStart.current;
             dragStart.current = null;
             setDragOffset(0);
-            if (distance >= 72) onClose();
+            if (distance >= 72) onMenu();
           }}
           onPointerCancel={() => {
             dragStart.current = null;

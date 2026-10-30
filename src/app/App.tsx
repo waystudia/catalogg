@@ -1752,7 +1752,7 @@ function AppContent({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const { openCheckout, goBackFromCheckout, closeCart } = useCheckoutNavigation(catalogSlug, screen, setScreen, setIsCartOpen, isCartOpen);
+  const { openCheckout, goBackFromCheckout, closeCart, collapseCartToCatalog } = useCheckoutNavigation(catalogSlug, screen, setScreen, setIsCartOpen, isCartOpen);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
@@ -2848,8 +2848,8 @@ function AppContent({
         onClose={closeCart}
         onCheckout={checkoutFromCart}
         onMenu={() => {
-          setIsCartOpen(false);
-          setScreen('catalog');
+          setScreen('home');
+          collapseCartToCatalog();
         }}
       />
     </div>

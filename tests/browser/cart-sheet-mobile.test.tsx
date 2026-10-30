@@ -17,7 +17,7 @@ function CartJourney() {
   const [screen, setScreen] = useState('catalog');
   const [open, setOpen] = useState(true);
   const navigation = useCheckoutNavigation('mangal', screen, setScreen, setOpen, open);
-  return <><p>{location.pathname}{location.search}</p><CartSheet isOpen={open} isLoading={false} onClose={navigation.closeCart} onCheckout={navigation.openCheckout} onMenu={navigation.closeCart} /></>;
+  return <><p>{location.pathname}{location.search}</p><CartSheet isOpen={open} isLoading={false} onClose={navigation.closeCart} onCheckout={navigation.openCheckout} onMenu={navigation.collapseCartToCatalog} /></>;
 }
 function drag(handle: Element, distance: number) {
   handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, isPrimary: true, button: 0, clientY: 20 }));
@@ -52,4 +52,16 @@ test('pulling the handle down dismisses the cart, while short drags and scrollin
   drag(handle, 110);
   await expect.element(screen.getByText('/mangal', { exact: true })).toBeVisible();
   expect(screen.getByRole('dialog').elements()).toHaveLength(0);
+});
+
+
+test('pulling down a cart opened from the cart overview reveals the restaurant catalog', async () => {
+  useCartStore.setState({ items: products.slice(0, 4).map(product => ({ product, quantity: 1 })) });
+  const screen = await render(<MemoryRouter initialEntries={['/cart', { pathname: '/mangal', search: '?cart=1', state: { cartReturn: '/cart' } }]}><CartJourney /></MemoryRouter>);
+  const handle = screen.getByRole('button', { name: 'Свернуть корзину' }).element();
+  handle.setPointerCapture = () => {};
+  drag(handle, 110);
+  await expect.element(screen.getByText('/mangal', { exact: true })).toBeVisible();
+  expect(screen.getByRole('dialog').elements()).toHaveLength(0);
+  expect(useCartStore.getState().items).toHaveLength(4);
 });

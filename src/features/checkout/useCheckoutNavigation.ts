@@ -37,5 +37,11 @@ export function useCheckoutNavigation<T extends string>(slug: string, screen: T,
       else navigate(`/${slug}`, { replace: true });
     }
   };
-  return { openCheckout, goBackFromCheckout, closeCart };
+  const collapseCartToCatalog = () => {
+    setCartOpen(false);
+    const search = new URLSearchParams(location.search);
+    search.delete('cart');
+    navigate({ pathname: `/${slug}`, search: search.toString() }, { replace: true, state: location.state });
+  };
+  return { openCheckout, goBackFromCheckout, closeCart, collapseCartToCatalog };
 }
