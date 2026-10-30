@@ -90,6 +90,7 @@ import {
   loginClientAccount,
   recordClientRegistrationLegalChoices,
   registerClientAccount,
+  hasStoredClientSession,
   restoreClientAccountSession
 } from '../../shared/api/clientAccountApi';
 
@@ -407,25 +408,29 @@ export function CheckoutScreen({
 
   useEffect(() => {
     let isMounted = true;
-
-    void restoreClientAccountSession()
+    let retryId: ReturnType<typeof setTimeout> | undefined;
+    const restoreSession = () => { void restoreClientAccountSession()
       .then((session) => {
         if (!isMounted) return;
+        if (!session && hasStoredClientSession()) {
+          retryId = setTimeout(restoreSession, 2500);
+          return;
+        }
         setHasClientSession(Boolean(session));
         if (session) {
           saveClientProfile({ name: session.name, phone: session.phone });
           setOrder({ clientName: session.name, clientPhone: normalizeRussianClientPhone(session.phone) });
         }
+        setIsClientSessionReady(true);
       })
       .catch(() => {
-        if (isMounted) setHasClientSession(false);
-      })
-      .finally(() => {
-        if (isMounted) setIsClientSessionReady(true);
-      });
+        if (isMounted) retryId = setTimeout(restoreSession, 2500);
+      }); };
+    restoreSession();
 
     return () => {
       isMounted = false;
+      clearTimeout(retryId);
     };
   }, [saveClientProfile, setOrder]);
 
@@ -548,7 +553,7 @@ export function CheckoutScreen({
             <ShieldCheck />
             <div>
               <h2>Проверяем личный кабинет</h2>
-              <p>Для заказа нужно один раз войти или создать аккаунт с паролем.</p>
+              <p>Восстанавливаем вход. Пожалуйста, подождите.</p>
             </div>
           </div>
         </section>
@@ -685,6 +690,11 @@ export function CheckoutScreen({
             <Package />
             <strong>Вы заберёте заказ самостоятельно</strong>
           </div>
+          {deliverySettings.enable_delivery && (
+            <button className="map-link-button" type="button" onClick={() => setOrder({ mode: 'delivery' })}>
+              <Truck /><span>Хотите доставку?</span>
+            </button>
+          )}
           <div className="restaurant-address">
             <span>Адрес ресторана</span>
             {configuredCity && <small className="restaurant-address__city">{configuredCity}</small>}

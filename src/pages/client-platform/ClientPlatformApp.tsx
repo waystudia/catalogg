@@ -616,7 +616,7 @@ function PlatformRestaurantCartDock() {
   if (count === 0) return null;
 
   return (
-    <Link className="platform-restaurant-cart-dock" to="/mangal/checkout">
+    <Link className="platform-restaurant-cart-dock" to="/cart">
       <ShoppingCart />
       <span>
         <strong>В корзине · {count}</strong>
@@ -3572,7 +3572,7 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           restaurantName: getRestaurantBySlug(snapshot, 'mangal')?.name ?? 'Мангал',
           quantity: restaurantCartCount,
           total: restaurantCartTotal,
-          href: '/mangal/checkout'
+          href: '/mangal?cart=1'
         }]
       : []),
     ...platformCarts
@@ -3586,7 +3586,7 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       ) : (
         <div className="order-list">
           {activeCarts.map((cart) => (
-              <Link className="order-card order-card--link" to={cart.href} key={cart.restaurantSlug}>
+              <Link className="order-card order-card--link" to={cart.href} state={cart.href === '/mangal?cart=1' ? { cartReturn: '/cart' } : undefined} key={cart.restaurantSlug}>
                 <span>
                   <strong>{cart.restaurantName}</strong>
                   <small>{cart.quantity} товара · {formatPrice(cart.total)}</small>

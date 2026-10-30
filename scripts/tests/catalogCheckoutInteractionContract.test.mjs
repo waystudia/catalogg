@@ -108,7 +108,7 @@ test('the restaurant cart stays visible in the platform main menu', () => {
   assert.match(clientPlatformSource, /useCartStore/);
   assert.match(clientPlatformSource, /PlatformRestaurantCartDock/);
   assert.match(clientPlatformSource, /platform-restaurant-cart-dock/);
-  assert.match(clientPlatformSource, /to="\/mangal\/checkout"/);
+  assert.match(clientPlatformSource, /to="\/cart"/);
 });
 
 test('continue on checkout scrolls to the final order review', () => {

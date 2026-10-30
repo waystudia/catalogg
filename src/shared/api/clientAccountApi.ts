@@ -122,7 +122,8 @@ export async function restoreClientAccountSession() {
   const { data, error } = await supabase.rpc('get_client_account_session', {
     client_session_token: token
   });
-  if (error || !data) {
+  if (error) return null;
+  if (!data) {
     clearClientSessionToken();
     return null;
   }

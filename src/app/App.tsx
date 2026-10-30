@@ -49,6 +49,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
+import { useCheckoutNavigation } from '../features/checkout/useCheckoutNavigation';
 import { useCatalogCategoryObserver } from './useCatalogCategoryObserver';
 import {
   cabins as demoCabins,
@@ -1940,6 +1941,7 @@ function AppContent({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { openCheckout, goBackFromCheckout, closeCart } = useCheckoutNavigation(catalogSlug, screen, setScreen, setIsCartOpen, isCartOpen);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
   const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
@@ -2474,7 +2476,7 @@ function AppContent({
 
   const finishOrderFlow = () => {
     setOrderFlow((current) => ({ ...current, step: 'done', categoryId: undefined }));
-    setScreen('checkout');
+    openCheckout();
   };
 
   const continueOrderFlow = () => {
@@ -2856,6 +2858,7 @@ function AppContent({
             title={routeSection === 'reviews' ? 'Отзывы' : screen === 'product' ? undefined : title}
             canBack={routeSection === 'reviews' || screen !== 'home'}
             onBack={() => {
+              if (screen === 'checkout') { goBackFromCheckout(); return; }
               if (routeSection === 'reviews') {
                 navigate(`/${catalogSlug}`);
                 return;
@@ -3048,7 +3051,7 @@ function AppContent({
       <CartSheet
         isOpen={isCartOpen}
         isLoading={isLoading}
-        onClose={() => setIsCartOpen(false)}
+        onClose={closeCart}
         onCheckout={checkoutFromCart}
         onMenu={() => {
           setIsCartOpen(false);

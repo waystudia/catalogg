@@ -38,3 +38,20 @@
 .checkout-screen .legal-checkbox input { width: 28px; height: 28px; margin: 0; }
 .checkout-screen .checkout-summary__action { padding: 14px 18px; }
 .checkout-screen .checkout-comment-card label { flex-wrap: wrap; }
+
+.checkout-screen .checkout-delivery-facts {
+  align-items: stretch;
+  padding: 12px 6px;
+}
+.checkout-screen .checkout-delivery-facts > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 0 6px;
+  text-align: center;
+}
+.checkout-screen .checkout-delivery-facts :is(strong, small) { white-space: normal; overflow-wrap: anywhere; }
+.checkout-screen .checkout-delivery-facts strong { min-height: 16px; }
