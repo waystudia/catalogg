@@ -3480,3 +3480,13 @@
 .order-compact-link .order-card__summary em { width: fit-content; }
 .orders-empty { color: #667085; }
 .order-compact-link { box-sizing: border-box; }
+
+/* Keep restaurant carts legible even on a 319px phone. */
+.cart-overview-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+.cart-overview-card > span > strong { font-size: 18px; }
+.cart-overview-card > span > small { display: block; }
+.cart-overview-card > svg { flex-shrink: 0; }

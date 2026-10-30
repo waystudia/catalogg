@@ -5577,24 +5577,39 @@ a {
 }
 
 .cart-sheet__handle {
-  width: 52px;
-  height: 5px;
+  display: grid;
+  width: 96px;
+  min-height: 44px;
   flex: 0 0 auto;
   align-self: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.26);
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  touch-action: none;
+  cursor: grab;
 }
+
+.cart-sheet__handle span {
+  width: 52px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.cart-sheet__handle:active { cursor: grabbing; }
 
 .cart-sheet > * { flex-shrink: 0; min-width: 0; }
 .cart-item-card__top > div { min-width: 0; overflow-wrap: anywhere; }
 
 .cart-sheet__header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   flex: 0 0 auto;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 6px;
+  text-align: center;
 }
 
 .cart-sheet__header h2 {

@@ -3539,11 +3539,11 @@ function PlatformCartPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
       ) : (
         <div className="order-list">
           {activeCarts.map((cart) => (
-              <Link className="order-card order-card--link" to={cart.href} state={cart.href === '/mangal?cart=1' ? { cartReturn: '/cart' } : undefined} key={cart.restaurantSlug}>
+              <Link className="order-card order-card--link cart-overview-card" to={cart.href} state={cart.href === '/mangal?cart=1' ? { cartReturn: '/cart' } : undefined} key={cart.restaurantSlug}>
                 <span>
                   <strong>{cart.restaurantName}</strong>
                   <small>{cart.quantity} товара · {formatPrice(cart.total)}</small>
-                  <em>Корзина хранится отдельно</em>
+                  <em>Открыть корзину</em>
                 </span>
                 <ChevronRight />
               </Link>
