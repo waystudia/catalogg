@@ -32,7 +32,7 @@ const request = async (call) => {
  try {
   const response=await fetch(`${base}/rest/v1/${call.path}`,{method:call.method||'GET',headers:{apikey:key,Authorization:`Bearer ${call.token||key}`,'Content-Type':'application/json'},...(call.method?{body:'{}'}:{}),signal:AbortSignal.timeout(15000)});
   const body=await response.arrayBuffer(); return {ms:performance.now()-start,status:response.status,bytes:body.byteLength};
- } catch(error) {return {ms:performance.now()-start,status:0,bytes:0,error:error.name};}
+ } catch(error) {return {ms:performance.now()-start,status:0,bytes:0,error:error.cause?.code || error.name};}
 };
 for(const journey of journeys){
  const warmup=await Promise.all(journey.calls.map(request));
@@ -52,7 +52,7 @@ for(const users of levels){
  }));
  const elapsed=(performance.now()-start)/1000, times=results.map(x=>x.ms).sort((a,b)=>a-b), journeyTimes=completed.sort((a,b)=>a-b);
  const errors=results.filter(x=>x.status!==200).length,statuses={};for(const r of results)statuses[r.status]=(statuses[r.status]||0)+1;
- const record={users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,journeys:names};
+ const record={users,activeSeconds:duration/1000,elapsedSeconds:elapsed,requests:results.length,rps:results.length/elapsed,p50:quantile(times,.5),p95:quantile(times,.95),journeyP95:quantile(journeyTimes,.95),errors,errorPercent:100*errors/results.length,statuses,errorTypes:results.filter(x=>x.error).reduce((all,x)=>({...all,[x.error]:(all[x.error]||0)+1}),{}),journeys:names};
  fs.appendFileSync(output,JSON.stringify(record)+'\n');console.log(JSON.stringify(record));
  if(record.errorPercent>5){console.log('Stopped: errors exceeded 5%.');break;}
  await pause(3000);
