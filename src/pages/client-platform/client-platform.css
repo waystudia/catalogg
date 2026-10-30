@@ -3475,7 +3475,7 @@
 .orders-view-tabs { display: flex; gap: 8px; margin: 16px 0 20px; }
 .orders-view-tabs button { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 12px 15px; color: #667085; font-weight: 800; white-space: nowrap; }
 .orders-view-tabs button.is-active { background: #5b3df4; border-color: #5b3df4; color: #fff; }
-.order-compact-link { text-decoration: none; color: #111; width: 100%; min-height: 90px; }
+.order-compact-link { grid-template-columns: minmax(0, 1fr) 64px 16px; gap: 8px; text-decoration: none; color: #111; width: 100%; min-height: 90px; }
 .order-compact-link > svg { color: #5b3df4; }
 .order-compact-link .order-card__summary em { width: fit-content; }
 .orders-empty { color: #667085; }

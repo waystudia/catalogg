@@ -651,7 +651,7 @@ function CartSheet({
         <header className="cart-sheet__header">
           <div>
             <h2>Корзина</h2>
-            <p>{count} товаров</p>
+            <p>{count} {count % 10 === 1 && count % 100 !== 11 ? 'товар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'товара' : 'товаров'}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Закрыть корзину">
             <X />
