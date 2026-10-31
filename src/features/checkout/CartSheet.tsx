@@ -144,7 +144,7 @@ export function CartSheet({
                 const modifierLabel = getSelectedModifierDetails(item).map(({ group, option }) => `${group.name}: ${option.name}`).join(' · ');
                 return (
                 <article className="cart-item-card" key={lineId}>
-                  <SafeImage src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
+                  <SafeImage preview src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
                   <div className="cart-item-card__content">
                     <div className="cart-item-card__top">
                       <div>

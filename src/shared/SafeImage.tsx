@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ImgHTMLAttributes } from 'react';
 import { CakeSlice } from 'lucide-react';
+import { productPreviewUrl } from './productPreviewUrl';
 
-type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & { fallbackKind?: 'dessert' };
+type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & { fallbackKind?: 'dessert'; preview?: boolean };
 
 type DataImageCacheEntry = {
   refs: number;
@@ -71,15 +72,17 @@ export function SafeImage({
   alt,
   className,
   fallbackKind,
+  preview = false,
   width,
   loading = 'lazy',
   decoding = 'async',
   onError,
   ...props
 }: SafeImageProps) {
+  const [failedPreviewSource, setFailedPreviewSource] = useState<string>();
   const [failed, setFailed] = useState(false);
   const label = alt || 'Изображение';
-  const deliveredSource = useMemo(() => deliveryImageSource(src, width), [src, width]);
+  const deliveredSource = useMemo(() => deliveryImageSource(preview && src && src !== failedPreviewSource ? productPreviewUrl(src) : src, width), [src, width, preview, failedPreviewSource]);
   const [resolvedSource, setResolvedSource] = useState(() => deliveredSource.startsWith('data:') ? '' : deliveredSource);
 
   useEffect(() => {
@@ -122,6 +125,10 @@ export function SafeImage({
       loading={loading}
       decoding={decoding}
       onError={(event) => {
+        if (src && deliveredSource !== deliveryImageSource(src, width)) {
+          setFailedPreviewSource(src);
+          return;
+        }
         setFailed(true);
         onError?.(event);
       }}

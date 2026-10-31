@@ -1,3 +1,4 @@
+import { SafeImage } from '../../shared/SafeImage';
 import { getNavigationScope } from '../../shared/navigationScope';
 import { useExactBack, useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import { getOrderPlaceName } from '../../features/order/orderDetailPresentation';
@@ -1597,7 +1598,7 @@ function RestaurantCatalogPage({
                 >
                   <Heart />
                 </button>
-                <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
+                <SafeImage preview src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
                 <div>
                   <strong>{dish.name}</strong>
                   <small>{dish.tags.join(' · ')}</small>
@@ -3217,7 +3218,7 @@ function FavoritesPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
         <div className="favorite-dish-list">
           {dishes.map((dish) => (
             <Link to={`/${dish.restaurantSlug}`} key={dish.id}>
-              <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
+              <SafeImage preview src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
               <span>
                 <strong>{dish.name}</strong>
                 <small>{formatPrice(dish.price)}</small>

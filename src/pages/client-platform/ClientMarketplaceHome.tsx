@@ -61,7 +61,7 @@ export function MarketplaceProductGrid({ items, favoriteIds, onToggleFavorite }:
               }}
               aria-label={`Открыть ${item.title} в ${item.businessName}`}
             >
-              <span className="marketplace-product-card__media"><SafeImage src={item.imageUrl} alt={item.title} width={480} height={480} /></span>
+              <span className="marketplace-product-card__media"><SafeImage preview src={item.imageUrl} alt={item.title} width={480} height={480} /></span>
               <span className="marketplace-product-card__body">
                 <strong>{item.title}</strong><small>{item.businessName}</small>
                 <span className="marketplace-product-card__meta"><span><Star aria-hidden="true" /> {item.rating.toFixed(1)}</span><span>{item.estimatedTime}</span></span>

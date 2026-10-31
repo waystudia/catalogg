@@ -1152,7 +1152,7 @@ async function syncPlatformProductImages(productId: string, imageUrls: readonly 
 export async function saveProductToSupabase(product: Product) {
   invalidatePublicMenuCache();
   if (!supabase) return;
-  if (activePlatformCatalogId) product = await persistCatalogMedia(supabase, activePlatformCatalogId, product);
+  if (activePlatformCatalogId) product = await persistCatalogMedia(supabase, activePlatformCatalogId, product, { productPreviews: true });
   if (activePlatformCatalogId) {
     const row = productToPlatformRow(product);
     if (uuidPattern.test(product.id)) {
@@ -1187,7 +1187,7 @@ export async function saveProductToSupabase(product: Product) {
 export async function updateProductInSupabase(productId: string, patch: Partial<Product>) {
   invalidatePublicMenuCache();
   if (!supabase) return;
-  if (activePlatformCatalogId) patch = await persistCatalogMedia(supabase, activePlatformCatalogId, patch);
+  if (activePlatformCatalogId) patch = await persistCatalogMedia(supabase, activePlatformCatalogId, patch, { productPreviews: true });
   if (activePlatformCatalogId) {
     if (!uuidPattern.test(productId)) return;
     await throwOnError(supabase.from('products').update(productPatchToPlatformRow(patch)).eq('id', productId).eq('catalog_id', activePlatformCatalogId));

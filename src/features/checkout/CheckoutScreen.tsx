@@ -592,7 +592,7 @@ export function CheckoutScreen({
             {activeCabins.map(({ id, title, capacity, image_url }) => {
               return (
               <button className={cabinId === id ? 'checkout-cabin is-active' : 'checkout-cabin'} type="button" key={id} onClick={() => setOrder({ cabinId: id })}>
-                <SafeImage className="checkout-cabin__image" src={image_url} alt={title} />
+                <SafeImage preview className="checkout-cabin__image" src={image_url} alt={title} />
                 <span className="checkout-cabin__overlay" />
                 {cabinId === id && (
                   <span className="checkout-cabin__check">
@@ -879,7 +879,7 @@ export function CheckoutScreen({
             const modifierLabel = getSelectedModifierDetails(item).map(({ option }) => option.name).join(' · ');
             return (
             <article className="checkout-order-card" key={lineId}>
-              <SafeImage src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
+              <SafeImage preview src={item.product.image_url} alt={item.product.title} fallbackKind={item.product.placeholder_kind} width={320} height={240} loading="lazy" />
               <div className="checkout-order-card__body">
                 <div className="checkout-order-card__copy">
                   <h3>{item.product.title}</h3>

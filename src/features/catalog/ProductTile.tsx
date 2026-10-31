@@ -108,6 +108,7 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
           {displayedImages.map((image, index) => (
             <span className={`product-photo-carousel__slide${index === activeIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
               <SafeImage
+                preview={!hero}
                 className={hero ? 'product-hero' : undefined}
                 src={image}
                 alt={activeIndex === 0 ? product.title : `${product.title}, фото ${activeIndex + 1}`}

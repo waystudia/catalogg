@@ -1,3 +1,4 @@
+import { SafeImage } from '../../shared/SafeImage';
 import { useBackAction, useHistoryViewState, useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import { ArrowLeft, Info, Minus, Plus, Search, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -59,7 +60,7 @@ const paymentOptions = [
 const cashKeypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0'] as const;
 
 function PosImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [failedSource, setFailedSource] = useHistoryViewState<string | null>('pos.category', null);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
   if (!src || failedSource === src) {
     return (
       <span className={className} role="img" aria-label={alt || 'Фото блюда'}>
@@ -67,7 +68,7 @@ function PosImage({ src, alt, className }: { src: string; alt: string; className
       </span>
     );
   }
-  return <img className={className} src={src} alt={alt} loading="lazy" decoding="async" onError={() => setFailedSource(src)} />;
+  return <SafeImage preview className={className} src={src} alt={alt} onError={() => setFailedSource(src)} />;
 }
 
 function PosProductCard({

@@ -18,8 +18,8 @@ export function HomeActiveOrderCard({ order, snapshot, status, multiple = false,
     </span>}
     <span className="home-active-order__preview" aria-hidden="true">
       {previews.length ? <span className={`home-active-order__dish-fan${previews.length > 1 ? ' is-stacked' : ''}`}>
-        {previews.map((src) => <SafeImage className="home-active-order__dish-image" key={src} src={src} alt="" width={160} height={160} />)}
-      </span> : cover ? <SafeImage src={cover} alt="" width={160} height={160} /> : <ReceiptText />}
+        {previews.map((src) => <SafeImage preview className="home-active-order__dish-image" key={src} src={src} alt="" width={160} height={160} />)}
+      </span> : cover ? <SafeImage preview src={cover} alt="" width={160} height={160} /> : <ReceiptText />}
     </span>
   </>;
 }

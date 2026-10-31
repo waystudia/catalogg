@@ -410,7 +410,7 @@ export function RestaurantAdminWorkspace({
             <div className="admin-menu-preview">
               {products.slice(0, 8).map((product) => (
                 <article key={product.id}>
-                  <SafeImage src={product.image_url} alt={product.title} />
+                  <SafeImage preview src={product.image_url} alt={product.title} />
                   <div>
                     <strong>{product.title}</strong>
                     <small>{formatPrice(product.price)} · остаток {getCurrentStock(product)}</small>

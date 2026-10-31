@@ -61,7 +61,7 @@ export function StockSettings({
           const currentStock = getCurrentStock(product);
           return (
             <article className="stock-dish-card" key={product.id}>
-              <SafeImage className="stock-dish-card__image" src={product.image_url} alt={product.title} />
+              <SafeImage preview className="stock-dish-card__image" src={product.image_url} alt={product.title} />
               <div className="stock-dish-card__body">
                 <h3>{product.title}</h3>
                 <p>

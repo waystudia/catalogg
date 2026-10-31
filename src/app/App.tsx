@@ -1579,7 +1579,7 @@ function UpsellReminder({
                 className={quantity > 0 ? 'flow-product-card is-selected' : 'flow-product-card'}
                 key={product.id}
               >
-                <SafeImage src={product.image_url} alt={product.title} />
+                <SafeImage preview src={product.image_url} alt={product.title} />
                 <strong>{product.title}</strong>
                 <small>{formatPrice(product.price)}</small>
                 <div className="flow-product-card__stepper">

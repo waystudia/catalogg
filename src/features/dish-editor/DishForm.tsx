@@ -1,3 +1,4 @@
+import { SafeImage } from '../../shared/SafeImage';
 import { useEffect, useState, type FormEvent } from 'react';
 import { CategorySelector } from './CategorySelector';
 import { PhotoUploader } from './PhotoUploader';
@@ -435,7 +436,7 @@ export function DishForm({
                     })
                   }
                 >
-                  <img src={product.image_url} alt="" />
+                  <SafeImage preview src={product.image_url} alt="" />
                   <span>{product.title}</span>
                   <b>{selected ? 'Добавлено' : 'Добавить'}</b>
                 </button>

@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { createCatalogPreview } from './catalogPreview';
 
 // Drafts can use data URLs. Persisted catalog records contain only file URLs.
-export async function persistCatalogMedia<T>(client: SupabaseClient, catalogId: string, value: T): Promise<T> {
+export async function persistCatalogMedia<T>(client: SupabaseClient, catalogId: string, value: T, options: { productPreviews?: boolean } = {}): Promise<T> {
   const uploaded = new Map<string, string>();
   const visit = async (item: unknown): Promise<unknown> => {
     if (typeof item === 'string' && item.startsWith('data:image/')) {
@@ -18,8 +19,15 @@ export async function persistCatalogMedia<T>(client: SupabaseClient, catalogId: 
       }
       const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
       const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-      const path = `${catalogId}/media/${hash}.${extension}`;
+      const preview = options.productPreviews ? await createCatalogPreview(blob) : null;
+      const path = `${catalogId}/media/${hash}${preview ? '.full-v1' : ''}.${extension}`;
       const bucket = client.storage.from('catalog-assets');
+      if (preview) {
+        const { error } = await bucket.upload(`${catalogId}/media/${hash}.thumb-v1.webp`, preview, {
+          contentType: 'image/webp', cacheControl: '31536000', upsert: true
+        });
+        if (error) throw error;
+      }
       const { error } = await bucket.upload(path, blob, {
         contentType: blob.type, cacheControl: '31536000', upsert: true
       });

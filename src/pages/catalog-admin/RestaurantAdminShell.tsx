@@ -1,3 +1,4 @@
+import { SafeImage } from '../../shared/SafeImage';
 import { useHistoryViewState, useEntrySnapshotState, useNavigationPrincipal } from '../../shared/ExactBackNavigation';
 import {
   Bell,
@@ -922,7 +923,7 @@ function DashboardPage({
           <h3>Популярные блюда</h3>
           {popularProducts.map((product) => (
             <button key={product.id} type="button" onClick={() => onNavigate('dishes')}>
-              <img src={product.image_url} alt="" />
+              <SafeImage preview src={product.image_url} alt="" />
               <span>{product.title}<small>{getProductStock(product)} осталось</small></span>
             </button>
           ))}
@@ -992,7 +993,7 @@ function CatalogPreviewPage({
         <div className="ra-client-preview__grid">
           {products.slice(0, 8).map((product) => (
             <article key={product.id}>
-              <img src={product.image_url} alt="" />
+              <SafeImage preview src={product.image_url} alt="" />
               <div className="ra-client-preview__admin-actions">
                 <button type="button" aria-label="Редактировать"><Pencil /></button>
                 <button type="button" aria-label="Скрыть"><EyeOff /></button>
@@ -1046,7 +1047,7 @@ function DishesPage({
         </div>
         {products.map((product) => (
           <article key={product.id}>
-            <span><img src={product.image_url} alt="" /><strong>{product.title}</strong></span>
+            <span><SafeImage preview src={product.image_url} alt="" /><strong>{product.title}</strong></span>
             <span>{getCategoryName(categories, product)}</span>
             <span>{formatPrice(product.price)}</span>
             <span>{getProductStock(product)}</span>
@@ -1270,7 +1271,7 @@ function StocksPage({
           const current = stockDrafts[product.id] ?? getProductStock(product);
           return (
             <article key={product.id}>
-              <img src={product.image_url} alt="" />
+              <SafeImage preview src={product.image_url} alt="" />
               <div><strong>{product.title}</strong><small>Сейчас осталось: {getProductStock(product)}</small></div>
               <label>Норма на день<input type="number" value={current} onChange={(event) => setDraft(product, Number(event.target.value))} /></label>
               <button type="button" onClick={() => setDraft(product, current - 1)}>-1</button>
