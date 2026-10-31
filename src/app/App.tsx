@@ -1012,7 +1012,15 @@ export function CatalogScreen({
           <button className="icon-button" type="button" onClick={onBack} aria-label="Назад">
             <ArrowLeft />
           </button>
-          <strong className="catalog-nav__title">{restaurant?.name || 'Каталог'}</strong>
+          <span className="catalog-nav__title catalog-nav__identity">
+            <span className="catalog-nav__logo" aria-hidden="true">
+              {restaurant?.logo_url ? <SafeImage src={restaurant.logo_url} alt="" width={64} height={64} /> : <Store />}
+            </span>
+            <span className="catalog-nav__identity-text">
+              <strong>{restaurant?.name || 'Каталог'}</strong>
+              {restaurant?.subtitle && <small>{restaurant.subtitle}</small>}
+            </span>
+          </span>
           <div className="catalog-nav__actions">
             <button
               className={isSearchOpen ? 'icon-button is-active' : 'icon-button'}

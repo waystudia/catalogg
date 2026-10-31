@@ -12059,3 +12059,25 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .product-photo-carousel__track { transition: none; }
 }
+
+.catalog-nav__identity { display: flex; align-items: center; gap: 6px; }
+.catalog-nav__logo {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 9px;
+  background: var(--card);
+}
+.catalog-nav__logo > img, .catalog-nav__logo > .image-fallback { width: 100%; height: 100%; object-fit: contain; }
+.catalog-nav__logo > svg { width: 18px; height: 18px; color: var(--primary); }
+.catalog-nav__identity-text { min-width: 0; display: grid; gap: 1px; }
+.catalog-nav__identity-text > strong, .catalog-nav__identity-text > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-nav__identity-text > small { color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.15; }
