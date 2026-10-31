@@ -1732,7 +1732,7 @@ function CartLineList({
 
         return (
           <article className="cart-line" key={line.dishId}>
-            <img src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
+            <SafeImage src={dish.imageUrl} alt="" style={{ filter: getPhotoQualityFilter(dish.photoQuality) }} />
             <span>
               <strong>{dish.name}</strong>
               <small>{line.quantity} x {formatPrice(dish.price)}</small>

@@ -1,3 +1,4 @@
+import { SafeImage } from '../../shared/SafeImage';
 import { Plus, X } from 'lucide-react';
 import { imageFileToDataUrl } from '../../shared/images';
 import { getBusinessTerms, type BusinessType } from '../../shared/businessTerminology';
@@ -53,7 +54,7 @@ export function PhotoUploader({
               }
             }}
           >
-            <img src={image} alt={`Фото: ${terms.itemLower} ${index + 1}`} />
+            <SafeImage src={image} alt={`Фото: ${terms.itemLower} ${index + 1}`} />
             <button
               type="button"
               aria-label="Удалить фото"

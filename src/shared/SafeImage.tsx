@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ImgHTMLAttributes } from 'react';
 import { CakeSlice } from 'lucide-react';
 import { productPreviewUrl } from './productPreviewUrl';
+import { resolveSupabasePublicImageUrl } from './supabaseBrowserUrl';
 
 type SafeImageProps = ImgHTMLAttributes<HTMLImageElement> & { fallbackKind?: 'dessert'; preview?: boolean };
 
@@ -19,6 +20,7 @@ const catalogImageWidth = (width: SafeImageProps['width']) => {
 
 const deliveryImageSource = (src: string | undefined, width: SafeImageProps['width']) => {
   if (!src || src.startsWith('data:')) return src ?? '';
+  src = resolveSupabasePublicImageUrl(src, typeof window === 'undefined' ? undefined : window.location.origin);
 
   try {
     const source = new URL(src);

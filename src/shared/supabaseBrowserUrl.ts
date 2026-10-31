@@ -11,3 +11,10 @@ export function resolveSupabaseBrowserUrl(configuredUrl: string | undefined, pag
   }
   return configuredUrl;
 }
+
+/** Keep public image traffic on the same proven edge route as other browser API calls. */
+export function resolveSupabasePublicImageUrl(source: string, pageOrigin?: string): string {
+  const backend = 'https://api.wayyaam.ru';
+  if (!source.startsWith(`${backend}/storage/v1/object/public/`)) return source;
+  return resolveSupabaseBrowserUrl(backend, pageOrigin) + source.slice(backend.length);
+}
