@@ -5,11 +5,13 @@ import { createCatalogPreview } from '../../src/shared/catalogPreview';
 
 const full = `https://api.wayyaam.ru/storage/v1/object/public/catalog-assets/catalog/media/${'a'.repeat(64)}.full-v1.jpg`;
 const thumb = full.replace('.full-v1.jpg', '.thumb-v1.webp');
+// Keep lazy fixtures offscreen: only the explicit error events below may fail them.
+const offscreen = { width: 100, height: 100, style: { position: 'fixed' as const, top: 100000 } };
 
 it('requests the lightweight variant only for a preview, and retries the full photo if it fails', async () => {
-  const screen = await render(<SafeImage src={full} preview alt="Блюдо" />);
+  const screen = await render(<SafeImage {...offscreen} src={full} preview alt="Блюдо" />);
   const image = screen.getByRole('img', { name: 'Блюдо' });
-  // URLs are intentionally unreachable in this fixture: dispatch before the network completes.
+  // No real image request is needed to exercise the controlled fallback sequence.
   await expect.element(image).toHaveAttribute('src', thumb);
   image.element().dispatchEvent(new Event('error'));
   await expect.element(image).toHaveAttribute('src', full);
@@ -18,7 +20,7 @@ it('requests the lightweight variant only for a preview, and retries the full ph
 });
 
 it('keeps the large image for detail views and does not invent previews for old photos', async () => {
-  const screen = await render(<><SafeImage src={full} alt="Большое фото" /><SafeImage src="/old.jpg" preview alt="Старое фото" /></>);
+  const screen = await render(<><SafeImage {...offscreen} src={full} alt="Большое фото" /><SafeImage {...offscreen} src="/old.jpg" preview alt="Старое фото" /></>);
   await expect.element(screen.getByRole('img', { name: 'Большое фото' })).toHaveAttribute('src', full);
   await expect.element(screen.getByRole('img', { name: 'Старое фото' })).toHaveAttribute('src', '/old.jpg');
 });
