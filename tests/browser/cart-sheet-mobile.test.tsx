@@ -65,3 +65,15 @@ test('pulling down a cart opened from the cart overview reveals the restaurant c
   expect(screen.getByRole('dialog').elements()).toHaveLength(0);
   expect(useCartStore.getState().items).toHaveLength(4);
 });
+
+test('cart reveals the full product description while keeping its selected variant and quantity', async () => {
+  await page.viewport(319, 620);
+  const description = 'Сочное мясо, свежие овощи и соус. '.repeat(9);
+  useCartStore.setState({ items: [{ product: { ...products[0], description }, quantity: 2, selected_choice: 'Большая порция' }] });
+  const screen = await render(<MemoryRouter><CartJourney /></MemoryRouter>);
+  await expect.element(screen.getByText('Большая порция', { exact: true })).toBeVisible();
+  await screen.getByText('Подробнее', { exact: true }).click();
+  await expect.element(screen.getByText(description.trim(), { exact: true })).toBeVisible();
+  expect(useCartStore.getState().items[0].quantity).toBe(2);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(319);
+});

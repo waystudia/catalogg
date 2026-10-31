@@ -156,7 +156,15 @@ export function CartSheet({
                         {item.decoration_comment && <small className="cart-item-card__choice">Оформление: {item.decoration_comment}</small>}
                         {item.production_date && <small className="cart-item-card__choice">Дата: {item.production_date}</small>}
                         {item.production_time && <small className="cart-item-card__choice">Время: {item.production_time}</small>}
-                        <p>{item.product.description}</p>
+                        {item.product.description?.trim() && (
+                          <div className="cart-item-card__description">
+                            <p>{item.product.description.length > 110 ? `${item.product.description.slice(0, 110).trim()}…` : item.product.description}</p>
+                            {item.product.description.length > 110 && <details>
+                              <summary>Подробнее</summary>
+                              <p>{item.product.description}</p>
+                            </details>}
+                          </div>
+                        )}
                       </div>
                       <button className="cart-item-card__remove" type="button" onClick={() => remove(lineId)} aria-label={`Удалить ${item.product.title}`}>
                         <Trash2 />

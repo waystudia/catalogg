@@ -11974,3 +11974,47 @@ a {
 @keyframes live-order-orbit-enter { from { opacity: 0; transform: scale(.65); } to { opacity: 1; transform: scale(1); } }
 @keyframes live-order-spark-enter { 0% { opacity: 0; transform: scale(0); } 70% { opacity: 1; transform: scale(1.5); } 100% { opacity: 1; transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .live-order__hero-icon, .live-order__orbit, .live-order__spark { animation: none; } }
+
+/* Cart entry motion does not change its existing Back or drag handlers. */
+@keyframes cart-sheet-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes cart-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.cart-sheet-backdrop { animation: cart-backdrop-enter 220ms ease-out; }
+.cart-sheet { animation: cart-sheet-enter 360ms cubic-bezier(.22, 1, .36, 1); }
+.cart-item-card .cart-item-card__description p {
+  display: block;
+  margin: 4px 0 0;
+  color: #c7cbd0;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.cart-item-card__description summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: #ffe0ad;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cart-item-card__description details[open] > summary { color: #fff; }
+.cart-item-card .cart-item-card__choice { display: block; color: #ffe0ad; }
+.product-heading strong,
+.facts dt { color: var(--text); }
+.product-tile {
+  border: 1px solid color-mix(in srgb, var(--product-card-text) 16%, transparent);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 5%);
+}
+.cart-item-card {
+  border-color: rgb(255 255 255 / 18%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cart-sheet-backdrop, .cart-sheet { animation: none; }
+}
