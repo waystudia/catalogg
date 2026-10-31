@@ -382,8 +382,13 @@
 }
 
 .promo-band__copy {
-  max-width: calc(100% - 32px);
+  width: max-content;
+  max-width: min(calc(100% - 32px), 520px);
   overflow-wrap: anywhere;
+}
+
+.promo-band__copy strong {
+  max-width: 100%;
 }
 
 .promo-band__copy,
