@@ -566,7 +566,7 @@ function PlatformLayout({
 
   return (
     <div className="client-platform platform-theme">
-      <div className="platform-page">{children}</div>
+      <div className={`platform-page${active === 'home' ? ' platform-page--home' : ''}`}>{children}</div>
       {active === 'home' && <PlatformRestaurantCartDock />}
       <MarketplaceBottomNavigation active={active} cartCount={cartCount} />
     </div>

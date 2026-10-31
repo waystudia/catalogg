@@ -283,8 +283,8 @@
 .promo-band {
   position: relative;
   display: grid;
-  flex: 0 0 100%;
-  width: 100%;
+  flex: 0 0 82%;
+  width: 82%;
   min-width: 0;
   max-width: 100%;
   /* Contest artwork: 1774 × 887 px. All slides keep its 2:1 format. */
@@ -303,6 +303,8 @@
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
+
+.promo-band:only-child { margin-inline: auto; }
 
 .promo-band--media {
   grid-template-columns: minmax(0, 1fr);
@@ -3506,3 +3508,21 @@
 .cart-overview-card > span > strong { font-size: 18px; }
 .cart-overview-card > span > small { display: block; }
 .cart-overview-card > svg { flex-shrink: 0; }
+
+/* Compact home: retain product visibility above the fixed cart on small screens. */
+.platform-page--home .platform-search--home {
+  min-height: 44px;
+  margin-bottom: 10px;
+  padding-inline: 12px;
+  border-radius: 14px;
+}
+
+@media (max-width: 719px) {
+  .platform-page--home { padding-top: 8px; }
+  .platform-page--home .home-topbar { margin-bottom: 4px; }
+  .platform-page--home .promo-carousel { gap: 6px; margin-bottom: 8px; }
+  .platform-page--home .home-active-orders { margin: 8px 0 10px; }
+  .platform-page--home .home-active-order { min-height: 0; padding: 8px 12px; }
+  .platform-page--home .home-active-order__details { gap: 2px; }
+  .platform-page--home .marketplace-section-heading { margin-bottom: 8px; }
+}
