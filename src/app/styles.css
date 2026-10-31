@@ -11994,6 +11994,13 @@ a {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+.cart-item-card .cart-item-card__description > p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+}
+.cart-item-card .cart-item-card__description:has(details[open]) > p { display: none; }
+.cart-item-card:has(details[open]) > img,
+.cart-item-card:has(details[open]) > .image-fallback { align-self: start; margin-top: 2px; }
 .cart-item-card__description summary {
   display: flex;
   align-items: center;
