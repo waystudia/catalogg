@@ -64,9 +64,10 @@ test('content pages have a database model, banner relation, and a client route',
   assert.match(clientSource, /ContentPageScreen/);
 });
 
-test('client banners stay horizontal and place text actions above full-bleed media', () => {
-  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
-  assert.match(clientCss, /\.promo-band\s*\{[\s\S]*max-height:\s*280px/);
+test('client banners match approved 2:1 artwork and keep text actions above media', () => {
+  const bannerRules = clientCss.match(/\.promo-band\s*\{([^}]+)\}/)?.[1] ?? '';
+  assert.match(bannerRules, /aspect-ratio:\s*2\s*\/\s*1/);
+  assert.doesNotMatch(bannerRules, /max-height\s*:/);
   assert.match(clientCss, /\.promo-band\s*>\s*\.promo-band__media\s*\{[\s\S]*position:\s*absolute/);
   assert.match(clientCss, /\.promo-band\s*>\s*div,[\s\S]*\.promo-band\s*>\s*a\s*\{[\s\S]*z-index:\s*2/);
   assert.match(adminCss, /\.platform-banner-media-preview\s*\{[\s\S]*aspect-ratio:\s*16\s*\/\s*5/);
