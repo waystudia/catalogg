@@ -82,3 +82,29 @@ test('local images keep their source and default to deferred decoding', async ()
   await expect.element(image).toHaveAttribute('loading', 'lazy');
   await expect.element(image).toHaveAttribute('decoding', 'async');
 });
+
+test('trackpad gestures switch photos only on the horizontal axis and never scroll the photo surface', async () => {
+  await render(<ProductImageCarousel product={product({ image_urls: ['/one.webp', '/two.webp', '/three.webp'] })} />);
+  const surface = document.querySelector<HTMLElement>('.product-photo-carousel')!;
+  const track = surface.querySelector<HTMLElement>('.product-photo-carousel__track')!;
+  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 70, deltaY: 140 }));
+  expect(surface.dataset.activeImage).toBe('/one.webp');
+  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 90, deltaY: 2 }));
+  await expect.poll(() => surface.dataset.activeImage).toBe('/two.webp');
+  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 90, deltaY: 2 }));
+  expect(surface.dataset.activeImage).toBe('/two.webp');
+  surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, ctrlKey: true, deltaX: 200 }));
+  expect(surface.dataset.activeImage).toBe('/two.webp');
+  expect(track.scrollTop).toBe(0);
+  expect(track.scrollLeft).toBe(0);
+});
+
+
+test('a single photo does not intercept trackpad scrolling', async () => {
+  await render(<ProductImageCarousel product={product({ image_url: '/only.webp' })} />);
+  const surface = document.querySelector<HTMLElement>('.product-photo-carousel')!;
+  const event = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 90, deltaY: 2 });
+  surface.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(surface.dataset.activeImage).toBe('/only.webp');
+});

@@ -1,4 +1,4 @@
-import { Edit3, Eye, EyeOff, Minus, Plus, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Edit3, Eye, EyeOff, Minus, Plus, Heart, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../entities/models';
 import { getProductChoiceOptions } from '../../entities/productVariants';
@@ -24,17 +24,38 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
   const didSwipe = useRef(false);
-  const trackRef = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
   const displayedImages = images.length > 1
     ? images
     : (images.length ? images : ['']);
 
   useEffect(() => {
     setActiveIndex(0);
-    window.requestAnimationFrame(() => {
-      const track = trackRef.current;
-      if (track) track.scrollLeft = 0;
-    });
+
+  }, [product.id, images.length]);
+
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || images.length < 2) return;
+    let distance = 0;
+    let lastEvent = 0;
+    let switched = false;
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+      const now = performance.now();
+      if (now - lastEvent > 180) { distance = 0; switched = false; }
+      lastEvent = now;
+      if (switched) return;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? surface.clientWidth : 1;
+      distance += event.deltaX * unit;
+      if (Math.abs(distance) < 48) return;
+      const direction = distance > 0 ? 1 : -1;
+      setActiveIndex((index) => Math.max(0, Math.min(images.length - 1, index + direction)));
+      switched = true;
+    };
+    surface.addEventListener('wheel', onWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', onWheel);
   }, [product.id, images.length]);
 
   useEffect(() => {
@@ -55,6 +76,7 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
     <>
       <div
         className={`${hero ? 'product-photo-carousel product-photo-carousel--hero' : 'product-photo-carousel'}${images.length > 1 ? ' product-photo-carousel--swipeable' : ''}`}
+        ref={surfaceRef}
         data-active-image={images[activeIndex] ?? product.image_url}
         role={hero ? 'button' : undefined}
         tabIndex={hero ? 0 : undefined}
@@ -90,20 +112,12 @@ export function ProductImageCarousel({ product, hero = false }: { product: Produ
           if (!isHorizontalSwipe) return;
           const direction = deltaX < 0 ? 1 : -1;
           const nextIndex = Math.max(0, Math.min(images.length - 1, activeIndex + direction));
-          const track = trackRef.current;
-          if (track) track.scrollTo({ left: nextIndex * track.clientWidth, behavior: 'smooth' });
+          setActiveIndex(nextIndex);
         }}
       >
         <div
           className="product-photo-carousel__track"
-          ref={trackRef}
-          onScroll={(event) => {
-            const track = event.currentTarget;
-            const width = track.clientWidth;
-            if (width <= 0) return;
-            const nextIndex = Math.max(0, Math.min(images.length - 1, Math.round(track.scrollLeft / width)));
-            setActiveIndex(nextIndex);
-          }}
+          style={{ transform: `translateX(-${activeIndex * 100}%)` }}
         >
           {displayedImages.map((image, index) => (
             <span className={`product-photo-carousel__slide${index === activeIndex ? ' is-active' : ''}`} key={`${image}-${index}`}>
@@ -255,7 +269,7 @@ export function ProductTile({
     >
       <div className="product-tile__image">
         <ProductImageCarousel product={product} />
-        {product.is_popular && <span className="product-state product-state--popular"><Star /></span>}
+        {product.is_popular && <span className="product-state product-state--popular"><Heart /></span>}
         {(product.badges ?? []).slice(0, 2).length > 0 && (
           <span className="product-tile__badges">
             {(product.badges ?? []).slice(0, 2).map((badge) => <b key={badge}>{badge}</b>)}
@@ -276,7 +290,7 @@ export function ProductTile({
               -1
             </button>
             <button className={product.is_popular ? 'is-on' : ''} type="button" aria-label="Популярное" onClick={() => onToggle?.(product.id, 'is_popular')}>
-              <Star />
+              <Heart />
             </button>
             <button
               className={product.is_hidden ? 'is-on' : ''}

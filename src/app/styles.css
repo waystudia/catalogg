@@ -4556,7 +4556,7 @@ a {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
   user-select: none;
 }
 
@@ -12024,4 +12024,38 @@ a {
 }
 @media (prefers-reduced-motion: reduce) {
   .cart-sheet-backdrop, .cart-sheet { animation: none; }
+}
+
+/* Photos move as discrete horizontal slides; the surface itself cannot scroll. */
+.product-photo-carousel { overflow: clip; touch-action: pan-y; }
+.product-photo-carousel__track,
+.product-photo-carousel--swipeable .product-photo-carousel__track {
+  overflow: visible;
+  touch-action: pan-y;
+  transition: transform 220ms ease;
+  scroll-snap-type: none;
+}
+.catalog-nav.is-stuck .catalog-nav__toolbar {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.catalog-nav__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(13px, 3.8vw, 18px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-category-showcase__card {
+  border-color: color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 5%);
+}
+.product-state--popular {
+  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-photo-carousel__track { transition: none; }
 }

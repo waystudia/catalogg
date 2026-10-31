@@ -1012,6 +1012,7 @@ export function CatalogScreen({
           <button className="icon-button" type="button" onClick={onBack} aria-label="Назад">
             <ArrowLeft />
           </button>
+          <strong className="catalog-nav__title">{restaurant?.name || 'Каталог'}</strong>
           <div className="catalog-nav__actions">
             <button
               className={isSearchOpen ? 'icon-button is-active' : 'icon-button'}

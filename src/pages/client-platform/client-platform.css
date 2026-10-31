@@ -3553,3 +3553,8 @@
     border-radius: 10px;
   }
 }
+
+.client-platform :is(.category-tile, .category-quick-card, .restaurant-card, .restaurant-list-item, .order-card, .profile-card) {
+  border: 1px solid #dfe4ec;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 8%), 0 1px 3px rgb(15 23 42 / 5%);
+}

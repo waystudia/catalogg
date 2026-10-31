@@ -48,11 +48,12 @@ test('product controls suppress native text selection and touch callouts', () =>
 test('product photos use a finite carousel and settle on a real image index', () => {
   assert.match(appSource, /const displayedImages = images\.length > 1\s*\? images\s*:\s*\(images\.length \? images : \[''\]\);/);
   assert.match(appSource, /product-photo-carousel__slide/);
-  assert.match(appSource, /Math\.max\(0, Math\.min\(images\.length - 1, Math\.round\(track\.scrollLeft \/ width\)\)\)/);
+  assert.match(appSource, /Math\.max\(0, Math\.min\(images\.length - 1, activeIndex \+ direction\)\)/);
+  assert.ok(appSource.includes('transform: `translateX(-${activeIndex * 100}%)`'));
   assert.doesNotMatch(appSource, /scrollBehavior\s*=\s*'auto'/);
 });
 
-test('mobile gestures lock single photos and enable only horizontal gallery swipes', () => {
+test('photo surfaces pass vertical gestures to the page and keep horizontal gallery gestures finite', () => {
   assert.match(
     indexSource,
     /name="viewport" content="width=device-width, initial-scale=1\.0, maximum-scale=1\.0, user-scalable=no, viewport-fit=cover"/
@@ -63,11 +64,11 @@ test('mobile gestures lock single photos and enable only horizontal gallery swip
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*none;/
+    /\.product-photo-carousel\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
-    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*none;/
+    /\.product-photo-carousel__track\s*\{[^}]*touch-action:\s*pan-y;/
   );
   assert.match(
     appStyles,
