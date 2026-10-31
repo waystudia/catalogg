@@ -2642,7 +2642,8 @@
   }
 
   .dish-grid,
-  .restaurant-category-grid {
+  .restaurant-category-grid,
+  .marketplace-feed-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
