@@ -3526,3 +3526,30 @@
   .platform-page--home .home-active-order__details { gap: 2px; }
   .platform-page--home .marketplace-section-heading { margin-bottom: 8px; }
 }
+
+/* Open the dish fan into a row within the right side of the wide home card. */
+@media (min-width: 720px) {
+  .home-active-order .home-active-order__preview:has(.is-stacked) {
+    width: min(42%, 320px);
+    flex-basis: min(42%, 320px);
+    background: transparent;
+    overflow: visible;
+  }
+  .home-active-order .home-active-order__dish-fan.is-stacked {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+  }
+  .home-active-order .home-active-order__dish-fan.is-stacked > * {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 96px;
+    height: 70px;
+    min-width: 0;
+    flex: 0 1 96px;
+    transform: none;
+    border-radius: 10px;
+  }
+}
