@@ -1,3 +1,4 @@
+import { useBackAction, useExactBack, useHistoryViewState } from '../../shared/ExactBackNavigation';
 import {
   ArrowLeft,
   Bike,
@@ -48,7 +49,8 @@ export function PartnerApplicationFlow({ kind }: { kind: PartnerApplicationKind 
   const navigate = useNavigate();
   const isCourier = kind === 'courier';
   const total = isCourier ? 3 : 2;
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useHistoryViewState('partner.application.step', 1);
+  const backToEntry = useExactBack(isCourier ? '/profile/partners' : '/profile/partners/business');
   const [account, setAccount] = useState<AccountDraft>(emptyAccount);
   const [details, setDetails] = useState<Record<string, unknown>>({
     businessType: kind === 'shop' ? 'Магазин' : 'Ресторан',
@@ -59,15 +61,15 @@ export function PartnerApplicationFlow({ kind }: { kind: PartnerApplicationKind 
   const [error, setError] = useState('');
   const [applicationId, setApplicationId] = useState('');
 
-  const back = () => {
+  const back = useBackAction(() => {
     if (step > 1) {
       setStep((current) => current - 1);
       setError('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    navigate(isCourier ? '/profile/partners' : '/profile/partners/business');
-  };
+    backToEntry();
+  });
 
   const submitAccount = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

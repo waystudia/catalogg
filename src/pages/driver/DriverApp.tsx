@@ -1,3 +1,4 @@
+import { useExactBack, useBackAction, useHistoryViewState, useNavigationPrincipal } from '../../shared/ExactBackNavigation';
 import {
   ArrowLeft,
   Bell,
@@ -301,6 +302,7 @@ export function DriverApp() {
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(!supabase);
   const [hasDriverAccess, setHasDriverAccess] = useState(!supabase);
+  useNavigationPrincipal(authChecked && hasDriverAccess ? `driver:${selectedDriverId}` : null);
   const [recentDeliveryIds, setRecentDeliveryIds] = useState<Set<string>>(() => new Set());
   const knownDeliveryIdsRef = useRef<Set<string>>(new Set());
   const hasLoadedDeliveriesRef = useRef(false);
@@ -643,13 +645,13 @@ export function DriverApp() {
   );
 }
 
-function DriverHeader({ title, action }: { title: string; action?: ReactNode }) {
-  const navigate = useNavigate();
+export function DriverHeader({ title, action }: { title: string; action?: ReactNode }) {
   const location = useLocation();
+  const goBack = useExactBack(getDriverBackTarget(location.pathname));
 
   return (
     <header className="driver-header">
-      <button type="button" onClick={() => navigate(getDriverBackTarget(location.pathname))} aria-label="Назад">
+      <button type="button" onClick={goBack} aria-label="Назад">
         <ArrowLeft />
       </button>
       <h1>{title}</h1>
@@ -1247,7 +1249,7 @@ function DriverOrdersScreen({
   error: string;
 }) {
   const location = useLocation();
-  const [orderTab, setOrderTab] = useState<'new' | 'active'>('new');
+  const [orderTab, setOrderTab] = useHistoryViewState<'new' | 'active'>('driver.orders.tab', 'new');
   const deliveryId = location.pathname.split('/').filter(Boolean)[2] ?? '';
   const visibleOffers = useMemo(
     () =>
@@ -1323,6 +1325,7 @@ function DriverOrdersScreen({
 
 function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: DeliveryOffer }) {
   const navigate = useNavigate();
+  const backToOrders = useExactBack('/driver/orders');
   const acceptLocalOffer = useDriverStore((state) => state.acceptLocalOffer);
   const dismissDeliveryOffer = useDriverStore((state) => state.dismissDeliveryOffer);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -1357,7 +1360,7 @@ function DriverNewOrderScreen({ driverId, offer }: { driverId: string; offer: De
 
   return (
     <section className="driver-new-order-screen" aria-label={`Новый заказ ${offer.orderNumber}`}>
-      <button className="driver-new-order-screen__back" type="button" onClick={() => navigate('/driver/orders')} aria-label="Назад к заказам">
+      <button className="driver-new-order-screen__back" type="button" onClick={backToOrders} aria-label="Назад к заказам">
         <ArrowLeft />
       </button>
       <div className="driver-urgent-offer__intro">
@@ -1409,11 +1412,12 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
   const completeLocalDelivery = useDriverStore((state) => state.completeLocalDelivery);
   const [error, setError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatTarget, setChatTarget] = useState<'restaurant' | 'client'>('restaurant');
+  const closeChat = useBackAction(() => setIsChatOpen(false));
+  const [isChatOpen, setIsChatOpen] = useHistoryViewState('driver.delivery.chatOpen', false);
+  const [chatTarget, setChatTarget] = useHistoryViewState<'restaurant' | 'client'>('driver.delivery.chatTarget', 'restaurant');
   const [driverHandedAt, setDriverHandedAt] = useState(delivery?.driverHandedToClientAt ?? null);
   const [screenStatus, setScreenStatus] = useState<DeliveryStatus | null>(null);
-  const [contactTarget, setContactTarget] = useState<'restaurant' | 'client'>('restaurant');
+  const [contactTarget, setContactTarget, replaceContactTarget] = useHistoryViewState<'restaurant' | 'client'>('driver.delivery.contact', () => delivery && ['assigned', 'waiting_courier', 'arrived_to_restaurant'].includes(delivery.status) ? 'restaurant' : 'client');
   const [showClientRoutePrompt, setShowClientRoutePrompt] = useState(false);
   const displayDeliveryAddress = delivery ? formatDriverDeliveryAddress(delivery.deliveryAddress) : '';
   const currentDelivery = useMemo(
@@ -1448,9 +1452,13 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
       hint: 'Для вручения заказа'
     });
 
+  const contactStage = `${currentDelivery?.deliveryId}:${isHeadingToRestaurant}`;
+  const previousContactStage = useRef(contactStage);
   useEffect(() => {
-    setContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
-  }, [currentDelivery?.deliveryId, isHeadingToRestaurant]);
+    if (previousContactStage.current === contactStage) return;
+    previousContactStage.current = contactStage;
+    replaceContactTarget(isHeadingToRestaurant ? 'restaurant' : 'client');
+  }, [contactStage, isHeadingToRestaurant, replaceContactTarget]);
   const waitingForCashConfirmation = Boolean(
     currentDelivery?.status === 'arrived_to_restaurant' &&
     currentDelivery.paymentMethod === 'cash' &&
@@ -1640,7 +1648,7 @@ export function DriverActiveScreen({ delivery }: { delivery: DeliveryOffer | nul
           <DriverCompletionSlider disabled={isUpdatingStatus} onComplete={finishDelivery} />
         )}
         {error && <p className="driver-error">{error}</p>}
-        {isChatOpen && <DriverDeliveryChat orderId={currentDelivery.orderId} target={chatTarget} recipientName={chatTarget === 'restaurant' ? currentDelivery.restaurantName : currentDelivery.clientName || 'клиент'} onClose={() => setIsChatOpen(false)} />}
+        {isChatOpen && <DriverDeliveryChat orderId={currentDelivery.orderId} target={chatTarget} recipientName={chatTarget === 'restaurant' ? currentDelivery.restaurantName : currentDelivery.clientName || 'клиент'} onClose={closeChat} />}
       </section>
     </>
   );

@@ -1,3 +1,4 @@
+import { useHistoryViewState, useEntrySnapshotState, useNavigationPrincipal } from '../../shared/ExactBackNavigation';
 import {
   Bell,
   Calculator,
@@ -292,8 +293,9 @@ export function RestaurantAdminShell({
   onSignOut: () => void;
   consentModal?: React.ReactNode;
 }) {
-  const [section, setSection] = useState<AdminSection>('home');
-  const [settingsSection, setSettingsSection] = useState<SettingsSection>('hub');
+  useNavigationPrincipal(access.email ? `${access.catalog?.slug}:${access.email}:${access.role}` : null);
+  const [section, setSection] = useHistoryViewState<AdminSection>('catalog.admin.section', 'home');
+  const [settingsSection, setSettingsSection] = useHistoryViewState<SettingsSection>('catalog.admin.settings', 'hub');
   const [catalogData, setCatalogData] = useState<CatalogData>({
     restaurant: demoRestaurant,
     categories: demoCategories,
@@ -309,10 +311,10 @@ export function RestaurantAdminShell({
     warehouse: 'disabled'
   });
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [dishQuery, setDishQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [orderQuery, setOrderQuery] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [dishQuery, setDishQuery] = useEntrySnapshotState('catalog.admin.dishQuery', '');
+  const [categoryFilter, setCategoryFilter] = useEntrySnapshotState('catalog.admin.categoryFilter', 'all');
+  const [orderQuery, setOrderQuery] = useEntrySnapshotState('catalog.admin.orderQuery', '');
+  const [selectedOrderId, setSelectedOrderId] = useEntrySnapshotState<string | null>('catalog.admin.orderId', null);
   const [recentOrderIds, setRecentOrderIds] = useState<Set<string>>(() => new Set());
   const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>(() =>

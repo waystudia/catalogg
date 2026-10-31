@@ -1,3 +1,4 @@
+import { useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import {
   ArrowLeft,
   Boxes,
@@ -72,9 +73,9 @@ export function PlatformRestaurantModulesPage({
 }: Props) {
   const [restaurants, setRestaurants] = useState<RestaurantModuleRestaurant[]>([]);
   const [entitlements, setEntitlements] = useState<RestaurantModuleEntitlement[]>([]);
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<RestaurantModuleEntitlement | null>(null);
-  const [query, setQuery] = useState('');
+  const [selectedCatalogId, setSelectedCatalogId] = useEntrySnapshotState<string | null>('platform.modules.catalog', null);
+  const [draft, setDraft] = useEntrySnapshotState<RestaurantModuleEntitlement | null>('platform.modules.draft', null);
+  const [query, setQuery] = useEntrySnapshotState('platform.modules.query', '');
   const [state, setState] = useState<'loading' | 'ready' | 'saving' | 'saved' | 'error'>('loading');
 
   useEffect(() => {

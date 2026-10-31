@@ -6,9 +6,12 @@ export function useCatalogCategoryObserver(
   sectionRefs: RefObject<SectionMap>,
   queryKey: string,
   sectionCount: number,
-  setActive: Dispatch<SetStateAction<string>>
+  setActive: Dispatch<SetStateAction<string>>,
+  restoredCategory?: string
 ) {
   const pendingCategoryRef = useRef<string | null>(null);
+  const initialRestoredCategory = useRef(restoredCategory);
+  const restorationLock = useRef(Boolean(restoredCategory));
 
   useEffect(() => {
     const sections = sectionRefs.current;
@@ -17,8 +20,14 @@ export function useCatalogCategoryObserver(
     const elements = Array.from(sections.values());
     if (elements.length === 0) return undefined;
 
+    const interrupt = () => { restorationLock.current = false; pendingCategoryRef.current = null; };
+    window.addEventListener('wheel', interrupt, { passive: true });
+    window.addEventListener('touchstart', interrupt, { passive: true });
+    window.addEventListener('pointerdown', interrupt, { passive: true });
+    window.addEventListener('keydown', interrupt);
     const observer = new IntersectionObserver(
       (entries) => {
+        if (restorationLock.current && initialRestoredCategory.current && sections.has(initialRestoredCategory.current)) return;
         const pendingCategory = pendingCategoryRef.current;
         if (pendingCategory) {
           const pendingEntry = entries.find(
@@ -41,10 +50,17 @@ export function useCatalogCategoryObserver(
     );
 
     elements.forEach((element) => observer.observe(element));
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('wheel', interrupt);
+      window.removeEventListener('touchstart', interrupt);
+      window.removeEventListener('pointerdown', interrupt);
+      window.removeEventListener('keydown', interrupt);
+    };
   }, [queryKey, sectionCount, sectionRefs, setActive]);
 
   return useCallback((id: string, target?: HTMLElement) => {
+    restorationLock.current = false;
     pendingCategoryRef.current = target ? id : null;
   }, []);
 }

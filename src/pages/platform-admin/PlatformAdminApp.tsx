@@ -1,3 +1,4 @@
+import { useBackAction, useHistoryViewState, useEntrySnapshotState, useNavigationPrincipal } from '../../shared/ExactBackNavigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -53,7 +54,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
 import {
   createClient,
@@ -254,15 +255,7 @@ const parseSettlementsInput = (value: string) =>
 
 const formatSettlementsInput = (values: string[]) => values.join('\n');
 
-const getCurrentPlatformPath = () => {
-  if (window.location.hash.startsWith('#/')) {
-    return window.location.hash.slice(1);
-  }
-  return window.location.pathname.replace(import.meta.env.BASE_URL, '/');
-};
-
-const readRouteFromLocation = (): PlatformRoute => {
-  const path = getCurrentPlatformPath();
+const readPlatformRoute = (path: string): PlatformRoute => {
   if (path.includes('/admin/activations')) return 'activations';
   if (path.includes('/admin/catalogs')) return 'catalogs';
   if (path.includes('/admin/client-signups')) return 'client-signups';
@@ -279,12 +272,6 @@ const readRouteFromLocation = (): PlatformRoute => {
   if (path.includes('/admin/audit-log')) return 'audit-log';
   if (path.includes('/admin/clients')) return 'clients';
   return 'dashboard';
-};
-
-const routeToPath = (route: PlatformRoute) => {
-  const segment = route === 'dashboard' ? 'dashboard' : route;
-  const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-  return `${base}#/admin/${segment}`;
 };
 
 const privacyPolicyPath = () => {
@@ -311,11 +298,6 @@ function getInitials(name: string) {
   return letters || 'C';
 }
 
-function navigateToRoute(route: PlatformRoute, setRoute: (route: PlatformRoute) => void) {
-  window.history.pushState(null, '', routeToPath(route));
-  setRoute(route);
-}
-
 function PlatformSidebar({
   route,
   onNavigate
@@ -332,7 +314,7 @@ function PlatformSidebar({
           <small>Управление каталогами</small>
         </div>
       </div>
-      <nav className="platform-sidebar__nav" aria-label="Суперадмин меню">
+      <nav className="platform-sidebar__nav" data-navigation-scroll="platform-sidebar" aria-label="Суперадмин меню">
         {navItems.map(({ route: itemRoute, label, detail, Icon }) => (
           <button
             className={route === itemRoute ? 'is-active' : ''}
@@ -1588,12 +1570,12 @@ function ClientsPage({
   onCreate: () => void;
   onEdit: (client: PlatformClient) => void;
 }) {
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
-  const [payment, setPayment] = useState('all');
-  const [templateId, setTemplateId] = useState('all');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useEntrySnapshotState('platform.clients.search', '');
+  const [status, setStatus] = useEntrySnapshotState('platform.clients.status', 'all');
+  const [payment, setPayment] = useEntrySnapshotState('platform.clients.payment', 'all');
+  const [templateId, setTemplateId] = useEntrySnapshotState('platform.clients.templateId', 'all');
+  const [page, setPage] = useEntrySnapshotState('platform.clients.page', 1);
+  const [pageSize, setPageSize] = useEntrySnapshotState('platform.clients.pageSize', 10);
   const debouncedSearch = useDebouncedValue(search);
 
   const templatesQuery = useQuery({
@@ -2139,9 +2121,10 @@ function PlatformInnerHeader({
   onBack: () => void;
   action?: ReactNode;
 }) {
+  const back = useBackAction(onBack);
   return (
     <header className="platform-inner-head">
-      <button type="button" onClick={onBack} aria-label="Назад"><ChevronLeft /></button>
+      <button type="button" onClick={back} aria-label="Назад"><ChevronLeft /></button>
       <span>
         <h1>{title}</h1>
         <p>{description}</p>
@@ -2164,7 +2147,7 @@ function SubscriptionsPage() {
   const [fromSettlement, setFromSettlement] = useState('');
   const [toSettlement, setToSettlement] = useState('');
   const [amount, setAmount] = useState(200);
-  const [view, setView] = useState<SubscriptionView>('overview');
+  const [view, setView] = useHistoryViewState<SubscriptionView>('platform.subscription.view', 'overview');
 
   useEffect(() => {
     if (!billingSettingsQuery.data) return;
@@ -2667,15 +2650,17 @@ const createContentBlock = (type: PlatformContentBlockType): PlatformContentBloc
   label: ''
 });
 
-function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
+export function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ['platform-global-settings'], queryFn: getPlatformGlobalSettings });
   const bannersQuery = useQuery({ queryKey: ['platform-banners'], queryFn: getPlatformBanners });
   const pagesQuery = useQuery({ queryKey: ['platform-content-pages'], queryFn: () => getPlatformContentPages() });
-  const [view, setView] = useState<SettingsView>('overview');
-  const [editingBanner, setEditingBanner] = useState<PlatformBannerAdmin | 'new' | null>(null);
-  const [editingPage, setEditingPage] = useState<PlatformContentPage | 'new' | null>(null);
+  const [view, setView] = useHistoryViewState<SettingsView>('platform.settings.view', 'overview');
+  const [editingBanner, setEditingBanner] = useHistoryViewState<PlatformBannerAdmin | 'new' | null>('platform.settings.banner', null);
+  const [editingPage, setEditingPage] = useHistoryViewState<PlatformContentPage | 'new' | null>('platform.settings.page', null);
 
+  const closeBanner = useBackAction(() => setEditingBanner(null));
+  const closePage = useBackAction(() => setEditingPage(null));
   const refreshBanners = () => void queryClient.invalidateQueries({ queryKey: ['platform-banners'] });
   const refreshPages = () => void queryClient.invalidateQueries({ queryKey: ['platform-content-pages'] });
 
@@ -2686,10 +2671,10 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
           banner={editingBanner === 'new' ? undefined : editingBanner}
           pages={pagesQuery.data ?? []}
           defaultSortOrder={bannersQuery.data?.length ?? 0}
-          onBack={() => setEditingBanner(null)}
+          onBack={closeBanner}
           onSaved={() => {
             refreshBanners();
-            setEditingBanner(null);
+            closeBanner();
           }}
         />
       );
@@ -2740,11 +2725,11 @@ function PlatformSettingsPage({ onSignOut }: { onSignOut: () => void }) {
       return (
         <PlatformContentPageEditor
           page={editingPage === 'new' ? undefined : editingPage}
-          onBack={() => setEditingPage(null)}
+          onBack={closePage}
           onSaved={() => {
             refreshPages();
             refreshBanners();
-            setEditingPage(null);
+            closePage();
           }}
         />
       );
@@ -3025,7 +3010,8 @@ function PlatformContentPageEditor({
   const [status, setStatus] = useState<PlatformContentPage['status']>(page?.status ?? 'draft');
   const [blocks, setBlocks] = useState<PlatformContentBlock[]>(page?.blocks ?? []);
   const [newBlockType, setNewBlockType] = useState<PlatformContentBlockType>('heading');
-  const [isPreview, setIsPreview] = useState(false);
+  const [isPreview, setIsPreview] = useHistoryViewState('platform.page.preview', false);
+  const backFromPreview = useBackAction(() => setIsPreview(false));
 
   const updateBlock = (id: string, patch: Partial<PlatformContentBlock>) => {
     setBlocks((current) => current.map((block) => block.id === id ? { ...block, ...patch } : block));
@@ -3137,7 +3123,7 @@ function PlatformContentPageEditor({
         )}
 
         <footer>
-          <button type="button" className="is-secondary" onClick={() => setIsPreview((value) => !value)}><Eye />{isPreview ? 'Вернуться к редактору' : 'Предпросмотр'}</button>
+          <button type="button" className="is-secondary" onClick={() => isPreview ? backFromPreview() : setIsPreview(true)}><Eye />{isPreview ? 'Вернуться к редактору' : 'Предпросмотр'}</button>
           <button type="button" onClick={() => void save()}><Save />Сохранить</button>
         </footer>
       </section>
@@ -3255,7 +3241,10 @@ function ForbiddenState({ email, onSignOut }: { email: string | null; onSignOut:
 }
 
 function PlatformAdminContent() {
-  const [route, setRoute] = useState<PlatformRoute>(() => readRouteFromLocation());
+  const location = useLocation();
+  const navigate = useNavigate();
+  const route = readPlatformRoute(location.pathname);
+  const goToRoute = (next: PlatformRoute) => navigate(`/admin/${next}`);
   const [createOpen, setCreateOpen] = useState(window.location.pathname.includes('/admin/clients/new'));
   const [editingClient, setEditingClient] = useState<PlatformClient | null>(null);
   const [success, setSuccess] = useState<CreateClientSuccess | null>(null);
@@ -3271,6 +3260,7 @@ function PlatformAdminContent() {
     queryKey: ['platform-admin-session'],
     queryFn: () => getPlatformAdminAccess()
   });
+  useNavigationPrincipal(platformAdminQuery.data?.isPlatformAdmin ? platformAdminQuery.data.email : null);
   const signOutWithConfirmation = useCallback(() => {
     if (!confirmRoleSignOut('суперадминистратора')) return;
     void signOutPlatformAdmin().then(() => redirectToClientHome());
@@ -3286,17 +3276,6 @@ function PlatformAdminContent() {
     if (!platformAdminQuery.data?.isPlatformAdmin) return;
     void restoreRestaurantOrderNotificationSubscription({ role: 'super_admin' }).then(setNotificationPermission);
   }, [platformAdminQuery.data?.isPlatformAdmin]);
-
-  useEffect(() => {
-    const onPopState = () => setRoute(readRouteFromLocation());
-    const onHashChange = () => setRoute(readRouteFromLocation());
-    window.addEventListener('popstate', onPopState);
-    window.addEventListener('hashchange', onHashChange);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-      window.removeEventListener('hashchange', onHashChange);
-    };
-  }, []);
 
   useEffect(() => {
     if (!createOpen && !editingClient) return undefined;
@@ -3389,7 +3368,7 @@ function PlatformAdminContent() {
       <Toaster richColors position="top-center" />
       <PlatformSidebar
         route={route}
-        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
+        onNavigate={(nextRoute) => goToRoute(nextRoute)}
       />
       <section className="platform-workspace">
         <header className="platform-topbar">
@@ -3409,7 +3388,7 @@ function PlatformAdminContent() {
             >
               <Bell />
             </button>
-            <button type="button" aria-label="Настройки" onClick={() => navigateToRoute('settings', setRoute)}>
+            <button type="button" aria-label="Настройки" onClick={() => goToRoute('settings')}>
               <Settings />
             </button>
           </div>
@@ -3418,7 +3397,7 @@ function PlatformAdminContent() {
       </section>
       <PlatformMobileNav
         route={route}
-        onNavigate={(nextRoute) => navigateToRoute(nextRoute, setRoute)}
+        onNavigate={(nextRoute) => goToRoute(nextRoute)}
       />
       {(createOpen || editingClient) && (
         <div

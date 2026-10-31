@@ -1,3 +1,4 @@
+import { useBackAction, useHistoryViewState, useExactBack } from '../../shared/ExactBackNavigation';
 import {
   ArrowLeft,
   Bike,
@@ -480,7 +481,7 @@ function ProfileEntry({ go }: { go: (screen: PreviewScreen) => void }) {
 }
 
 function ScreenContent({ screen, go, initialBusinessType }: { screen: PreviewScreen; go: (screen: PreviewScreen) => void; initialBusinessType?: string }) {
-  const back = () => go(backScreen[screen] ?? 'profile');
+  const back = useBackAction(() => go(backScreen[screen] ?? 'profile'));
   switch (screen) {
     case 'profile': return <ProfileEntry go={go} />;
     case 'roles': return <RoleSelection onBack={back} go={go} />;
@@ -501,10 +502,11 @@ function ScreenContent({ screen, go, initialBusinessType }: { screen: PreviewScr
 export function PartnerRegistrationPreview() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const backToApp = useExactBack('/profile');
   const start = searchParams.get('start');
   const directEntry = start === 'courier' || start === 'restaurant' || start === 'shop';
   const initialScreen: PreviewScreen = start === 'courier' ? 'courier-account' : directEntry ? 'seller-account' : 'profile';
-  const [screen, setScreen] = useState<PreviewScreen>(initialScreen);
+  const [screen, setScreen] = useHistoryViewState<PreviewScreen>('registration.preview.screen', initialScreen);
   const activeLabel = useMemo(() => screenGroups.flatMap((group) => group.items).find((item) => item.id === screen)?.label ?? '', [screen]);
 
   const go = (next: PreviewScreen) => {
@@ -519,7 +521,7 @@ export function PartnerRegistrationPreview() {
   if (directEntry) {
     return (
       <main className="partner-preview partner-preview--direct">
-        <div className="partner-preview__device-screen">
+        <div className="partner-preview__device-screen" data-navigation-scroll="partner-screen">
           <PartnerApplicationFlow kind={start} />
         </div>
       </main>
@@ -530,7 +532,7 @@ export function PartnerRegistrationPreview() {
     <main className="partner-preview">
       <header className="partner-preview__workspace-head">
         <div><span><Sparkles /> Локальный прототип</span><h1>Саморегистрация партнёров</h1><p>Обновлённый интерфейс · данные не отправляются в Supabase</p></div>
-        <a href="#/profile"><ArrowLeft /> Вернуться в приложение</a>
+        <button type="button" onClick={backToApp}><ArrowLeft /> Вернуться в приложение</button>
       </header>
       <div className="partner-preview__workspace">
         <aside className="partner-preview__navigator">
@@ -549,7 +551,7 @@ export function PartnerRegistrationPreview() {
         <section className="partner-preview__device-wrap" aria-label="Интерактивный мобильный прототип">
           <div className="partner-preview__device">
             <div className="partner-preview__device-bar"><span>13:08</span><i /><strong>WayYaam</strong><div><span /><span /><span /></div></div>
-            <div className="partner-preview__device-screen"><ScreenContent screen={screen} go={go} /></div>
+            <div className="partner-preview__device-screen" data-navigation-scroll="partner-screen"><ScreenContent screen={screen} go={go} /></div>
           </div>
         </section>
         <aside className="partner-preview__notes">

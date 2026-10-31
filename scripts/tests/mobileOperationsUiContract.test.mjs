@@ -167,7 +167,7 @@ describe('mobile operational interfaces', () => {
     assert.match(activeScreen, /Позвонить заведению/);
     assert.match(activeScreen, /Написать клиенту/);
     assert.match(activeScreen, /Контакты заказа/);
-    assert.match(activeScreen, /setContactTarget\(isHeadingToRestaurant \? 'restaurant' : 'client'\)/);
+    assert.match(activeScreen, /replaceContactTarget\(isHeadingToRestaurant \? 'restaurant' : 'client'\)/);
     assert.match(activeScreen, /setScreenStatus\(status\)/);
     assert.match(activeScreen, /const nextStop = currentDelivery/);
     assert.match(activeScreen, /hint: 'Для вручения заказа'/);

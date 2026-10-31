@@ -1,4 +1,4 @@
-import { useExactBack } from '../../shared/ExactBackNavigation';
+import { useExactBack, useHistoryViewState } from '../../shared/ExactBackNavigation';
 import { OrderDetailActions } from './OrderDetailActions';
 import { getOrderStage, getOrderPlaceName } from './orderDetailPresentation';
 import { resolveClientOrderRealtimeStatus } from '../client-platform/clientPlatformLogic';
@@ -200,13 +200,13 @@ function OrderLiveDetail({ name, total, orderType, address, status, items, saved
 
 function OrderContacts({ catalogSlug, restaurantName, restaurantTypeLabel, orderId, restaurantWhatsapp, courierAssigned, driverName, driverPhone }: { catalogSlug: string; restaurantName: string; restaurantTypeLabel: string; orderId: string; restaurantWhatsapp: string; courierAssigned: boolean; driverName?: string; driverPhone?: string }) {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'restaurant' | 'courier'>('restaurant');
-  const [chatOpen, setChatOpen] = useState(false);
+  const [tab, setTab, replaceTab] = useHistoryViewState<'restaurant' | 'courier'>('order.contact.tab', 'restaurant');
+  const [chatOpen, setChatOpen, replaceChatOpen] = useHistoryViewState('order.contact.chatOpen', false);
   const [messages, setMessages] = useState<DeliveryChatMessage[]>([]);
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
   const token = getStoredClientSessionToken();
-  useEffect(() => { if (!courierAssigned) { setTab('restaurant'); setChatOpen(false); } }, [courierAssigned]);
+  useEffect(() => { if (!courierAssigned) { replaceTab('restaurant'); replaceChatOpen(false); } }, [courierAssigned, replaceTab, replaceChatOpen]);
   useEffect(() => {
     if (!chatOpen || !token || !courierAssigned) return;
     let active = true;

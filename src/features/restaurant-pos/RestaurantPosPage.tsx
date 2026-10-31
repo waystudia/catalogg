@@ -1,3 +1,4 @@
+import { useBackAction, useHistoryViewState, useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import { ArrowLeft, Info, Minus, Plus, Search, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { Cabin, Category, Product } from '../../entities/models';
@@ -58,7 +59,7 @@ const paymentOptions = [
 const cashKeypad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0'] as const;
 
 function PosImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const [failedSource, setFailedSource] = useHistoryViewState<string | null>('pos.category', null);
   if (!src || failedSource === src) {
     return (
       <span className={className} role="img" aria-label={alt || 'Фото блюда'}>
@@ -149,9 +150,11 @@ export function RestaurantPosPage({
   nextGuestNumber = 1,
   onSubmitOrder
 }: RestaurantPosPageProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useEntrySnapshotState('pos.query', '');
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
+  const [detailsProduct, setDetailsProduct] = useHistoryViewState<Product | null>('pos.details', null);
+  const closeProductDetails = useBackAction(() => setDetailsProduct(null));
+  const backToCategories = useBackAction(() => { setCategoryId(null); setQuery(''); });
   const [items, setItems] = useState<RestaurantPosCartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -275,8 +278,7 @@ export function RestaurantPosPage({
                   setCategoryId('all');
                   return;
                 }
-                setCategoryId(null);
-                setQuery('');
+                backToCategories();
               }}
             >
               {!showCategories && <ArrowLeft />}
@@ -489,10 +491,10 @@ export function RestaurantPosPage({
 
       {detailsProduct && (
         <div className="restaurant-pos-product-modal" onPointerDown={(event) => {
-          if (event.currentTarget === event.target) setDetailsProduct(null);
+          if (event.currentTarget === event.target) closeProductDetails();
         }}>
           <section role="dialog" aria-modal="true" aria-labelledby="restaurant-pos-product-title">
-            <button type="button" aria-label="Закрыть информацию о блюде" onClick={() => setDetailsProduct(null)}><X /></button>
+            <button type="button" aria-label="Закрыть информацию о блюде" onClick={closeProductDetails}><X /></button>
             <PosImage src={detailsProduct.image_url} alt={detailsProduct.title} className="restaurant-pos-product-modal__image" />
             <div>
               <span><Info /> Информация о блюде</span>
@@ -504,7 +506,7 @@ export function RestaurantPosPage({
               </dl>
               <button type="button" disabled={readOnly} onClick={() => {
                 addProduct(detailsProduct);
-                setDetailsProduct(null);
+                closeProductDetails();
               }}>Добавить в заказ</button>
             </div>
           </section>

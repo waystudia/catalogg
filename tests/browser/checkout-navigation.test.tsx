@@ -31,3 +31,9 @@ test('a directly opened checkout has a safe user cart fallback', async () => {
   await screen.getByRole('button', { name: 'Назад', exact: true }).click();
   await expect.element(screen.getByText('/cart', { exact: true })).toBeVisible();
 });
+
+test('an untracked checkout origin never treats an unrelated earlier entry as safe Back', async () => {
+  const screen = await render(<MemoryRouter initialEntries={['/driver/profile', { pathname:'/mangal/checkout', state:{checkoutOrigin:'/mangal?cart=1'} }]}><Journey /></MemoryRouter>);
+  await screen.getByRole('button',{name:'Назад',exact:true}).click();
+  await expect.element(screen.getByText('/mangal?cart=1',{exact:true})).toBeVisible();
+});

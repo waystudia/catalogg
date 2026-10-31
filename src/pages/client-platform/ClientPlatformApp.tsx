@@ -1,4 +1,5 @@
-import { useExactBack } from '../../shared/ExactBackNavigation';
+import { getNavigationScope } from '../../shared/navigationScope';
+import { useExactBack, useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import { getOrderPlaceName } from '../../features/order/orderDetailPresentation';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { legalDocuments } from '../../shared/legalDocuments';
@@ -657,8 +658,8 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
   const setSelectedCity = useClientPlatformStore((state) => state.setSelectedCity);
   const favoriteDishIds = useClientPlatformStore((state) => state.favoriteDishIds);
   const toggleFavoriteDish = useClientPlatformStore((state) => state.toggleFavoriteDish);
-  const [businessFilter, setBusinessFilter] = useState<MarketplaceBusinessFilter>('all');
-  const [visibleCount, setVisibleCount] = useState(20);
+  const [businessFilter, setBusinessFilter] = useEntrySnapshotState<MarketplaceBusinessFilter>('marketplace.businessFilter', 'all');
+  const [visibleCount, setVisibleCount] = useEntrySnapshotState('marketplace.visibleCount', 20);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState('');
@@ -670,7 +671,14 @@ function HomePage({ snapshot, isLoading, isError, onRetry }: { snapshot: ClientP
   const marketplacePage = getMarketplacePage(marketplaceItems, visibleCount);
   const banners = snapshot.banners.filter((item) => item.isActive);
 
-  useEffect(() => setVisibleCount(20), [businessFilter, effectiveCityId]);
+  const previousFeedSelection = useRef({ businessFilter, effectiveCityId });
+  useEffect(() => {
+    const previous = previousFeedSelection.current;
+    if (previous.businessFilter !== businessFilter || previous.effectiveCityId !== effectiveCityId) {
+      previousFeedSelection.current = { businessFilter, effectiveCityId };
+      setVisibleCount(20);
+    }
+  }, [businessFilter, effectiveCityId, setVisibleCount]);
 
   useEffect(() => {
     setShowLocationPrompt(!selectedCityId && snapshot.cities.length > 0);
@@ -1453,11 +1461,12 @@ function RestaurantTopbar({ restaurant, title }: { restaurant: ClientRestaurant;
     const marketplaceReturn = (location.state as {
       marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
     } | null)?.marketplaceReturn;
-    if (typeof marketplaceReturn?.pathname !== 'string' || !marketplaceReturn.pathname.startsWith('/')) {
+    if (typeof marketplaceReturn?.pathname !== 'string' || getNavigationScope(marketplaceReturn.pathname) !== 'client') {
       navigate('/restaurants', { replace: true });
       return;
     }
     navigate(marketplaceReturn.pathname, {
+      replace: true,
       state: {
         restoreScrollY: typeof marketplaceReturn.scrollY === 'number' ? marketplaceReturn.scrollY : 0
       }
@@ -3174,7 +3183,7 @@ export function OrdersPage({ snapshot }: { snapshot: ClientPlatformSnapshot }) {
           <section className="plain-section">
             <h2>{history ? 'Завершённые' : 'Текущие'}</h2>
             <div className="order-list">{(history ? [...finishedOrders, ...canceledOrders] : currentOrders).map((order) => (
-              <Link className="order-card order-compact-link" to={`/${order.restaurantSlug}/order/${order.id}`} key={order.id} state={{ ordersOriginKey: location.key }} onClick={() => {
+              <Link className="order-card order-compact-link" to={`/${order.restaurantSlug}/order/${order.id}`} key={order.id} state={{ ordersOriginKey: location.key, ordersOriginPath: location.pathname + location.search }} onClick={() => {
                 try { window.sessionStorage.setItem(`wayyaam:orders-return:${location.key}`, String(window.scrollY)); } catch { /* Direct-entry fallback remains available. */ }
               }}>
                 <span className="order-card__summary"><strong>{order.restaurantName}</strong><small>№{order.id.slice(0, 8).toUpperCase()} · {formatPrice(order.totalAmount)}</small><em>{statusLabels[order.status]}</em></span><HomeActiveOrderCard order={order} snapshot={snapshot} status={statusLabels[order.status]} previewOnly /><ArrowRight aria-hidden="true" />

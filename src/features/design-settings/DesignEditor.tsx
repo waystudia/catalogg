@@ -1,3 +1,4 @@
+import { useBackAction } from '../../shared/ExactBackNavigation';
 import { ArrowLeft } from 'lucide-react';
 import type { Category, Product, Restaurant, ThemeSettings } from '../../entities/models';
 import { DishEditorPage } from '../dish-editor/DishEditorPage';
@@ -5,6 +6,8 @@ import { useAdminStore, useThemeStore } from '../stores';
 import { BackgroundSetting, ColorSetting } from './ThemeControls';
 
 export function DesignEditor({
+  editorOverride,
+  onEditorChange,
   editingProduct,
   categories,
   products,
@@ -15,6 +18,8 @@ export function DesignEditor({
   cartCount,
   onNavigate
 }: {
+  editorOverride?: 'dish' | 'categories' | 'design' | 'settings' | null;
+  onEditorChange?: (editor: 'dish' | 'categories' | 'design' | 'settings' | null) => void;
   editingProduct: Product | null;
   categories: Category[];
   products: Product[];
@@ -25,8 +30,11 @@ export function DesignEditor({
   cartCount: number;
   onNavigate: (target: 'home' | 'catalog' | 'drinks' | 'cabins' | 'profile' | 'backup') => void;
 }) {
-  const editor = useAdminStore((state) => state.editor);
-  const setEditor = useAdminStore((state) => state.setEditor);
+  const storedEditor = useAdminStore((state) => state.editor);
+  const storedSetEditor = useAdminStore((state) => state.setEditor);
+  const editor = editorOverride === undefined ? storedEditor : editorOverride;
+  const setEditor = onEditorChange ?? storedSetEditor;
+  const back = useBackAction(() => { onCloseProduct(); setEditor(null); });
   const theme = useThemeStore((state) => state.theme);
   const updateTheme = useThemeStore((state) => state.updateTheme);
 
@@ -44,10 +52,7 @@ export function DesignEditor({
             products={products}
             cartCount={cartCount}
             businessType={restaurant.business_type}
-            onBack={() => {
-              onCloseProduct();
-              setEditor(null);
-            }}
+            onBack={back}
             onSave={onSaveProduct}
             onNavigate={(target) => {
               onNavigate(target);
@@ -64,10 +69,7 @@ export function DesignEditor({
               <button
                 className="icon-button"
                 type="button"
-                onClick={() => {
-                  onCloseProduct();
-                  setEditor(null);
-                }}
+                onClick={back}
               >
                 <ArrowLeft />
               </button>

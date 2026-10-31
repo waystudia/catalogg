@@ -1,3 +1,4 @@
+import { useBackAction, useHistoryViewState } from '../../shared/ExactBackNavigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -64,7 +65,9 @@ export function DeliverySettingsCard({
   courierService?: RestaurantCourierService;
 }) {
   const [draft, setDraft] = useState(settings);
-  const [section, setSection] = useState<DetailSection>(null);
+  const [section, setSection] = useHistoryViewState<DetailSection>('delivery.settings.section', null);
+  const backToDelivery = useBackAction(() => setSection(null));
+  const backToSettings = useBackAction(onBack);
   const [courierEmail, setCourierEmail] = useState('');
   const [courierType, setCourierType] = useState<RestaurantCourierType | ''>('');
   const [pendingCourierTypes, setPendingCourierTypes] = useState<Record<string, RestaurantCourierType | ''>>({});
@@ -186,7 +189,7 @@ export function DeliverySettingsCard({
     return (
       <section className="admin-section-card delivery-settings-card delivery-settings-detail">
         <header>
-          <button type="button" onClick={() => setSection(null)} aria-label="Назад к доставке"><ArrowLeft /></button>
+          <button type="button" onClick={backToDelivery} aria-label="Назад к доставке"><ArrowLeft /></button>
           <div><small>Доставка и заказы</small><h2>{sectionTitles[section]}</h2></div>
         </header>
 
@@ -331,7 +334,7 @@ export function DeliverySettingsCard({
   return (
     <section className="admin-section-card delivery-settings-card delivery-settings-hub">
       <header className="delivery-settings-hub__header">
-        <button type="button" onClick={onBack} aria-label="Назад к настройкам"><ArrowLeft /></button>
+        <button type="button" onClick={backToSettings} aria-label="Назад к настройкам"><ArrowLeft /></button>
         <div><small>Настройки ресторана</small><h2>Доставка и заказы</h2></div>
       </header>
 

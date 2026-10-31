@@ -1,5 +1,5 @@
+import { useBackAction, useHistoryViewState } from '../../shared/ExactBackNavigation';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
 import type {
   Cabin,
   CatalogTag,
@@ -86,11 +86,16 @@ export function ExistingRestaurantSettingsPage({
   onImport: (payload: CatalogBackupPayload) => void;
   onSignOut: () => void;
 }) {
-  const [view, setView] = useState<ExistingRestaurantSettingsView>(initialView);
-  const [catalogTab, setCatalogTab] = useState<SettingsCatalogTab>('categories');
-  const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; id?: string }>({ mode: 'list' });
-  const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; id?: string }>({ mode: 'list' });
+  const [view, setView] = useHistoryViewState<ExistingRestaurantSettingsView>('existing.settings.view', initialView);
+  const [catalogTab, setCatalogTab] = useHistoryViewState<SettingsCatalogTab>('existing.settings.tab', 'categories');
+  const [categoryEditor, setCategoryEditor] = useHistoryViewState<{ mode: CategoryEditorMode; id?: string }>('existing.settings.category', { mode: 'list' });
+  const [cabinEditor, setCabinEditor] = useHistoryViewState<{ mode: CabinEditorMode; id?: string }>('existing.settings.cabin', { mode: 'list' });
 
+  const back = useBackAction(() => {
+    if (view === 'categories' && catalogTab === 'cabins' && cabinEditor.mode !== 'list') { setCabinEditor({ mode: 'list' }); return; }
+    if (view === 'categories' && categoryEditor.mode !== 'list') { setCategoryEditor({ mode: 'list' }); return; }
+    setView(view === 'theme' || view === 'photo-quality' ? 'design' : 'home');
+  });
   if (view === 'home') {
     return (
       <SettingsHub
@@ -120,20 +125,14 @@ export function ExistingRestaurantSettingsPage({
         settings={deliverySettings}
         onSave={onSaveDelivery}
         onOpenBackup={() => setView('backup')}
-        onBack={() => setView('home')}
+        onBack={back}
       />
     );
   }
 
   return (
     <section className="existing-restaurant-settings">
-      <button className="ra-back-button" type="button" onClick={() => {
-        if (view === 'theme' || view === 'photo-quality') {
-          setView('design');
-          return;
-        }
-        setView('home');
-      }}>
+      <button className="ra-back-button" type="button" onClick={back}>
         <ArrowLeft />
         Вернуться к настройкам
       </button>

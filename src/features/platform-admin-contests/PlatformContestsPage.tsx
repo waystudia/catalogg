@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { useBackAction, useHistoryViewState, useEntrySnapshotState } from '../../shared/ExactBackNavigation';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -38,12 +40,6 @@ const promotionStatus = (promotion: PlatformBannerAdmin) => {
   if (!promotion.imageUrl && !promotion.linkUrl) return { key: 'draft' as const, label: 'Черновик' };
   return { key: 'completed' as const, label: 'Завершена' };
 };
-
-function navigateToBannerSettings() {
-  const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-  window.history.pushState(null, '', `${base}#/admin/settings`);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
 
 function PromotionDetails({
   promotion,
@@ -119,9 +115,11 @@ export function PlatformContestsPage() {
     () => (bannersQuery.data ?? []).filter((banner) => banner.kind === 'contest' || banner.kind === 'promo'),
     [bannersQuery.data]
   );
-  const [selectedPromotionId, setSelectedPromotionId] = useState('all');
-  const [filter, setFilter] = useState<PromotionFilter>('all');
-  const [openPromotion, setOpenPromotion] = useState<PlatformBannerAdmin | null>(null);
+  const [selectedPromotionId, setSelectedPromotionId] = useEntrySnapshotState('platform.contests.selected', 'all');
+  const [filter, setFilter] = useEntrySnapshotState<PromotionFilter>('platform.contests.filter', 'all');
+  const [openPromotion, setOpenPromotion] = useHistoryViewState<PlatformBannerAdmin | null>('platform.contest.open', null);
+  const closePromotion = useBackAction(() => setOpenPromotion(null));
+  const navigate = useNavigate();
   const ticketsQuery = useQuery({
     queryKey: ['platform-contest-tickets', selectedPromotionId],
     queryFn: () => getPlatformContestTickets(selectedPromotionId)
@@ -149,7 +147,7 @@ export function PlatformContestsPage() {
           <h1>Акции и конкурсы</h1>
           <p>Один заказ создаёт один билет для активного конкурса</p>
         </div>
-        <button type="button" onClick={navigateToBannerSettings}><Plus />Создать акцию</button>
+        <button type="button" onClick={() => navigate('/admin/settings')}><Plus />Создать акцию</button>
       </header>
 
       <section className="platform-promotion-stats" aria-label="Статистика акций">
@@ -227,7 +225,7 @@ export function PlatformContestsPage() {
         <PromotionDetails
           promotion={openPromotion}
           tickets={tickets}
-          onClose={() => setOpenPromotion(null)}
+          onClose={closePromotion}
           onTicketRemoved={() => void ticketsQuery.refetch()}
         />
       )}

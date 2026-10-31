@@ -50,6 +50,7 @@ function ScrollOrigin() {
 test('nested Back restores query, router state and scroll; new forward navigation starts at top', async () => {
   const screen = await render(<MemoryRouter initialEntries={[{ pathname: '/restaurants', search: '?category=coffee', state: { selected: 'coffee' } }]}><ExactBackProvider><HistoryButtons /><Routes><Route path="/restaurants" element={<ScrollOrigin />} /><Route path="/mangal/order/:id" element={<><Detail /><Link to="/notifications">Уведомления</Link></>} /><Route path="/notifications" element={<Detail />} /><Route path="/mangal" element={<p>Неверный каталог</p>} /></Routes></ExactBackProvider></MemoryRouter>);
   await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  window.dispatchEvent(new WheelEvent('wheel', { deltaY: 650 }));
   window.scrollTo(0, 650);
   await expect.poll(() => window.scrollY).toBe(650);
   await screen.getByRole('link', { name: 'Открыть заказ' }).click();

@@ -61,6 +61,7 @@ export function CartSheet({
     <div className="cart-sheet-backdrop" onClick={onClose}>
       <section
         className="cart-sheet"
+        data-navigation-scroll="cart-sheet"
         role="dialog"
         aria-modal="true"
         aria-label="Корзина"

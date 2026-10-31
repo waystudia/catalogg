@@ -1,4 +1,5 @@
-import { useExactBack } from '../shared/ExactBackNavigation';
+import { getNavigationScope } from '../shared/navigationScope';
+import { useExactBack, useHistoryViewState, useEntrySnapshotState, useIsHistoryRestoration } from '../shared/ExactBackNavigation';
 import { CartSheet } from '../features/checkout/CartSheet';
 import { useCatalogRealtime } from './useCatalogRealtime';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
@@ -114,7 +115,6 @@ import {
   isSauceProduct,
   selectCartCount,
   selectCartTotal,
-  useAdminStore,
   useAuthStore,
   useCartStore,
   useThemeStore
@@ -793,7 +793,7 @@ function RestaurantCoverCarousel({ restaurant }: { restaurant: Restaurant }) {
   );
 }
 
-function CatalogScreen({
+export function CatalogScreen({
   restaurant,
   categories,
   products,
@@ -835,9 +835,11 @@ function CatalogScreen({
   focusProductTitle?: string;
 }) {
   const terms = getBusinessTerms(restaurant?.business_type);
-  const [active, setActive] = useState(initialCategory);
-  const [query, setQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const restoringCategory = useIsHistoryRestoration();
+  const [active, setActive] = useEntrySnapshotState('catalog.category', initialCategory);
+  const previousInitialCategory = useRef(initialCategory);
+  const [query, setQuery] = useEntrySnapshotState('catalog.query', '');
+  const [isSearchOpen, setIsSearchOpen] = useHistoryViewState('catalog.searchOpen', false);
   const [isNavStuck, setIsNavStuck] = useState(false);
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const cartItems = useCartStore((state) => state.items);
@@ -885,8 +887,11 @@ function CatalogScreen({
     : '';
 
   useEffect(() => {
-    setActive(initialCategory);
-  }, [initialCategory]);
+    if (previousInitialCategory.current !== initialCategory) {
+      previousInitialCategory.current = initialCategory;
+      setActive(initialCategory);
+    }
+  }, [initialCategory, setActive]);
 
   useEffect(() => {
     if (!focusProductId || initialCategory !== 'all') return undefined;
@@ -927,7 +932,7 @@ function CatalogScreen({
   }, [initialCategory, sections.length]);
 
   const lockCategoryUntilVisible = useCatalogCategoryObserver(
-    sectionRefs, normalizedQuery, sections.length, setActive
+    sectionRefs, normalizedQuery, sections.length, setActive, restoringCategory ? active : undefined
   );
 
   useEffect(() => {
@@ -1680,12 +1685,15 @@ function AppContent({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const restoringNavigation = useIsHistoryRestoration();
+  const backFromLocalScreen = useExactBack(() => replaceScreen('home'));
+  const returnFromProduct = useExactBack(() => fallbackFromProduct());
   const backFromOrder = useExactBack(() => returnFromPublicOrder(navigate, location.state, catalogSlug));
   const backToPlatform = useExactBack('/');
   const backFromReviews = useExactBack(`/${catalogSlug}`);
   const backFromCatalog = useExactBack(() => {
-    if (platformReturn) navigate(platformReturn.pathname, { state: { restoreScrollY: platformReturn.scrollY } });
-    else navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }));
+    if (platformReturn) navigate(platformReturn.pathname, { replace: true, state: { restoreScrollY: platformReturn.scrollY } });
+    else navigate(getRestaurantCatalogBackTarget({ catalogSlug, isAdmin, routeSection }), { replace: true });
   });
   const focusProductId = routeSection
     ? undefined
@@ -1752,20 +1760,21 @@ function AppContent({
   const isAdmin = useAuthStore((state) => state.isAdmin);
   const setAdmin = useAuthStore((state) => state.setAdmin);
   const [adminSessionChecked, setAdminSessionChecked] = useState(false);
-  const setAdminEditor = useAdminStore((state) => state.setEditor);
-  const [screen, setScreen] = useState<Screen>('home');
+  const [adminEditor, setAdminEditor] = useHistoryViewState<'dish' | 'categories' | 'design' | 'settings' | null>('catalog.editor', null);
+  const [screen, setScreen, replaceScreen] = useHistoryViewState<Screen>('catalog.screen', () => routeSection === 'checkout' ? 'checkout' : routeSection === 'payments' ? 'settings-payments' : ['dashboard', 'orders', 'finance', 'settings', 'scanner', 'pos'].includes(routeSection ?? '') ? 'admin-home' : routeSection === 'dishes' ? 'catalog' : 'home');
   const catalogScrollPositionRef = useRef(0);
   const [catalogCategory, setCatalogCategory] = useState('all');
   const [drinkCategory, setDrinkCategory] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const { openCheckout, goBackFromCheckout, closeCart, collapseCartToCatalog } = useCheckoutNavigation(catalogSlug, screen, setScreen, setIsCartOpen, isCartOpen);
+  const [selectedProduct, setSelectedProduct, replaceSelectedProduct] = useHistoryViewState<Product | null>('catalog.selectedProduct', null);
+  const [editingProduct, setEditingProduct] = useHistoryViewState<Product | null>('catalog.editingProduct', null);
+  const [isCartOpen, setIsCartOpen, replaceCartOpen] = useHistoryViewState('catalog.cart', false);
+  const { openCheckout, goBackFromCheckout, closeCart, collapseCartToCatalog } = useCheckoutNavigation(catalogSlug, screen, replaceScreen, replaceCartOpen, isCartOpen);
+  const backFromCart = useExactBack(closeCart);
   const [showAfterOrderPanel, setShowAfterOrderPanel] = useState(false);
   const [orderFlow, setOrderFlow] = useState<OrderFlowState>({ step: 'done', selectedByCategory: {} });
-  const [settingsCatalogTab, setSettingsCatalogTab] = useState<SettingsCatalogTab>('categories');
-  const [categoryEditor, setCategoryEditor] = useState<{ mode: CategoryEditorMode; categoryId?: string }>({ mode: 'list' });
-  const [cabinEditor, setCabinEditor] = useState<{ mode: CabinEditorMode; cabinId?: string }>({ mode: 'list' });
+  const [settingsCatalogTab, setSettingsCatalogTab] = useHistoryViewState<SettingsCatalogTab>('catalog.settingsCatalogTab', 'categories');
+  const [categoryEditor, setCategoryEditor] = useHistoryViewState<{ mode: CategoryEditorMode; categoryId?: string }>('catalog.categoryEditor', { mode: 'list' });
+  const [cabinEditor, setCabinEditor] = useHistoryViewState<{ mode: CabinEditorMode; cabinId?: string }>('catalog.cabinEditor', { mode: 'list' });
   const [localProducts, setLocalProducts] = useState<Product[]>(demoProducts);
   const [localCategories, setLocalCategories] = useState<Category[]>(demoCategories);
   const [localCabins, setLocalCabins] = useState<Cabin[]>(demoCabins);
@@ -1808,18 +1817,18 @@ function AppContent({
   const openRestaurantAdminPath = useCallback(
     (nextScreen: Screen = 'admin-home') => {
       const targetPath = nextScreen === 'settings-payments' ? `/${catalogSlug}/payments` : `/${catalogSlug}/dashboard`;
-      setScreen(nextScreen);
+      replaceScreen(nextScreen);
       rememberPwaResumePath(targetPath);
-      navigate(targetPath, { replace: true });
+      navigate(targetPath);
     },
-    [catalogSlug, navigate]
+    [catalogSlug, navigate, replaceScreen]
   );
   const openRestaurantSettingsHub = useCallback(() => {
     const targetPath = `/${catalogSlug}/settings`;
-    setScreen('admin-home');
+    replaceScreen('admin-home');
     rememberPwaResumePath(targetPath);
-    navigate(targetPath, { replace: true });
-  }, [catalogSlug, navigate]);
+    navigate(targetPath);
+  }, [catalogSlug, navigate, replaceScreen]);
 
   const refreshRestaurantOrders = useCallback(() => {
     if (!isAdmin) return;
@@ -1951,22 +1960,23 @@ function AppContent({
   }, [cartCount]);
 
   useEffect(() => {
+    if (restoringNavigation) return;
     if (routeSection === 'checkout' && !isAdmin) {
-      setScreen('checkout');
+      replaceScreen('checkout');
       return;
     }
     if (routeSection === 'dishes' && isAdmin) {
       setCatalogCategory('all');
-      setScreen('catalog');
+      replaceScreen('catalog');
       return;
     }
     if (routeSection === 'dashboard' || routeSection === 'orders' || routeSection === 'dishes' || routeSection === 'finance' || routeSection === 'settings' || routeSection === 'scanner') {
-      setScreen('admin-home');
+      replaceScreen('admin-home');
     }
     if (routeSection === 'payments') {
-      setScreen('settings-payments');
+      replaceScreen('settings-payments');
     }
-  }, [isAdmin, routeSection]);
+  }, [isAdmin, routeSection, restoringNavigation, replaceScreen]);
 
   useEffect(() => {
     setLoadingGraceExpired(false);
@@ -2076,7 +2086,7 @@ function AppContent({
     setScreen('product');
   };
 
-  const returnFromProduct = () => {
+  const fallbackFromProduct = () => {
     setSelectedProduct(null);
     setScreen('home');
     window.requestAnimationFrame(() => {
@@ -2107,7 +2117,7 @@ function AppContent({
       return next;
     });
     if (selectedProduct?.id === normalizedProduct.id) {
-      setSelectedProduct(normalizedProduct);
+      replaceSelectedProduct(normalizedProduct);
     }
     setEditingProduct(null);
     setAdminEditor(null);
@@ -2161,7 +2171,7 @@ function AppContent({
       )
     );
     if (selectedProduct?.id === productId) {
-      setSelectedProduct((current) => (current ? { ...current, current_stock: normalizedStock, stock_count: normalizedStock } : current));
+      replaceSelectedProduct((current) => (current ? { ...current, current_stock: normalizedStock, stock_count: normalizedStock } : current));
     }
     persist(updateProductInSupabase(productId, { current_stock: normalizedStock, stock_count: normalizedStock }));
   };
@@ -2181,7 +2191,7 @@ function AppContent({
       )
     );
     if (selectedProduct && normalized[selectedProduct.id] !== undefined) {
-      setSelectedProduct(applyStockValues(selectedProduct, normalized[selectedProduct.id]));
+      replaceSelectedProduct(applyStockValues(selectedProduct, normalized[selectedProduct.id]));
     }
     toast.success(message);
     persist(
@@ -2578,7 +2588,7 @@ function AppContent({
         setScreen('catalog');
         const targetPath = `/${catalogSlug}/dishes`;
         rememberPwaResumePath(targetPath);
-        navigate(targetPath, { replace: true });
+        navigate(targetPath);
       }}
       onAddDish={() => setAdminEditor('dish')}
       onOrderStatus={changeOrderStatus}
@@ -2673,7 +2683,7 @@ function AppContent({
                 returnFromProduct();
                 return;
               }
-              setScreen('home');
+              backFromLocalScreen();
             }}
             onPlatformBack={backToPlatform}
             onSearch={screen === 'home' && routeSection !== 'reviews' ? openCatalogSearch : undefined}
@@ -2733,7 +2743,7 @@ function AppContent({
               initialCategory={catalogCategory}
               onCart={() => setIsCartOpen(true)}
               onShare={shareCurrentPage}
-              onBack={() => setScreen('home')}
+              onBack={backFromLocalScreen}
               onOpenProduct={openProduct}
               onEditProduct={editProduct}
               onDeleteProduct={deleteProduct}
@@ -2805,7 +2815,10 @@ function AppContent({
           onAdd={() => setAdminEditor('dish')}
         />
       )}
+      {isAdmin && (
       <DesignEditor
+        editorOverride={adminEditor}
+        onEditorChange={setAdminEditor}
         editingProduct={editingProduct}
         categories={catalog.categories}
         products={catalog.products}
@@ -2838,10 +2851,11 @@ function AppContent({
           setAdminEditor(null);
         }}
       />
+      )}
       <CartSheet
         isOpen={isCartOpen}
         isLoading={isLoading}
-        onClose={closeCart}
+        onClose={backFromCart}
         onCheckout={checkoutFromCart}
         onMenu={() => {
           setScreen('home');
@@ -2863,7 +2877,7 @@ export function App() {
     marketplaceReturn?: { pathname?: unknown; scrollY?: unknown };
   } | null)?.marketplaceReturn;
   const platformReturn = typeof marketplaceReturnState?.pathname === 'string'
-    && marketplaceReturnState.pathname.startsWith('/')
+    && getNavigationScope(marketplaceReturnState.pathname) === 'client'
     ? {
         pathname: marketplaceReturnState.pathname,
         scrollY: typeof marketplaceReturnState.scrollY === 'number' ? marketplaceReturnState.scrollY : 0

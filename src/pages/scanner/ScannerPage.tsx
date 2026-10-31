@@ -1,3 +1,4 @@
+import { useExactBack } from '../../shared/ExactBackNavigation';
 import { ArrowLeft, CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-react';
 import jsQR from 'jsqr';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -76,6 +77,7 @@ export function ScannerPage({
 }) {
   const navigate = useNavigate();
   const { slug = '' } = useParams();
+  const back = useExactBack(onBack ?? (slug ? `/${slug}/dashboard` : '/'));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -224,7 +226,7 @@ export function ScannerPage({
       <button
         className="scanner-back-button"
         type="button"
-        onClick={onBack ?? (() => navigate(-1))}
+        onClick={back}
         aria-label="Назад"
       >
         <ArrowLeft />

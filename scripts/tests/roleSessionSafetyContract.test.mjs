@@ -10,8 +10,9 @@ test('role back buttons preserve the active account session', async () => {
   const driverHeader = driver.slice(driver.indexOf('function DriverHeader'), driver.indexOf('function DriverHomeScreen'));
 
   assert.match(restaurant, /getRestaurantCatalogBackTarget\(\{ catalogSlug, isAdmin, routeSection \}\)/);
-  assert.match(driver, /navigate\(getDriverBackTarget\(location\.pathname\)\)/);
+  assert.match(driver, /useExactBack\(getDriverBackTarget\(location\.pathname\)\)/);
   assert.doesNotMatch(driverHeader, /signOutDriver/);
+  assert.match(restaurant, /isAdmin && \(\s*<DesignEditor/);
 });
 
 test('restaurant, driver, and super admin sign-out actions require confirmation', async () => {
