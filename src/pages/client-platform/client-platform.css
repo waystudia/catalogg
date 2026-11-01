@@ -3554,7 +3554,7 @@
   }
 }
 
-.client-platform :is(.category-tile, .category-quick-card, .restaurant-card, .restaurant-list-item, .order-card, .profile-card) {
-  border: 1px solid #dfe4ec;
-  box-shadow: 0 4px 14px rgb(15 23 42 / 8%), 0 1px 3px rgb(15 23 42 / 5%);
+.client-platform :is(.marketplace-product-card, .category-tile, .category-quick-card, .restaurant-card, .restaurant-list-item, .order-card, .profile-card) {
+  border: 1px solid #b8c0cc;
+  box-shadow: 0 2px 4px rgb(15 23 42 / 16%), 0 1px 1px rgb(15 23 42 / 9%);
 }

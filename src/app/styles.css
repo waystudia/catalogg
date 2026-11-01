@@ -12015,12 +12015,12 @@ a {
 .product-heading strong,
 .facts dt { color: var(--text); }
 .product-tile {
-  border: 1px solid color-mix(in srgb, var(--product-card-text) 16%, transparent);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 5%);
+  border: 1px solid color-mix(in srgb, var(--product-card-text) 30%, transparent);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 18%), 0 1px 1px rgb(0 0 0 / 10%);
 }
 .cart-item-card {
-  border-color: rgb(255 255 255 / 18%);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  border-color: rgb(255 255 255 / 28%);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 22%);
 }
 @media (prefers-reduced-motion: reduce) {
   .cart-sheet-backdrop, .cart-sheet { animation: none; }
@@ -12049,8 +12049,8 @@ a {
   white-space: nowrap;
 }
 .catalog-category-showcase__card {
-  border-color: color-mix(in srgb, var(--text) 16%, transparent);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 8%), 0 1px 3px rgb(0 0 0 / 5%);
+  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 18%), 0 1px 1px rgb(0 0 0 / 10%);
 }
 .product-state--popular {
   border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
