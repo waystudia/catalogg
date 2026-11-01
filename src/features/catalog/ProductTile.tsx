@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Product } from '../../entities/models';
 import { getProductChoiceOptions } from '../../entities/productVariants';
 import { formatCatalogProductPrice, formatRublePrice } from '../../entities/productPricing';
+import { useBackAction, useHistoryViewState } from '../../shared/ExactBackNavigation';
+import { ProductVariantPicker } from './ProductVariantPicker';
 import { SafeImage } from '../../shared/SafeImage';
 import { useAuthStore, useCartStore } from '../stores';
 import {
@@ -180,7 +182,8 @@ export function ProductTile({
   onDelete,
   onToggle,
   onStockChange,
-  onAdd
+  onAdd,
+  viewKey = variant
 }: {
   product: Product;
   variant?: 'compact' | 'large' | 'drink';
@@ -190,6 +193,7 @@ export function ProductTile({
   onToggle?: (productId: string, key: 'is_popular' | 'is_hidden') => void;
   onStockChange?: (productId: string, stockCount: number) => void;
   onAdd?: (product: Product) => void;
+  viewKey?: string;
 }) {
   const add = useCartStore((state) => state.add);
   const decrement = useCartStore((state) => state.decrement);
@@ -201,6 +205,10 @@ export function ProductTile({
     .filter((item) => item.product.id === product.id)
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
+  const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useHistoryViewState(`product.variantMenu:${viewKey}:${product.id}`, false);
+  const dismissChoiceMenu = useBackAction(() => setIsChoiceMenuOpen(false));
+  const tileRef = useRef<HTMLElement | null>(null);
+  const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const requiresConfiguration = product.pricing_type === 'per_kg'
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
     || product.allow_inscription
@@ -263,6 +271,7 @@ export function ProductTile({
 
   return (
     <article
+      ref={tileRef}
       className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}${soldOut ? ' is-sold-out' : ''}`}
       data-product-id={product.id}
       onClick={() => onOpen(product)}
@@ -340,6 +349,7 @@ export function ProductTile({
             )}
             <button
               className="add-button product-tile__stepper-button"
+              ref={addButtonRef}
               type="button"
               disabled={soldOut}
               aria-label={`Добавить ${product.title}`}
@@ -350,8 +360,11 @@ export function ProductTile({
                   onOpen(product);
                   return;
                 }
-                if (choiceOptions[0]?.name) add(product, choiceOptions[0].name);
-                else add(product);
+                if (choiceOptions.length > 0) {
+                  setIsChoiceMenuOpen(true);
+                  return;
+                }
+                add(product);
                 onAdd?.(product);
                 playAddSound();
                 window.requestAnimationFrame(() => playCartAnimation(animationSnapshot));
@@ -362,6 +375,15 @@ export function ProductTile({
           </div>
         </div>
       </div>
+      {isChoiceMenuOpen && <ProductVariantPicker title={product.title} options={choiceOptions} anchorRef={tileRef} onDismiss={dismissChoiceMenu} onChoose={choice => {
+        const button = addButtonRef.current;
+        const snapshot = button ? captureCartAnimation(button) : null;
+        add(product, choice);
+        onAdd?.(product);
+        playAddSound();
+        dismissChoiceMenu();
+        if (snapshot) window.requestAnimationFrame(() => playCartAnimation(snapshot));
+      }} />}
     </article>
   );
 }

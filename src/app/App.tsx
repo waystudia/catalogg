@@ -1113,6 +1113,7 @@ export function CatalogScreen({
               {section.products.map((product) => (
                 <ProductTile
                   key={`${section.id}-${product.id}`}
+                  viewKey={`catalog:${section.id}`}
                   product={product}
                   variant="large"
                   onOpen={onOpenProduct}
@@ -1501,7 +1502,7 @@ function ProductScreen({
       <h3 className="subhead">Часто берут вместе</h3>
       <section className="pair-grid">
         {pairs.map((item) => (
-          <ProductTile key={item.id} product={item} onOpen={onOpenProduct} />
+          <ProductTile key={item.id} viewKey="related" product={item} onOpen={onOpenProduct} />
         ))}
       </section>
 
