@@ -14,7 +14,7 @@ type BackContextValue = {
   read: (name: string) => unknown;
   capture: (name: string, value: unknown) => void;
   snapshot: (name: string, initial: unknown, update: (current: unknown) => unknown) => boolean;
-  change: (name: string, initial: unknown, update: (current: unknown) => unknown, replace?: boolean) => void;
+  change: (name: string, initial: unknown, update: (current: unknown) => unknown, replace?: boolean, preserveScroll?: boolean) => void;
 };
 const BackContext = createContext<BackContextValue | null>(null);
 const viewStateKey = 'wayyaamViews';
@@ -46,7 +46,7 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
   const currentKey = useRef<string | null>(null);
   const snapshots = useRef<Record<string, Views>>({});
   const fallbackDepth = useRef(0);
-  const pending = useRef<{ key: string; values: Views; replace: boolean } | null>(null);
+  const pending = useRef<{ key: string; values: Views; replace: boolean; overlayY?: number } | null>(null);
   const liveLocation = useRef(location);
   liveLocation.current = location;
   const knownEntry = journal.current.entries.find(e => e.key === location.key);
@@ -61,6 +61,8 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const path = location.pathname + location.search + location.hash;
     const j = journal.current;
+    const overlayState = location.state as { wayyaamPreserveViewScroll?: boolean; restoreScrollY?: unknown } | null;
+    const overlayY = overlayState?.wayyaamPreserveViewScroll === true && typeof overlayState.restoreScrollY === 'number' && Number.isFinite(overlayState.restoreScrollY) ? Math.max(0, overlayState.restoreScrollY) : undefined;
     const save = () => {
       const retained = new Set(j.entries.map(entry => entry.key));
       for (const key of Object.keys(snapshots.current)) if (!retained.has(key)) delete snapshots.current[key];
@@ -80,7 +82,7 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
         else { j.entries = [{ key: location.key, path, y: 0 }]; j.index = 0; }
       } else {
         const keep = action === 'REPLACE' ? j.index : j.index + 1;
-        j.entries = [...j.entries.slice(0, Math.max(0, keep)), { key: location.key, path, y: action === 'REPLACE' ? j.entries[j.index]?.y ?? 0 : 0, scrollers: action === 'REPLACE' ? j.entries[j.index]?.scrollers : undefined }].slice(-100);
+        j.entries = [...j.entries.slice(0, Math.max(0, keep)), { key: location.key, path, y: overlayY ?? (action === 'REPLACE' ? j.entries[j.index]?.y ?? 0 : 0), scrollers: action === 'REPLACE' || overlayY !== undefined ? j.entries[j.index]?.scrollers : undefined }].slice(-100);
         j.index = j.entries.length - 1;
       }
     }
@@ -94,7 +96,7 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
     const target = preservePosition ? j.entries[j.index]?.y ?? 0 : typeof explicitY === 'number' && Number.isFinite(explicitY) ? Math.max(0, explicitY) : 0;
     const search = new URLSearchParams(location.search);
     const targeted = !restoring && (search.has('focusDish') || search.has('focusDishTitle'));
-    const scrollers = preservePosition ? j.entries[j.index]?.scrollers ?? {} : {};
+    const scrollers = preservePosition || overlayY !== undefined ? j.entries[j.index]?.scrollers ?? {} : {};
     let retry: number | undefined;
     const deadline = Date.now() + 10_000;
     let settledFrames = 0;
@@ -176,7 +178,7 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
       views()[name] = next;
       return true;
     },
-    change: (name, initial, update, replace = false) => {
+    change: (name, initial, update, replace = false, preserveScroll = false) => {
       if (renderedRevision !== revision.current) return;
       const queued = pending.current?.key === location.key ? pending.current : null;
       const values = queued?.key === location.key ? queued.values : { ...views() };
@@ -184,14 +186,14 @@ export function ExactBackProvider({ children }: { children: ReactNode }) {
       const next = update(current);
       if (equal(current, next)) return;
       values[name] = next;
-      pending.current = { key: location.key, values, replace: fallbackDepth.current > 0 ? true : queued?.replace === false ? false : replace };
+      pending.current = { key: location.key, values, replace: fallbackDepth.current > 0 ? true : queued?.replace === false ? false : replace, overlayY: queued?.overlayY ?? (preserveScroll ? window.scrollY : undefined) };
       if (queued?.key === location.key) return;
       queueMicrotask(() => {
         const target = pending.current;
         if (!target || target.key !== location.key) return;
         pending.current = null;
         if (liveLocation.current.key !== target.key) return;
-        navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: target.replace, state: { ...location.state, [viewStateKey]: target.values, wayyaamPrincipal: journal.current.principal, wayyaamPreserveScroll: target.replace } });
+        navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: target.replace, state: { ...location.state, [viewStateKey]: target.values, wayyaamPrincipal: journal.current.principal, wayyaamPreserveScroll: target.replace, ...(target.overlayY !== undefined ? { restoreScrollY: target.overlayY, wayyaamPreserveViewScroll: true } : (location.state as { wayyaamPreserveViewScroll?: boolean } | null)?.wayyaamPreserveViewScroll ? { restoreScrollY: undefined, wayyaamPreserveViewScroll: undefined } : {}) } });
       });
     }, back: () => {
     const j = journal.current;
@@ -214,19 +216,19 @@ export function useExactBack(fallback: string | (() => void)) {
 export const useIsHistoryRestoration = () => useContext(BackContext)?.restoring ?? false;
 
 /** Record a local screen/tab/modal as a genuine history step, batching related setters. */
-export function useHistoryViewState<T>(name: string, initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>, Dispatch<SetStateAction<T>>] {
+export function useHistoryViewState<T>(name: string, initial: T | (() => T), options?: { preserveScroll?: boolean }): [T, Dispatch<SetStateAction<T>>, Dispatch<SetStateAction<T>>] {
   const context = useContext(BackContext);
   const [fallback, setFallback] = useState(initial);
   const defaultValue = typeof initial === 'function' ? (initial as () => T)() : initial;
   const remembered = context?.read(name);
   const value = context ? (remembered === undefined ? defaultValue : remembered) as T : fallback;
   useLayoutEffect(() => { context?.capture(name, value); });
-  const live = useRef({ context, defaultValue });
-  live.current = { context, defaultValue };
+  const live = useRef({ context, defaultValue, preserveScroll: options?.preserveScroll ?? false });
+  live.current = { context, defaultValue, preserveScroll: options?.preserveScroll ?? false };
   const change = useCallback((update: SetStateAction<T>, replace: boolean) => {
     const latest = live.current;
     if (!latest.context) { setFallback(update); return; }
-    latest.context.change(name, latest.defaultValue, current => typeof update === 'function' ? (update as (current: T) => T)(current as T) : update, replace);
+    latest.context.change(name, latest.defaultValue, current => typeof update === 'function' ? (update as (current: T) => T)(current as T) : update, replace, latest.preserveScroll);
   }, [name]);
   const push = useCallback((update: SetStateAction<T>) => change(update, false), [change]);
   const replace = useCallback((update: SetStateAction<T>) => change(update, true), [change]);

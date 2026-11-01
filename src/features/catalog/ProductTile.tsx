@@ -205,7 +205,7 @@ export function ProductTile({
     .filter((item) => item.product.id === product.id)
     .reduce((total, item) => total + item.quantity, 0);
   const choiceOptions = getProductChoiceOptions(product);
-  const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useHistoryViewState(`product.variantMenu:${viewKey}:${product.id}`, false);
+  const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useHistoryViewState(`product.variantMenu:${viewKey}:${product.id}`, false, { preserveScroll: true });
   const dismissChoiceMenu = useBackAction(() => setIsChoiceMenuOpen(false));
   const tileRef = useRef<HTMLElement | null>(null);
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
