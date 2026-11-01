@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Minus, Plus, ShieldCheck, ShoppingCart, Trash2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { ArrowRight, Minus, Plus, ShieldCheck, ShoppingCart, Trash2 } from 'lucide-react';
 import { getCartLineId, getSelectedModifierDetails, getCartItemPrice } from '../../entities/productModifiers';
 import { selectCartCount, selectCartTotal, useCartStore } from '../stores';
 import { playCartSound } from '../restaurant-settings/catalogAdminModel';
 import { SafeImage } from '../../shared/SafeImage';
+
+import { useCartSheetDrag } from './useCartSheetDrag';
 
 const formatPrice = (value: number) => `${new Intl.NumberFormat('ru-RU').format(value)} ₽`;
 
@@ -28,9 +30,7 @@ export function CartSheet({
   const subtotal = selectCartTotal(items);
   const delivery = 0;
   const total = subtotal + delivery;
-  const dragStart = useRef<number | null>(null);
-  const dragged = useRef(false);
-  const [dragOffset, setDragOffset] = useState(0);
+  const { sheetRef, offset, motion, suppressClick, dismiss } = useCartSheetDrag(isOpen, onMenu);
 
   useEffect(() => {
     if (!isOpen) {
@@ -58,57 +58,35 @@ export function CartSheet({
   }
 
   return (
-    <div className="cart-sheet-backdrop" onClick={onClose}>
+    <div className="cart-sheet-backdrop" data-closing={motion === 'closing'} onClick={() => { if (motion !== 'closing') onClose(); }}>
       <section
         className="cart-sheet"
+        ref={sheetRef}
+        data-motion={motion}
         data-navigation-scroll="cart-sheet"
         role="dialog"
         aria-modal="true"
         aria-label="Корзина"
-        style={{ transform: `translateY(${dragOffset}px)` }}
+        style={{ transform: `translateY(${offset}px)` }}
+        onClickCapture={(event) => {
+          if (suppressClick.current && event.detail > 0) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
         onClick={(event) => event.stopPropagation()}
       >
         <button
           className="cart-sheet__handle"
           type="button"
           aria-label="Свернуть корзину"
-          onClick={(event) => {
-            if (event.detail === 0 || !dragged.current) onMenu();
-          }}
-          onPointerDown={(event) => {
-            if (!event.isPrimary || event.button !== 0) return;
-            dragStart.current = event.clientY;
-            dragged.current = false;
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            if (dragStart.current === null) return;
-            const distance = Math.max(0, event.clientY - dragStart.current);
-            if (distance > 6) dragged.current = true;
-            setDragOffset(distance);
-          }}
-          onPointerUp={(event) => {
-            if (dragStart.current === null) return;
-            const distance = event.clientY - dragStart.current;
-            dragStart.current = null;
-            setDragOffset(0);
-            if (distance >= 72) onMenu();
-          }}
-          onPointerCancel={() => {
-            dragStart.current = null;
-            dragged.current = true;
-            setDragOffset(0);
-          }}
+          onClick={dismiss}
         ><span /></button>
         <header className="cart-sheet__header">
-          <button type="button" onClick={onClose} aria-label="Вернуться назад">
-            <ArrowLeft />
-          </button>
           <div>
             <h2>Корзина</h2>
             <p>{count} {count % 10 === 1 && count % 100 !== 11 ? 'товар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'товара' : 'товаров'}</p>
           </div>
-          <span aria-hidden="true" />
         </header>
 
         {isLoading && (

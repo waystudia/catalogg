@@ -12081,3 +12081,15 @@ a {
   white-space: nowrap;
 }
 .catalog-nav__identity-text > small { color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.15; }
+
+.cart-sheet { overscroll-behavior-y: contain; }
+.cart-sheet__header { grid-template-columns: minmax(0, 1fr); }
+.cart-sheet[data-motion="dragging"] { animation: none; transition: none; user-select: none; }
+.cart-sheet[data-motion="settling"], .cart-sheet[data-motion="closing"] {
+  animation: none;
+  transition: transform 240ms cubic-bezier(.22, 1, .36, 1);
+}
+.cart-sheet-backdrop[data-closing="true"] { animation: none; opacity: 0; transition: opacity 240ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .cart-sheet[data-motion], .cart-sheet-backdrop[data-closing] { transition: none; }
+}

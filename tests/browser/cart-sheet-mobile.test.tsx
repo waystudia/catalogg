@@ -34,12 +34,13 @@ test('populated mobile cart has a centered title and returns to the previous car
   const title = screen.getByRole('heading', { name: 'Корзина', exact: true }).element().getBoundingClientRect();
   expect(Math.abs(title.left + title.width / 2 - 319 / 2)).toBeLessThan(2);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(319);
-  await screen.getByRole('button', { name: 'Вернуться назад' }).click();
+  expect(screen.getByRole('button', { name: 'Вернуться назад' }).elements()).toHaveLength(0);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   await expect.element(screen.getByText('/cart', { exact: true })).toBeVisible();
   expect(screen.getByRole('dialog').elements()).toHaveLength(0);
 });
 
-test('pulling the handle down dismisses the cart, while short drags and scrolling its content do not', async () => {
+test('dragging anywhere closes a cart only at its scroll top; short drags return it', async () => {
   useCartStore.setState({ items: products.slice(0, 4).map(product => ({ product, quantity: 1 })) });
   const screen = await render(<MemoryRouter initialEntries={['/mangal?cart=1']}><CartJourney /></MemoryRouter>);
   const handle = screen.getByRole('button', { name: 'Свернуть корзину' }).element();
@@ -47,9 +48,19 @@ test('pulling the handle down dismisses the cart, while short drags and scrollin
   handle.setPointerCapture = () => {};
   drag(handle, 25);
   await expect.element(screen.getByRole('dialog')).toBeVisible();
-  drag(document.querySelector('.cart-sheet__list')!, 130);
+  const panel = screen.getByRole('dialog').element();
+  panel.scrollTop = 40;
+  drag(document.querySelector('.cart-sheet__list')!, 160);
   await expect.element(screen.getByRole('dialog')).toBeVisible();
-  drag(handle, 110);
+  const content = document.querySelector('.cart-sheet__list')!;
+  content.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, isPrimary: true, button: 0, clientY: 20 }));
+  panel.scrollTop = 0;
+  content.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 1, isPrimary: true, clientY: 180 }));
+  content.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, isPrimary: true, clientY: 180 }));
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  drag(content, 160);
   await expect.element(screen.getByText('/mangal', { exact: true })).toBeVisible();
   expect(screen.getByRole('dialog').elements()).toHaveLength(0);
 });
@@ -76,4 +87,34 @@ test('cart reveals the full product description while keeping its selected varia
   await expect.element(screen.getByText(description.trim(), { exact: true })).toBeVisible();
   expect(useCartStore.getState().items[0].quantity).toBe(2);
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(319);
+});
+
+
+test('a short pull follows the pointer then settles back without losing cart contents', async () => {
+  await page.viewport(422, 618);
+  useCartStore.setState({ items: [{ product: products[0], quantity: 2 }] });
+  const screen = await render(<MemoryRouter><CartJourney /></MemoryRouter>);
+  const panel = screen.getByRole('dialog').element();
+  await expect.poll(() => panel.getAnimations().filter(animation => animation.playState === 'running').length).toBe(0);
+  const top = panel.getBoundingClientRect().top;
+  const content = panel.querySelector('.cart-item-card')!;
+  content.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, isPrimary: true, button: 0, clientY: 150 }));
+  content.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 1, isPrimary: true, clientY: 195 }));
+  await expect.poll(() => panel.getBoundingClientRect().top - top).toBeGreaterThan(40);
+  content.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, isPrimary: true, clientY: 195 }));
+  await expect.poll(() => Math.abs(panel.getBoundingClientRect().top - top)).toBeLessThan(1);
+  expect(useCartStore.getState().items[0].quantity).toBe(2);
+});
+
+
+test('dragging from a quantity button never also changes its quantity', async () => {
+  useCartStore.setState({ items: [{ product: products[0], quantity: 1 }] });
+  const screen = await render(<MemoryRouter initialEntries={['/mangal?cart=1']}><CartJourney /></MemoryRouter>);
+  const button = screen.getByRole('button', { name: 'Увеличить', exact: true });
+  await button.click();
+  expect(useCartStore.getState().items[0].quantity).toBe(2);
+  drag(button.element(), 160);
+  button.element().dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  expect(useCartStore.getState().items[0].quantity).toBe(2);
+  await expect.element(screen.getByText('/mangal', { exact: true })).toBeVisible();
 });
