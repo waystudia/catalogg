@@ -1,13 +1,12 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ProductChoiceOption } from '../../entities/models';
 import { formatRublePrice } from '../../entities/productPricing';
 
-/** The original compact variant menu, positioned above its product card. */
-export function ProductVariantPicker({ title, options, anchorRef, onChoose, onDismiss }: {
+/** The compact variant menu, centered in the viewport. */
+export function ProductVariantPicker({ title, options, onChoose, onDismiss }: {
   title: string;
   options: ProductChoiceOption[];
-  anchorRef: RefObject<HTMLElement>;
   onChoose: (name: string) => void;
   onDismiss: () => void;
 }) {
@@ -19,13 +18,7 @@ export function ProductVariantPicker({ title, options, anchorRef, onChoose, onDi
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const update = () => {
-      const rect = anchorRef.current?.getBoundingClientRect(), menu = menuRef.current;
-      if (!rect || !menu) return;
-      const half = menu.offsetWidth / 2;
-      setPosition({
-        left: Math.max(half + 12, Math.min(window.innerWidth - half - 12, rect.left + rect.width / 2)),
-        top: Math.min(window.innerHeight - 12, Math.max(menu.offsetHeight + 12, rect.top - 8))
-      });
+      setPosition({ left: window.innerWidth / 2, top: window.innerHeight / 2 });
     };
     const frame = requestAnimationFrame(update);
     window.addEventListener('resize', update);
@@ -37,7 +30,7 @@ export function ProductVariantPicker({ title, options, anchorRef, onChoose, onDi
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus({ preventScroll: true });
     };
-  }, [anchorRef]);
+  }, []);
   useLayoutEffect(() => {
     if (position && !focused.current) {
       menuRef.current?.querySelector('button')?.focus({ preventScroll: true });

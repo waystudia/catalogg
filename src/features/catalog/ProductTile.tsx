@@ -207,7 +207,6 @@ export function ProductTile({
   const choiceOptions = getProductChoiceOptions(product);
   const [isChoiceMenuOpen, setIsChoiceMenuOpen] = useHistoryViewState(`product.variantMenu:${viewKey}:${product.id}`, false, { preserveScroll: true });
   const dismissChoiceMenu = useBackAction(() => setIsChoiceMenuOpen(false));
-  const tileRef = useRef<HTMLElement | null>(null);
   const addButtonRef = useRef<HTMLButtonElement | null>(null);
   const requiresConfiguration = product.pricing_type === 'per_kg'
     || (product.modifier_groups ?? []).some((group) => group.isActive !== false)
@@ -271,7 +270,6 @@ export function ProductTile({
 
   return (
     <article
-      ref={tileRef}
       className={`product-tile product-tile--${variant}${product.is_hidden ? ' is-hidden' : ''}${soldOut ? ' is-sold-out' : ''}`}
       data-product-id={product.id}
       onClick={() => onOpen(product)}
@@ -375,7 +373,7 @@ export function ProductTile({
           </div>
         </div>
       </div>
-      {isChoiceMenuOpen && <ProductVariantPicker title={product.title} options={choiceOptions} anchorRef={tileRef} onDismiss={dismissChoiceMenu} onChoose={choice => {
+      {isChoiceMenuOpen && <ProductVariantPicker title={product.title} options={choiceOptions} onDismiss={dismissChoiceMenu} onChoose={choice => {
         const button = addButtonRef.current;
         const snapshot = button ? captureCartAnimation(button) : null;
         add(product, choice);

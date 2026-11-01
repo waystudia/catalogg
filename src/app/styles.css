@@ -12094,7 +12094,7 @@ a {
   .cart-sheet[data-motion], .cart-sheet-backdrop[data-closing] { transition: none; }
 }
 
-/* Restore the compact, card-anchored variant panel (original design: 98682e60). */
+/* Compact variant panel, centered independently of its source card. */
 .product-tile__choice-overlay { position: fixed; inset: 0; z-index: 100; }
 .product-tile__choice-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
 .product-tile__choice-menu {
@@ -12109,7 +12109,7 @@ a {
   padding: 8px;
   background: #fff;
   box-shadow: 0 2px 4px rgb(15 23 42 / 18%);
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
 }
 .product-tile__choice-menu > span { padding: 1px 3px 3px; color: #667085; font-size: 11px; font-weight: 750; }
 .product-tile__choice-menu button { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 10px; border: 0; border-radius: 9px; padding: 7px 8px; background: #f8fafc; color: #171a24; text-align: left; }
